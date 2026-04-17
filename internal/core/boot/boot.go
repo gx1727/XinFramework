@@ -3,6 +3,7 @@ package boot
 import (
 	"fmt"
 
+	"gx1727.com/xin-framework/configs"
 	"gx1727.com/xin-framework/internal/core/server"
 	"gx1727.com/xin-framework/internal/infra/cache"
 	"gx1727.com/xin-framework/internal/infra/db"

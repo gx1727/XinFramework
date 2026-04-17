@@ -1,7 +1,10 @@
 package jwt
 
 import (
+	"time"
+
 	"github.com/golang-jwt/jwt/v5"
+	"gx1727.com/xin-framework/configs"
 )
 
 type Claims struct {
@@ -17,8 +20,7 @@ func Generate(cfg *configs.JWTConfig, userID, tenantID uint, role string) (strin
 		TenantID: tenantID,
 		Role:     role,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(jwt.NewNumericDate(nil).Add(
-				jwt.TimeDuration(int64(cfg.Expire) * 1e9))),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(cfg.Expire) * time.Second)),
 		},
 	}
 

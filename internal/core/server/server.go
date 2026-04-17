@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/gin-gonic/gin"
+	"gx1727.com/xin-framework/configs"
 )
 
 type XinServer struct {

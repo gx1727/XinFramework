@@ -2,6 +2,7 @@ package cache
 
 import (
 	"github.com/go-redis/redis/v8"
+	"gx1727.com/xin-framework/configs"
 )
 
 var Client *redis.Client

@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"gx1727.com/xin-framework/configs"
 	"gx1727.com/xin-framework/internal/core/context"
 )
 
@@ -41,13 +42,9 @@ func Auth(cfg *configs.JWTConfig) gin.HandlerFunc {
 
 func Tenant() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tenantID := c.GetHeader("X-Tenant-ID")
 		ctx := context.New(c)
-		if tenantID != "" {
-			var tid uint
-			if _, err := gin.DefaultBinding.BindTenantParams(c, &tid); err == nil {
-				ctx.SetTenantID(tid)
-			}
+		if tenantID := c.GetHeader("X-Tenant-ID"); tenantID != "" {
+			ctx.SetTenantID(0)
 		}
 		c.Next()
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"gx1727.com/xin-framework/configs"
 	"gx1727.com/xin-framework/internal/core/boot"
 	"gx1727.com/xin-framework/internal/core/middleware"
 	"gx1727.com/xin-framework/internal/core/server"
