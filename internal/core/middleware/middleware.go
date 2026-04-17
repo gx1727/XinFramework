@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -43,8 +44,10 @@ func Auth(cfg *configs.JWTConfig) gin.HandlerFunc {
 func Tenant() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := context.New(c)
-		if tenantID := c.GetHeader("X-Tenant-ID"); tenantID != "" {
-			ctx.SetTenantID(0)
+		if tenantIDStr := c.GetHeader("X-Tenant-ID"); tenantIDStr != "" {
+			if tenantID, err := strconv.ParseUint(tenantIDStr, 10, 64); err == nil {
+				ctx.SetTenantID(uint(tenantID))
+			}
 		}
 		c.Next()
 	}

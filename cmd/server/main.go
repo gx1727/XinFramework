@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
+	"gx1727.com/xin-framework/api/v1"
 	"gx1727.com/xin-framework/configs"
 	"gx1727.com/xin-framework/internal/core/boot"
 	"gx1727.com/xin-framework/internal/core/middleware"
 	"gx1727.com/xin-framework/internal/core/server"
+	"gx1727.com/xin-framework/pkg/resp"
+
+	"github.com/gin-gonic/gin"
 	"log"
 )
 
@@ -35,12 +38,22 @@ func setupRouter(srv *server.XinServer, cfg *configs.Config) {
 	srv.Engine.Use(middleware.Recovery())
 	srv.Engine.Use(middleware.Tenant())
 
+	v1.RegisterRoutes(srv.Engine)
+
 	auth := srv.Engine.Group("/api/v1")
 	auth.Use(middleware.Auth(&cfg.JWT))
 	{
-		auth.GET("/users", func(c *gin.Context) {})
-		auth.POST("/users", func(c *gin.Context) {})
-		auth.PUT("/users/:id", func(c *gin.Context) {})
-		auth.DELETE("/users/:id", func(c *gin.Context) {})
+		auth.GET("/users", func(c *gin.Context) {
+			resp.Error(c, 501, "not implemented")
+		})
+		auth.POST("/users", func(c *gin.Context) {
+			resp.Error(c, 501, "not implemented")
+		})
+		auth.PUT("/users/:id", func(c *gin.Context) {
+			resp.Error(c, 501, "not implemented")
+		})
+		auth.DELETE("/users/:id", func(c *gin.Context) {
+			resp.Error(c, 501, "not implemented")
+		})
 	}
 }
