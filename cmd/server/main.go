@@ -2,13 +2,11 @@ package main
 
 import (
 	"fmt"
-	"log"
-
 	"github.com/gin-gonic/gin"
-	"github.com/xin-framework/xin/configs"
-	"github.com/xin-framework/xin/internal/core/boot"
-	"github.com/xin-framework/xin/internal/core/middleware"
-	"github.com/xin-framework/xin/internal/core/server"
+	"gx1727.com/xin-framework/internal/core/boot"
+	"gx1727.com/xin-framework/internal/core/middleware"
+	"gx1727.com/xin-framework/internal/core/server"
+	"log"
 )
 
 func main() {

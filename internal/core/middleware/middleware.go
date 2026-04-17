@@ -6,8 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/xin-framework/xin/configs"
-	"github.com/xin-framework/xin/internal/core/context"
+	"gx1727.com/xin-framework/internal/core/context"
 )
 
 func Auth(cfg *configs.JWTConfig) gin.HandlerFunc {

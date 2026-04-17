@@ -3,11 +3,10 @@ package boot
 import (
 	"fmt"
 
-	"github.com/xin-framework/xin/configs"
-	"github.com/xin-framework/xin/internal/core/server"
-	"github.com/xin-framework/xin/internal/infra/cache"
-	"github.com/xin-framework/xin/internal/infra/db"
-	"github.com/xin-framework/xin/internal/infra/logger"
+	"gx1727.com/xin-framework/internal/core/server"
+	"gx1727.com/xin-framework/internal/infra/cache"
+	"gx1727.com/xin-framework/internal/infra/db"
+	"gx1727.com/xin-framework/internal/infra/logger"
 )
 
 func Init(cfg *configs.Config) (*server.XinServer, error) {

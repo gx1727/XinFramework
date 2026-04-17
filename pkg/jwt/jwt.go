@@ -2,7 +2,6 @@ package jwt
 
 import (
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/xin-framework/xin/configs"
 )
 
 type Claims struct {

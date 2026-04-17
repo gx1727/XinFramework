@@ -2,7 +2,7 @@ package v1
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/xin-framework/xin/pkg/resp"
+	"gx1727.com/xin-framework/pkg/resp"
 )
 
 func RegisterRoutes(r *gin.Engine) {
