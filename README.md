@@ -199,3 +199,16 @@ DELETE /api/v1/users/:id
 - Tenant Middleware（自动注入 tenant_id）
 - Logger Middleware
 - Rate Limit（限流）
+
+## 编译
+
+```
+# 基础编译
+go build -o xin-server.exe .\cmd\server\main.go
+
+
+# 优化编译
+go build -ldflags="-s -w" -o xin-server.exe .\cmd\server\main.go
+
+
+```

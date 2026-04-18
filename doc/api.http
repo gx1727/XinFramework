@@ -1,0 +1,29 @@
+
+###
+GET http://localhost:8080/api/v1/health
+#Authorization: Bearer {{user}}
+
+###
+GET http://localhost:8080/api/v1/users
+
+
+
+###
+POST http://localhost:8080/api/v1/users
+Authorization: Bearer {{user}}
+{
+  "name": "test",
+  "email": "test",
+  "password": "password"
+}
+
+###
+PUT http://localhost:8080/api/v1/users/:id
+
+###
+DELETE http://localhost:8080/api/v1/user/:id
+
+
+
+
+
