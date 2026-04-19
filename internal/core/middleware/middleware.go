@@ -7,11 +7,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"gx1727.com/xin-framework/configs"
-	"gx1727.com/xin-framework/internal/core/context"
+	"gx1727.com/xin/internal/core/context"
+	"gx1727.com/xin/pkg/config"
 )
 
-func Auth(cfg *configs.JWTConfig) gin.HandlerFunc {
+func Auth(cfg *config.JWTConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		auth := c.GetHeader("Authorization")
 		if auth == "" {

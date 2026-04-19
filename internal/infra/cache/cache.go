@@ -2,12 +2,12 @@ package cache
 
 import (
 	"github.com/go-redis/redis/v8"
-	"gx1727.com/xin-framework/configs"
+	"gx1727.com/xin/pkg/config"
 )
 
 var Client *redis.Client
 
-func Init(cfg *configs.RedisConfig) {
+func Init(cfg *config.RedisConfig) {
 	Client = redis.NewClient(&redis.Options{
 		Addr:     cfg.Addr(),
 		Password: cfg.Password,

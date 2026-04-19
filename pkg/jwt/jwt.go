@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"gx1727.com/xin-framework/configs"
+	"gx1727.com/xin/pkg/config"
 )
 
 type Claims struct {
@@ -14,7 +14,7 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-func Generate(cfg *configs.JWTConfig, userID, tenantID uint, role string) (string, error) {
+func Generate(cfg *config.JWTConfig, userID, tenantID uint, role string) (string, error) {
 	claims := Claims{
 		UserID:   userID,
 		TenantID: tenantID,

@@ -2,19 +2,19 @@ package main
 
 import (
 	"fmt"
-	"gx1727.com/xin-framework/api/v1"
-	"gx1727.com/xin-framework/configs"
-	"gx1727.com/xin-framework/internal/core/boot"
-	"gx1727.com/xin-framework/internal/core/middleware"
-	"gx1727.com/xin-framework/internal/core/server"
-	"gx1727.com/xin-framework/pkg/resp"
+	"gx1727.com/xin/api/v1"
+	"gx1727.com/xin/internal/core/boot"
+	"gx1727.com/xin/internal/core/middleware"
+	"gx1727.com/xin/internal/core/server"
+	"gx1727.com/xin/pkg/config"
+	"gx1727.com/xin/pkg/resp"
 
 	"github.com/gin-gonic/gin"
 	"log"
 )
 
 func main() {
-	cfg, err := configs.Load("configs/config.yaml")
+	cfg, err := config.Load("config/config.yaml")
 	if err != nil {
 		log.Fatalf("config load failed: %v", err)
 	}
@@ -33,7 +33,7 @@ func main() {
 	}
 }
 
-func setupRouter(srv *server.XinServer, cfg *configs.Config) {
+func setupRouter(srv *server.XinServer, cfg *config.Config) {
 	srv.Engine.Use(middleware.Logger())
 	srv.Engine.Use(middleware.Recovery())
 	srv.Engine.Use(middleware.Tenant())

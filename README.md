@@ -61,11 +61,10 @@ xin/
 │   └── server/
 │       └── main.go
 
-├── configs/                      # 配置（多环境）
+├── config/                       # 配置文件（多环境）
 │   ├── config.yaml
 │   ├── config.dev.yaml
-│   ├── config.prod.yaml
-│   └── config.go
+│   └── config.prod.yaml
 
 ├── api/                          # API 版本定义（对外协议层）
 │   ├── v1/
