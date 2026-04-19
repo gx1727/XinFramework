@@ -36,7 +36,7 @@ func main() {
 func setupRouter(srv *server.XinServer, cfg *config.Config) {
 	srv.Engine.Use(middleware.Logger())
 	srv.Engine.Use(middleware.Recovery())
-	srv.Engine.Use(middleware.Tenant())
+	srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode))
 
 	v1.RegisterRoutes(srv.Engine)
 

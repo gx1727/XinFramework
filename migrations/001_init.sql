@@ -400,6 +400,7 @@ DROP TABLE IF EXISTS dict_items;
 CREATE TABLE dict_items
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id  BIGINT      NOT NULL,
     dict_id    BIGINT      NOT NULL,
     code       VARCHAR(32) NOT NULL,
     name       VARCHAR(64) NOT NULL,
@@ -411,9 +412,11 @@ CREATE TABLE dict_items
 );
 CREATE UNIQUE INDEX uk_dict_item_code ON dict_items (dict_id, code) WHERE is_deleted = FALSE;
 CREATE INDEX idx_dict_item_dict ON dict_items (dict_id);
+CREATE INDEX idx_dict_item_tenant ON dict_items (tenant_id) WHERE is_deleted = FALSE;
 
 COMMENT ON TABLE dict_items IS '字典项表 - 字典的具体选项';
 COMMENT ON COLUMN dict_items.id IS '字典项ID';
+COMMENT ON COLUMN dict_items.tenant_id IS '租户ID';
 COMMENT ON COLUMN dict_items.dict_id IS '所属字典ID';
 COMMENT ON COLUMN dict_items.code IS '字典项编码';
 COMMENT ON COLUMN dict_items.name IS '字典项名称';
@@ -559,27 +562,6 @@ COMMENT ON COLUMN ai_documents.tenant_id IS '租户ID';
 COMMENT ON COLUMN ai_documents.title IS '文档标题';
 COMMENT ON COLUMN ai_documents.content IS '文档内容';
 
-CREATE EXTENSION IF NOT EXISTS vector;
-
-DROP TABLE IF EXISTS ai_embeddings;
-CREATE TABLE ai_embeddings
-(
-    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    tenant_id  BIGINT NOT NULL,
-    doc_id     BIGINT NOT NULL,
-    embedding  VECTOR(1536),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    is_deleted BOOLEAN     DEFAULT FALSE
-);
-CREATE INDEX idx_ai_emb_tenant ON ai_embeddings (tenant_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_ai_emb_doc ON ai_embeddings (doc_id) WHERE is_deleted = FALSE;
-
-COMMENT ON TABLE ai_embeddings IS 'AI向量嵌入表 - 文档向量表示';
-COMMENT ON COLUMN ai_embeddings.id IS '嵌入ID';
-COMMENT ON COLUMN ai_embeddings.tenant_id IS '租户ID';
-COMMENT ON COLUMN ai_embeddings.doc_id IS '关联文档ID';
-COMMENT ON COLUMN ai_embeddings.embedding IS '向量数据（1536维）';
 
 -- ============================================
 -- 🔐 多租户 RLS (行级安全) 策略模板
@@ -613,41 +595,38 @@ ALTER TABLE usage_records
     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_documents
     ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ai_embeddings
-    ENABLE ROW LEVEL SECURITY;
 
 -- 2. 创建租户隔离策略 (读取 & 写入)
 -- 依赖应用层在连接池中执行: SET app.tenant_id = '当前租户ID';
+-- 不设 app.tenant_id 时放行所有行（单租户模式），设了则按租户过滤（SaaS模式）
 CREATE POLICY tenant_isolation_policy ON organizations
-    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 CREATE POLICY tenant_isolation_policy ON users
-    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 CREATE POLICY tenant_isolation_policy ON roles
-    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 CREATE POLICY tenant_isolation_policy ON user_roles
-    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 CREATE POLICY tenant_isolation_policy ON menus
-    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 CREATE POLICY tenant_isolation_policy ON resources
-    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 CREATE POLICY tenant_isolation_policy ON routes
-    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 CREATE POLICY tenant_isolation_policy ON permissions
-    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 CREATE POLICY tenant_isolation_policy ON dicts
-    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 CREATE POLICY tenant_isolation_policy ON dict_items
-    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 CREATE POLICY tenant_isolation_policy ON tenant_users
-    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 CREATE POLICY tenant_isolation_policy ON subscriptions
-    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 CREATE POLICY tenant_isolation_policy ON usage_records
-    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 CREATE POLICY tenant_isolation_policy ON ai_documents
-    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
-CREATE POLICY tenant_isolation_policy ON ai_embeddings
-    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 
 -- ============================================
 -- 初始化数据
