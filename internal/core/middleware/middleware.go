@@ -1,10 +1,13 @@
 package middleware
 
 import (
+	"gx1727.com/xin/internal/infra/logger"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/golang-jwt/jwt/v5"
 	"gx1727.com/xin/internal/core/context"
 	"gx1727.com/xin/internal/infra/db"
@@ -42,6 +45,18 @@ func Auth(cfg *config.JWTConfig) gin.HandlerFunc {
 	}
 }
 
+func RequestID() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		requestID := c.GetHeader("X-Request-ID")
+		if requestID == "" {
+			requestID = uuid.New().String()
+		}
+		c.Set("request_id", requestID)
+		c.Header("X-Request-ID", requestID)
+		c.Next()
+	}
+}
+
 func Tenant(mode string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if mode == "" {
@@ -63,7 +78,37 @@ func Tenant(mode string) gin.HandlerFunc {
 }
 
 func Logger() gin.HandlerFunc {
-	return gin.Logger()
+	return func(c *gin.Context) {
+		start := time.Now()
+		path := c.Request.URL.Path
+		raw := c.Request.URL.RawQuery
+
+		c.Next()
+
+		latency := time.Since(start)
+		clientIP := c.ClientIP()
+		method := c.Request.Method
+		statusCode := c.Writer.Status()
+
+		requestID, _ := c.Get("request_id")
+		reqID, _ := requestID.(string)
+		if reqID == "" {
+			reqID = "-"
+		}
+
+		if raw != "" {
+			path = path + "?" + raw
+		}
+
+		switch {
+		case statusCode >= 500:
+			logger.Errorf("[%s] %s %s | %d | %v | %s", reqID, method, path, statusCode, latency, clientIP)
+		case statusCode >= 400:
+			logger.Warnf("[%s] %s %s | %d | %v | %s", reqID, method, path, statusCode, latency, clientIP)
+		default:
+			logger.Infof("[%s] %s %s | %d | %v | %s", reqID, method, path, statusCode, latency, clientIP)
+		}
+	}
 }
 
 func Recovery() gin.HandlerFunc {

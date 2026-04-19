@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OutputName="xin-server"
+OutputName="xin"
 BuildPath="./cmd/server/main.go"
 OutDir="./out"
 

@@ -110,6 +110,8 @@ func Init(dir string, level string) {
 		logger: log.New(w, "[xin] ", log.LstdFlags),
 		writer: w,
 	}
+
+	log.SetOutput(w)
 }
 
 func parseLevel(s string) int {

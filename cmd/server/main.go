@@ -9,16 +9,45 @@ import (
 	"gx1727.com/xin/pkg/config"
 	"gx1727.com/xin/pkg/resp"
 	"log"
-	"net"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	pidFile = "./xin.pid"
+	logFile = "./xin.log"
+)
+
 func main() {
+	if len(os.Args) < 2 {
+		runServer()
+		return
+	}
+
+	switch os.Args[1] {
+	case "start":
+		cmdStart()
+	case "stop":
+		cmdStop()
+	case "restart":
+		cmdRestart()
+	case "reload":
+		cmdReload()
+	case "status":
+		cmdStatus()
+	case "hot-restart":
+		cmdHotRestart()
+	case "run":
+		runServer()
+	case "help", "-h", "--help":
+		printUsage()
+	default:
+		printUsage()
+	}
+}
+
+func runServer() {
 	cfg, err := config.Load("config/config.yaml")
 	if err != nil {
 		log.Fatalf("config load failed: %v", err)
@@ -48,6 +77,7 @@ func main() {
 }
 
 func setupRouter(srv *server.XinServer, cfg *config.Config) {
+	srv.Engine.Use(middleware.RequestID())
 	srv.Engine.Use(middleware.Logger())
 	srv.Engine.Use(middleware.Recovery())
 	srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode))
@@ -70,33 +100,4 @@ func setupRouter(srv *server.XinServer, cfg *config.Config) {
 			resp.Error(c, 1001, "not implemented")
 		})
 	}
-}
-
-func waitForSignal() {
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1, syscall.SIGUSR2)
-
-	sig := <-sigCh
-	log.Printf("Received signal: %v", sig)
-
-	boot.GetServer().Shutdown(30 * time.Second)
-
-	log.Printf("Server exited gracefully")
-	os.Exit(0)
-}
-
-func sdNotifyReady() error {
-	if os.Getenv("NOTIFY_SOCKET") == "" {
-		return nil
-	}
-
-	socketPath := os.Getenv("NOTIFY_SOCKET")
-	conn, err := net.Dial("unixgram", socketPath)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	_, err = conn.Write([]byte("READY=1"))
-	return err
 }
