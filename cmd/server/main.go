@@ -8,9 +8,14 @@ import (
 	"gx1727.com/xin/internal/core/server"
 	"gx1727.com/xin/pkg/config"
 	"gx1727.com/xin/pkg/resp"
+	"log"
+	"net"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"log"
 )
 
 func main() {
@@ -28,9 +33,18 @@ func main() {
 
 	addr := fmt.Sprintf("%s:%d", cfg.App.Host, cfg.App.Port)
 	log.Printf("server starting on %s", addr)
-	if err := srv.Start(addr); err != nil {
-		log.Fatalf("server start failed: %v", err)
+
+	go func() {
+		if err := srv.Start(addr); err != nil {
+			log.Fatalf("server start failed: %v", err)
+		}
+	}()
+
+	if err := sdNotifyReady(); err != nil {
+		log.Printf("sd_notify ready: %v", err)
 	}
+
+	waitForSignal()
 }
 
 func setupRouter(srv *server.XinServer, cfg *config.Config) {
@@ -56,4 +70,33 @@ func setupRouter(srv *server.XinServer, cfg *config.Config) {
 			resp.Error(c, 1001, "not implemented")
 		})
 	}
+}
+
+func waitForSignal() {
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1, syscall.SIGUSR2)
+
+	sig := <-sigCh
+	log.Printf("Received signal: %v", sig)
+
+	boot.GetServer().Shutdown(30 * time.Second)
+
+	log.Printf("Server exited gracefully")
+	os.Exit(0)
+}
+
+func sdNotifyReady() error {
+	if os.Getenv("NOTIFY_SOCKET") == "" {
+		return nil
+	}
+
+	socketPath := os.Getenv("NOTIFY_SOCKET")
+	conn, err := net.Dial("unixgram", socketPath)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = conn.Write([]byte("READY=1"))
+	return err
 }

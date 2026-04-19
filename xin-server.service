@@ -1,0 +1,28 @@
+[Unit]
+Description=XinFramework HTTP Server
+Documentation=https://github.com/gx1727/XinFramework
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+ExecStart=/opt/xin-server/xin-server
+WorkingDirectory=/opt/xin-server
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30
+LimitNOFILE=65536
+
+User=xin-server
+Group=xin-server
+
+Environment="NOTIFY_SOCKET=/run/xin-server/notify"
+
+ReadWritePaths=/opt/xin-server/logs /opt/xin-server/out
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=xin-server
+
+[Install]
+WantedBy=multi-user.target

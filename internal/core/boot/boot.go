@@ -2,12 +2,18 @@ package boot
 
 import (
 	"fmt"
+	"sync"
 
 	"gx1727.com/xin/internal/core/server"
 	"gx1727.com/xin/internal/infra/cache"
 	"gx1727.com/xin/internal/infra/db"
 	"gx1727.com/xin/internal/infra/logger"
 	"gx1727.com/xin/pkg/config"
+)
+
+var (
+	globalSrv *server.XinServer
+	once      sync.Once
 )
 
 func Init(cfg *config.Config) (*server.XinServer, error) {
@@ -18,5 +24,12 @@ func Init(cfg *config.Config) (*server.XinServer, error) {
 	cache.Init(&cfg.Redis)
 
 	srv := server.New(cfg)
+	once.Do(func() {
+		globalSrv = srv
+	})
 	return srv, nil
+}
+
+func GetServer() *server.XinServer {
+	return globalSrv
 }

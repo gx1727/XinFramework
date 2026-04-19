@@ -117,31 +117,31 @@ func loadEnv(path string) error {
 }
 
 func overrideWithEnv(c *Config) {
-	envStr("APP_NAME", &c.App.Name)
-	envStr("APP_ENV", &c.App.Env)
-	envStr("APP_HOST", &c.App.Host)
-	envInt("APP_PORT", &c.App.Port)
+	envStr("XIN_APP_NAME", &c.App.Name)
+	envStr("XIN_APP_ENV", &c.App.Env)
+	envStr("XIN_APP_HOST", &c.App.Host)
+	envInt("XIN_APP_PORT", &c.App.Port)
 
-	envStr("DB_HOST", &c.Database.Host)
-	envInt("DB_PORT", &c.Database.Port)
-	envStr("DB_USER", &c.Database.User)
-	envStr("DB_PASSWORD", &c.Database.Password)
-	envStr("DB_NAME", &c.Database.DBName)
-	envStr("DB_SSLMODE", &c.Database.SSLMode)
+	envStr("XIN_DB_HOST", &c.Database.Host)
+	envInt("XIN_DB_PORT", &c.Database.Port)
+	envStr("XIN_DB_USER", &c.Database.User)
+	envStr("XIN_DB_PASSWORD", &c.Database.Password)
+	envStr("XIN_DB_NAME", &c.Database.DBName)
+	envStr("XIN_DB_SSLMODE", &c.Database.SSLMode)
 
-	envStr("REDIS_HOST", &c.Redis.Host)
-	envInt("REDIS_PORT", &c.Redis.Port)
-	envStr("REDIS_PASSWORD", &c.Redis.Password)
-	envInt("REDIS_DB", &c.Redis.DB)
+	envStr("XIN_REDIS_HOST", &c.Redis.Host)
+	envInt("XIN_REDIS_PORT", &c.Redis.Port)
+	envStr("XIN_REDIS_PASSWORD", &c.Redis.Password)
+	envInt("XIN_REDIS_DB", &c.Redis.DB)
 
-	envStr("JWT_SECRET", &c.JWT.Secret)
-	envInt("JWT_EXPIRE", &c.JWT.Expire)
-	envInt("JWT_REFRESH_EXPIRE", &c.JWT.RefreshExpire)
+	envStr("XIN_JWT_SECRET", &c.JWT.Secret)
+	envInt("XIN_JWT_EXPIRE", &c.JWT.Expire)
+	envInt("XIN_JWT_REFRESH_EXPIRE", &c.JWT.RefreshExpire)
 
-	envStr("SAAS_MODE", &c.Saas.Mode)
+	envStr("XIN_SAAS_MODE", &c.Saas.Mode)
 
-	envStr("LOG_DIR", &c.Log.Dir)
-	envStr("LOG_LEVEL", &c.Log.Level)
+	envStr("XIN_LOG_DIR", &c.Log.Dir)
+	envStr("XIN_LOG_LEVEL", &c.Log.Level)
 }
 
 func envStr(key string, target *string) {
