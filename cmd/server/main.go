@@ -44,16 +44,16 @@ func setupRouter(srv *server.XinServer, cfg *config.Config) {
 	auth.Use(middleware.Auth(&cfg.JWT))
 	{
 		auth.GET("/users", func(c *gin.Context) {
-			resp.Error(c, 501, "not implemented")
+			resp.Error(c, 1001, "not implemented")
 		})
 		auth.POST("/users", func(c *gin.Context) {
-			resp.Error(c, 501, "not implemented")
+			resp.Error(c, 1001, "not implemented")
 		})
 		auth.PUT("/users/:id", func(c *gin.Context) {
-			resp.Error(c, 501, "not implemented")
+			resp.Error(c, 1001, "not implemented")
 		})
 		auth.DELETE("/users/:id", func(c *gin.Context) {
-			resp.Error(c, 501, "not implemented")
+			resp.Error(c, 1001, "not implemented")
 		})
 	}
 }

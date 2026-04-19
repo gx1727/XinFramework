@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"net/http"
 	"strconv"
 	"strings"
 
@@ -10,13 +9,14 @@ import (
 	"gx1727.com/xin/internal/core/context"
 	"gx1727.com/xin/internal/infra/db"
 	"gx1727.com/xin/pkg/config"
+	"gx1727.com/xin/pkg/resp"
 )
 
 func Auth(cfg *config.JWTConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		auth := c.GetHeader("Authorization")
 		if auth == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "unauthorized"})
+			resp.Unauthorized(c, "unauthorized")
 			c.Abort()
 			return
 		}
@@ -27,7 +27,7 @@ func Auth(cfg *config.JWTConfig) gin.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "invalid token"})
+			resp.Unauthorized(c, "invalid token")
 			c.Abort()
 			return
 		}

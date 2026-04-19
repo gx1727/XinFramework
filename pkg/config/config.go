@@ -16,6 +16,7 @@ type Config struct {
 	Redis    RedisConfig    `yaml:"redis"`
 	JWT      JWTConfig      `yaml:"jwt"`
 	Saas     SaasConfig     `yaml:"saas"`
+	Log      LogConfig      `yaml:"log"`
 }
 
 type AppConfig struct {
@@ -49,6 +50,11 @@ type JWTConfig struct {
 
 type SaasConfig struct {
 	Mode string `yaml:"mode"`
+}
+
+type LogConfig struct {
+	Dir   string `yaml:"dir"`
+	Level string `yaml:"level"`
 }
 
 func (d *DatabaseConfig) DSN() string {
@@ -133,6 +139,9 @@ func overrideWithEnv(c *Config) {
 	envInt("JWT_REFRESH_EXPIRE", &c.JWT.RefreshExpire)
 
 	envStr("SAAS_MODE", &c.Saas.Mode)
+
+	envStr("LOG_DIR", &c.Log.Dir)
+	envStr("LOG_LEVEL", &c.Log.Level)
 }
 
 func envStr(key string, target *string) {

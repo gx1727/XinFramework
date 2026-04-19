@@ -25,3 +25,7 @@ jwt:
 
 saas:
   mode: shared # shared | schema | database
+
+log:
+  dir: logs
+  level: info # debug | info | warn | error

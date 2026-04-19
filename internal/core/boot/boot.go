@@ -11,7 +11,7 @@ import (
 )
 
 func Init(cfg *config.Config) (*server.XinServer, error) {
-	logger.Init()
+	logger.Init(cfg.Log.Dir, cfg.Log.Level)
 	if err := db.Init(&cfg.Database); err != nil {
 		return nil, fmt.Errorf("db init failed: %w", err)
 	}
