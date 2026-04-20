@@ -5,11 +5,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build Commands
 
 ```bash
-# Basic build
-go build -o xin-server.exe .\cmd\server\main.go
+# Build using the build script (outputs to ./out/xin)
+./build.sh
 
-# Optimized build (no debug info)
-go build -ldflags="-s -w" -o xin-server.exe .\cmd\server\main.go
+# Manual build
+go build -ldflags="-s -w" -o ./out/xin ./cmd/server/
 ```
 
 ## Architecture Overview

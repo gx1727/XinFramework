@@ -9,7 +9,9 @@
       "Bash(./out/xin help *)",
       "Bash(./out/xin start *)",
       "Bash(./out/xin status *)",
-      "Bash(./out/xin stop *)"
+      "Bash(./out/xin stop *)",
+      "Bash(go mod *)",
+      "Bash(./build.sh *)"
     ]
   }
 }

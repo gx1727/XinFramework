@@ -1,7 +1,7 @@
 #!/bin/bash
 
 OutputName="xin"
-BuildPath="./cmd/server/main.go"
+BuildPath="./cmd/server/"
 OutDir="./out"
 
 # Create output directory
