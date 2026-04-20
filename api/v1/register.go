@@ -7,10 +7,15 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/golang-jwt/jwt/v5"
+
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/argon2"
 	"gx1727.com/xin/internal/infra/db"
+	"gx1727.com/xin/internal/infra/session"
 	"gx1727.com/xin/pkg/config"
 	jwtpkg "gx1727.com/xin/pkg/jwt"
 	"gx1727.com/xin/pkg/resp"
@@ -113,7 +118,13 @@ func RegisterRoutes(r *gin.Engine) {
 				return
 			}
 
-			token, err := jwtpkg.Generate(&cfg.JWT, u.ID, u.TenantID, roleCode)
+			sessionID := uuid.NewString()
+			if err := session.Create(sessionID, u.ID, u.TenantID, roleCode, time.Duration(cfg.JWT.Expire)*time.Second); err != nil {
+				resp.ServerError(c, "create session failed")
+				return
+			}
+
+			token, err := jwtpkg.Generate(&cfg.JWT, u.ID, u.TenantID, roleCode, sessionID)
 			if err != nil {
 				resp.ServerError(c, "generate token failed")
 				return
@@ -127,8 +138,37 @@ func RegisterRoutes(r *gin.Engine) {
 					"code":      u.Code,
 					"role":      roleCode,
 				},
-				"session_id": uuid.NewString(),
 			})
+		})
+
+		v1.POST("/logout", func(c *gin.Context) {
+			auth := c.GetHeader("Authorization")
+			if auth == "" {
+				resp.Unauthorized(c, "unauthorized")
+				return
+			}
+			tokenStr := strings.TrimPrefix(auth, "Bearer ")
+
+			cfg := config.Get()
+			if cfg == nil {
+				resp.ServerError(c, "config not initialized")
+				return
+			}
+
+			claims := &jwtpkg.Claims{}
+			token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+				return []byte(cfg.JWT.Secret), nil
+			})
+			if err != nil || !token.Valid {
+				resp.Unauthorized(c, "invalid token")
+				return
+			}
+
+			if err := session.Revoke(claims.SessionID); err != nil {
+				resp.ServerError(c, "revoke session failed")
+				return
+			}
+			resp.Success(c, gin.H{"ok": true})
 		})
 	}
 }

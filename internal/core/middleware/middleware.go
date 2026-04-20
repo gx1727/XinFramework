@@ -1,17 +1,20 @@
 package middleware
 
 import (
-	"gx1727.com/xin/internal/infra/logger"
 	"strconv"
 	"strings"
 	"time"
 
+	"gx1727.com/xin/internal/infra/logger"
+
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"gx1727.com/xin/internal/core/context"
 	"gx1727.com/xin/internal/infra/db"
+	"gx1727.com/xin/internal/infra/session"
 	"gx1727.com/xin/pkg/config"
+	jwtpkg "gx1727.com/xin/pkg/jwt"
 	"gx1727.com/xin/pkg/resp"
 )
 
@@ -25,7 +28,8 @@ func Auth(cfg *config.JWTConfig) gin.HandlerFunc {
 		}
 
 		tokenStr := strings.TrimPrefix(auth, "Bearer ")
-		token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+		claims := &jwtpkg.Claims{}
+		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte(cfg.Secret), nil
 		})
 
@@ -35,11 +39,20 @@ func Auth(cfg *config.JWTConfig) gin.HandlerFunc {
 			return
 		}
 
-		claims := token.Claims.(jwt.MapClaims)
-		if userID, ok := claims["user_id"].(float64); ok {
-			ctx := context.New(c)
-			ctx.SetUserID(uint(userID))
+		ok, err := session.Validate(claims.SessionID)
+		if err != nil || !ok {
+			resp.Unauthorized(c, "session expired or revoked")
+			c.Abort()
+			return
 		}
+
+		ctx := context.New(c)
+		ctx.SetUserID(claims.UserID)
+		ctx.SetTenantID(claims.TenantID)
+		c.Set("user_id", claims.UserID)
+		c.Set("tenant_id", claims.TenantID)
+		c.Set("session_id", claims.SessionID)
+		c.Set("role", claims.Role)
 
 		c.Next()
 	}

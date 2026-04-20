@@ -11,14 +11,16 @@ type Claims struct {
 	UserID   uint   `json:"user_id"`
 	TenantID uint   `json:"tenant_id"`
 	Role     string `json:"role"`
+	SessionID string `json:"sid"`
 	jwt.RegisteredClaims
 }
 
-func Generate(cfg *config.JWTConfig, userID, tenantID uint, role string) (string, error) {
+func Generate(cfg *config.JWTConfig, userID, tenantID uint, role, sessionID string) (string, error) {
 	claims := Claims{
 		UserID:   userID,
 		TenantID: tenantID,
 		Role:     role,
+		SessionID: sessionID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(cfg.Expire) * time.Second)),
 		},

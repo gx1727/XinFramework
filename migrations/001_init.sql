@@ -562,6 +562,26 @@ COMMENT ON COLUMN ai_documents.tenant_id IS '租户ID';
 COMMENT ON COLUMN ai_documents.title IS '文档标题';
 COMMENT ON COLUMN ai_documents.content IS '文档内容';
 
+DROP TABLE IF EXISTS auth_sessions;
+CREATE TABLE auth_sessions
+(
+    session_id VARCHAR(64) PRIMARY KEY,
+    user_id    BIGINT      NOT NULL,
+    tenant_id  BIGINT      NOT NULL DEFAULT 0,
+    role       VARCHAR(64),
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ          DEFAULT NOW()
+);
+CREATE INDEX idx_auth_sessions_expires_at ON auth_sessions (expires_at);
+
+COMMENT ON TABLE auth_sessions IS '登录会话表 - Redis 不可用时的会话持久化兜底';
+COMMENT ON COLUMN auth_sessions.session_id IS '会话ID';
+COMMENT ON COLUMN auth_sessions.user_id IS '用户ID';
+COMMENT ON COLUMN auth_sessions.tenant_id IS '租户ID';
+COMMENT ON COLUMN auth_sessions.role IS '角色编码';
+COMMENT ON COLUMN auth_sessions.expires_at IS '过期时间';
+COMMENT ON COLUMN auth_sessions.created_at IS '创建时间';
+
 
 -- ============================================
 -- 🔐 多租户 RLS (行级安全) 策略模板
