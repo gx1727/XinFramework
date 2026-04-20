@@ -1,16 +1,21 @@
+### 登录
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+  "account": "admin",
+  "password": "admin"
+}
+
 
 ###
 GET http://localhost:8080/api/v1/health
 #Authorization: Bearer {{user}}
 
-###
-GET http://localhost:8080/api/v1/users
-
-
 
 ###
 POST http://localhost:8080/api/v1/users
-Authorization: Bearer {{user}}
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ0ZW5hbnRfaWQiOjEsInJvbGUiOiJ1c2VyIiwiZXhwIjoxNzc2NjY2NjUwfQ.DYUQgVX7VzEkr0OvhyTi7I9Yqg6PkU5GE_o2LeWUBto
 {
   "name": "test",
   "email": "test",
