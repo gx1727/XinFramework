@@ -27,19 +27,30 @@ type AppConfig struct {
 }
 
 type DatabaseConfig struct {
-	Host     string `yaml:"host"`
-	Port     int    `yaml:"port"`
-	User     string `yaml:"user"`
-	Password string `yaml:"password"`
-	DBName   string `yaml:"dbname"`
-	SSLMode  string `yaml:"sslmode"`
+	Host               string `yaml:"host"`
+	Port               int    `yaml:"port"`
+	User               string `yaml:"user"`
+	Password           string `yaml:"password"`
+	DBName             string `yaml:"dbname"`
+	SSLMode            string `yaml:"sslmode"`
+	MaxOpenConns       int    `yaml:"max_open_conns"`
+	MaxIdleConns       int    `yaml:"max_idle_conns"`
+	ConnMaxLifetimeSec int    `yaml:"conn_max_lifetime_sec"`
+	ConnMaxIdleTimeSec int    `yaml:"conn_max_idle_time_sec"`
 }
 
 type RedisConfig struct {
-	Host     string `yaml:"host"`
-	Port     int    `yaml:"port"`
-	Password string `yaml:"password"`
-	DB       int    `yaml:"db"`
+	Host           string `yaml:"host"`
+	Port           int    `yaml:"port"`
+	Password       string `yaml:"password"`
+	DB             int    `yaml:"db"`
+	Enabled        bool   `yaml:"enabled"`
+	Required       bool   `yaml:"required"`
+	PoolSize       int    `yaml:"pool_size"`
+	MinIdleConns   int    `yaml:"min_idle_conns"`
+	PoolTimeoutSec int    `yaml:"pool_timeout_sec"`
+	IdleTimeoutSec int    `yaml:"idle_timeout_sec"`
+	MaxConnAgeSec  int    `yaml:"max_conn_age_sec"`
 }
 
 type JWTConfig struct {
@@ -128,11 +139,22 @@ func overrideWithEnv(c *Config) {
 	envStr("XIN_DB_PASSWORD", &c.Database.Password)
 	envStr("XIN_DB_NAME", &c.Database.DBName)
 	envStr("XIN_DB_SSLMODE", &c.Database.SSLMode)
+	envInt("XIN_DB_MAX_OPEN_CONNS", &c.Database.MaxOpenConns)
+	envInt("XIN_DB_MAX_IDLE_CONNS", &c.Database.MaxIdleConns)
+	envInt("XIN_DB_CONN_MAX_LIFETIME_SEC", &c.Database.ConnMaxLifetimeSec)
+	envInt("XIN_DB_CONN_MAX_IDLE_TIME_SEC", &c.Database.ConnMaxIdleTimeSec)
 
 	envStr("XIN_REDIS_HOST", &c.Redis.Host)
 	envInt("XIN_REDIS_PORT", &c.Redis.Port)
 	envStr("XIN_REDIS_PASSWORD", &c.Redis.Password)
 	envInt("XIN_REDIS_DB", &c.Redis.DB)
+	envBool("XIN_REDIS_ENABLED", &c.Redis.Enabled)
+	envBool("XIN_REDIS_REQUIRED", &c.Redis.Required)
+	envInt("XIN_REDIS_POOL_SIZE", &c.Redis.PoolSize)
+	envInt("XIN_REDIS_MIN_IDLE_CONNS", &c.Redis.MinIdleConns)
+	envInt("XIN_REDIS_POOL_TIMEOUT_SEC", &c.Redis.PoolTimeoutSec)
+	envInt("XIN_REDIS_IDLE_TIMEOUT_SEC", &c.Redis.IdleTimeoutSec)
+	envInt("XIN_REDIS_MAX_CONN_AGE_SEC", &c.Redis.MaxConnAgeSec)
 
 	envStr("XIN_JWT_SECRET", &c.JWT.Secret)
 	envInt("XIN_JWT_EXPIRE", &c.JWT.Expire)
@@ -154,6 +176,14 @@ func envInt(key string, target *int) {
 	if v := os.Getenv(key); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			*target = n
+		}
+	}
+}
+
+func envBool(key string, target *bool) {
+	if v := os.Getenv(key); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			*target = b
 		}
 	}
 }

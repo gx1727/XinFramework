@@ -73,7 +73,7 @@ func runServer() {
 		log.Printf("sd_notify ready: %v", err)
 	}
 
-	waitForSignal()
+	waitForSignal(srv)
 }
 
 func setupRouter(srv *server.XinServer, cfg *config.Config) {

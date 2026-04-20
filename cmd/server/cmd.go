@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -35,9 +34,7 @@ func cmdStart() {
 	cmd := exec.Command(binPath, "run")
 	cmd.Stdout = outFile
 	cmd.Stderr = outFile
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
+	cmd.SysProcAttr = procAttr()
 
 	if err := cmd.Start(); err != nil {
 		fmt.Printf("Failed to start server: %v\n", err)
@@ -72,7 +69,7 @@ func cmdStop() {
 	fmt.Printf("Stopping server (PID: %d)...\n", pid)
 
 	process, _ := os.FindProcess(pid)
-	process.Signal(syscall.SIGTERM)
+	_ = signalStop(process)
 
 	waitForProcess(pid, 30*time.Second)
 
@@ -98,7 +95,10 @@ func cmdReload() {
 	fmt.Printf("Sending SIGUSR1 to reload (PID: %d)...\n", pid)
 
 	process, _ := os.FindProcess(pid)
-	process.Signal(syscall.SIGUSR1)
+	if err := signalReload(process); err != nil {
+		fmt.Printf("Reload is not supported on this platform: %v\n", err)
+		return
+	}
 
 	fmt.Println("Reload signal sent")
 }
@@ -156,9 +156,7 @@ func cmdHotRestart() {
 	cmd := exec.Command(binPath, "run")
 	cmd.Stdout = outFile
 	cmd.Stderr = outFile
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
+	cmd.SysProcAttr = procAttr()
 
 	if err := cmd.Start(); err != nil {
 		fmt.Printf("Failed to start server: %v\n", err)
@@ -172,7 +170,7 @@ func cmdHotRestart() {
 		fmt.Printf("New server started (PID: %d), stopping old (PID: %d)...\n", newPid, oldPid)
 
 		oldProcess, _ := os.FindProcess(oldPid)
-		oldProcess.Signal(syscall.SIGTERM)
+		_ = signalStop(oldProcess)
 
 		waitForProcess(oldPid, 30*time.Second)
 

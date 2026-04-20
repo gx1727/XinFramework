@@ -2,7 +2,7 @@ package boot
 
 import (
 	"fmt"
-	"sync"
+	"log"
 
 	"gx1727.com/xin/internal/core/server"
 	"gx1727.com/xin/internal/infra/cache"
@@ -11,25 +11,25 @@ import (
 	"gx1727.com/xin/pkg/config"
 )
 
-var (
-	globalSrv *server.XinServer
-	once      sync.Once
-)
-
 func Init(cfg *config.Config) (*server.XinServer, error) {
 	logger.Init(cfg.Log.Dir, cfg.Log.Level)
 	if err := db.Init(&cfg.Database); err != nil {
 		return nil, fmt.Errorf("db init failed: %w", err)
 	}
-	cache.Init(&cfg.Redis)
+	if err := cache.Init(&cfg.Redis); err != nil {
+		return nil, fmt.Errorf("cache init failed: %w", err)
+	}
 
 	srv := server.New(cfg)
-	once.Do(func() {
-		globalSrv = srv
-	})
 	return srv, nil
 }
 
-func GetServer() *server.XinServer {
-	return globalSrv
+func Shutdown() {
+	if err := cache.Close(); err != nil {
+		log.Printf("cache close failed: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		log.Printf("db close failed: %v", err)
+	}
+	logger.Close()
 }

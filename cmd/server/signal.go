@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"gx1727.com/xin/internal/core/boot"
 	"log"
 	"net"
 	"os"
@@ -11,6 +10,10 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"gx1727.com/xin/internal/core/boot"
+
+	"gx1727.com/xin/internal/core/server"
 )
 
 func getPid() (int, error) {
@@ -74,14 +77,17 @@ func waitForProcess(pid int, timeout time.Duration) {
 	}
 }
 
-func waitForSignal() {
+func waitForSignal(srv *server.XinServer) {
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1, syscall.SIGUSR2)
+	signal.Notify(sigCh, notifySignals()...)
 
 	sig := <-sigCh
 	log.Printf("Received signal: %v", sig)
 
-	boot.GetServer().Shutdown(30 * time.Second)
+	if err := srv.Shutdown(30 * time.Second); err != nil {
+		log.Printf("server shutdown error: %v", err)
+	}
+	boot.Shutdown()
 
 	log.Printf("Server exited gracefully")
 	os.Exit(0)
