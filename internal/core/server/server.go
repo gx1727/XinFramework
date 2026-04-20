@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -30,10 +27,6 @@ func New(cfg *config.Config) *XinServer {
 }
 
 func (s *XinServer) Start(addr string) error {
-	return s.StartWithSignal(addr, nil)
-}
-
-func (s *XinServer) StartWithSignal(addr string, shutdownCh chan<- os.Signal) error {
 	s.server = &http.Server{
 		Addr:    addr,
 		Handler: s.Engine,
@@ -44,32 +37,11 @@ func (s *XinServer) StartWithSignal(addr string, shutdownCh chan<- os.Signal) er
 		return fmt.Errorf("create listener failed: %w", err)
 	}
 
-	go s.handleSignal(shutdownCh)
-
 	if err := s.server.Serve(listener); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("server serve failed: %w", err)
 	}
 
 	return nil
-}
-
-func (s *XinServer) handleSignal(shutdownCh chan<- os.Signal) {
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-
-	sig := <-sigCh
-	fmt.Printf("\nReceived signal: %v\n", sig)
-
-	if shutdownCh != nil {
-		shutdownCh <- sig
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := s.server.Shutdown(ctx); err != nil {
-		fmt.Printf("Graceful shutdown error: %v\n", err)
-	}
 }
 
 func (s *XinServer) Shutdown(timeout time.Duration) error {

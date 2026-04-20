@@ -59,21 +59,18 @@ func waitForProcess(pid int, timeout time.Duration) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			if !processExists(pid) {
-				return
-			}
-			waited += time.Second
-			if waited >= timeout {
-				fmt.Println("Force killing...")
-				process.Kill()
-				time.Sleep(time.Second)
-				return
-			}
-			fmt.Printf("Waiting... (%v/%v)\n", waited, timeout)
+	for range ticker.C {
+		if !processExists(pid) {
+			return
 		}
+		waited += time.Second
+		if waited >= timeout {
+			fmt.Println("Force killing...")
+			process.Kill()
+			time.Sleep(time.Second)
+			return
+		}
+		fmt.Printf("Waiting... (%v/%v)\n", waited, timeout)
 	}
 }
 
