@@ -152,6 +152,56 @@ func DoSomething() {
 
 ## 3. 添加新模块
 
+### 3.0 业务域与分层规范（结论）
+
+为保证可维护性和可扩展性，项目采用“先分域，再分层”的规范。
+
+#### 3.0.1 业务代码放置规范
+
+- 业务代码统一放在：`internal/module/<domain>/`
+- 当前标准域：`system`、`cms`、`weixin`
+- 每个域独立维护自己的路由、业务、数据访问，不允许跨域直接操作对方数据表
+
+#### 3.0.2 配置开关规范（Domain）
+
+在配置中启用业务域：
+
+```yaml
+domain:
+  - system
+  - cms
+  - weixin
+```
+
+或使用环境变量：
+
+```bash
+XIN_DOMAIN=system,cms,weixin
+```
+
+启动时只允许以上三个值，出现其他值会直接启动失败。未启用域不会注册路由，因此接口不可访问。
+
+#### 3.0.3 分层规范（推荐 C-S-M，复杂域扩展到 H-S-R-M）
+
+每个业务域至少包含：
+
+- `routes.go`：路由注册（按 domain 开关启用）
+- `handler.go`：Controller/Handler 层（参数校验、错误映射、响应组装）
+- `service.go`：业务规则层（流程编排、领域逻辑）
+- `model.go`/`types.go`：数据结构（持久化模型、DTO/VO）
+
+复杂业务建议增加：
+
+- `repo.go`：数据访问层（Repository）
+- `validator.go`：输入校验规则
+- `policy.go`：权限策略
+
+落地原则：
+
+- Handler 不写复杂业务与 SQL
+- Service 不依赖 Gin 上下文
+- Repo 不处理业务规则
+
 ### 3.1 目录结构
 
 以用户模块为例：

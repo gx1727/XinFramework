@@ -44,3 +44,8 @@ saas:
 log:
   dir: logs
   level: info # debug | info | warn | error
+
+domain:
+  - system
+  - cms
+  - weixin

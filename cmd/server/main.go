@@ -82,7 +82,7 @@ func setupRouter(srv *server.XinServer, cfg *config.Config) {
 	srv.Engine.Use(middleware.Recovery())
 	srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode))
 
-	v1.RegisterRoutes(srv.Engine)
+	v1.RegisterRoutes(srv.Engine, cfg)
 
 	auth := srv.Engine.Group("/api/v1")
 	auth.Use(middleware.Auth(&cfg.JWT))

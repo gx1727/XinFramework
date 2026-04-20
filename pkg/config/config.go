@@ -2,6 +2,7 @@ package config
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -17,6 +18,7 @@ type Config struct {
 	JWT      JWTConfig      `yaml:"jwt"`
 	Saas     SaasConfig     `yaml:"saas"`
 	Log      LogConfig      `yaml:"log"`
+	Domain   []string       `yaml:"domain"`
 }
 
 type AppConfig struct {
@@ -95,6 +97,9 @@ func Load(path string) (*Config, error) {
 	}
 
 	overrideWithEnv(cfg)
+	if err := validateDomain(cfg); err != nil {
+		return nil, err
+	}
 
 	return cfg, nil
 }
@@ -164,6 +169,7 @@ func overrideWithEnv(c *Config) {
 
 	envStr("XIN_LOG_DIR", &c.Log.Dir)
 	envStr("XIN_LOG_LEVEL", &c.Log.Level)
+	envCSV("XIN_DOMAIN", &c.Domain)
 }
 
 func envStr(key string, target *string) {
@@ -186,6 +192,61 @@ func envBool(key string, target *bool) {
 			*target = b
 		}
 	}
+}
+
+func envCSV(key string, target *[]string) {
+	if v := os.Getenv(key); v != "" {
+		raw := strings.Split(v, ",")
+		out := make([]string, 0, len(raw))
+		for _, s := range raw {
+			s = strings.TrimSpace(strings.ToLower(s))
+			if s != "" {
+				out = append(out, s)
+			}
+		}
+		*target = out
+	}
+}
+
+var allowedDomains = map[string]struct{}{
+	"system": {},
+	"cms":    {},
+	"weixin": {},
+}
+
+func validateDomain(c *Config) error {
+	if len(c.Domain) == 0 {
+		c.Domain = []string{"system"}
+	}
+	seen := map[string]struct{}{}
+	for i := range c.Domain {
+		d := strings.ToLower(strings.TrimSpace(c.Domain[i]))
+		if d == "" {
+			continue
+		}
+		if _, ok := allowedDomains[d]; !ok {
+			return fmt.Errorf("invalid domain: %s (allowed: system,cms,weixin)", d)
+		}
+		seen[d] = struct{}{}
+	}
+	if len(seen) == 0 {
+		return errors.New("domain is empty after validation")
+	}
+	c.Domain = make([]string, 0, len(seen))
+	for d := range seen {
+		c.Domain = append(c.Domain, d)
+	}
+	return nil
+}
+
+func (c *Config) DomainEnabled(name string) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+	for _, d := range c.Domain {
+		if d == name {
+			return true
+		}
+	}
+	return false
 }
 
 func Get() *Config {
