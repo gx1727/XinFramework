@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -251,4 +253,81 @@ func (c *Config) DomainEnabled(name string) bool {
 
 func Get() *Config {
 	return cfg
+}
+
+var moduleBaseDir = filepath.Join("config", "modules")
+
+func SetModuleBaseDir(dir string) {
+	moduleBaseDir = dir
+}
+
+func LoadModule(name string, target interface{}) error {
+	path := filepath.Join(moduleBaseDir, name+".yaml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read module config %s: %w", name, err)
+	}
+	if len(data) == 0 {
+		return nil
+	}
+	if err := yaml.Unmarshal(data, target); err != nil {
+		return fmt.Errorf("parse module config %s: %w", name, err)
+	}
+	overrideModuleEnv(name, target)
+	return nil
+}
+
+func overrideModuleEnv(module string, target interface{}) {
+	prefix := "XIN_" + strings.ToUpper(module) + "_"
+	v := reflect.ValueOf(target)
+	if v.Kind() != reflect.Ptr || v.IsNil() {
+		return
+	}
+	v = v.Elem()
+	if v.Kind() != reflect.Struct {
+		return
+	}
+	t := v.Type()
+	for i := 0; i < v.NumField(); i++ {
+		field := t.Field(i)
+		if !field.IsExported() {
+			continue
+		}
+		yamlKey := field.Tag.Get("yaml")
+		if idx := strings.Index(yamlKey, ","); idx != -1 {
+			yamlKey = yamlKey[:idx]
+		}
+		if yamlKey == "" || yamlKey == "-" {
+			continue
+		}
+		envKey := prefix + strings.ToUpper(yamlKey)
+		envVal := os.Getenv(envKey)
+		if envVal == "" {
+			continue
+		}
+		f := v.Field(i)
+		switch f.Kind() {
+		case reflect.String:
+			f.SetString(envVal)
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if n, err := strconv.ParseInt(envVal, 10, 64); err == nil {
+				f.SetInt(n)
+			}
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if n, err := strconv.ParseUint(envVal, 10, 64); err == nil {
+				f.SetUint(n)
+			}
+		case reflect.Bool:
+			if b, err := strconv.ParseBool(envVal); err == nil {
+				f.SetBool(b)
+			}
+		case reflect.Float32, reflect.Float64:
+			if f2, err := strconv.ParseFloat(envVal, 64); err == nil {
+				f.SetFloat(f2)
+			}
+		}
+	}
 }

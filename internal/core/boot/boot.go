@@ -8,6 +8,7 @@ import (
 	"gx1727.com/xin/internal/infra/cache"
 	"gx1727.com/xin/internal/infra/db"
 	"gx1727.com/xin/internal/infra/logger"
+	"gx1727.com/xin/internal/module/auth"
 	"gx1727.com/xin/pkg/config"
 )
 
@@ -19,9 +20,19 @@ func Init(cfg *config.Config) (*server.XinServer, error) {
 	if err := cache.Init(&cfg.Redis); err != nil {
 		return nil, fmt.Errorf("cache init failed: %w", err)
 	}
+	if err := loadModuleConfigs(cfg); err != nil {
+		return nil, fmt.Errorf("module config failed: %w", err)
+	}
 
 	srv := server.New(cfg)
 	return srv, nil
+}
+
+func loadModuleConfigs(cfg *config.Config) error {
+	if err := auth.InitConfig(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func Shutdown() {

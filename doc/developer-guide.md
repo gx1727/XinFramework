@@ -89,11 +89,114 @@ sms:
 
 ### 1.3 配置加载顺序
 
-1. 加载 `config/config.yaml`
+1. 加载 `config/config.yaml`（框架公共配置）
 2. 加载 `.env` 文件（如果存在）
 3. 环境变量覆盖（优先级最高）
+4. 加载各业务模块独立配置 `config/modules/<name>.yaml`
 
----
+### 1.4 业务模块独立配置
+
+每个业务模块可以拥有自己的配置文件，物理隔离、互不干扰。
+
+#### 1.4.1 文件结构
+
+```
+config/
+├── config.yaml              # 框架公共配置（app/database/redis/jwt/log/domain）
+├── config.dev.yaml
+├── config.prod.yaml
+└── modules/                 # 业务模块配置目录
+    ├── auth.yaml            # auth 模块专属配置
+    ├── cms.yaml             # cms 模块专属配置
+    └── weixin.yaml          # weixin 模块专属配置
+```
+
+#### 1.4.2 在模块中定义配置结构体
+
+以 auth 模块为例，`internal/module/auth/config.go`：
+
+```go
+package auth
+
+import "gx1727.com/xin/pkg/config"
+
+type AuthConfig struct {
+    MaxLoginAttempts      int    `yaml:"max_login_attempts"`
+    LockDurationSec       int    `yaml:"lock_duration_sec"`
+    PasswordPolicy        string `yaml:"password_policy"`
+    TokenExpireSec        int    `yaml:"token_expire_sec"`
+    RefreshTokenExpireSec int    `yaml:"refresh_token_expire_sec"`
+}
+
+var moduleCfg *AuthConfig
+
+func Cfg() *AuthConfig {
+    return moduleCfg
+}
+
+func InitConfig() error {
+    moduleCfg = &AuthConfig{
+        MaxLoginAttempts:      5,
+        LockDurationSec:       300,
+        PasswordPolicy:        "standard",
+        TokenExpireSec:        3600,
+        RefreshTokenExpireSec: 86400,
+    }
+    return config.LoadModule("auth", moduleCfg)
+}
+```
+
+#### 1.4.3 配置文件示例
+
+`config/modules/auth.yaml`：
+
+```yaml
+max_login_attempts: 5
+lock_duration_sec: 300
+password_policy: standard
+token_expire_sec: 3600
+refresh_token_expire_sec: 86400
+```
+
+#### 1.4.4 环境变量覆盖
+
+模块配置同样支持环境变量覆盖，规则为 `XIN_<模块名大写>_<字段名大写>`：
+
+```bash
+XIN_AUTH_MAX_LOGIN_ATTEMPTS=10
+XIN_AUTH_LOCK_DURATION_SEC=600
+XIN_AUTH_PASSWORD_POLICY=strict
+```
+
+#### 1.4.5 在 boot.Init 中注册
+
+在 `internal/core/boot/boot.go` 的 `loadModuleConfigs` 函数中添加新模块：
+
+```go
+func loadModuleConfigs(cfg *config.Config) error {
+    if err := auth.InitConfig(); err != nil {
+        return err
+    }
+    // 新增模块时在此添加：
+    // if cfg.DomainEnabled("cms") {
+    //     if err := cms.InitConfig(); err != nil {
+    //         return err
+    //     }
+    // }
+    return nil
+}
+```
+
+#### 1.4.6 设计原则
+
+| 原则 | 说明 |
+|------|------|
+| 文件物理隔离 | 每个模块一个 YAML，改 auth 配置不影响 cms |
+| 结构体默认值 | `InitConfig` 中设置合理默认值，配置文件不存在也不报错 |
+| 环境变量覆盖 | 框架用 `XIN_DB_*`，模块用 `XIN_AUTH_*`、`XIN_CMS_*`，互不冲突 |
+| 按需加载 | 可结合 `cfg.DomainEnabled()` 按域开关决定是否加载 |
+
+***
 
 ## 2. 日志系统
 
@@ -107,12 +210,12 @@ logger.Init(cfg.Log.Dir, cfg.Log.Level)
 
 ### 2.2 日志级别
 
-| 级别 | 值 | 说明 |
-|:-----|:--:|:-----|
-| DEBUG | 0 | 调试信息 |
-| INFO | 1 | 一般信息（默认） |
-| WARN | 2 | 警告 |
-| ERROR | 3 | 错误 |
+| 级别    |  值  | 说明       |
+| :---- | :-: | :------- |
+| DEBUG |  0  | 调试信息     |
+| INFO  |  1  | 一般信息（默认） |
+| WARN  |  2  | 警告       |
+| ERROR |  3  | 错误       |
 
 ### 2.3 日志函数
 
@@ -148,7 +251,7 @@ func DoSomething() {
 }
 ```
 
----
+***
 
 ## 3. 添加新模块
 
@@ -426,7 +529,7 @@ func initUserHandler() *userHandler.Handler {
 }
 ```
 
----
+***
 
 ## 4. 中间件开发
 
@@ -508,7 +611,7 @@ func MyMiddleware() gin.HandlerFunc {
 }
 ```
 
----
+***
 
 ## 5. 数据库操作
 
@@ -546,20 +649,114 @@ db.Delete(&user) // UPDATE users SET is_deleted = TRUE WHERE id = ?
 
 ### 5.3 事务
 
+#### 5.3.1 事务边界规范
+
+| 层 | 职责 | 禁止 |
+|---|---|---|
+| **Handler** | 不感知事务 | 禁止调用 Begin/Commit/Rollback |
+| **Service** | 定义事务边界，调用 `d.Transaction(...)` | 禁止直接写 SQL |
+| **Repo** | 接受 `*gorm.DB`（可能是 tx）执行操作 | 禁止自己开事务，禁止跨表操作 |
+
+核心原则：**事务边界由 Service 层控制，Repo 层负责单表操作，Handler 层完全不感知事务。**
+
+事务的本质是"一组业务操作必须原子完成"——这是业务规则，不是数据访问细节。Repo 只负责"对一张表做 CRUD"，不知道自己的操作要和其他操作在同一个事务里；Service 知道。
+
+#### 5.3.2 Repo 层：接受 `*gorm.DB` 参数
+
+Repo 的每个方法接受 `*gorm.DB` 参数，由 Service 决定传入普通连接还是事务连接：
+
 ```go
-err := db.Transaction(func(tx *gorm.DB) error {
-    // 创建用户
-    if err := tx.Create(&user).Error; err != nil {
-        return err
-    }
+// repo.go
+package user
 
-    // 创建用户角色关联
-    if err := tx.Create(&userRole).Error; err != nil {
-        return err
-    }
+import "gorm.io/gorm"
 
-    return nil
-})
+type Repo struct{}
+
+func (r *Repo) Create(d *gorm.DB, user *User) error {
+    return d.Create(user).Error
+}
+
+func (r *Repo) GetByID(d *gorm.DB, id uint) (*User, error) {
+    var u User
+    err := d.Where("id = ? AND is_deleted = FALSE", id).First(&u).Error
+    return &u, err
+}
+
+func (r *Repo) AssignRole(d *gorm.DB, userID, roleID uint) error {
+    return d.Create(&UserRole{UserID: userID, RoleID: roleID}).Error
+}
+```
+
+#### 5.3.3 Service 层：定义事务边界
+
+**不需要事务的简单场景**（单表操作）——直接传 `db.Get()`：
+
+```go
+func (s *Service) GetUser(id uint) (*User, error) {
+    return s.repo.GetByID(db.Get(), id)
+}
+```
+
+**需要事务的场景**（多表操作必须原子完成）——用 `d.Transaction(...)` 闭包：
+
+```go
+func (s *Service) CreateWithRole(user *User, roleID uint) error {
+    d := db.Get()
+
+    return d.Transaction(func(tx *gorm.DB) error {
+        // 第 1 步：创建用户（tx 保证在同一事务内）
+        if err := s.repo.Create(tx, user); err != nil {
+            return err // 返回 error 自动 Rollback
+        }
+
+        // 第 2 步：分配角色
+        if err := s.repo.AssignRole(tx, user.ID, roleID); err != nil {
+            return err // 返回 error 自动 Rollback
+        }
+
+        return nil // 返回 nil 自动 Commit
+    })
+}
+```
+
+GORM 的 `Transaction` 闭包会自动处理 Commit（返回 nil）和 Rollback（返回 error），不需要手动调用。
+
+#### 5.3.4 跨模块事务
+
+当一个业务操作涉及多个模块的 Repo 时，事务仍在 Service 层控制：
+
+```go
+// order/service.go
+func (s *Service) CreateOrder(order *Order, userID uint) error {
+    d := db.Get()
+
+    return d.Transaction(func(tx *gorm.DB) error {
+        // 本模块 Repo
+        if err := s.orderRepo.Create(tx, order); err != nil {
+            return err
+        }
+
+        // 调用其他模块 Repo（通过对方模块暴露的能力）
+        if err := user.UpdateUserStats(tx, userID); err != nil {
+            return err
+        }
+
+        return nil
+    })
+}
+```
+
+被调用模块需要暴露接受 `*gorm.DB` 的函数，以支持外部传入事务连接。
+
+#### 5.3.5 简单查询不需要事务
+
+对于只读或单表操作，不需要包裹事务，直接用 `db.Get()` 即可：
+
+```go
+func (s *Service) List(tenantID uint, offset, limit int) ([]User, int64, error) {
+    return s.repo.List(db.Get(), tenantID, offset, limit)
+}
 ```
 
 ### 5.4 租户查询
@@ -579,7 +776,7 @@ db.Exec("SET app.tenant_id = ?", tenantID)
 defer db.Exec("RESET app.tenant_id")
 ```
 
----
+***
 
 ## 6. 缓存操作
 
@@ -610,7 +807,7 @@ client.Del(ctx, "key")
 exists := client.Exists(ctx, "key").Val()
 ```
 
----
+***
 
 ## 7. JWT 使用
 
@@ -640,7 +837,7 @@ claims := token.Claims.(jwt.MapClaims)
 userID := uint(claims["user_id"].(float64))
 ```
 
----
+***
 
 ## 8. 编译与运行
 
@@ -677,7 +874,7 @@ go install github.com/air-verse/air@latest
 air
 ```
 
----
+***
 
 ## 9. 目录结构参考
 
@@ -702,3 +899,4 @@ pkg/                        # 可复用组件
 ├── jwt/                    # JWT
 └── resp/                   # 响应
 ```
+
