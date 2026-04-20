@@ -202,6 +202,22 @@ XIN_DOMAIN=system,cms,weixin
 - Service 不依赖 Gin 上下文
 - Repo 不处理业务规则
 
+#### 3.0.4 跨模块依赖规范（允许 / 禁止清单）
+
+为避免模块之间耦合失控，跨模块依赖遵循“单向依赖 + 最小契约 + 不共享 ORM 细节”。
+
+允许：
+
+- 模块 A 调用模块 B 的 **Service 能力**（导出的函数/方法），例如 `auth -> user` 调用 `user.ResolveLoginIdentity(...)`
+- 跨模块传递 **最小必要的契约结构**（DTO/VO），优先放在被依赖模块内；只有确实被多个模块复用时，才抽到一个共享位置（例如 `internal/shared/*`）
+- 共享基础设施能力统一走 `internal/infra/*`（db/cache/logger/session）和 `pkg/*`（config/jwt/resp）
+
+禁止：
+
+- 双向/循环依赖（A import B，同时 B import A）
+- 直接 import 另一个模块的持久化模型并复用（例如直接复用对方的 `model.go` 里的 GORM struct）
+- 直接跨模块访问对方的数据表（在自己模块里写 SQL 去操作另一个模块的核心表），应通过对方模块暴露的能力完成
+
 ### 3.1 目录结构
 
 以用户模块为例：
@@ -603,7 +619,8 @@ exists := client.Exists(ctx, "key").Val()
 ```go
 import "gx1727.com/xin/pkg/jwt"
 
-token, err := jwt.Generate(&cfg.JWT, userID, tenantID, role)
+// token 内已包含 sid（SessionID），用于服务端会话校验
+token, err := jwt.Generate(&cfg.JWT, userID, tenantID, role, sessionID)
 ```
 
 ### 7.2 在中间件中验证

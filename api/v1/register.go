@@ -13,9 +13,10 @@ import (
 func RegisterRoutes(r *gin.Engine, cfg *config.Config) {
 	logger.Infof("register routes...........................")
 	v1 := r.Group("/api/v1")
+	auth.RegisterV1(v1)
+
 	if cfg.DomainEnabled("system") {
 		system.RegisterV1(v1)
-		auth.RegisterV1(v1)
 	}
 	if cfg.DomainEnabled("cms") {
 		cms.RegisterV1(v1)

@@ -7,8 +7,8 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"gx1727.com/xin/internal/infra/db"
 	"gx1727.com/xin/internal/infra/session"
+	"gx1727.com/xin/internal/module/user"
 	"gx1727.com/xin/pkg/config"
 	jwtpkg "gx1727.com/xin/pkg/jwt"
 )
@@ -30,55 +30,26 @@ func NewService() *Service {
 }
 
 func (s *Service) Login(req loginRequest) (*loginResult, error) {
-	d := db.Get()
-	if d == nil {
-		return nil, ErrBackendUnavailable
+	identity, err := user.ResolveLoginIdentity(req.Account, req.TenantID)
+	if err != nil {
+		switch {
+		case errors.Is(err, user.ErrBackendUnavailable):
+			return nil, ErrBackendUnavailable
+		case errors.Is(err, user.ErrAccountNotFound):
+			return nil, ErrInvalidAccountOrPassword
+		case errors.Is(err, user.ErrTenantBindingNotFound):
+			return nil, ErrTenantBindingNotFound
+		default:
+			return nil, ErrInvalidAccountOrPassword
+		}
 	}
 
-	var acc accountRow
-	if err := d.Table("accounts").
-		Select("id, username, phone, email, password").
-		Where("is_deleted = FALSE").
-		Where("username = ? OR phone = ? OR email = ?", req.Account, req.Account, req.Account).
-		First(&acc).Error; err != nil {
-		return nil, ErrInvalidAccountOrPassword
-	}
-
-	ok, err := verifyPassword(acc.Password, req.Password)
+	ok, err := verifyPassword(identity.PasswordHash, req.Password)
 	if err != nil || !ok {
 		return nil, ErrInvalidAccountOrPassword
 	}
-
-	q := d.Table("users").
-		Select("id, tenant_id, code, status").
-		Where("is_deleted = FALSE").
-		Where("account_id = ?", acc.ID)
-	if req.TenantID > 0 {
-		q = q.Where("tenant_id = ?", req.TenantID)
-	}
-
-	var u userRow
-	if err := q.Order("id ASC").First(&u).Error; err != nil {
-		return nil, ErrTenantBindingNotFound
-	}
-	if u.Status != 1 {
+	if identity.UserStatus != 1 {
 		return nil, ErrUserDisabled
-	}
-
-	roleCode := "user"
-	var role struct {
-		Code string
-	}
-	_ = d.Table("user_roles ur").
-		Select("r.code").
-		Joins("JOIN roles r ON r.id = ur.role_id").
-		Where("ur.is_deleted = FALSE").
-		Where("r.is_deleted = FALSE").
-		Where("ur.user_id = ?", u.ID).
-		Order("ur.id ASC").
-		First(&role).Error
-	if role.Code != "" {
-		roleCode = role.Code
 	}
 
 	cfg := config.Get()
@@ -87,20 +58,20 @@ func (s *Service) Login(req loginRequest) (*loginResult, error) {
 	}
 
 	sessionID := uuid.NewString()
-	if err := session.Create(sessionID, u.ID, u.TenantID, roleCode, time.Duration(cfg.JWT.Expire)*time.Second); err != nil {
+	if err := session.Create(sessionID, identity.UserID, identity.TenantID, identity.RoleCode, time.Duration(cfg.JWT.Expire)*time.Second); err != nil {
 		return nil, ErrSessionCreateFailed
 	}
 
-	token, err := jwtpkg.Generate(&cfg.JWT, u.ID, u.TenantID, roleCode, sessionID)
+	token, err := jwtpkg.Generate(&cfg.JWT, identity.UserID, identity.TenantID, identity.RoleCode, sessionID)
 	if err != nil {
 		return nil, err
 	}
 
 	res := &loginResult{Token: token}
-	res.User.ID = u.ID
-	res.User.TenantID = u.TenantID
-	res.User.Code = u.Code
-	res.User.Role = roleCode
+	res.User.ID = identity.UserID
+	res.User.TenantID = identity.TenantID
+	res.User.Code = identity.UserCode
+	res.User.Role = identity.RoleCode
 	return res, nil
 }
 
