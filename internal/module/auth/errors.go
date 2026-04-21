@@ -13,6 +13,12 @@ var (
 	ErrUserDisabled          = resp.NewError(1003, "账号已被禁用")
 	ErrTenantBindingNotFound = resp.NewError(1004, "用户未绑定任何租户")
 
+	// 注册相关 1010 - 1019
+	ErrAccountAlreadyExists = resp.NewError(1010, "账号已存在")
+	ErrTenantNotFound       = resp.NewError(1011, "租户不存在或已被禁用")
+	ErrDefaultRoleNotFound  = resp.NewError(1012, "未找到默认角色")
+	ErrRegisterFailed       = resp.NewError(1013, "注册失败")
+
 	// 系统错误
 	ErrBackendUnavailable  = resp.NewError(1005, "服务后端未初始化或不可用")
 	ErrSessionCreateFailed = resp.NewError(1006, "创建会话失败")

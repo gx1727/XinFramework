@@ -45,3 +45,26 @@ func (h *Handler) Logout(c *gin.Context) {
 	}
 	resp.Success(c, gin.H{"ok": true})
 }
+
+func (h *Handler) Register(c *gin.Context) {
+	var req registerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.BadRequest(c, "请求参数格式错误")
+		return
+	}
+	result, err := h.svc.Register(req)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+
+	resp.Success(c, gin.H{
+		"token": result.Token,
+		"user": gin.H{
+			"id":        result.User.ID,
+			"tenant_id": result.User.TenantID,
+			"code":      result.User.Code,
+			"role":      result.User.Role,
+		},
+	})
+}
