@@ -17,7 +17,7 @@ database:
   conn_max_idle_time_sec: 60
 
 redis:
-  host: localhost
+  host: 192.168.151.176
   port: 6379
   password: ""
   db: 0

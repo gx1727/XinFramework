@@ -14,12 +14,15 @@ type AuthConfig struct {
 }
 
 var moduleCfg *AuthConfig
+var authLogger *logger.Logger
 
 func Cfg() *AuthConfig {
 	return moduleCfg
 }
 
 func InitConfig() error {
+	authLogger = logger.Module("auth")
+
 	moduleCfg = &AuthConfig{
 		MaxLoginAttempts:      5,
 		LockDurationSec:       300,
@@ -29,6 +32,11 @@ func InitConfig() error {
 	}
 	if err := config.LoadModule("auth", moduleCfg); err != nil {
 		return err
+	}
+	if authLogger != nil {
+		authLogger.Infof("auth module config loaded: attempts=%d lock=%ds policy=%s",
+			moduleCfg.MaxLoginAttempts, moduleCfg.LockDurationSec, moduleCfg.PasswordPolicy)
+		return nil
 	}
 	logger.Infof("auth module config loaded: attempts=%d lock=%ds policy=%s",
 		moduleCfg.MaxLoginAttempts, moduleCfg.LockDurationSec, moduleCfg.PasswordPolicy)

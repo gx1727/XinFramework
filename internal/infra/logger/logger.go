@@ -27,18 +27,19 @@ var (
 )
 
 type dailyWriter struct {
-	mu     sync.Mutex
-	dir    string
-	date   string
-	file   *os.File
-	writer io.Writer
+	mu         sync.Mutex
+	dir        string
+	filePrefix string
+	date       string
+	file       *os.File
+	writer     io.Writer
 }
 
-func newDailyWriter(dir string) (*dailyWriter, error) {
+func newDailyWriter(dir string, filePrefix string) (*dailyWriter, error) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("create log dir failed: %w", err)
 	}
-	w := &dailyWriter{dir: dir}
+	w := &dailyWriter{dir: dir, filePrefix: filePrefix}
 	if err := w.rotate(); err != nil {
 		return nil, err
 	}
@@ -51,7 +52,11 @@ func (w *dailyWriter) rotate() error {
 		return nil
 	}
 
-	path := filepath.Join(w.dir, today+".log")
+	fileName := today + ".log"
+	if w.filePrefix != "" {
+		fileName = w.filePrefix + "-" + today + ".log"
+	}
+	path := filepath.Join(w.dir, fileName)
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("open log file failed: %w", err)
@@ -95,12 +100,18 @@ type Logger struct {
 	writer *dailyWriter
 }
 
-var std *Logger
+var (
+	std           *Logger
+	stdDir        string
+	stdLevel      int
+	moduleLoggers = map[string]*Logger{}
+	moduleMu      sync.Mutex
+)
 
 func Init(dir string, level string) {
 	lvl := parseLevel(level)
 
-	w, err := newDailyWriter(dir)
+	w, err := newDailyWriter(dir, "")
 	if err != nil {
 		log.Fatalf("logger init failed: %v", err)
 	}
@@ -110,8 +121,40 @@ func Init(dir string, level string) {
 		logger: log.New(w, "[xin] ", log.LstdFlags),
 		writer: w,
 	}
+	stdDir = dir
+	stdLevel = lvl
 
 	log.SetOutput(w)
+}
+
+func Module(filePrefix string) *Logger {
+	if filePrefix == "" {
+		return std
+	}
+
+	moduleMu.Lock()
+	defer moduleMu.Unlock()
+
+	if l, ok := moduleLoggers[filePrefix]; ok {
+		return l
+	}
+	if std == nil {
+		return nil
+	}
+
+	w, err := newDailyWriter(stdDir, filePrefix)
+	if err != nil {
+		log.Printf("module logger init failed(%s): %v", filePrefix, err)
+		return std
+	}
+
+	l := &Logger{
+		level:  stdLevel,
+		logger: log.New(w, "[xin] ", log.LstdFlags),
+		writer: w,
+	}
+	moduleLoggers[filePrefix] = l
+	return l
 }
 
 func parseLevel(s string) int {
@@ -130,11 +173,30 @@ func parseLevel(s string) int {
 }
 
 func (l *Logger) logf(level int, format string, args ...interface{}) {
+	if l == nil {
+		return
+	}
 	if level < l.level {
 		return
 	}
 	msg := fmt.Sprintf("[%s] %s", levelNames[level], fmt.Sprintf(format, args...))
 	l.logger.Output(3, msg)
+}
+
+func (l *Logger) Debugf(format string, args ...interface{}) {
+	l.logf(LevelDebug, format, args...)
+}
+
+func (l *Logger) Infof(format string, args ...interface{}) {
+	l.logf(LevelInfo, format, args...)
+}
+
+func (l *Logger) Warnf(format string, args ...interface{}) {
+	l.logf(LevelWarn, format, args...)
+}
+
+func (l *Logger) Errorf(format string, args ...interface{}) {
+	l.logf(LevelError, format, args...)
 }
 
 func Debugf(format string, args ...interface{}) {
@@ -186,6 +248,15 @@ func Error(args ...interface{}) {
 }
 
 func Close() {
+	moduleMu.Lock()
+	for k, l := range moduleLoggers {
+		if l != nil && l.writer != nil {
+			l.writer.Close()
+		}
+		delete(moduleLoggers, k)
+	}
+	moduleMu.Unlock()
+
 	if std != nil && std.writer != nil {
 		std.writer.Close()
 	}
