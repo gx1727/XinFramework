@@ -20,7 +20,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config) {
 	auth.RegisterV1(public, protected)
 
 	if cfg.DomainEnabled("system") {
-		system.RegisterV1(protected)
+		system.RegisterV1(public, protected)
 	}
 	if cfg.DomainEnabled("cms") {
 		cms.RegisterV1(protected)

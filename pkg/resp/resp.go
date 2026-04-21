@@ -1,14 +1,80 @@
 package resp
 
 import (
-	"gx1727.com/xin/internal/infra/logger"
+	"errors"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
+	"gx1727.com/xin/internal/infra/logger"
 )
 
 type Response struct {
 	Code int         `json:"code"`
 	Msg  string      `json:"msg"`
 	Data interface{} `json:"data"`
+}
+
+// BizError 标准业务错误
+type BizError struct {
+	HttpCode int    // HTTP 状态码 (如 200, 400, 401)
+	Code     int    // 业务自定义 Code (如 1001, 2001)
+	Msg      string // 默认提示信息
+}
+
+// Error 实现 error 接口
+func (e *BizError) Error() string {
+	return e.Msg
+}
+
+// WithMsg 动态替换提示信息
+func (e *BizError) WithMsg(msg string) *BizError {
+	return &BizError{
+		HttpCode: e.HttpCode,
+		Code:     e.Code,
+		Msg:      msg,
+	}
+}
+
+// NewError 创建一个业务错误
+func NewError(httpCode, code int, msg string) *BizError {
+	return &BizError{
+		HttpCode: httpCode,
+		Code:     code,
+		Msg:      msg,
+	}
+}
+
+// HandleError Handler 层的统一错误处理器
+func HandleError(c *gin.Context, err error) {
+	var bizErr *BizError
+	// 如果是预定义的业务错误
+	if errors.As(err, &bizErr) {
+		logResponse(c, getLogLevel(bizErr.HttpCode), bizErr.Code, bizErr.Msg)
+		c.JSON(bizErr.HttpCode, Response{
+			Code: bizErr.Code,
+			Msg:  bizErr.Msg,
+			Data: nil,
+		})
+		return
+	}
+
+	// 未知错误，统一按 500 处理，避免真实报错暴露给前端
+	logResponse(c, "error", 500, err.Error())
+	c.JSON(http.StatusInternalServerError, Response{
+		Code: 500,
+		Msg:  "服务器内部错误",
+		Data: nil,
+	})
+}
+
+func getLogLevel(httpCode int) string {
+	if httpCode >= 500 {
+		return "error"
+	}
+	if httpCode >= 400 {
+		return "warn"
+	}
+	return "info"
 }
 
 func Success(c *gin.Context, data interface{}) {

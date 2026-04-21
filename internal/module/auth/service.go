@@ -11,16 +11,6 @@ import (
 	jwtpkg "gx1727.com/xin/pkg/jwt"
 )
 
-var (
-	ErrInvalidAccountOrPassword = errors.New("invalid account or password")
-	ErrTenantBindingNotFound    = errors.New("user is not bound to any tenant")
-	ErrUserDisabled             = errors.New("user is disabled")
-	ErrInvalidToken             = errors.New("invalid token")
-	ErrBackendUnavailable       = errors.New("backend unavailable")
-	ErrSessionCreateFailed      = errors.New("create session failed")
-	ErrSessionRevokeFailed      = errors.New("revoke session failed")
-)
-
 type Service struct{}
 
 func NewService() *Service {
@@ -62,7 +52,7 @@ func (s *Service) Login(req loginRequest) (*loginResult, error) {
 
 	token, err := jwtpkg.Generate(&cfg.JWT, identity.UserID, identity.TenantID, identity.RoleCode, sessionID)
 	if err != nil {
-		return nil, err
+		return nil, ErrGenerateTokenFailed
 	}
 
 	res := &loginResult{Token: token}

@@ -1,8 +1,6 @@
 package auth
 
 import (
-	"errors"
-
 	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/pkg/resp"
 )
@@ -18,25 +16,12 @@ func NewHandler() *Handler {
 func (h *Handler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "invalid request body")
+		resp.BadRequest(c, "请求参数格式错误")
 		return
 	}
 	result, err := h.svc.Login(req)
 	if err != nil {
-		switch {
-		case errors.Is(err, ErrInvalidAccountOrPassword):
-			resp.Unauthorized(c, "invalid account or password")
-		case errors.Is(err, ErrTenantBindingNotFound):
-			resp.Forbidden(c, "user is not bound to any tenant")
-		case errors.Is(err, ErrUserDisabled):
-			resp.Forbidden(c, "user is disabled")
-		case errors.Is(err, ErrSessionCreateFailed):
-			resp.ServerError(c, "create session failed")
-		case errors.Is(err, ErrBackendUnavailable):
-			resp.ServerError(c, "backend not initialized")
-		default:
-			resp.ServerError(c, "generate token failed")
-		}
+		resp.HandleError(c, err)
 		return
 	}
 
@@ -55,16 +40,7 @@ func (h *Handler) Logout(c *gin.Context) {
 	sessionID, _ := c.Get("session_id")
 	sid, _ := sessionID.(string)
 	if err := h.svc.Logout(sid); err != nil {
-		switch {
-		case errors.Is(err, ErrInvalidToken):
-			resp.Unauthorized(c, "invalid token")
-		case errors.Is(err, ErrSessionRevokeFailed):
-			resp.ServerError(c, "revoke session failed")
-		case errors.Is(err, ErrBackendUnavailable):
-			resp.ServerError(c, "backend not initialized")
-		default:
-			resp.ServerError(c, "logout failed")
-		}
+		resp.HandleError(c, err)
 		return
 	}
 	resp.Success(c, gin.H{"ok": true})

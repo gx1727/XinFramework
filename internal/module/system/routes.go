@@ -5,8 +5,8 @@ import (
 	"gx1727.com/xin/pkg/resp"
 )
 
-func RegisterV1(r *gin.RouterGroup) {
-	r.GET("/health", func(c *gin.Context) {
+func RegisterV1(public *gin.RouterGroup, protected *gin.RouterGroup) {
+	public.GET("/health", func(c *gin.Context) {
 		resp.Success(c, gin.H{"status": "ok"})
 	})
 }
