@@ -251,6 +251,35 @@ func DoSomething() {
 }
 ```
 
+### 2.6 业务模块自定义日志文件名前缀
+
+当某个业务模块希望写入独立日志文件时，使用 `logger.Module("<prefix>")` 获取模块日志器。
+
+```go
+package auth
+
+import "gx1727.com/xin/internal/infra/logger"
+
+var authLogger *logger.Logger
+
+func InitConfig() error {
+    authLogger = logger.Module("auth")
+
+    if authLogger != nil {
+        authLogger.Infof("auth module config loaded")
+    } else {
+        logger.Infof("auth module config loaded")
+    }
+    return nil
+}
+```
+
+文件命名规则：
+
+- 全局日志器（`logger.Infof(...)`）：`{log.dir}/YYYY-MM-DD.log`
+- 模块日志器（`logger.Module("auth")`）：`{log.dir}/auth-YYYY-MM-DD.log`
+- 例如：`app-2026-04-20.log`、`api-2026-04-20.log`、`auth-2026-04-20.log`
+
 ***
 
 ## 3. 添加新模块
@@ -899,4 +928,3 @@ pkg/                        # 可复用组件
 ├── jwt/                    # JWT
 └── resp/                   # 响应
 ```
-

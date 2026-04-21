@@ -2,7 +2,6 @@ package v1
 
 import (
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/internal/infra/logger"
 	"gx1727.com/xin/internal/module/auth"
 	"gx1727.com/xin/internal/module/cms"
 	"gx1727.com/xin/internal/module/system"
@@ -11,7 +10,6 @@ import (
 )
 
 func RegisterRoutes(r *gin.Engine, cfg *config.Config) {
-	logger.Infof("register routes...........................")
 	v1 := r.Group("/api/v1")
 	auth.RegisterV1(v1)
 
