@@ -2,10 +2,8 @@ package auth
 
 import (
 	"errors"
-	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"gx1727.com/xin/internal/infra/session"
 	"gx1727.com/xin/internal/module/user"
@@ -75,23 +73,15 @@ func (s *Service) Login(req loginRequest) (*loginResult, error) {
 	return res, nil
 }
 
-func (s *Service) Logout(authHeader string) error {
-	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-
+func (s *Service) Logout(sessionID string) error {
 	cfg := config.Get()
 	if cfg == nil {
 		return ErrBackendUnavailable
 	}
-
-	claims := &jwtpkg.Claims{}
-	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(cfg.JWT.Secret), nil
-	})
-	if err != nil || !token.Valid {
+	if sessionID == "" {
 		return ErrInvalidToken
 	}
-
-	if err := session.Revoke(claims.SessionID); err != nil {
+	if err := session.Revoke(sessionID); err != nil {
 		return ErrSessionRevokeFailed
 	}
 	return nil

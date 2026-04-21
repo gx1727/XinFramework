@@ -2,16 +2,14 @@ package main
 
 import (
 	"fmt"
-	"gx1727.com/xin/api/v1"
+	"log"
+	"os"
+
+	v1 "gx1727.com/xin/api/v1"
 	"gx1727.com/xin/internal/core/boot"
 	"gx1727.com/xin/internal/core/middleware"
 	"gx1727.com/xin/internal/core/server"
 	"gx1727.com/xin/pkg/config"
-	"gx1727.com/xin/pkg/resp"
-	"log"
-	"os"
-
-	"github.com/gin-gonic/gin"
 )
 
 const (
@@ -83,21 +81,4 @@ func setupRouter(srv *server.XinServer, cfg *config.Config) {
 	srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode))
 
 	v1.RegisterRoutes(srv.Engine, cfg)
-
-	auth := srv.Engine.Group("/api/v1")
-	auth.Use(middleware.Auth(&cfg.JWT))
-	{
-		auth.GET("/users", func(c *gin.Context) {
-			resp.Error(c, 1001, "not implemented")
-		})
-		auth.POST("/users", func(c *gin.Context) {
-			resp.Error(c, 1001, "not implemented")
-		})
-		auth.PUT("/users/:id", func(c *gin.Context) {
-			resp.Error(c, 1001, "not implemented")
-		})
-		auth.DELETE("/users/:id", func(c *gin.Context) {
-			resp.Error(c, 1001, "not implemented")
-		})
-	}
 }

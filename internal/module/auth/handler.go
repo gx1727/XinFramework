@@ -52,12 +52,9 @@ func (h *Handler) Login(c *gin.Context) {
 }
 
 func (h *Handler) Logout(c *gin.Context) {
-	auth := c.GetHeader("Authorization")
-	if auth == "" {
-		resp.Unauthorized(c, "unauthorized")
-		return
-	}
-	if err := h.svc.Logout(auth); err != nil {
+	sessionID, _ := c.Get("session_id")
+	sid, _ := sessionID.(string)
+	if err := h.svc.Logout(sid); err != nil {
 		switch {
 		case errors.Is(err, ErrInvalidToken):
 			resp.Unauthorized(c, "invalid token")
