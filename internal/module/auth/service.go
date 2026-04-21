@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"gx1727.com/xin/internal/infra/db"
 	"gx1727.com/xin/internal/infra/session"
 	"gx1727.com/xin/internal/module/user"
@@ -108,7 +109,7 @@ func (s *Service) Register(req registerRequest) (*registerResult, error) {
 	if err := d.Table("tenants").
 		Select("id, status").
 		Where("is_deleted = FALSE").
-		Where("id = ?", req.TatID).
+		Where("id = ?", req.TenantID).
 		First(&tenant).Error; err != nil {
 		return nil, ErrTenantNotFound
 	}
@@ -126,31 +127,48 @@ func (s *Service) Register(req registerRequest) (*registerResult, error) {
 	var newUserCode string
 
 	err = d.Transaction(func(tx *gorm.DB) error {
-		account := map[string]interface{}{
-			"phone":      req.Account,
-			"email":      req.Account,
-			"password":   passwordHash,
-			"real_name":  req.RealName,
-			"is_deleted": false,
+		acc := struct {
+			ID       uint `gorm:"primaryKey"`
+			Phone    string
+			Email    string
+			Username string
+			Password string
+			RealName string
+		}{
+			Phone:    req.Account,
+			Email:    req.Account,
+			Username: req.Account,
+			Password: passwordHash,
+			RealName: req.RealName,
 		}
-		if err := tx.Table("accounts").Create(account).Error; err != nil {
+		if err := tx.Table("accounts").Clauses(clause.Returning{Columns: []clause.Column{{Name: "id"}}}).Create(&acc).Error; err != nil {
 			return ErrRegisterFailed
 		}
-		newAccountID = account["id"].(uint)
+		if acc.ID == 0 {
+			return ErrRegisterFailed
+		}
+		newAccountID = acc.ID
 
 		userCode := uuid.NewString()[:8]
-		user := map[string]interface{}{
-			"tenant_id":  req.TatID,
-			"account_id": newAccountID,
-			"code":       userCode,
-			"real_name":  req.RealName,
-			"status":     1,
-			"is_deleted": false,
+		usr := struct {
+			ID        uint `gorm:"primaryKey"`
+			TenantID  uint
+			AccountID uint
+			Code      string
+			Status    int
+		}{
+			TenantID:  req.TenantID,
+			AccountID: newAccountID,
+			Code:      userCode,
+			Status:    1,
 		}
-		if err := tx.Table("users").Create(user).Error; err != nil {
+		if err := tx.Table("users").Clauses(clause.Returning{Columns: []clause.Column{{Name: "id"}}}).Create(&usr).Error; err != nil {
 			return ErrRegisterFailed
 		}
-		newUserID = user["id"].(uint)
+		if usr.ID == 0 {
+			return ErrRegisterFailed
+		}
+		newUserID = usr.ID
 		newUserCode = userCode
 
 		var role struct {
@@ -159,19 +177,21 @@ func (s *Service) Register(req registerRequest) (*registerResult, error) {
 		if err := tx.Table("roles").
 			Select("id").
 			Where("is_deleted = FALSE").
-			Where("tenant_id = ?", req.TatID).
+			Where("tenant_id = ?", req.TenantID).
 			Where("is_default = TRUE").
 			First(&role).Error; err != nil {
 			return ErrDefaultRoleNotFound
 		}
 
-		userRole := map[string]interface{}{
-			"tenant_id":  req.TatID,
-			"user_id":    newUserID,
-			"role_id":    role.ID,
-			"is_deleted": false,
-		}
-		if err := tx.Table("user_roles").Create(userRole).Error; err != nil {
+		if err := tx.Table("user_roles").Create(&struct {
+			TenantID uint
+			UserID   uint
+			RoleID   uint
+		}{
+			TenantID: req.TenantID,
+			UserID:   newUserID,
+			RoleID:   role.ID,
+		}).Error; err != nil {
 			return ErrRegisterFailed
 		}
 
@@ -183,18 +203,18 @@ func (s *Service) Register(req registerRequest) (*registerResult, error) {
 	}
 
 	sessionID := uuid.NewString()
-	if err := session.Create(sessionID, newUserID, req.TatID, "user", time.Duration(cfg.JWT.Expire)*time.Second); err != nil {
+	if err := session.Create(sessionID, newUserID, req.TenantID, "user", time.Duration(cfg.JWT.Expire)*time.Second); err != nil {
 		return nil, ErrSessionCreateFailed
 	}
 
-	token, err := jwtpkg.Generate(&cfg.JWT, newUserID, req.TatID, "user", sessionID)
+	token, err := jwtpkg.Generate(&cfg.JWT, newUserID, req.TenantID, "user", sessionID)
 	if err != nil {
 		return nil, ErrGenerateTokenFailed
 	}
 
 	res := &registerResult{Token: token}
 	res.User.ID = newUserID
-	res.User.TenantID = req.TatID
+	res.User.TenantID = req.TenantID
 	res.User.Code = newUserCode
 	res.User.Role = "user"
 	return res, nil

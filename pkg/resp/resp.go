@@ -121,13 +121,21 @@ func logResponse(c *gin.Context, level string, code int, msg string) {
 	if reqID == "" {
 		reqID = "-"
 	}
+	method := "-"
+	path := "-"
+	if c.Request != nil {
+		method = c.Request.Method
+		if c.Request.URL != nil {
+			path = c.Request.URL.Path
+		}
+	}
 	switch level {
 	case "error":
-		logger.Errorf("[%s] %s %s | %d | %s", reqID, c.Request.Method, c.Request.URL.Path, code, msg)
+		logger.Errorf("[%s] %s %s | %d | %s", reqID, method, path, code, msg)
 	case "warn":
-		logger.Warnf("[%s] %s %s | %d | %s", reqID, c.Request.Method, c.Request.URL.Path, code, msg)
+		logger.Warnf("[%s] %s %s | %d | %s", reqID, method, path, code, msg)
 	default:
-		logger.Infof("[%s] %s %s | %d | %s", reqID, c.Request.Method, c.Request.URL.Path, code, msg)
+		logger.Infof("[%s] %s %s | %d | %s", reqID, method, path, code, msg)
 	}
 }
 
