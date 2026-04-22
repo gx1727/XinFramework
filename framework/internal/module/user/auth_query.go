@@ -1,7 +1,7 @@
 package user
 
 import (
-	"gx1727.com/xin/framework/pkg/db"
+	"gorm.io/gorm"
 )
 
 type LoginIdentity struct {
@@ -13,8 +13,7 @@ type LoginIdentity struct {
 	PasswordHash string
 }
 
-func ResolveLoginIdentity(account string, tenantID uint) (*LoginIdentity, error) {
-	d := db.Get()
+func ResolveLoginIdentity(d *gorm.DB, account string, tenantID uint) (*LoginIdentity, error) {
 	if d == nil {
 		return nil, ErrBackendUnavailable
 	}

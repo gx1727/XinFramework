@@ -8,7 +8,7 @@ import (
 	v1 "gx1727.com/xin/framework/api/v1"
 	"gx1727.com/xin/framework/internal/core/boot"
 	"gx1727.com/xin/framework/internal/core/middleware"
-	"gx1727.com/xin/framework/internal/core/server"
+	"gx1727.com/xin/framework/internal/module/user"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/migrate"
 	"gx1727.com/xin/framework/pkg/plugin"
@@ -54,7 +54,7 @@ func Run(cfg *config.Config) {
 }
 
 func runServer(cfg *config.Config) {
-	srv, err := boot.Init(cfg)
+	app, err := boot.Init(cfg)
 	if err != nil {
 		log.Fatalf("boot init failed: %v", err)
 	}
@@ -67,7 +67,7 @@ func runServer(cfg *config.Config) {
 	migrateModules()
 
 	// 配置路由和中间件
-	setupRouter(srv, cfg)
+	setupRouter(app)
 
 	// 构建服务器地址
 	addr := fmt.Sprintf("%s:%d", cfg.App.Host, cfg.App.Port)
@@ -75,7 +75,7 @@ func runServer(cfg *config.Config) {
 
 	// 在后台启动HTTP服务器
 	go func() {
-		if err := srv.Start(addr); err != nil {
+		if err := app.Server.Start(addr); err != nil {
 			log.Fatalf("server start failed: %v", err)
 		}
 	}()
@@ -86,7 +86,7 @@ func runServer(cfg *config.Config) {
 	}
 
 	// 等待系统信号（用于优雅关闭）
-	waitForSignal(srv)
+	waitForSignal(app.Server)
 }
 
 // runFrameworkMigrations 执行框架核心数据库迁移
@@ -116,7 +116,10 @@ func migrateModules() {
 }
 
 // setupRouter 配置服务器路由和中间件
-func setupRouter(srv *server.XinServer, cfg *config.Config) {
+func setupRouter(app *boot.App) {
+	srv := app.Server
+	cfg := app.Config
+
 	// 注册全局中间件
 	srv.Engine.Use(middleware.RequestID())           // 请求ID中间件
 	srv.Engine.Use(middleware.Logger())              // 日志中间件
@@ -124,5 +127,10 @@ func setupRouter(srv *server.XinServer, cfg *config.Config) {
 	srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode)) // 租户中间件
 
 	// 注册API v1路由
-	v1.RegisterRoutes(srv.Engine, cfg)
+	userDeps := user.DefaultDependencies(cfg, app.DB)
+	userService := user.NewService(userDeps)
+	userHandler := user.NewHandler(userService)
+	v1.RegisterRoutes(srv.Engine, cfg, v1.Dependencies{
+		UserHandler: userHandler,
+	})
 }

@@ -10,20 +10,26 @@ import (
 	"gx1727.com/xin/framework/pkg/plugin"
 )
 
-var builtinModules = []plugin.Module{
-	user.Module(),
-	system.Module(),
-	weixin.Module(),
+type Dependencies struct {
+	UserHandler *user.Handler
 }
 
-func RegisterRoutes(r *gin.Engine, cfg *config.Config) {
+func builtinModules(deps Dependencies) []plugin.Module {
+	return []plugin.Module{
+		user.Module(deps.UserHandler),
+		system.Module(),
+		weixin.Module(),
+	}
+}
+
+func RegisterRoutes(r *gin.Engine, cfg *config.Config, deps Dependencies) {
 	v1 := r.Group("/api/v1")
 
 	public := v1.Group("")
 	protected := v1.Group("")
 	protected.Use(middleware.Auth(&cfg.JWT))
 
-	for _, m := range builtinModules {
+	for _, m := range builtinModules(deps) {
 		if cfg.ModuleEnabled(m.Name()) {
 			m.Register(public, protected)
 		}

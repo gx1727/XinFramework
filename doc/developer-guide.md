@@ -304,10 +304,13 @@ func main() {
 ### 3.2 内置模块
 
 在 `framework/internal/module/` 下创建目录，包含：
-- `routes.go` - 路由注册 + `Module()` 函数
+- `deps.go` - 依赖声明与构造
 - `handler.go` - HTTP 处理层
 - `service.go` - 业务逻辑层（可选）
+- `routes.go` - 路由注册 + `Module()` 函数
 - `model.go` - 数据模型（可选）
+
+#### 3.2.1 简单模块（无 Service 层）
 
 示例：`framework/internal/module/mymodule/routes.go`
 
@@ -332,6 +335,138 @@ func Module() plugin.Module {
 
 内置模块默认全部启用，可在 `config.yaml` 的 `module:` 列表中控制。
 
+#### 3.2.2 带 Service 层的模块（手写依赖注入）
+
+对于有业务逻辑的模块，采用手写依赖注入模式：Handler → Service → DB/Config/SessionManager，所有依赖在启动期显式构造，禁止在业务层直接访问全局状态。
+
+**完整示例**（以 `user` 模块为参考）：
+
+**1) 定义依赖与接口** — `deps.go`
+
+```go
+package user
+
+import (
+    "time"
+
+    "gorm.io/gorm"
+    "gx1727.com/xin/framework/pkg/config"
+    "gx1727.com/xin/framework/pkg/session"
+)
+
+type SessionManager interface {
+    Create(sessionID string, userID, tenantID uint, role string, ttl time.Duration) error
+    Revoke(sessionID string) error
+}
+
+type Dependencies struct {
+    DB      *gorm.DB
+    Config  *config.Config
+    Session SessionManager
+}
+
+type defaultSessionManager struct{}
+
+func (defaultSessionManager) Create(sessionID string, userID, tenantID uint, role string, ttl time.Duration) error {
+    return session.Create(sessionID, userID, tenantID, role, ttl)
+}
+
+func (defaultSessionManager) Revoke(sessionID string) error {
+    return session.Revoke(sessionID)
+}
+
+func DefaultDependencies(cfg *config.Config, db *gorm.DB) Dependencies {
+    return Dependencies{
+        DB:      db,
+        Config:  cfg,
+        Session: defaultSessionManager{},
+    }
+}
+```
+
+**2) Service 接收显式依赖** — `service.go`
+
+```go
+type Service struct {
+    db      *gorm.DB
+    config  *config.Config
+    session SessionManager
+}
+
+func NewService(deps Dependencies) *Service {
+    return &Service{
+        db:      deps.DB,
+        config:  deps.Config,
+        session: deps.Session,
+    }
+}
+
+func (s *Service) Login(req loginRequest) (*loginResult, error) {
+    // 使用 s.db、s.config、s.session，不再调用 db.Get() / config.Get()
+    ...
+}
+```
+
+**3) Handler 注入 Service** — `handler.go`
+
+```go
+type Handler struct {
+    svc *Service
+}
+
+func NewHandler(svc *Service) *Handler {
+    return &Handler{svc: svc}
+}
+```
+
+**4) 路由注册接收 Handler** — `routes.go`
+
+```go
+func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
+    public.POST("/login", h.Login)
+    protected.POST("/logout", h.Logout)
+}
+
+func Module(h *Handler) plugin.Module {
+    return plugin.NewModule("user", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
+        Register(public, protected, h)
+    })
+}
+```
+
+**5) 启动期组装** — `framework/api/v1/register.go`
+
+```go
+type Dependencies struct {
+    UserHandler *user.Handler
+}
+
+func RegisterRoutes(r *gin.Engine, cfg *config.Config, deps Dependencies) {
+    for _, m := range builtinModules(deps) {
+        ...
+    }
+}
+```
+
+**6) 启动入口构造依赖** — `framework/framework.go`
+
+```go
+func setupRouter(app *boot.App) {
+    userDeps := user.DefaultDependencies(app.Config, app.DB)
+    userService := user.NewService(userDeps)
+    userHandler := user.NewHandler(userService)
+    v1.RegisterRoutes(app.Server.Engine, app.Config, v1.Dependencies{
+        UserHandler: userHandler,
+    })
+}
+```
+
+**核心原则**：
+- Service 通过构造函数接收所有依赖，禁止内部调用 `db.Get()`、`config.Get()`、`cache.Get()`
+- Handler 由启动期构造并注入 Service，禁止内部 `NewService()`
+- 需要替换的外部依赖（如 session）抽象为接口，便于测试和替换
+- 全局包级函数（`db.Get()` 等）仅在基础设施层和外部插件中使用
+
 ### 3.3 分层规范
 
 推荐 C-S（Handler-Service）两层，复杂业务可扩展到 H-S-R-M：
@@ -339,7 +474,7 @@ func Module() plugin.Module {
 | 层 | 职责 | 禁止 |
 |---|---|---|
 | **Handler** | 参数校验、响应组装 | 写业务逻辑、写 SQL |
-| **Service** | 业务规则、事务边界 | 依赖 Gin 上下文 |
+| **Service** | 业务规则、事务边界 | 依赖 Gin 上下文、调用全局 Get() |
 | **Repo** | 数据访问（可选） | 跨表操作 |
 | **Model** | 数据结构 | 业务逻辑 |
 
@@ -422,12 +557,11 @@ d := db.Get() // 获取全局 db 实例
 | **Service** | 定义事务边界 | 直接写 SQL |
 | **Repo** | 接受 `*gorm.DB` 执行操作 | 自己开事务 |
 
-**Service 层事务示例**：
+**Service 层事务示例**（使用注入的 `s.db`）：
 
 ```go
 func (s *Service) CreateWithRole(user *User, roleID uint) error {
-    d := db.Get()
-    return d.Transaction(func(tx *gorm.DB) error {
+    return s.db.Transaction(func(tx *gorm.DB) error {
         if err := s.repo.Create(tx, user); err != nil {
             return err
         }
@@ -438,6 +572,8 @@ func (s *Service) CreateWithRole(user *User, roleID uint) error {
     })
 }
 ```
+
+> **注意**：已迁移到依赖注入的模块，Service 层应使用注入的 `s.db` 字段，而非 `db.Get()` 全局函数。
 
 ### 5.3 租户查询
 
@@ -567,8 +703,119 @@ XinFramework/
 │       └── module/
 │           ├── auth/          # 占位符
 │           ├── user/
+│           │   ├── deps.go    # 依赖声明（接口 + Dependencies）
+│           │   ├── session_manager.go
+│           │   ├── handler.go
+│           │   ├── service.go
+│           │   ├── routes.go
+│           │   └── ...
 │           ├── system/
 │           └── weixin/
 └── migrations/
     └── framework/
 ```
+
+***
+
+## 10. 启动流程与依赖注入
+
+### 10.1 启动流程
+
+```
+main()
+  → config.Load()                # 加载配置
+  → framework.RegisterModule()   # 注册外部插件
+  → framework.Run(cfg)
+      → boot.Init(cfg)           # 初始化基础设施，返回 *boot.App
+          → logger.Init()
+          → db.Init()
+          → cache.Init()
+          → loadModuleConfigs()
+          → server.New()
+      → initModules()            # 初始化外部插件
+      → runFrameworkMigrations()
+      → migrateModules()
+      → setupRouter(app)         # 组装依赖 + 注册路由
+          → user.DefaultDependencies()
+          → user.NewService()
+          → user.NewHandler()
+          → v1.RegisterRoutes()
+      → srv.Start()
+      → waitForSignal()
+```
+
+### 10.2 boot.App
+
+`boot.Init()` 返回 `*boot.App`，是启动期的依赖聚合对象：
+
+```go
+type App struct {
+    Config *config.Config
+    DB     *gorm.DB
+    Server *server.XinServer
+}
+```
+
+`setupRouter(app)` 从 `App` 中取出所需依赖，构造业务对象并注入路由。
+
+### 10.3 新增内置模块的依赖注入步骤
+
+以新增一个带 Service 的 `order` 模块为例：
+
+**步骤 1**：创建 `deps.go`，定义 `Dependencies` 和接口
+
+```go
+type Dependencies struct {
+    DB     *gorm.DB
+    Config *config.Config
+}
+```
+
+**步骤 2**：创建 `service.go`，`NewService(deps Dependencies)` 接收依赖
+
+**步骤 3**：创建 `handler.go`，`NewHandler(svc *Service)` 注入 Service
+
+**步骤 4**：创建 `routes.go`
+
+```go
+func Module(h *Handler) plugin.Module {
+    return plugin.NewModule("order", func(public, protected *gin.RouterGroup) {
+        Register(public, protected, h)
+    })
+}
+```
+
+**步骤 5**：在 `v1/Dependencies` 中添加 `OrderHandler`
+
+```go
+type Dependencies struct {
+    UserHandler  *user.Handler
+    OrderHandler *order.Handler
+}
+```
+
+**步骤 6**：在 `framework.go` 的 `setupRouter` 中构造并传入
+
+```go
+orderDeps := order.DefaultDependencies(app.Config, app.DB)
+orderService := order.NewService(orderDeps)
+orderHandler := order.NewHandler(orderService)
+v1.RegisterRoutes(srv.Engine, cfg, v1.Dependencies{
+    UserHandler:  userHandler,
+    OrderHandler: orderHandler,
+})
+```
+
+### 10.4 迁移进度
+
+| 模块/包 | 状态 | 说明 |
+|---------|------|------|
+| `boot.Init` → `*App` | ✅ 已迁移 | 返回依赖聚合对象 |
+| `user.Service` | ✅ 已迁移 | 显式注入 DB/Config/SessionManager |
+| `user.Handler` | ✅ 已迁移 | 显式注入 Service |
+| `user.auth_query` | ✅ 已迁移 | `ResolveLoginIdentity` 接收 `*gorm.DB` 参数 |
+| `v1.RegisterRoutes` | ✅ 已迁移 | 接收 `Dependencies` 参数 |
+| `session` | 🔲 待迁移 | 仍使用全局 `db.Get()` / `cache.Get()` |
+| `middleware.Auth` | 🔲 待迁移 | 仍依赖全局 `session.Validate()` |
+| `migrate` | 🔲 待迁移 | 仍使用全局 `db.Get()` |
+| 外部插件（cms 等） | 🔲 不迁移 | 保持 `plugin.Register` 动态注册模式 |

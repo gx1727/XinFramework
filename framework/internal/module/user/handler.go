@@ -9,8 +9,8 @@ type Handler struct {
 	svc *Service
 }
 
-func NewHandler() *Handler {
-	return &Handler{svc: NewService()}
+func NewHandler(svc *Service) *Handler {
+	return &Handler{svc: svc}
 }
 
 func (h *Handler) Login(c *gin.Context) {

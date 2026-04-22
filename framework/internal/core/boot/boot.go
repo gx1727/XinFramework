@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"gorm.io/gorm"
 	"gx1727.com/xin/framework/internal/core/server"
 	"gx1727.com/xin/framework/internal/module/auth"
 	"gx1727.com/xin/framework/internal/module/user"
@@ -13,7 +14,13 @@ import (
 	"gx1727.com/xin/framework/pkg/logger"
 )
 
-func Init(cfg *config.Config) (*server.XinServer, error) {
+type App struct {
+	Config *config.Config
+	DB     *gorm.DB
+	Server *server.XinServer
+}
+
+func Init(cfg *config.Config) (*App, error) {
 	logger.Init(cfg.Log.Dir, cfg.Log.Level)
 	if err := db.Init(&cfg.Database); err != nil {
 		return nil, fmt.Errorf("db init failed: %w", err)
@@ -25,8 +32,11 @@ func Init(cfg *config.Config) (*server.XinServer, error) {
 		return nil, fmt.Errorf("module config failed: %w", err)
 	}
 
-	srv := server.New(cfg)
-	return srv, nil
+	return &App{
+		Config: cfg,
+		DB:     db.Get(),
+		Server: server.New(cfg),
+	}, nil
 }
 
 func loadModuleConfigs(cfg *config.Config) error {

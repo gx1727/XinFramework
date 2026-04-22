@@ -8,19 +8,25 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gx1727.com/xin/framework/pkg/config"
-	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
-	"gx1727.com/xin/framework/pkg/session"
 )
 
-type Service struct{}
+type Service struct {
+	db      *gorm.DB
+	config  *config.Config
+	session SessionManager
+}
 
-func NewService() *Service {
-	return &Service{}
+func NewService(deps Dependencies) *Service {
+	return &Service{
+		db:      deps.DB,
+		config:  deps.Config,
+		session: deps.Session,
+	}
 }
 
 func (s *Service) Login(req loginRequest) (*loginResult, error) {
-	identity, err := ResolveLoginIdentity(req.Account, req.TenantID)
+	identity, err := ResolveLoginIdentity(s.db, req.Account, req.TenantID)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrBackendUnavailable):
@@ -42,17 +48,16 @@ func (s *Service) Login(req loginRequest) (*loginResult, error) {
 		return nil, ErrUserDisabled
 	}
 
-	cfg := config.Get()
-	if cfg == nil {
+	if s.config == nil || s.session == nil {
 		return nil, ErrBackendUnavailable
 	}
 
 	sessionID := uuid.NewString()
-	if err := session.Create(sessionID, identity.UserID, identity.TenantID, identity.RoleCode, time.Duration(cfg.JWT.Expire)*time.Second); err != nil {
+	if err := s.session.Create(sessionID, identity.UserID, identity.TenantID, identity.RoleCode, time.Duration(s.config.JWT.Expire)*time.Second); err != nil {
 		return nil, ErrSessionCreateFailed
 	}
 
-	token, err := jwtpkg.Generate(&cfg.JWT, identity.UserID, identity.TenantID, identity.RoleCode, sessionID)
+	token, err := jwtpkg.Generate(&s.config.JWT, identity.UserID, identity.TenantID, identity.RoleCode, sessionID)
 	if err != nil {
 		return nil, ErrGenerateTokenFailed
 	}
@@ -66,29 +71,23 @@ func (s *Service) Login(req loginRequest) (*loginResult, error) {
 }
 
 func (s *Service) Logout(sessionID string) error {
-	cfg := config.Get()
-	if cfg == nil {
+	if s.config == nil || s.session == nil {
 		return ErrBackendUnavailable
 	}
 	if sessionID == "" {
 		return ErrInvalidToken
 	}
-	if err := session.Revoke(sessionID); err != nil {
+	if err := s.session.Revoke(sessionID); err != nil {
 		return ErrSessionRevokeFailed
 	}
 	return nil
 }
 
 func (s *Service) Register(req registerRequest) (*registerResult, error) {
-	d := db.Get()
-	if d == nil {
+	if s.db == nil || s.config == nil || s.session == nil {
 		return nil, ErrBackendUnavailable
 	}
-
-	cfg := config.Get()
-	if cfg == nil {
-		return nil, ErrBackendUnavailable
-	}
+	d := s.db
 
 	var count int64
 	if err := d.Table("accounts").
@@ -202,11 +201,11 @@ func (s *Service) Register(req registerRequest) (*registerResult, error) {
 	}
 
 	sessionID := uuid.NewString()
-	if err := session.Create(sessionID, newUserID, req.TenantID, "user", time.Duration(cfg.JWT.Expire)*time.Second); err != nil {
+	if err := s.session.Create(sessionID, newUserID, req.TenantID, "user", time.Duration(s.config.JWT.Expire)*time.Second); err != nil {
 		return nil, ErrSessionCreateFailed
 	}
 
-	token, err := jwtpkg.Generate(&cfg.JWT, newUserID, req.TenantID, "user", sessionID)
+	token, err := jwtpkg.Generate(&s.config.JWT, newUserID, req.TenantID, "user", sessionID)
 	if err != nil {
 		return nil, ErrGenerateTokenFailed
 	}
