@@ -1,4 +1,4 @@
-module gx1727.com/xin-project
+module gx1727.com/xin
 
 go 1.25.0
 

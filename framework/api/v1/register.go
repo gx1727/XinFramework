@@ -25,13 +25,13 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config) {
 
 	for _, m := range builtinModules {
 		if cfg.DomainEnabled(m.Name()) {
-			m.RegisterV1(public, protected)
+			m.Register(public, protected)
 		}
 	}
 
 	for _, m := range plugin.All() {
 		if cfg.DomainEnabled(m.Name()) {
-			m.RegisterV1(public, protected)
+			m.Register(public, protected)
 		}
 	}
 }

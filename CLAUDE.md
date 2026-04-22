@@ -63,7 +63,7 @@ type Module interface {
     Name() string
     Init() error                                    // Load config, setup
     Migrate() error                                 // Run SQL migrations
-    RegisterV1(public, protected *gin.RouterGroup)  // Register routes
+    Register(public, protected *gin.RouterGroup)  // Register routes
 }
 ```
 

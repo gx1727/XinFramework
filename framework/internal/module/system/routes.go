@@ -6,12 +6,12 @@ import (
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
-func RegisterV1(public *gin.RouterGroup, protected *gin.RouterGroup) {
+func Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
 	public.GET("/health", func(c *gin.Context) {
 		resp.Success(c, gin.H{"status": "ok"})
 	})
 }
 
 func Module() plugin.Module {
-	return plugin.NewModule("system", RegisterV1)
+	return plugin.NewModule("system", Register)
 }

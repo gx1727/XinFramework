@@ -6,12 +6,12 @@ import (
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
-func RegisterV1(public *gin.RouterGroup, protected *gin.RouterGroup) {
+func Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
 	protected.GET("/weixin/ping", func(c *gin.Context) {
 		resp.Success(c, gin.H{"domain": "weixin", "status": "enabled"})
 	})
 }
 
 func Module() plugin.Module {
-	return plugin.NewModule("weixin", RegisterV1)
+	return plugin.NewModule("weixin", Register)
 }
