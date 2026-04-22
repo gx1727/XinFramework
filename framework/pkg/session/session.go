@@ -3,7 +3,6 @@ package session
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"sync"
 	"time"
 
@@ -26,10 +25,10 @@ var ensureTableOnce sync.Once
 
 func Create(sessionID string, userID, tenantID uint, role string, ttl time.Duration) error {
 	if sessionID == "" {
-		return fmt.Errorf("empty session id")
+		return ErrEmptySessionID
 	}
 	if ttl <= 0 {
-		return fmt.Errorf("invalid session ttl")
+		return ErrInvalidSessionTTL
 	}
 
 	if rdb := cache.Get(); rdb != nil {
@@ -52,7 +51,7 @@ func Create(sessionID string, userID, tenantID uint, role string, ttl time.Durat
 
 	d := db.Get()
 	if d == nil {
-		return fmt.Errorf("session backend unavailable: db not initialized")
+		return ErrBackendUnavailable
 	}
 	ensureSessionTable(d)
 	expiresAt := time.Now().Add(ttl)
@@ -81,7 +80,7 @@ func Validate(sessionID string) (bool, error) {
 
 	d := db.Get()
 	if d == nil {
-		return false, fmt.Errorf("session backend unavailable: db not initialized")
+		return false, ErrBackendUnavailable
 	}
 	ensureSessionTable(d)
 	var cnt int64

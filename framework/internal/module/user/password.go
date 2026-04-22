@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -21,10 +20,10 @@ func verifyPassword(stored, plain string) (bool, error) {
 func verifyArgon2ID(encodedHash, plain string) (bool, error) {
 	parts := strings.Split(encodedHash, "$")
 	if len(parts) != 6 {
-		return false, errors.New("invalid argon2id hash format")
+		return false, ErrInvalidHashFormat
 	}
 	if parts[1] != "argon2id" {
-		return false, errors.New("unsupported hash algorithm")
+		return false, ErrUnsupportedHash
 	}
 
 	var memory uint32

@@ -1,6 +1,10 @@
 package user
 
-import "gx1727.com/xin/framework/pkg/resp"
+import (
+	"errors"
+
+	"gx1727.com/xin/framework/pkg/resp"
+)
 
 var (
 	ErrInvalidAccountOrPassword = resp.NewError(1001, "账号或密码错误")
@@ -19,4 +23,9 @@ var (
 	ErrSessionRevokeFailed = resp.NewError(1007, "注销会话失败")
 	ErrGenerateTokenFailed = resp.NewError(1008, "生成令牌失败")
 	ErrAccountNotFound     = resp.NewError(1009, "账号不存在")
+)
+
+var (
+	ErrInvalidHashFormat = errors.New("invalid argon2id hash format")
+	ErrUnsupportedHash   = errors.New("unsupported hash algorithm")
 )

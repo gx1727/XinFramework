@@ -39,7 +39,7 @@ func isApplied(version string) bool {
 func markApplied(version string) error {
 	d := db.Get()
 	if d == nil {
-		return fmt.Errorf("db not initialized")
+		return ErrDBNotInitialized
 	}
 	return d.Table("_schema_migrations").Create(map[string]interface{}{"version": version}).Error
 }
@@ -90,7 +90,7 @@ func loadFromDir(dir string) ([]Migration, error) {
 func Run(dir string) error {
 	d := db.Get()
 	if d == nil {
-		return fmt.Errorf("db not initialized")
+		return ErrDBNotInitialized
 	}
 
 	// 确保迁移记录表存在
