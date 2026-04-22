@@ -3,15 +3,15 @@ package v1
 import (
 	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/internal/core/middleware"
-	"gx1727.com/xin/framework/internal/module/auth"
 	"gx1727.com/xin/framework/internal/module/system"
+	"gx1727.com/xin/framework/internal/module/user"
 	"gx1727.com/xin/framework/internal/module/weixin"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/plugin"
 )
 
 var builtinModules = []plugin.Module{
-	auth.Module(),
+	user.Module(),
 	system.Module(),
 	weixin.Module(),
 }

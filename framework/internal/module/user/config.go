@@ -1,4 +1,4 @@
-package auth
+package user
 
 import (
 	"gx1727.com/xin/framework/pkg/config"
@@ -14,14 +14,14 @@ type AuthConfig struct {
 }
 
 var authCfg *AuthConfig
-var authLogger *logger.Logger
+var userLogger *logger.Logger
 
 func Cfg() *AuthConfig {
 	return authCfg
 }
 
 func InitConfig() error {
-	authLogger = logger.Module("auth")
+	userLogger = logger.Module("user")
 
 	authCfg = &AuthConfig{
 		MaxLoginAttempts:      5,
@@ -31,13 +31,13 @@ func InitConfig() error {
 		RefreshTokenExpireSec: 86400,
 	}
 
-	_ = config.LoadModule("auth", authCfg)
+	_ = config.LoadModule("user", authCfg)
 
-	if authLogger != nil {
-		authLogger.Infof("auth module config loaded: attempts=%d lock=%ds policy=%s",
+	if userLogger != nil {
+		userLogger.Infof("user module config loaded: attempts=%d lock=%ds policy=%s",
 			authCfg.MaxLoginAttempts, authCfg.LockDurationSec, authCfg.PasswordPolicy)
 	} else {
-		logger.Infof("auth module config loaded: attempts=%d lock=%ds policy=%s",
+		logger.Infof("user module config loaded: attempts=%d lock=%ds policy=%s",
 			authCfg.MaxLoginAttempts, authCfg.LockDurationSec, authCfg.PasswordPolicy)
 	}
 	return nil

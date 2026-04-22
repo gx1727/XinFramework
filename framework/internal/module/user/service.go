@@ -1,4 +1,4 @@
-package auth
+package user
 
 import (
 	"errors"
@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"gx1727.com/xin/framework/internal/module/user"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
@@ -21,14 +20,14 @@ func NewService() *Service {
 }
 
 func (s *Service) Login(req loginRequest) (*loginResult, error) {
-	identity, err := user.ResolveLoginIdentity(req.Account, req.TenantID)
+	identity, err := ResolveLoginIdentity(req.Account, req.TenantID)
 	if err != nil {
 		switch {
-		case errors.Is(err, user.ErrBackendUnavailable):
+		case errors.Is(err, ErrBackendUnavailable):
 			return nil, ErrBackendUnavailable
-		case errors.Is(err, user.ErrAccountNotFound):
+		case errors.Is(err, ErrAccountNotFound):
 			return nil, ErrInvalidAccountOrPassword
-		case errors.Is(err, user.ErrTenantBindingNotFound):
+		case errors.Is(err, ErrTenantBindingNotFound):
 			return nil, ErrTenantBindingNotFound
 		default:
 			return nil, ErrInvalidAccountOrPassword

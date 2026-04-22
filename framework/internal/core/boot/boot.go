@@ -6,6 +6,7 @@ import (
 
 	"gx1727.com/xin/framework/internal/core/server"
 	"gx1727.com/xin/framework/internal/module/auth"
+	"gx1727.com/xin/framework/internal/module/user"
 	"gx1727.com/xin/framework/pkg/cache"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/db"
@@ -30,6 +31,9 @@ func Init(cfg *config.Config) (*server.XinServer, error) {
 
 func loadModuleConfigs(cfg *config.Config) error {
 	if err := auth.InitConfig(); err != nil {
+		return err
+	}
+	if err := user.InitConfig(); err != nil {
 		return err
 	}
 	return nil

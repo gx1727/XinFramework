@@ -1,4 +1,4 @@
-package auth
+package user
 
 import (
 	"github.com/gin-gonic/gin"
@@ -13,5 +13,5 @@ func Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
 }
 
 func Module() plugin.Module {
-	return plugin.NewModule("auth", Register)
+	return plugin.NewModule("user", Register)
 }

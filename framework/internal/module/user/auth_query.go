@@ -1,18 +1,9 @@
 package user
 
 import (
-	"errors"
-
 	"gx1727.com/xin/framework/pkg/db"
 )
 
-var (
-	ErrBackendUnavailable    = errors.New("backend unavailable")
-	ErrAccountNotFound       = errors.New("account not found")
-	ErrTenantBindingNotFound = errors.New("tenant binding not found")
-)
-
-// LoginIdentity is the minimum user data required by auth login flow.
 type LoginIdentity struct {
 	UserID       uint
 	TenantID     uint
@@ -22,7 +13,6 @@ type LoginIdentity struct {
 	PasswordHash string
 }
 
-// ResolveLoginIdentity queries account, tenant binding, and role for login.
 func ResolveLoginIdentity(account string, tenantID uint) (*LoginIdentity, error) {
 	d := db.Get()
 	if d == nil {
