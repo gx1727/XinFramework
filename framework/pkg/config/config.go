@@ -1,3 +1,5 @@
+// Package config 提供配置加载和管理功能
+// 支持从YAML文件和环境变量加载配置，并支持模块化的配置管理
 package config
 
 import (
@@ -13,86 +15,100 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Config 主配置结构体，包含所有系统配置项
 type Config struct {
-	App      AppConfig      `yaml:"app"`
-	Database DatabaseConfig `yaml:"database"`
-	Redis    RedisConfig    `yaml:"redis"`
-	JWT      JWTConfig      `yaml:"jwt"`
-	Saas     SaasConfig     `yaml:"saas"`
-	Log      LogConfig      `yaml:"log"`
-	Module   []string       `yaml:"module"`
-	Apps     []string       `yaml:"apps"`
-	Auth     AuthConfig     `yaml:"auth"`
+	App      AppConfig      `yaml:"app"`      // 应用基础配置
+	Database DatabaseConfig `yaml:"database"` // 数据库配置
+	Redis    RedisConfig    `yaml:"redis"`    // Redis配置
+	JWT      JWTConfig      `yaml:"jwt"`      // JWT认证配置
+	Saas     SaasConfig     `yaml:"saas"`     // SaaS模式配置
+	Log      LogConfig      `yaml:"log"`      // 日志配置
+	Module   []string       `yaml:"module"`   // 启用的模块列表
+	Apps     []string       `yaml:"apps"`     // 启用的应用列表
+	Auth     AuthConfig     `yaml:"auth"`     // 认证配置
 }
 
+// AppConfig 应用基础配置
 type AppConfig struct {
-	Name string `yaml:"name"`
-	Env  string `yaml:"env"`
-	Host string `yaml:"host"`
-	Port int    `yaml:"port"`
+	Name string `yaml:"name"` // 应用名称
+	Env  string `yaml:"env"`  // 运行环境（dev/prod/test）
+	Host string `yaml:"host"` // 服务器主机地址
+	Port int    `yaml:"port"` // 服务器端口
 }
 
+// DatabaseConfig 数据库配置
 type DatabaseConfig struct {
-	Host               string `yaml:"host"`
-	Port               int    `yaml:"port"`
-	User               string `yaml:"user"`
-	Password           string `yaml:"password"`
-	DBName             string `yaml:"dbname"`
-	SSLMode            string `yaml:"sslmode"`
-	MaxOpenConns       int    `yaml:"max_open_conns"`
-	MaxIdleConns       int    `yaml:"max_idle_conns"`
-	ConnMaxLifetimeSec int    `yaml:"conn_max_lifetime_sec"`
-	ConnMaxIdleTimeSec int    `yaml:"conn_max_idle_time_sec"`
+	Host               string `yaml:"host"`                   // 数据库主机地址
+	Port               int    `yaml:"port"`                   // 数据库端口
+	User               string `yaml:"user"`                   // 数据库用户名
+	Password           string `yaml:"password"`               // 数据库密码
+	DBName             string `yaml:"dbname"`                 // 数据库名称
+	SSLMode            string `yaml:"sslmode"`                // SSL连接模式
+	MaxOpenConns       int    `yaml:"max_open_conns"`         // 最大打开连接数
+	MaxIdleConns       int    `yaml:"max_idle_conns"`         // 最大空闲连接数
+	ConnMaxLifetimeSec int    `yaml:"conn_max_lifetime_sec"`  // 连接最大生命周期（秒）
+	ConnMaxIdleTimeSec int    `yaml:"conn_max_idle_time_sec"` // 连接最大空闲时间（秒）
 }
 
+// RedisConfig Redis配置
 type RedisConfig struct {
-	Host           string `yaml:"host"`
-	Port           int    `yaml:"port"`
-	Password       string `yaml:"password"`
-	DB             int    `yaml:"db"`
-	Enabled        bool   `yaml:"enabled"`
-	Required       bool   `yaml:"required"`
-	PoolSize       int    `yaml:"pool_size"`
-	MinIdleConns   int    `yaml:"min_idle_conns"`
-	PoolTimeoutSec int    `yaml:"pool_timeout_sec"`
-	IdleTimeoutSec int    `yaml:"idle_timeout_sec"`
-	MaxConnAgeSec  int    `yaml:"max_conn_age_sec"`
+	Host           string `yaml:"host"`             // Redis主机地址
+	Port           int    `yaml:"port"`             // Redis端口
+	Password       string `yaml:"password"`         // Redis密码
+	DB             int    `yaml:"db"`               // Redis数据库编号
+	Enabled        bool   `yaml:"enabled"`          // 是否启用Redis
+	Required       bool   `yaml:"required"`         // Redis是否为必需（启动时检查）
+	PoolSize       int    `yaml:"pool_size"`        // 连接池大小
+	MinIdleConns   int    `yaml:"min_idle_conns"`   // 最小空闲连接数
+	PoolTimeoutSec int    `yaml:"pool_timeout_sec"` // 连接池超时时间（秒）
+	IdleTimeoutSec int    `yaml:"idle_timeout_sec"` // 空闲连接超时时间（秒）
+	MaxConnAgeSec  int    `yaml:"max_conn_age_sec"` // 连接最大存活时间（秒）
 }
 
+// JWTConfig JWT配置
 type JWTConfig struct {
-	Secret        string `yaml:"secret"`
-	Expire        int    `yaml:"expire"`
-	RefreshExpire int    `yaml:"refresh_expire"`
+	Secret        string `yaml:"secret"`         // JWT密钥
+	Expire        int    `yaml:"expire"`         // Token过期时间（秒）
+	RefreshExpire int    `yaml:"refresh_expire"` // Refresh Token过期时间（秒）
 }
 
+// SaasConfig SaaS模式配置
 type SaasConfig struct {
-	Mode string `yaml:"mode"`
+	Mode string `yaml:"mode"` // SaaS模式（single/multi）
 }
 
+// LogConfig 日志配置
 type LogConfig struct {
-	Dir   string `yaml:"dir"`
-	Level string `yaml:"level"`
+	Dir   string `yaml:"dir"`   // 日志目录
+	Level string `yaml:"level"` // 日志级别（debug/info/warn/error）
 }
 
+// AuthConfig 认证配置
 type AuthConfig struct {
-	MaxLoginAttempts      int    `yaml:"max_login_attempts"`
-	LockDurationSec       int    `yaml:"lock_duration_sec"`
-	PasswordPolicy        string `yaml:"password_policy"`
-	TokenExpireSec        int    `yaml:"token_expire_sec"`
-	RefreshTokenExpireSec int    `yaml:"refresh_token_expire_sec"`
+	MaxLoginAttempts      int    `yaml:"max_login_attempts"`       // 最大登录尝试次数
+	LockDurationSec       int    `yaml:"lock_duration_sec"`        // 账户锁定持续时间（秒）
+	PasswordPolicy        string `yaml:"password_policy"`          // 密码策略
+	TokenExpireSec        int    `yaml:"token_expire_sec"`         // Token过期时间（秒）
+	RefreshTokenExpireSec int    `yaml:"refresh_token_expire_sec"` // Refresh Token过期时间（秒）
 }
 
+// DSN 生成PostgreSQL数据库连接字符串
 func (d *DatabaseConfig) DSN() string {
 	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		d.Host, d.Port, d.User, d.Password, d.DBName, d.SSLMode)
 }
 
+// Addr 生成Redis连接地址（host:port格式）
 func (r *RedisConfig) Addr() string {
 	return fmt.Sprintf("%s:%d", r.Host, r.Port)
 }
 
+// cfg 全局配置实例
 var cfg *Config
 
+// Load 从指定路径加载配置文件
+// 会先加载.env文件中的环境变量，然后加载YAML配置文件
+// 最后用环境变量覆盖配置值，并验证模块配置的有效性
 func Load(path string) (*Config, error) {
 	if err := loadEnv(".env"); err != nil && !os.IsNotExist(err) {
 		return nil, fmt.Errorf("load .env failed: %w", err)
@@ -116,6 +132,8 @@ func Load(path string) (*Config, error) {
 	return cfg, nil
 }
 
+// loadEnv 加载.env文件中的环境变量
+// 只会设置当前未存在的环境变量，不会覆盖已有的环境变量
 func loadEnv(path string) error {
 	f, err := os.Open(path)
 	if err != nil {
@@ -144,6 +162,8 @@ func loadEnv(path string) error {
 	return scanner.Err()
 }
 
+// overrideWithEnv 使用环境变量覆盖配置值
+// 支持通过XIN_前缀的环境变量覆盖所有配置项
 func overrideWithEnv(c *Config) {
 	envStr("XIN_APP_NAME", &c.App.Name)
 	envStr("XIN_APP_ENV", &c.App.Env)
@@ -184,12 +204,16 @@ func overrideWithEnv(c *Config) {
 	envCSV("XIN_MODULE", &c.Module)
 }
 
+// envStr 从环境变量读取字符串值并设置到目标变量
+// 如果环境变量为空，则不修改目标变量
 func envStr(key string, target *string) {
 	if v := os.Getenv(key); v != "" {
 		*target = v
 	}
 }
 
+// envInt 从环境变量读取整数值并设置到目标变量
+// 如果环境变量为空或解析失败，则不修改目标变量
 func envInt(key string, target *int) {
 	if v := os.Getenv(key); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
@@ -198,6 +222,8 @@ func envInt(key string, target *int) {
 	}
 }
 
+// envBool 从环境变量读取布尔值并设置到目标变量
+// 如果环境变量为空或解析失败，则不修改目标变量
 func envBool(key string, target *bool) {
 	if v := os.Getenv(key); v != "" {
 		if b, err := strconv.ParseBool(v); err == nil {
@@ -206,6 +232,8 @@ func envBool(key string, target *bool) {
 	}
 }
 
+// envCSV 从环境变量读取逗号分隔的字符串列表
+// 会自动去除空格并转换为小写，忽略空值
 func envCSV(key string, target *[]string) {
 	if v := os.Getenv(key); v != "" {
 		raw := strings.Split(v, ",")
@@ -220,13 +248,18 @@ func envCSV(key string, target *[]string) {
 	}
 }
 
+// allowedModules 允许的模块白名单
 var allowedModules = map[string]struct{}{
-	"system": {},
-	"auth":   {},
-	"weixin": {},
-	"cms":    {},
+	"system": {}, // 系统模块
+	"auth":   {}, // 认证模块
+	"weixin": {}, // 微信模块
+	"cms":    {}, // 内容管理模块
 }
 
+// validateModules 验证模块配置的有效性
+// - 如果模块列表为空，默认启用system模块
+// - 检查所有模块是否在白名单中
+// - 去重并清理模块列表
 func validateModules(c *Config) error {
 	if len(c.Module) == 0 {
 		c.Module = []string{"system"}
@@ -252,6 +285,8 @@ func validateModules(c *Config) error {
 	return nil
 }
 
+// ModuleEnabled 检查指定模块是否已启用
+// 模块名不区分大小写，会自动转换为小写进行比较
 func (c *Config) ModuleEnabled(name string) bool {
 	name = strings.ToLower(strings.TrimSpace(name))
 	for _, d := range c.Module {
@@ -262,6 +297,8 @@ func (c *Config) ModuleEnabled(name string) bool {
 	return false
 }
 
+// AppEnabled 检查指定应用是否已启用
+// 应用名不区分大小写，会自动转换为小写进行比较
 func (c *Config) AppEnabled(name string) bool {
 	name = strings.ToLower(strings.TrimSpace(name))
 	for _, a := range c.Apps {
@@ -272,16 +309,25 @@ func (c *Config) AppEnabled(name string) bool {
 	return false
 }
 
+// Get 获取全局配置实例
+// 如果配置尚未加载，返回nil
 func Get() *Config {
 	return cfg
 }
 
+// moduleBaseDir 模块配置文件的基准目录
 var moduleBaseDir = filepath.Join("config", "modules")
 
+// SetModuleBaseDir 设置模块配置文件的基准目录
+// 用于自定义模块配置文件的存储位置
 func SetModuleBaseDir(dir string) {
 	moduleBaseDir = dir
 }
 
+// LoadModule 加载指定模块的配置文件
+// 配置文件位于moduleBaseDir目录下，文件名为{name}.yaml
+// 如果文件不存在或为空，不会报错，直接返回
+// 加载后会使用环境变量覆盖配置值
 func LoadModule(name string, target interface{}) error {
 	path := filepath.Join(moduleBaseDir, name+".yaml")
 	data, err := os.ReadFile(path)
@@ -301,6 +347,10 @@ func LoadModule(name string, target interface{}) error {
 	return nil
 }
 
+// overrideModuleEnv 使用环境变量覆盖模块配置
+// 环境变量命名规则：XIN_{MODULE_NAME}_{FIELD_NAME}
+// 例如：XIN_AUTH_SECRET 会覆盖 auth 模块配置中的 secret 字段
+// 支持字符串、整数、布尔值和浮点数类型
 func overrideModuleEnv(module string, target interface{}) {
 	prefix := "XIN_" + strings.ToUpper(module) + "_"
 	v := reflect.ValueOf(target)
