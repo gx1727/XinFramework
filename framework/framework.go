@@ -10,6 +10,7 @@ import (
 	"gx1727.com/xin/framework/internal/core/middleware"
 	"gx1727.com/xin/framework/internal/core/server"
 	"gx1727.com/xin/framework/pkg/config"
+	"gx1727.com/xin/framework/pkg/migrate"
 	"gx1727.com/xin/framework/pkg/plugin"
 )
 
@@ -62,6 +63,7 @@ func runServer() {
 	}
 
 	initModules()
+	runFrameworkMigrations()
 	migrateModules()
 
 	setupRouter(srv, cfg)
@@ -80,6 +82,12 @@ func runServer() {
 	}
 
 	waitForSignal(srv)
+}
+
+func runFrameworkMigrations() {
+	if err := migrate.Run("migrations"); err != nil {
+		log.Fatalf("framework migrations failed: %v", err)
+	}
 }
 
 func initModules() {

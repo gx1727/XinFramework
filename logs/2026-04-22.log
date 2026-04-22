@@ -1,7 +1,0 @@
-2026/04/22 07:04:58 server starting on 0.0.0.0:8080
-[xin] 2026/04/22 07:14:47 [WARN] [a9edb72a-f97e-49a0-9c79-ec5e90a2adce] OPTIONS /api/v1/login | 404 | 13.351ms | ::1
-2026/04/22 07:54:46 Received signal: interrupt
-2026/04/22 08:38:45 server starting on 0.0.0.0:8080
-[xin] 2026/04/22 08:38:52 [INFO] [5463e759-bbd8-455d-9776-b09e9aa49133] POST /api/v1/login | 200 | 40.8221ms | 127.0.0.1
-[xin] 2026/04/22 08:38:56 [WARN] [d88e8a5a-a04e-4fc0-b6e2-7a070f3ab977] POST /api/v1/register | 1010 | 账号已存在
-[xin] 2026/04/22 08:38:56 [INFO] [d88e8a5a-a04e-4fc0-b6e2-7a070f3ab977] POST /api/v1/register | 200 | 4.3532ms | 127.0.0.1
