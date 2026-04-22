@@ -43,14 +43,8 @@ if ($LASTEXITCODE -eq 0) {
                 New-Item -ItemType Directory -Path $migrationsDest -Force | Out-Null
                 Copy-Item "$($_.FullName)\migrations\*" "$migrationsDest\" -Recurse -Force
             }
-
-            if (Test-Path "$($_.FullName)\config.yaml") {
-                $cfgDest = "$OutDir\config\$appName"
-                New-Item -ItemType Directory -Path $cfgDest -Force | Out-Null
-                Copy-Item "$($_.FullName)\config.yaml" "$cfgDest\config.yaml" -Force
-            }
         }
-        Write-Host "App files copied" -ForegroundColor Cyan
+        Write-Host "App migration files copied" -ForegroundColor Cyan
     }
 
     if (Test-Path ".\framework\.env.example") {

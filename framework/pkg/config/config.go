@@ -23,9 +23,8 @@ type Config struct {
 	JWT      JWTConfig      `yaml:"jwt"`      // JWT认证配置
 	Saas     SaasConfig     `yaml:"saas"`     // SaaS模式配置
 	Log      LogConfig      `yaml:"log"`      // 日志配置
-	Module   []string       `yaml:"module"`   // 启用的模块列表
-	Apps     []string       `yaml:"apps"`     // 启用的应用列表
-	Auth     AuthConfig     `yaml:"auth"`     // 认证配置
+	Module   []string       `yaml:"module"`
+	Apps     []string       `yaml:"apps"`
 }
 
 // AppConfig 应用基础配置
@@ -79,20 +78,10 @@ type SaasConfig struct {
 
 // LogConfig 日志配置
 type LogConfig struct {
-	Dir   string `yaml:"dir"`   // 日志目录
-	Level string `yaml:"level"` // 日志级别（debug/info/warn/error）
+	Dir   string `yaml:"dir"`
+	Level string `yaml:"level"`
 }
 
-// AuthConfig 认证配置
-type AuthConfig struct {
-	MaxLoginAttempts      int    `yaml:"max_login_attempts"`       // 最大登录尝试次数
-	LockDurationSec       int    `yaml:"lock_duration_sec"`        // 账户锁定持续时间（秒）
-	PasswordPolicy        string `yaml:"password_policy"`          // 密码策略
-	TokenExpireSec        int    `yaml:"token_expire_sec"`         // Token过期时间（秒）
-	RefreshTokenExpireSec int    `yaml:"refresh_token_expire_sec"` // Refresh Token过期时间（秒）
-}
-
-// DSN 生成PostgreSQL数据库连接字符串
 func (d *DatabaseConfig) DSN() string {
 	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		d.Host, d.Port, d.User, d.Password, d.DBName, d.SSLMode)

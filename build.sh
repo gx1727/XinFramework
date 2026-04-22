@@ -43,12 +43,8 @@ if [ $? -eq 0 ]; then
                 mkdir -p "$OutDir/migrations/$appName"
                 cp -r "$appDir/migrations/"* "$OutDir/migrations/$appName/"
             fi
-            if [ -f "$appDir/config.yaml" ]; then
-                mkdir -p "$OutDir/config/$appName"
-                cp "$appDir/config.yaml" "$OutDir/config/$appName/"
-            fi
         done
-        echo "App files copied"
+        echo "App migration files copied"
     fi
 
     echo ""
