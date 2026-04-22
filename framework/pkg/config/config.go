@@ -305,17 +305,50 @@ var moduleBaseDir = "config"
 func LoadModule(name string, target interface{}) error {
 	path := filepath.Join(moduleBaseDir, name+".yaml")
 	data, err := os.ReadFile(path)
+	if err == nil {
+		if len(data) > 0 {
+			if err := yaml.Unmarshal(data, target); err != nil {
+				return fmt.Errorf("parse module config %s: %w", name, err)
+			}
+		}
+		overrideModuleEnv(name, target)
+		return nil
+	}
+	if !os.IsNotExist(err) {
+		return fmt.Errorf("read module config %s: %w", name, err)
+	}
+
+	mainPath := filepath.Join(moduleBaseDir, "config.yaml")
+	mainData, err := os.ReadFile(mainPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
-		return fmt.Errorf("read module config %s: %w", name, err)
+		return fmt.Errorf("read main config for module %s: %w", name, err)
 	}
-	if len(data) == 0 {
+	if len(mainData) == 0 {
 		return nil
 	}
-	if err := yaml.Unmarshal(data, target); err != nil {
-		return fmt.Errorf("parse module config %s: %w", name, err)
+
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal(mainData, &raw); err != nil {
+		return fmt.Errorf("parse main config for module %s: %w", name, err)
+	}
+
+	section, ok := raw[name]
+	if !ok {
+		return nil
+	}
+
+	sectionData, err := yaml.Marshal(section)
+	if err != nil {
+		return fmt.Errorf("marshal module section %s: %w", name, err)
+	}
+	if len(sectionData) == 0 {
+		return nil
+	}
+	if err := yaml.Unmarshal(sectionData, target); err != nil {
+		return fmt.Errorf("parse module config %s from main: %w", name, err)
 	}
 	overrideModuleEnv(name, target)
 	return nil

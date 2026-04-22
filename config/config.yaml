@@ -50,3 +50,10 @@ module:
 
 apps:
   - cms
+
+user:
+  max_login_attempts: 5
+  lock_duration_sec: 300
+  password_policy: standard
+  token_expire_sec: 3600
+  refresh_token_expire_sec: 86400
