@@ -46,8 +46,6 @@ log:
   level: info # debug | info | warn | error
 
 module:
-  - system
-  - auth
   - weixin
 
 apps:

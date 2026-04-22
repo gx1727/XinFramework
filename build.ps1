@@ -26,12 +26,12 @@ if ($LASTEXITCODE -eq 0) {
         Write-Host "Config files copied to $OutDir\config\" -ForegroundColor Cyan
     }
 
-    if (Test-Path ".\migrations") {
-        if (!(Test-Path "$OutDir\migrations")) {
-            New-Item -ItemType Directory -Path "$OutDir\migrations" | Out-Null
+    if (Test-Path ".\framework\migrations") {
+        if (!(Test-Path "$OutDir\framework\migrations")) {
+            New-Item -ItemType Directory -Path "$OutDir\framework\migrations" | Out-Null
         }
-        Copy-Item -Path ".\migrations\*" -Destination "$OutDir\migrations\" -Recurse -Force
-        Write-Host "Migration files copied to $OutDir\migrations\" -ForegroundColor Cyan
+        Copy-Item -Path ".\framework\migrations\*" -Destination "$OutDir\framework\migrations\" -Recurse -Force
+        Write-Host "Migration files copied to $OutDir\framework\migrations\" -ForegroundColor Cyan
     }
 
     if (Test-Path ".\apps") {

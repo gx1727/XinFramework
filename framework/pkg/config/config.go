@@ -4,7 +4,6 @@ package config
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -237,39 +236,22 @@ func envCSV(key string, target *[]string) {
 	}
 }
 
-// allowedModules 允许的模块白名单
-var allowedModules = map[string]struct{}{
-	"system": {}, // 系统模块
-	"auth":   {}, // 认证模块
-	"weixin": {}, // 微信模块
-	"cms":    {}, // 内容管理模块
-}
-
-// validateModules 验证模块配置的有效性
-// - 如果模块列表为空，默认启用system模块
-// - 检查所有模块是否在白名单中
-// - 去重并清理模块列表
 func validateModules(c *Config) error {
-	if len(c.Module) == 0 {
-		c.Module = []string{"system"}
-	}
+	core := []string{"system", "auth", "user"}
 	seen := map[string]struct{}{}
+	for _, m := range core {
+		seen[m] = struct{}{}
+	}
 	for i := range c.Module {
 		d := strings.ToLower(strings.TrimSpace(c.Module[i]))
 		if d == "" {
 			continue
 		}
-		if _, ok := allowedModules[d]; !ok {
-			return fmt.Errorf("invalid module: %s (allowed: system,auth,weixin,cms)", d)
-		}
 		seen[d] = struct{}{}
 	}
-	if len(seen) == 0 {
-		return errors.New("module is empty after validation")
-	}
 	c.Module = make([]string, 0, len(seen))
-	for d := range seen {
-		c.Module = append(c.Module, d)
+	for m := range seen {
+		c.Module = append(c.Module, m)
 	}
 	return nil
 }

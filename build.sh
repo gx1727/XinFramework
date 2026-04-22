@@ -28,12 +28,12 @@ if [ $? -eq 0 ]; then
         echo "Config files copied to $OutDir/config/"
     fi
 
-    if [ -d "./migrations" ]; then
-        if [ ! -d "$OutDir/migrations" ]; then
-            mkdir -p "$OutDir/migrations"
+    if [ -d "./framework/migrations" ]; then
+        if [ ! -d "$OutDir/framework/migrations" ]; then
+            mkdir -p "$OutDir/framework/migrations"
         fi
-        cp -r ./migrations/* "$OutDir/migrations/"
-        echo "Migration files copied to $OutDir/migrations/"
+        cp -r ./framework/migrations/* "$OutDir/framework/migrations/"
+        echo "Migration files copied to $OutDir/framework/migrations/"
     fi
 
     if [ -d "./apps" ]; then
