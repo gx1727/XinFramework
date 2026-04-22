@@ -21,6 +21,10 @@ redis:
   port: 6379
   password: ""
   db: 0
+
+  # enabled=false ：Redis 完全关闭，不初始化客户端
+  # enabled=true && required=false ：Redis 不可用时降级继续启动
+  # enabled=true && required=true ：Redis 不可用时启动失败（更严格）
   enabled: true
   required: false
   pool_size: 20
@@ -35,11 +39,11 @@ jwt:
   refresh_expire: 86400
 
 saas:
-  mode: shared
+  mode: shared # shared | schema | database
 
 log:
   dir: logs
-  level: info
+  level: info # debug | info | warn | error
 
 module:
   - system
