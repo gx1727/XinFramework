@@ -5,40 +5,34 @@ import (
 	"gx1727.com/xin/framework/pkg/logger"
 )
 
-type AuthConfig struct {
-	MaxLoginAttempts      int    `yaml:"max_login_attempts"`
-	LockDurationSec       int    `yaml:"lock_duration_sec"`
-	PasswordPolicy        string `yaml:"password_policy"`
-	TokenExpireSec        int    `yaml:"token_expire_sec"`
-	RefreshTokenExpireSec int    `yaml:"refresh_token_expire_sec"`
-}
-
-var moduleCfg *AuthConfig
 var authLogger *logger.Logger
 
-func Cfg() *AuthConfig {
-	return moduleCfg
+func Cfg() *config.AuthConfig {
+	cfg := config.Get()
+	if cfg == nil {
+		return nil
+	}
+	return &cfg.Auth
 }
 
 func InitConfig() error {
 	authLogger = logger.Module("auth")
 
-	moduleCfg = &AuthConfig{
-		MaxLoginAttempts:      5,
-		LockDurationSec:       300,
-		PasswordPolicy:        "standard",
-		TokenExpireSec:        3600,
-		RefreshTokenExpireSec: 86400,
+	cfg := config.Get()
+	if cfg != nil && cfg.Auth.MaxLoginAttempts == 0 {
+		cfg.Auth.MaxLoginAttempts = 5
+		cfg.Auth.LockDurationSec = 300
+		cfg.Auth.PasswordPolicy = "standard"
+		cfg.Auth.TokenExpireSec = 3600
+		cfg.Auth.RefreshTokenExpireSec = 86400
 	}
-	if err := config.LoadModule("auth", moduleCfg); err != nil {
-		return err
-	}
+
 	if authLogger != nil {
 		authLogger.Infof("auth module config loaded: attempts=%d lock=%ds policy=%s",
-			moduleCfg.MaxLoginAttempts, moduleCfg.LockDurationSec, moduleCfg.PasswordPolicy)
-		return nil
+			cfg.Auth.MaxLoginAttempts, cfg.Auth.LockDurationSec, cfg.Auth.PasswordPolicy)
+	} else {
+		logger.Infof("auth module config loaded: attempts=%d lock=%ds policy=%s",
+			cfg.Auth.MaxLoginAttempts, cfg.Auth.LockDurationSec, cfg.Auth.PasswordPolicy)
 	}
-	logger.Infof("auth module config loaded: attempts=%d lock=%ds policy=%s",
-		moduleCfg.MaxLoginAttempts, moduleCfg.LockDurationSec, moduleCfg.PasswordPolicy)
 	return nil
 }

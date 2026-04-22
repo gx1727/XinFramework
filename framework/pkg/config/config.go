@@ -21,6 +21,7 @@ type Config struct {
 	Saas     SaasConfig     `yaml:"saas"`
 	Log      LogConfig      `yaml:"log"`
 	Domain   []string       `yaml:"domain"`
+	Auth     AuthConfig     `yaml:"auth"`
 }
 
 type AppConfig struct {
@@ -70,6 +71,14 @@ type SaasConfig struct {
 type LogConfig struct {
 	Dir   string `yaml:"dir"`
 	Level string `yaml:"level"`
+}
+
+type AuthConfig struct {
+	MaxLoginAttempts      int    `yaml:"max_login_attempts"`
+	LockDurationSec       int    `yaml:"lock_duration_sec"`
+	PasswordPolicy        string `yaml:"password_policy"`
+	TokenExpireSec        int    `yaml:"token_expire_sec"`
+	RefreshTokenExpireSec int    `yaml:"refresh_token_expire_sec"`
 }
 
 func (d *DatabaseConfig) DSN() string {

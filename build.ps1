@@ -37,17 +37,20 @@ if ($LASTEXITCODE -eq 0) {
     if (Test-Path ".\apps") {
         Get-ChildItem -Path ".\apps" -Directory | ForEach-Object {
             $appName = $_.Name
-            $appDest = "$OutDir\apps\$appName"
-            New-Item -ItemType Directory -Path $appDest -Force | Out-Null
+
+            if (Test-Path "$($_.FullName)\migrations") {
+                $migrationsDest = "$OutDir\apps\$appName\migrations"
+                New-Item -ItemType Directory -Path $migrationsDest -Force | Out-Null
+                Copy-Item "$($_.FullName)\migrations\*" "$migrationsDest\" -Recurse -Force
+            }
 
             if (Test-Path "$($_.FullName)\config.yaml") {
-                Copy-Item "$($_.FullName)\config.yaml" "$appDest\config.yaml" -Force
-            }
-            if (Test-Path "$($_.FullName)\migrations") {
-                Copy-Item "$($_.FullName)\migrations" "$appDest\migrations" -Recurse -Force
+                $cfgDest = "$OutDir\config\apps\$appName"
+                New-Item -ItemType Directory -Path $cfgDest -Force | Out-Null
+                Copy-Item "$($_.FullName)\config.yaml" "$cfgDest\config.yaml" -Force
             }
         }
-        Write-Host "App config & migrations copied to $OutDir\apps\" -ForegroundColor Cyan
+        Write-Host "App files copied" -ForegroundColor Cyan
     }
 
     if (Test-Path ".\framework\.env.example") {

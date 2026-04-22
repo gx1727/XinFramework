@@ -39,15 +39,16 @@ if [ $? -eq 0 ]; then
     if [ -d "./apps" ]; then
         for appDir in ./apps/*/; do
             appName=$(basename "$appDir")
-            mkdir -p "$OutDir/apps/$appName"
-            if [ -f "$appDir/config.yaml" ]; then
-                cp "$appDir/config.yaml" "$OutDir/apps/$appName/"
-            fi
             if [ -d "$appDir/migrations" ]; then
-                cp -r "$appDir/migrations" "$OutDir/apps/$appName/"
+                mkdir -p "$OutDir/apps/$appName/migrations"
+                cp -r "$appDir/migrations/"* "$OutDir/apps/$appName/migrations/"
+            fi
+            if [ -f "$appDir/config.yaml" ]; then
+                mkdir -p "$OutDir/config/apps/$appName"
+                cp "$appDir/config.yaml" "$OutDir/config/apps/$appName/"
             fi
         done
-        echo "App config & migrations copied to $OutDir/apps/"
+        echo "App files copied"
     fi
 
     echo ""

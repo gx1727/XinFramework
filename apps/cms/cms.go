@@ -67,7 +67,11 @@ func configPath() string {
 	if p := os.Getenv("XIN_CMS_CONFIG"); p != "" {
 		return p
 	}
-	return filepath.Join("apps", "cms", "config.yaml")
+	dev := filepath.Join("apps", "cms", "config.yaml")
+	if _, err := os.Stat(dev); err == nil {
+		return dev
+	}
+	return filepath.Join("config", "apps", "cms", "config.yaml")
 }
 
 func migrateModule() error {
