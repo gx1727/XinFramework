@@ -1,0 +1,666 @@
+-- ============================================
+-- MI7Soft-One 数据库初始化脚本 (PostgreSQL 商用版 v1.0)
+-- 版本: PostgreSQL 14+
+-- 特性: 部分唯一索引 | RLS行级安全 | JSONB+GIN | 审计溯源
+-- 生成时间: 2026-04-12
+-- ============================================
+
+SET client_encoding = 'UTF8';
+
+-- 1. tenants (租户表)
+DROP TABLE IF EXISTS tenants;
+CREATE TABLE tenants
+(
+    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    code       VARCHAR(50)  NOT NULL,
+    name       VARCHAR(100) NOT NULL,
+    status     SMALLINT    DEFAULT 1,
+    contact    VARCHAR(50),
+    phone      VARCHAR(20),
+    email      VARCHAR(100),
+    province   VARCHAR(32),
+    city       VARCHAR(32),
+    area       VARCHAR(32),
+    address    VARCHAR(255),
+    config     JSONB,
+    dashboard  VARCHAR(64),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    created_by BIGINT,
+    updated_by BIGINT,
+    is_deleted BOOLEAN     DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_tenants_code ON tenants (code) WHERE is_deleted = FALSE;
+CREATE INDEX idx_tenants_config_gin ON tenants USING GIN (config);
+
+COMMENT ON TABLE tenants IS '租户表 - SaaS多租户核心表';
+COMMENT ON COLUMN tenants.id IS '租户ID';
+COMMENT ON COLUMN tenants.code IS '租户编码，全局唯一';
+COMMENT ON COLUMN tenants.name IS '租户名称';
+COMMENT ON COLUMN tenants.status IS '租户状态：0-禁用，1-启用';
+COMMENT ON COLUMN tenants.contact IS '联系人';
+COMMENT ON COLUMN tenants.phone IS '联系电话';
+COMMENT ON COLUMN tenants.email IS '联系邮箱';
+COMMENT ON COLUMN tenants.province IS '省份';
+COMMENT ON COLUMN tenants.city IS '城市';
+COMMENT ON COLUMN tenants.area IS '区县';
+COMMENT ON COLUMN tenants.address IS '详细地址';
+COMMENT ON COLUMN tenants.config IS '租户配置信息（JSONB）';
+COMMENT ON COLUMN tenants.dashboard IS '默认仪表盘';
+COMMENT ON COLUMN tenants.created_at IS '创建时间';
+COMMENT ON COLUMN tenants.updated_at IS '更新时间';
+COMMENT ON COLUMN tenants.created_by IS '创建人ID';
+COMMENT ON COLUMN tenants.updated_by IS '更新人ID';
+COMMENT ON COLUMN tenants.is_deleted IS '逻辑删除标记';
+
+-- 2. accounts (全局账号表)
+DROP TABLE IF EXISTS accounts;
+CREATE TABLE accounts
+(
+    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    phone      VARCHAR(20),
+    email      VARCHAR(100),
+    password   VARCHAR(255),
+    username   VARCHAR(64),
+    real_name  VARCHAR(64),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_deleted BOOLEAN     DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_accounts_phone ON accounts (phone) WHERE is_deleted = FALSE AND phone IS NOT NULL;
+CREATE UNIQUE INDEX uk_accounts_email ON accounts (email) WHERE is_deleted = FALSE AND email IS NOT NULL;
+CREATE INDEX idx_accounts_username ON accounts (username) WHERE is_deleted = FALSE;
+
+COMMENT ON TABLE accounts IS '全局账号表 - 跨租户统一账号管理';
+COMMENT ON COLUMN accounts.id IS '账号ID';
+COMMENT ON COLUMN accounts.phone IS '手机号';
+COMMENT ON COLUMN accounts.email IS '邮箱地址';
+COMMENT ON COLUMN accounts.password IS '密码（加密存储）';
+COMMENT ON COLUMN accounts.username IS '用户名';
+COMMENT ON COLUMN accounts.real_name IS '真实姓名';
+COMMENT ON COLUMN accounts.created_at IS '创建时间';
+COMMENT ON COLUMN accounts.updated_at IS '更新时间';
+COMMENT ON COLUMN accounts.is_deleted IS '逻辑删除标记';
+
+-- 3. account_auths (第三方授权表)
+DROP TABLE IF EXISTS account_auths;
+CREATE TABLE account_auths
+(
+    id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id    BIGINT      NOT NULL,
+    account_id   BIGINT      NOT NULL,
+    type         VARCHAR(32) NOT NULL,
+    config       VARCHAR(32),
+    openid       VARCHAR(64),
+    unionid      VARCHAR(64),
+    nickname     VARCHAR(256),
+    avatar       VARCHAR(512),
+    sex          SMALLINT,
+    city         VARCHAR(64),
+    province     VARCHAR(64),
+    country      VARCHAR(64),
+    subscribe    BOOLEAN     DEFAULT FALSE,
+    subscribe_at TIMESTAMPTZ,
+    session_key  VARCHAR(64),
+    created_at   TIMESTAMPTZ DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ DEFAULT NOW(),
+    is_deleted   BOOLEAN     DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_auth_openid ON account_auths (tenant_id, type, openid) WHERE is_deleted = FALSE;
+CREATE INDEX idx_auth_account ON account_auths (account_id);
+CREATE INDEX idx_auth_unionid ON account_auths (unionid) WHERE is_deleted = FALSE AND unionid IS NOT NULL;
+
+COMMENT ON TABLE account_auths IS '第三方授权表 - 微信、QQ等OAuth授权信息';
+COMMENT ON COLUMN account_auths.id IS '授权记录ID';
+COMMENT ON COLUMN account_auths.tenant_id IS '租户ID';
+COMMENT ON COLUMN account_auths.account_id IS '关联账号ID';
+COMMENT ON COLUMN account_auths.type IS '授权类型：wechat, qq, weibo等';
+COMMENT ON COLUMN account_auths.openid IS '第三方OpenID';
+COMMENT ON COLUMN account_auths.unionid IS '第三方UnionID';
+COMMENT ON COLUMN account_auths.nickname IS '第三方昵称';
+COMMENT ON COLUMN account_auths.avatar IS '头像URL';
+COMMENT ON COLUMN account_auths.sex IS '性别：0-未知，1-男，2-女';
+COMMENT ON COLUMN account_auths.subscribe IS '是否订阅公众号/服务号';
+COMMENT ON COLUMN account_auths.subscribe_at IS '订阅时间';
+COMMENT ON COLUMN account_auths.session_key IS '会话密钥（小程序）';
+
+-- 4. organizations (机构表)
+DROP TABLE IF EXISTS organizations;
+CREATE TABLE organizations
+(
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id   BIGINT       NOT NULL,
+    code        VARCHAR(32)  NOT NULL,
+    name        VARCHAR(100) NOT NULL,
+    type        VARCHAR(32)  NOT NULL,
+    description VARCHAR(512),
+    admin_code  VARCHAR(32),
+    parent_id   BIGINT,
+    ancestors   VARCHAR(512),
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW(),
+    created_by  BIGINT,
+    updated_by  BIGINT,
+    is_deleted  BOOLEAN     DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_org_code ON organizations (tenant_id, code) WHERE is_deleted = FALSE;
+CREATE INDEX idx_org_tenant ON organizations (tenant_id);
+CREATE INDEX idx_org_parent ON organizations (parent_id) WHERE is_deleted = FALSE;
+
+COMMENT ON TABLE organizations IS '组织机构表 - 树形结构';
+COMMENT ON COLUMN organizations.id IS '机构ID';
+COMMENT ON COLUMN organizations.tenant_id IS '租户ID';
+COMMENT ON COLUMN organizations.code IS '机构编码';
+COMMENT ON COLUMN organizations.name IS '机构名称';
+COMMENT ON COLUMN organizations.type IS '机构类型：department-部门，company-公司';
+COMMENT ON COLUMN organizations.description IS '机构描述';
+COMMENT ON COLUMN organizations.admin_code IS '管理员编码';
+COMMENT ON COLUMN organizations.parent_id IS '父机构ID';
+COMMENT ON COLUMN organizations.ancestors IS '祖先节点路径';
+
+-- 5. users (租户用户表)
+DROP TABLE IF EXISTS users;
+CREATE TABLE users
+(
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id   BIGINT      NOT NULL,
+    account_id  BIGINT      NOT NULL,
+    org_id      BIGINT,
+    code        VARCHAR(32) NOT NULL,
+    phone       VARCHAR(20),
+    email       VARCHAR(100),
+    type        VARCHAR(64),
+    position    VARCHAR(64),
+    title       VARCHAR(64),
+    avatar      VARCHAR(512),
+    status      SMALLINT    DEFAULT 1,
+    parent_code VARCHAR(32),
+    ancestors   VARCHAR(255),
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW(),
+    created_by  BIGINT,
+    updated_by  BIGINT,
+    is_deleted  BOOLEAN     DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_user_code ON users (tenant_id, code) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX uk_user_tenant_account ON users (tenant_id, account_id) WHERE is_deleted = FALSE;
+CREATE INDEX idx_user_tenant ON users (tenant_id);
+CREATE INDEX idx_user_org ON users (org_id) WHERE is_deleted = FALSE;
+
+COMMENT ON TABLE users IS '租户用户表 - 租户内的用户信息';
+COMMENT ON COLUMN users.id IS '用户ID';
+COMMENT ON COLUMN users.tenant_id IS '租户ID';
+COMMENT ON COLUMN users.account_id IS '关联全局账号ID';
+COMMENT ON COLUMN users.org_id IS '所属机构ID';
+COMMENT ON COLUMN users.code IS '用户编码';
+COMMENT ON COLUMN users.phone IS '手机号';
+COMMENT ON COLUMN users.email IS '邮箱';
+COMMENT ON COLUMN users.type IS '用户类型';
+COMMENT ON COLUMN users.position IS '职位';
+COMMENT ON COLUMN users.title IS '职称';
+COMMENT ON COLUMN users.avatar IS '头像URL';
+COMMENT ON COLUMN users.status IS '用户状态：0-禁用，1-启用';
+COMMENT ON COLUMN users.parent_code IS '上级用户编码';
+COMMENT ON COLUMN users.ancestors IS '祖先用户路径';
+
+-- 6. roles (角色表)
+DROP TABLE IF EXISTS roles;
+CREATE TABLE roles
+(
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id   BIGINT      NOT NULL,
+    org_id      BIGINT,
+    code        VARCHAR(32),
+    name        VARCHAR(32) NOT NULL,
+    description VARCHAR(256),
+    data_scope  SMALLINT    NOT NULL DEFAULT 1,
+    scope_orgs  JSONB,
+    extend      JSONB,
+    is_default  BOOLEAN              DEFAULT FALSE,
+    created_at  TIMESTAMPTZ          DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ          DEFAULT NOW(),
+    created_by  BIGINT,
+    updated_by  BIGINT,
+    is_deleted  BOOLEAN              DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_role_code ON roles (tenant_id, code) WHERE is_deleted = FALSE;
+CREATE INDEX idx_role_tenant ON roles (tenant_id);
+CREATE INDEX idx_role_scope_gin ON roles USING GIN (scope_orgs);
+
+COMMENT ON TABLE roles IS '角色表 - RBAC权限模型';
+COMMENT ON COLUMN roles.id IS '角色ID';
+COMMENT ON COLUMN roles.tenant_id IS '租户ID';
+COMMENT ON COLUMN roles.org_id IS '所属机构ID';
+COMMENT ON COLUMN roles.code IS '角色编码';
+COMMENT ON COLUMN roles.name IS '角色名称';
+COMMENT ON COLUMN roles.description IS '角色描述';
+COMMENT ON COLUMN roles.data_scope IS '数据权限范围：1-全部，2-自定义，3-本部门，4-本部门及以下，5-仅本人';
+COMMENT ON COLUMN roles.scope_orgs IS '自定义数据权限机构列表（JSONB）';
+COMMENT ON COLUMN roles.extend IS '扩展信息（JSONB）';
+COMMENT ON COLUMN roles.is_default IS '是否默认角色';
+
+-- 7. user_roles (用户角色关联表)
+DROP TABLE IF EXISTS user_roles;
+CREATE TABLE user_roles
+(
+    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id  BIGINT NOT NULL,
+    user_id    BIGINT NOT NULL,
+    role_id    BIGINT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_deleted BOOLEAN     DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_user_role ON user_roles (user_id, role_id) WHERE is_deleted = FALSE;
+CREATE INDEX idx_ur_tenant ON user_roles (tenant_id);
+
+COMMENT ON TABLE user_roles IS '用户角色关联表 - 多对多关系';
+COMMENT ON COLUMN user_roles.id IS '关联ID';
+COMMENT ON COLUMN user_roles.tenant_id IS '租户ID';
+COMMENT ON COLUMN user_roles.user_id IS '用户ID';
+COMMENT ON COLUMN user_roles.role_id IS '角色ID';
+
+-- 8. menus (菜单表)
+DROP TABLE IF EXISTS menus;
+CREATE TABLE menus
+(
+    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id  BIGINT      NOT NULL,
+    code       VARCHAR(64),
+    name       VARCHAR(64) NOT NULL,
+    subtitle   VARCHAR(64),
+    url        VARCHAR(256),
+    path       VARCHAR(256),
+    icon       VARCHAR(64),
+    sort       INT         DEFAULT 1024,
+    parent_id  BIGINT,
+    ancestors  VARCHAR(255),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_deleted BOOLEAN     DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_menu_code ON menus (tenant_id, code) WHERE is_deleted = FALSE;
+CREATE INDEX idx_menu_tenant ON menus (tenant_id);
+
+COMMENT ON TABLE menus IS '菜单表 - 前端导航菜单';
+COMMENT ON COLUMN menus.id IS '菜单ID';
+COMMENT ON COLUMN menus.tenant_id IS '租户ID';
+COMMENT ON COLUMN menus.code IS '菜单编码';
+COMMENT ON COLUMN menus.name IS '菜单名称';
+COMMENT ON COLUMN menus.subtitle IS '副标题';
+COMMENT ON COLUMN menus.url IS '菜单URL';
+COMMENT ON COLUMN menus.path IS '路由路径';
+COMMENT ON COLUMN menus.icon IS '图标';
+COMMENT ON COLUMN menus.sort IS '排序号';
+COMMENT ON COLUMN menus.parent_id IS '父菜单ID';
+COMMENT ON COLUMN menus.ancestors IS '祖先节点路径';
+
+-- 9. resources (资源/按钮权限表)
+DROP TABLE IF EXISTS resources;
+CREATE TABLE resources
+(
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id   BIGINT      NOT NULL,
+    menu_id     BIGINT,
+    code        VARCHAR(64),
+    name        VARCHAR(64) NOT NULL,
+    description VARCHAR(512),
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW(),
+    is_deleted  BOOLEAN     DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_resource_code ON resources (tenant_id, code) WHERE is_deleted = FALSE;
+CREATE INDEX idx_resource_tenant ON resources (tenant_id);
+
+COMMENT ON TABLE resources IS '资源/按钮权限表 - 细粒度权限控制';
+COMMENT ON COLUMN resources.id IS '资源ID';
+COMMENT ON COLUMN resources.tenant_id IS '租户ID';
+COMMENT ON COLUMN resources.menu_id IS '所属菜单ID';
+COMMENT ON COLUMN resources.code IS '资源编码';
+COMMENT ON COLUMN resources.name IS '资源名称';
+COMMENT ON COLUMN resources.description IS '资源描述';
+
+-- 10. routes (路由表)
+DROP TABLE IF EXISTS routes;
+CREATE TABLE routes
+(
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id   BIGINT NOT NULL,
+    code        VARCHAR(64),
+    name        VARCHAR(64),
+    url         VARCHAR(256),
+    path        VARCHAR(256),
+    description VARCHAR(512),
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW(),
+    is_deleted  BOOLEAN     DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_route_code ON routes (tenant_id, code) WHERE is_deleted = FALSE;
+CREATE INDEX idx_route_tenant ON routes (tenant_id);
+
+COMMENT ON TABLE routes IS '路由表 - API路由权限控制';
+COMMENT ON COLUMN routes.id IS '路由ID';
+COMMENT ON COLUMN routes.tenant_id IS '租户ID';
+COMMENT ON COLUMN routes.code IS '路由编码';
+COMMENT ON COLUMN routes.name IS '路由名称';
+COMMENT ON COLUMN routes.url IS '请求URL';
+COMMENT ON COLUMN routes.path IS '路由路径';
+COMMENT ON COLUMN routes.description IS '路由描述';
+
+-- 11. permissions (权限关联表)
+DROP TABLE IF EXISTS permissions;
+CREATE TABLE permissions
+(
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id     BIGINT      NOT NULL,
+    role_id       BIGINT      NOT NULL,
+    resource_type VARCHAR(20) NOT NULL,
+    resource_code VARCHAR(64) NOT NULL,
+    type          SMALLINT    DEFAULT 1,
+    created_at    TIMESTAMPTZ DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ DEFAULT NOW(),
+    is_deleted    BOOLEAN     DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_permission_role_res ON permissions (role_id, resource_type, resource_code) WHERE is_deleted = FALSE;
+CREATE INDEX idx_permission_tenant ON permissions (tenant_id);
+
+COMMENT ON TABLE permissions IS '权限关联表 - 角色与资源/路由的关联';
+COMMENT ON COLUMN permissions.id IS '权限ID';
+COMMENT ON COLUMN permissions.tenant_id IS '租户ID';
+COMMENT ON COLUMN permissions.role_id IS '角色ID';
+COMMENT ON COLUMN permissions.resource_type IS '资源类型：menu-菜单，resource-按钮，route-路由';
+COMMENT ON COLUMN permissions.resource_code IS '资源编码';
+COMMENT ON COLUMN permissions.type IS '权限类型：1-允许，0-禁止';
+
+-- 12. dicts (字典表)
+DROP TABLE IF EXISTS dicts;
+CREATE TABLE dicts
+(
+    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id  BIGINT      NOT NULL,
+    code       VARCHAR(32) NOT NULL,
+    name       VARCHAR(64) NOT NULL,
+    extend     JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_deleted BOOLEAN     DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_dict_code ON dicts (tenant_id, code) WHERE is_deleted = FALSE;
+CREATE INDEX idx_dict_tenant ON dicts (tenant_id);
+
+COMMENT ON TABLE dicts IS '字典表 - 系统数据字典';
+COMMENT ON COLUMN dicts.id IS '字典ID';
+COMMENT ON COLUMN dicts.tenant_id IS '租户ID';
+COMMENT ON COLUMN dicts.code IS '字典编码';
+COMMENT ON COLUMN dicts.name IS '字典名称';
+COMMENT ON COLUMN dicts.extend IS '扩展信息（JSONB）';
+
+-- 13. dict_items (字典项表)
+DROP TABLE IF EXISTS dict_items;
+CREATE TABLE dict_items
+(
+    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id  BIGINT      NOT NULL,
+    dict_id    BIGINT      NOT NULL,
+    code       VARCHAR(32) NOT NULL,
+    name       VARCHAR(64) NOT NULL,
+    sort       INT         DEFAULT 1,
+    extend     JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_deleted BOOLEAN     DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_dict_item_code ON dict_items (dict_id, code) WHERE is_deleted = FALSE;
+CREATE INDEX idx_dict_item_dict ON dict_items (dict_id);
+CREATE INDEX idx_dict_item_tenant ON dict_items (tenant_id) WHERE is_deleted = FALSE;
+
+COMMENT ON TABLE dict_items IS '字典项表 - 字典的具体选项';
+COMMENT ON COLUMN dict_items.id IS '字典项ID';
+COMMENT ON COLUMN dict_items.tenant_id IS '租户ID';
+COMMENT ON COLUMN dict_items.dict_id IS '所属字典ID';
+COMMENT ON COLUMN dict_items.code IS '字典项编码';
+COMMENT ON COLUMN dict_items.name IS '字典项名称';
+COMMENT ON COLUMN dict_items.sort IS '排序号';
+COMMENT ON COLUMN dict_items.extend IS '扩展信息（JSONB）';
+
+-- 14. db_logs (审计日志表)
+DROP TABLE IF EXISTS db_logs;
+CREATE TABLE db_logs
+(
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id   BIGINT,
+    op_type     VARCHAR(8) NOT NULL,
+    user_code   VARCHAR(32),
+    trace_id    VARCHAR(64),
+    client_ip   INET,
+    app_name    VARCHAR(32),
+    class_name  VARCHAR(64),
+    method_name VARCHAR(64),
+    uri         VARCHAR(128),
+    table_name  VARCHAR(64),
+    detail      JSONB,
+    created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_db_logs_tenant ON db_logs (tenant_id);
+CREATE INDEX idx_db_logs_created ON db_logs (created_at);
+CREATE INDEX idx_db_logs_trace ON db_logs (trace_id);
+
+COMMENT ON TABLE db_logs IS '审计日志表 - 数据库操作审计';
+COMMENT ON COLUMN db_logs.id IS '日志ID';
+COMMENT ON COLUMN db_logs.tenant_id IS '租户ID';
+COMMENT ON COLUMN db_logs.op_type IS '操作类型：INSERT, UPDATE, DELETE';
+COMMENT ON COLUMN db_logs.user_code IS '操作用户编码';
+COMMENT ON COLUMN db_logs.trace_id IS '链路追踪ID';
+COMMENT ON COLUMN db_logs.client_ip IS '客户端IP地址';
+COMMENT ON COLUMN db_logs.app_name IS '应用名称';
+COMMENT ON COLUMN db_logs.class_name IS '类名';
+COMMENT ON COLUMN db_logs.method_name IS '方法名';
+COMMENT ON COLUMN db_logs.uri IS '请求URI';
+COMMENT ON COLUMN db_logs.table_name IS '操作的表名';
+COMMENT ON COLUMN db_logs.detail IS '操作详情（JSONB）';
+COMMENT ON COLUMN db_logs.created_at IS '操作时间';
+
+DROP TABLE IF EXISTS tenant_users;
+CREATE TABLE tenant_users
+(
+    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id  BIGINT NOT NULL,
+    user_id    BIGINT NOT NULL,
+    role       VARCHAR(64),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_deleted BOOLEAN     DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_tenant_user ON tenant_users (tenant_id, user_id) WHERE is_deleted = FALSE;
+CREATE INDEX idx_tenant_users_tenant ON tenant_users (tenant_id) WHERE is_deleted = FALSE;
+
+COMMENT ON TABLE tenant_users IS '租户用户关联表 - 用户在多个租户中的角色';
+COMMENT ON COLUMN tenant_users.id IS '关联ID';
+COMMENT ON COLUMN tenant_users.tenant_id IS '租户ID';
+COMMENT ON COLUMN tenant_users.user_id IS '用户ID';
+COMMENT ON COLUMN tenant_users.role IS '在该租户中的角色';
+
+DROP TABLE IF EXISTS subscriptions;
+CREATE TABLE subscriptions
+(
+    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id  BIGINT NOT NULL,
+    plan_id    BIGINT NOT NULL,
+    status     VARCHAR(32) DEFAULT 'active',
+    start_date TIMESTAMPTZ,
+    end_date   TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_deleted BOOLEAN     DEFAULT FALSE
+);
+CREATE INDEX idx_subscriptions_tenant ON subscriptions (tenant_id) WHERE is_deleted = FALSE;
+CREATE INDEX idx_subscriptions_plan ON subscriptions (plan_id) WHERE is_deleted = FALSE;
+
+COMMENT ON TABLE subscriptions IS '订阅表 - 租户订阅计划';
+COMMENT ON COLUMN subscriptions.id IS '订阅ID';
+COMMENT ON COLUMN subscriptions.tenant_id IS '租户ID';
+COMMENT ON COLUMN subscriptions.plan_id IS '套餐ID';
+COMMENT ON COLUMN subscriptions.status IS '订阅状态：active-激活，expired-过期，cancelled-取消';
+COMMENT ON COLUMN subscriptions.start_date IS '开始日期';
+COMMENT ON COLUMN subscriptions.end_date IS '结束日期';
+
+DROP TABLE IF EXISTS plans;
+CREATE TABLE plans
+(
+    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name       VARCHAR(64) NOT NULL,
+    price      DECIMAL(10, 2) DEFAULT 0,
+    quota      INT            DEFAULT 100,
+    created_at TIMESTAMPTZ    DEFAULT NOW(),
+    updated_at TIMESTAMPTZ    DEFAULT NOW(),
+    is_deleted BOOLEAN        DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_plans_name ON plans (name) WHERE is_deleted = FALSE;
+
+COMMENT ON TABLE plans IS '套餐表 - SaaS订阅套餐';
+COMMENT ON COLUMN plans.id IS '套餐ID';
+COMMENT ON COLUMN plans.name IS '套餐名称';
+COMMENT ON COLUMN plans.price IS '价格';
+COMMENT ON COLUMN plans.quota IS '配额限制';
+
+DROP TABLE IF EXISTS usage_records;
+CREATE TABLE usage_records
+(
+    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id  BIGINT      NOT NULL,
+    action     VARCHAR(64) NOT NULL,
+    count      INT         DEFAULT 1,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_deleted BOOLEAN     DEFAULT FALSE
+);
+CREATE INDEX idx_usage_tenant ON usage_records (tenant_id) WHERE is_deleted = FALSE;
+CREATE INDEX idx_usage_action ON usage_records (action) WHERE is_deleted = FALSE;
+
+COMMENT ON TABLE usage_records IS '使用记录表 - 租户资源使用情况';
+COMMENT ON COLUMN usage_records.id IS '记录ID';
+COMMENT ON COLUMN usage_records.tenant_id IS '租户ID';
+COMMENT ON COLUMN usage_records.action IS '操作类型';
+COMMENT ON COLUMN usage_records.count IS '使用数量';
+
+DROP TABLE IF EXISTS ai_documents;
+CREATE TABLE ai_documents
+(
+    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id  BIGINT NOT NULL,
+    title      VARCHAR(256),
+    content    TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_deleted BOOLEAN     DEFAULT FALSE
+);
+CREATE INDEX idx_ai_docs_tenant ON ai_documents (tenant_id) WHERE is_deleted = FALSE;
+
+COMMENT ON TABLE ai_documents IS 'AI文档表 - AI知识库文档';
+COMMENT ON COLUMN ai_documents.id IS '文档ID';
+COMMENT ON COLUMN ai_documents.tenant_id IS '租户ID';
+COMMENT ON COLUMN ai_documents.title IS '文档标题';
+COMMENT ON COLUMN ai_documents.content IS '文档内容';
+
+DROP TABLE IF EXISTS auth_sessions;
+CREATE TABLE auth_sessions
+(
+    session_id VARCHAR(64) PRIMARY KEY,
+    user_id    BIGINT      NOT NULL,
+    tenant_id  BIGINT      NOT NULL DEFAULT 0,
+    role       VARCHAR(64),
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ          DEFAULT NOW()
+);
+CREATE INDEX idx_auth_sessions_expires_at ON auth_sessions (expires_at);
+
+COMMENT ON TABLE auth_sessions IS '登录会话表 - Redis 不可用时的会话持久化兜底';
+COMMENT ON COLUMN auth_sessions.session_id IS '会话ID';
+COMMENT ON COLUMN auth_sessions.user_id IS '用户ID';
+COMMENT ON COLUMN auth_sessions.tenant_id IS '租户ID';
+COMMENT ON COLUMN auth_sessions.role IS '角色编码';
+COMMENT ON COLUMN auth_sessions.expires_at IS '过期时间';
+COMMENT ON COLUMN auth_sessions.created_at IS '创建时间';
+
+
+-- ============================================
+-- 🔐 多租户 RLS (行级安全) 策略模板
+-- ============================================
+-- 1. 对所有租户数据表启用 RLS
+ALTER TABLE organizations
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE roles
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_roles
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE menus
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE resources
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE routes
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE permissions
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dicts
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dict_items
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tenant_users
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscriptions
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE usage_records
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_documents
+    ENABLE ROW LEVEL SECURITY;
+
+-- 2. 创建租户隔离策略 (读取 & 写入)
+-- 依赖应用层在连接池中执行: SET app.tenant_id = '当前租户ID';
+-- 不设 app.tenant_id 时放行所有行（单租户模式），设了则按租户过滤（SaaS模式）
+CREATE POLICY tenant_isolation_policy ON organizations
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+CREATE POLICY tenant_isolation_policy ON users
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+CREATE POLICY tenant_isolation_policy ON roles
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+CREATE POLICY tenant_isolation_policy ON user_roles
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+CREATE POLICY tenant_isolation_policy ON menus
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+CREATE POLICY tenant_isolation_policy ON resources
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+CREATE POLICY tenant_isolation_policy ON routes
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+CREATE POLICY tenant_isolation_policy ON permissions
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+CREATE POLICY tenant_isolation_policy ON dicts
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+CREATE POLICY tenant_isolation_policy ON dict_items
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+CREATE POLICY tenant_isolation_policy ON tenant_users
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+CREATE POLICY tenant_isolation_policy ON subscriptions
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+CREATE POLICY tenant_isolation_policy ON usage_records
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+CREATE POLICY tenant_isolation_policy ON ai_documents
+    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+
+-- ============================================
+-- 初始化数据
+-- ============================================
+INSERT INTO tenants (code, name, status, created_by, updated_by)
+VALUES ('default', '默认租户', 1, 0, 0);
+INSERT INTO accounts (phone, password, username, real_name)
+VALUES ('13800138000',
+        '$argon2id$v=19$m=19456,t=2,p=1$nMpweyGYDB9dvGMQAkzcHw$Tfc9vn1or7d0KMg0h6aRYFuDMxZbuK2cO8o6VaOyBk4', 'admin',
+        '系统管理员');
+INSERT INTO users (tenant_id, account_id, code, title, status, created_by, updated_by)
+VALUES (1, 1, 'admin', '系统管理员', 1, 0, 0);
+INSERT INTO roles (tenant_id, code, name, description, data_scope, is_default, created_by, updated_by)
+VALUES (1, 'admin', '管理员', '系统管理员', 5, FALSE, 0, 0),
+       (1, 'user', '普通用户', '普通用户', 4, TRUE, 0, 0);
+INSERT INTO user_roles (tenant_id, user_id, role_id)
+VALUES (1, 1, 1);
