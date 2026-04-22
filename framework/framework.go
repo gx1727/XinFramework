@@ -91,7 +91,7 @@ func runServer(cfg *config.Config) {
 
 // runFrameworkMigrations 执行框架核心数据库迁移
 func runFrameworkMigrations() {
-	if err := migrate.Run("framework/migrations"); err != nil {
+	if err := migrate.Run("migrations/framework"); err != nil {
 		log.Fatalf("framework migrations failed: %v", err)
 	}
 }

@@ -21,30 +21,30 @@ if [ $? -eq 0 ]; then
 
     echo "Copying configuration files..."
     if [ -d "./config" ]; then
-        if [ ! -d "$OutDir/config" ]; then
-            mkdir -p "$OutDir/config"
-        fi
+        mkdir -p "$OutDir/config"
         cp -r ./config/* "$OutDir/config/"
         echo "Config files copied to $OutDir/config/"
     fi
 
+    echo "Copying migration files..."
+    MigrationsDir="$OutDir/migrations"
+    mkdir -p "$MigrationsDir"
+
     if [ -d "./framework/migrations" ]; then
-        if [ ! -d "$OutDir/framework/migrations" ]; then
-            mkdir -p "$OutDir/framework/migrations"
-        fi
-        cp -r ./framework/migrations/* "$OutDir/framework/migrations/"
-        echo "Migration files copied to $OutDir/framework/migrations/"
+        mkdir -p "$MigrationsDir/framework"
+        cp -r ./framework/migrations/* "$MigrationsDir/framework/"
+        echo "Framework migrations copied"
     fi
 
     if [ -d "./apps" ]; then
         for appDir in ./apps/*/; do
             appName=$(basename "$appDir")
             if [ -d "$appDir/migrations" ]; then
-                mkdir -p "$OutDir/migrations/$appName"
-                cp -r "$appDir/migrations/"* "$OutDir/migrations/$appName/"
+                mkdir -p "$MigrationsDir/$appName"
+                cp -r "$appDir/migrations/"* "$MigrationsDir/$appName/"
+                echo "$appName migrations copied"
             fi
         done
-        echo "App migration files copied"
     fi
 
     echo ""

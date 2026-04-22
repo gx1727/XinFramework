@@ -26,25 +26,31 @@ if ($LASTEXITCODE -eq 0) {
         Write-Host "Config files copied to $OutDir\config\" -ForegroundColor Cyan
     }
 
+    Write-Host "Copying migration files..." -ForegroundColor Green
+    $MigrationsDir = "$OutDir\migrations"
+    if (!(Test-Path $MigrationsDir)) {
+        New-Item -ItemType Directory -Path $MigrationsDir | Out-Null
+    }
+
     if (Test-Path ".\framework\migrations") {
-        if (!(Test-Path "$OutDir\framework\migrations")) {
-            New-Item -ItemType Directory -Path "$OutDir\framework\migrations" | Out-Null
+        $FrameworkDest = "$MigrationsDir\framework"
+        if (!(Test-Path $FrameworkDest)) {
+            New-Item -ItemType Directory -Path $FrameworkDest | Out-Null
         }
-        Copy-Item -Path ".\framework\migrations\*" -Destination "$OutDir\framework\migrations\" -Recurse -Force
-        Write-Host "Migration files copied to $OutDir\framework\migrations\" -ForegroundColor Cyan
+        Copy-Item -Path ".\framework\migrations\*" -Destination "$FrameworkDest\" -Recurse -Force
+        Write-Host "Framework migrations copied" -ForegroundColor Cyan
     }
 
     if (Test-Path ".\apps") {
         Get-ChildItem -Path ".\apps" -Directory | ForEach-Object {
             $appName = $_.Name
-
             if (Test-Path "$($_.FullName)\migrations") {
-                $migrationsDest = "$OutDir\migrations\$appName"
-                New-Item -ItemType Directory -Path $migrationsDest -Force | Out-Null
-                Copy-Item "$($_.FullName)\migrations\*" "$migrationsDest\" -Recurse -Force
+                $AppDest = "$MigrationsDir\$appName"
+                New-Item -ItemType Directory -Path $AppDest -Force | Out-Null
+                Copy-Item "$($_.FullName)\migrations\*" "$AppDest\" -Recurse -Force
+                Write-Host "$appName migrations copied" -ForegroundColor Cyan
             }
         }
-        Write-Host "App migration files copied" -ForegroundColor Cyan
     }
 
     if (Test-Path ".\framework\.env.example") {
