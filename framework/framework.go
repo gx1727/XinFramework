@@ -25,14 +25,12 @@ func RegisterModule(m plugin.Module) {
 }
 
 // Run 框架入口函数，根据命令行参数执行相应操作
-func Run() {
-	// 如果没有命令行参数，直接启动服务器
+func Run(cfg *config.Config) {
 	if len(os.Args) < 2 {
-		runServer()
+		runServer(cfg)
 		return
 	}
 
-	// 根据命令参数执行对应操作
 	switch os.Args[1] {
 	case "start":
 		cmdStart()
@@ -47,7 +45,7 @@ func Run() {
 	case "hot-restart":
 		cmdHotRestart()
 	case "run":
-		runServer()
+		runServer(cfg)
 	case "help", "-h", "--help":
 		printUsage()
 	default:
@@ -55,15 +53,7 @@ func Run() {
 	}
 }
 
-// runServer 启动服务器的主流程
-func runServer() {
-	// 加载配置文件
-	cfg, err := config.Load("config/config.yaml")
-	if err != nil {
-		log.Fatalf("config load failed: %v", err)
-	}
-
-	// 初始化服务器实例
+func runServer(cfg *config.Config) {
 	srv, err := boot.Init(cfg)
 	if err != nil {
 		log.Fatalf("boot init failed: %v", err)

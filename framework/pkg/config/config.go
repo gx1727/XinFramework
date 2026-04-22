@@ -21,6 +21,7 @@ type Config struct {
 	Saas     SaasConfig     `yaml:"saas"`
 	Log      LogConfig      `yaml:"log"`
 	Module   []string       `yaml:"module"`
+	Apps     []string       `yaml:"apps"`
 	Auth     AuthConfig     `yaml:"auth"`
 }
 
@@ -221,8 +222,9 @@ func envCSV(key string, target *[]string) {
 
 var allowedModules = map[string]struct{}{
 	"system": {},
-	"cms":    {},
+	"auth":   {},
 	"weixin": {},
+	"cms":    {},
 }
 
 func validateModules(c *Config) error {
@@ -236,7 +238,7 @@ func validateModules(c *Config) error {
 			continue
 		}
 		if _, ok := allowedModules[d]; !ok {
-			return fmt.Errorf("invalid module: %s (allowed: system,cms,weixin)", d)
+			return fmt.Errorf("invalid module: %s (allowed: system,auth,weixin,cms)", d)
 		}
 		seen[d] = struct{}{}
 	}
@@ -254,6 +256,16 @@ func (c *Config) ModuleEnabled(name string) bool {
 	name = strings.ToLower(strings.TrimSpace(name))
 	for _, d := range c.Module {
 		if d == name {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Config) AppEnabled(name string) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+	for _, a := range c.Apps {
+		if strings.ToLower(strings.TrimSpace(a)) == name {
 			return true
 		}
 	}

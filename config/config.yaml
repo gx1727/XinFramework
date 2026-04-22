@@ -1,6 +1,6 @@
 app:
-  name: xin-framework
-  env: dev
+  name: xin
+  env: dev # dev prod
   host: 0.0.0.0
   port: 8080
 
@@ -47,8 +47,11 @@ log:
 
 module:
   - system
-  - cms
+  - auth
   - weixin
+
+apps:
+  - cms
 
 auth:
   max_login_attempts: 5
