@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
-	"gopkg.in/yaml.v3"
-	"gx1727.com/xin/framework/pkg/migrate"
+	"github.com/goccy/go-yaml"
+	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/plugin"
 	"gx1727.com/xin/framework/pkg/resp"
 )
@@ -63,13 +63,17 @@ func initModule() error {
 	return nil
 }
 
-func migrateModule() error {
-	return migrate.Run(filepath.Join("apps", "cms", "migrations"))
-}
-
 func configPath() string {
 	if p := os.Getenv("XIN_CMS_CONFIG"); p != "" {
 		return p
 	}
 	return filepath.Join("apps", "cms", "config.yaml")
+}
+
+func migrateModule() error {
+	d := db.Get()
+	if d == nil {
+		return nil
+	}
+	return d.AutoMigrate()
 }

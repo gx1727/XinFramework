@@ -36,6 +36,20 @@ if [ $? -eq 0 ]; then
         echo "Migration files copied to $OutDir/migrations/"
     fi
 
+    if [ -d "./apps" ]; then
+        for appDir in ./apps/*/; do
+            appName=$(basename "$appDir")
+            mkdir -p "$OutDir/apps/$appName"
+            if [ -f "$appDir/config.yaml" ]; then
+                cp "$appDir/config.yaml" "$OutDir/apps/$appName/"
+            fi
+            if [ -d "$appDir/migrations" ]; then
+                cp -r "$appDir/migrations" "$OutDir/apps/$appName/"
+            fi
+        done
+        echo "App config & migrations copied to $OutDir/apps/"
+    fi
+
     echo ""
     echo "Release package ready in '$OutDir' directory!"
 else

@@ -34,6 +34,27 @@ if ($LASTEXITCODE -eq 0) {
         Write-Host "Migration files copied to $OutDir\migrations\" -ForegroundColor Cyan
     }
 
+    if (Test-Path ".\apps") {
+        Get-ChildItem -Path ".\apps" -Directory | ForEach-Object {
+            $appName = $_.Name
+            $appDest = "$OutDir\apps\$appName"
+            New-Item -ItemType Directory -Path $appDest -Force | Out-Null
+
+            if (Test-Path "$($_.FullName)\config.yaml") {
+                Copy-Item "$($_.FullName)\config.yaml" "$appDest\config.yaml" -Force
+            }
+            if (Test-Path "$($_.FullName)\migrations") {
+                Copy-Item "$($_.FullName)\migrations" "$appDest\migrations" -Recurse -Force
+            }
+        }
+        Write-Host "App config & migrations copied to $OutDir\apps\" -ForegroundColor Cyan
+    }
+
+    if (Test-Path ".\framework\.env.example") {
+        Copy-Item ".\framework\.env.example" "$OutDir\.env.example" -Force
+        Write-Host "Env example copied to $OutDir\.env.example" -ForegroundColor Cyan
+    }
+
     Write-Host ""
     Write-Host "Release package ready in '$OutDir' directory!" -ForegroundColor Green
 } else {
