@@ -39,13 +39,13 @@ if ($LASTEXITCODE -eq 0) {
             $appName = $_.Name
 
             if (Test-Path "$($_.FullName)\migrations") {
-                $migrationsDest = "$OutDir\apps\$appName\migrations"
+                $migrationsDest = "$OutDir\migrations\$appName"
                 New-Item -ItemType Directory -Path $migrationsDest -Force | Out-Null
                 Copy-Item "$($_.FullName)\migrations\*" "$migrationsDest\" -Recurse -Force
             }
 
             if (Test-Path "$($_.FullName)\config.yaml") {
-                $cfgDest = "$OutDir\config\apps\$appName"
+                $cfgDest = "$OutDir\config\$appName"
                 New-Item -ItemType Directory -Path $cfgDest -Force | Out-Null
                 Copy-Item "$($_.FullName)\config.yaml" "$cfgDest\config.yaml" -Force
             }
