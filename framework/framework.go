@@ -61,6 +61,9 @@ func runServer() {
 		log.Fatalf("boot init failed: %v", err)
 	}
 
+	initModules()
+	migrateModules()
+
 	setupRouter(srv, cfg)
 
 	addr := fmt.Sprintf("%s:%d", cfg.App.Host, cfg.App.Port)
@@ -77,6 +80,23 @@ func runServer() {
 	}
 
 	waitForSignal(srv)
+}
+
+func initModules() {
+	for _, m := range plugin.All() {
+		if err := m.Init(); err != nil {
+			log.Fatalf("module %s init failed: %v", m.Name(), err)
+		}
+		log.Printf("module %s initialized", m.Name())
+	}
+}
+
+func migrateModules() {
+	for _, m := range plugin.All() {
+		if err := m.Migrate(); err != nil {
+			log.Fatalf("module %s migrate failed: %v", m.Name(), err)
+		}
+	}
 }
 
 func setupRouter(srv *server.XinServer, cfg *config.Config) {

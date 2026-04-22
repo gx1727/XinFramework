@@ -1,10 +1,9 @@
 #!/bin/bash
 
 OutputName="xin"
-BuildPath="./cmd/server/"
+BuildPath="./cmd/xin"
 OutDir="./out"
 
-# Create output directory
 if [ ! -d "$OutDir" ]; then
     mkdir -p "$OutDir"
 fi
@@ -20,7 +19,6 @@ if [ $? -eq 0 ]; then
     FileSize=$(du -h "$OutDir/$OutputName" | cut -f1)
     echo "Size: $FileSize"
 
-    # Copy config files to output directory
     echo "Copying configuration files..."
     if [ -d "./config" ]; then
         if [ ! -d "$OutDir/config" ]; then
@@ -30,7 +28,6 @@ if [ $? -eq 0 ]; then
         echo "Config files copied to $OutDir/config/"
     fi
 
-    # Copy migrations if exists
     if [ -d "./migrations" ]; then
         if [ ! -d "$OutDir/migrations" ]; then
             mkdir -p "$OutDir/migrations"

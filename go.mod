@@ -57,5 +57,5 @@ require (
 
 replace (
 	gx1727.com/xin/framework => ./framework
-	gx1727.com/xin/module/cms => ./app/cms
+	gx1727.com/xin/module/cms => ./apps/cms
 )
