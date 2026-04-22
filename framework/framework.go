@@ -15,20 +15,24 @@ import (
 )
 
 const (
-	pidFile = "./xin.pid"
-	logFile = "./xin.log"
+	pidFile = "./xin.pid" // PID文件路径
+	logFile = "./xin.log" // 日志文件路径
 )
 
+// RegisterModule 注册插件模块到框架
 func RegisterModule(m plugin.Module) {
 	plugin.Register(m)
 }
 
+// Run 框架入口函数，根据命令行参数执行相应操作
 func Run() {
+	// 如果没有命令行参数，直接启动服务器
 	if len(os.Args) < 2 {
 		runServer()
 		return
 	}
 
+	// 根据命令参数执行对应操作
 	switch os.Args[1] {
 	case "start":
 		cmdStart()
@@ -51,45 +55,58 @@ func Run() {
 	}
 }
 
+// runServer 启动服务器的主流程
 func runServer() {
+	// 加载配置文件
 	cfg, err := config.Load("config/config.yaml")
 	if err != nil {
 		log.Fatalf("config load failed: %v", err)
 	}
 
+	// 初始化服务器实例
 	srv, err := boot.Init(cfg)
 	if err != nil {
 		log.Fatalf("boot init failed: %v", err)
 	}
 
+	// 初始化所有插件模块
 	initModules()
+	// 执行框架级别的数据库迁移
 	runFrameworkMigrations()
+	// 执行所有插件模块的数据库迁移
 	migrateModules()
 
+	// 配置路由和中间件
 	setupRouter(srv, cfg)
 
+	// 构建服务器地址
 	addr := fmt.Sprintf("%s:%d", cfg.App.Host, cfg.App.Port)
 	log.Printf("server starting on %s", addr)
 
+	// 在后台启动HTTP服务器
 	go func() {
 		if err := srv.Start(addr); err != nil {
 			log.Fatalf("server start failed: %v", err)
 		}
 	}()
 
+	// 发送systemd就绪通知（如果支持）
 	if err := sdNotifyReady(); err != nil {
 		log.Printf("sd_notify ready: %v", err)
 	}
 
+	// 等待系统信号（用于优雅关闭）
 	waitForSignal(srv)
 }
 
+// runFrameworkMigrations 执行框架核心数据库迁移
 func runFrameworkMigrations() {
 	if err := migrate.Run("migrations"); err != nil {
 		log.Fatalf("framework migrations failed: %v", err)
 	}
 }
 
+// initModules 初始化所有已注册的插件模块
 func initModules() {
 	for _, m := range plugin.All() {
 		if err := m.Init(); err != nil {
@@ -99,6 +116,7 @@ func initModules() {
 	}
 }
 
+// migrateModules 执行所有插件模块的数据库迁移
 func migrateModules() {
 	for _, m := range plugin.All() {
 		if err := m.Migrate(); err != nil {
@@ -107,11 +125,14 @@ func migrateModules() {
 	}
 }
 
+// setupRouter 配置服务器路由和中间件
 func setupRouter(srv *server.XinServer, cfg *config.Config) {
-	srv.Engine.Use(middleware.RequestID())
-	srv.Engine.Use(middleware.Logger())
-	srv.Engine.Use(middleware.Recovery())
-	srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode))
+	// 注册全局中间件
+	srv.Engine.Use(middleware.RequestID())           // 请求ID中间件
+	srv.Engine.Use(middleware.Logger())              // 日志中间件
+	srv.Engine.Use(middleware.Recovery())            // 异常恢复中间件
+	srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode)) // 租户中间件
 
+	// 注册API v1路由
 	v1.RegisterRoutes(srv.Engine, cfg)
 }

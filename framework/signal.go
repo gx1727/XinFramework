@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"gx1727.com/xin/framework/internal/core/boot"
@@ -24,29 +23,8 @@ func getPid() (int, error) {
 	return strconv.Atoi(strings.TrimSpace(string(data)))
 }
 
-func isRunning() bool {
-	pid, err := getPid()
-	if err != nil {
-		return false
-	}
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-	err = process.Signal(syscall.Signal(0))
-	return err == nil
-}
-
 func removePidFile() {
 	os.Remove(pidFile)
-}
-
-func processExists(pid int) bool {
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-	return process.Signal(syscall.Signal(0)) == nil
 }
 
 func waitForProcess(pid int, timeout time.Duration) {
