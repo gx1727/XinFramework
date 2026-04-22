@@ -7,7 +7,7 @@ import "gx1727.com/xin/framework/pkg/resp"
 var (
 	// 账号密码相关
 	ErrInvalidAccountOrPassword = resp.NewError(1001, "账号或密码错误")
-	ErrInvalidToken             = resp.NewError(1002, "无效的 Token")
+	ErrInvalidToken             = resp.NewError(1002, "无效的Token")
 
 	// 权限相关
 	ErrUserDisabled          = resp.NewError(1003, "账号已被禁用")
