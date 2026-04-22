@@ -41,7 +41,7 @@ log:
   dir: logs
   level: info
 
-domain:
+module:
   - system
   - cms
   - weixin

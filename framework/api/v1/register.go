@@ -24,13 +24,13 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config) {
 	protected.Use(middleware.Auth(&cfg.JWT))
 
 	for _, m := range builtinModules {
-		if cfg.DomainEnabled(m.Name()) {
+		if cfg.ModuleEnabled(m.Name()) {
 			m.Register(public, protected)
 		}
 	}
 
 	for _, m := range plugin.All() {
-		if cfg.DomainEnabled(m.Name()) {
+		if cfg.ModuleEnabled(m.Name()) {
 			m.Register(public, protected)
 		}
 	}

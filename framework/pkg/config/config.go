@@ -20,7 +20,7 @@ type Config struct {
 	JWT      JWTConfig      `yaml:"jwt"`
 	Saas     SaasConfig     `yaml:"saas"`
 	Log      LogConfig      `yaml:"log"`
-	Domain   []string       `yaml:"domain"`
+	Module   []string       `yaml:"module"`
 	Auth     AuthConfig     `yaml:"auth"`
 }
 
@@ -108,7 +108,7 @@ func Load(path string) (*Config, error) {
 	}
 
 	overrideWithEnv(cfg)
-	if err := validateDomain(cfg); err != nil {
+	if err := validateModules(cfg); err != nil {
 		return nil, err
 	}
 
@@ -180,7 +180,7 @@ func overrideWithEnv(c *Config) {
 
 	envStr("XIN_LOG_DIR", &c.Log.Dir)
 	envStr("XIN_LOG_LEVEL", &c.Log.Level)
-	envCSV("XIN_DOMAIN", &c.Domain)
+	envCSV("XIN_MODULE", &c.Module)
 }
 
 func envStr(key string, target *string) {
@@ -219,40 +219,40 @@ func envCSV(key string, target *[]string) {
 	}
 }
 
-var allowedDomains = map[string]struct{}{
+var allowedModules = map[string]struct{}{
 	"system": {},
 	"cms":    {},
 	"weixin": {},
 }
 
-func validateDomain(c *Config) error {
-	if len(c.Domain) == 0 {
-		c.Domain = []string{"system"}
+func validateModules(c *Config) error {
+	if len(c.Module) == 0 {
+		c.Module = []string{"system"}
 	}
 	seen := map[string]struct{}{}
-	for i := range c.Domain {
-		d := strings.ToLower(strings.TrimSpace(c.Domain[i]))
+	for i := range c.Module {
+		d := strings.ToLower(strings.TrimSpace(c.Module[i]))
 		if d == "" {
 			continue
 		}
-		if _, ok := allowedDomains[d]; !ok {
-			return fmt.Errorf("invalid domain: %s (allowed: system,cms,weixin)", d)
+		if _, ok := allowedModules[d]; !ok {
+			return fmt.Errorf("invalid module: %s (allowed: system,cms,weixin)", d)
 		}
 		seen[d] = struct{}{}
 	}
 	if len(seen) == 0 {
-		return errors.New("domain is empty after validation")
+		return errors.New("module is empty after validation")
 	}
-	c.Domain = make([]string, 0, len(seen))
+	c.Module = make([]string, 0, len(seen))
 	for d := range seen {
-		c.Domain = append(c.Domain, d)
+		c.Module = append(c.Module, d)
 	}
 	return nil
 }
 
-func (c *Config) DomainEnabled(name string) bool {
+func (c *Config) ModuleEnabled(name string) bool {
 	name = strings.ToLower(strings.TrimSpace(name))
-	for _, d := range c.Domain {
+	for _, d := range c.Module {
 		if d == name {
 			return true
 		}
