@@ -33,11 +33,18 @@ COMMENT ON COLUMN cms_posts.is_deleted IS '软删除标记';
 -- 🔐 多租户 RLS (行级安全) 策略 — 纵深防御层
 -- ============================================
 -- 注意：cms_posts 表的多租户隔离以应用层 SET app.tenant_id 为主要机制，RLS 作为纵深防御。
+-- app.mode 配置：
+--   single：不约束 tenant_id（放行所有行）
+--   saas：必须约束 tenant_id（tenant_id 必须匹配）
+--   schema：不约束 tenant_id（由连接层 schema 隔离）
+--   database：不约束 tenant_id（由连接层 database 隔离）
 ALTER TABLE cms_posts ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_policy ON cms_posts
     USING (
-        NULLIF(current_setting('app.mode', true), '') = 'single'
-        OR (NULLIF(current_setting('app.mode', true), '') IS NULL)
-        OR (NULLIF(current_setting('app.mode', true), '') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
-    );
+    current_setting('app.mode') = 'single'
+    OR (
+        current_setting('app.mode') = 'saas'
+        AND tenant_id = current_setting('app.tenant_id')::BIGINT
+    )
+);

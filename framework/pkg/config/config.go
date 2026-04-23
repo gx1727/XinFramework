@@ -65,7 +65,7 @@ type JWTConfig struct {
 }
 
 type SaasConfig struct {
-	Mode string `yaml:"mode"`
+	Mode string `yaml:"mode"` // single | saas | schema | database
 }
 
 type CORSConfig struct {

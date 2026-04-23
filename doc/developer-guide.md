@@ -575,7 +575,14 @@ func (s *Service) CreateWithRole(user *User, roleID uint) error {
 
 ### 5.3 租户隔离
 
-Tenant 中间件从请求头 `X-Tenant-ID` 解析租户 ID，写入请求上下文。Service 层所有跨租户查询必须显式带 `tenant_id` 条件。
+框架支持四种租户隔离模式，由 `saas.mode` 配置：
+
+| 模式 | 隔离层级 | 说明 |
+|------|---------|------|
+| `single` | 无隔离 | 所有租户数据均可访问（单租户模式） |
+| `saas` | 行级（tenant_id） | 按 tenant_id 隔离数据行（需要应用层 SET） |
+| `schema` | Schema 级 | 每个租户独立 schema，由连接层隔离 |
+| `database` | Database 级 | 每个租户独立数据库，由连接层隔离 |
 
 **Tenant 中间件行为**（`middleware.Tenant()`）：
 - 解析 `X-Tenant-ID` 请求头
@@ -597,23 +604,10 @@ ctx := xincontext.New(c)
 tid := ctx.TenantID
 ```
 
-**在查询中显式使用 tenant_id**：
-
-```go
-// 查询用户列表（显式加 tenant_id 过滤）
-rows, err := pool.Query(ctx, `
-    SELECT id, code, status FROM users
-    WHERE tenant_id = $1 AND is_deleted = FALSE
-`, tenantID)
-
-// 注册时来自请求入参（无需从 context 取）
-INSERT INTO users (tenant_id, account_id, code, status)
-VALUES ($1, $2, $3, $4)
-```
-
-**RLS 作为纵深防御**：
-- 应用层查询显式带 `tenant_id` 是主要隔离机制
-- PostgreSQL RLS 策略作为纵深兜底，防止应用层漏加过滤时的数据泄漏
+**RLS 作为纵深防御**（`saas` 模式）：
+- PostgreSQL RLS 策略自动生效，防止应用层漏 SET 时的数据泄漏
+- `app.mode = 'saas'` 时，未设置 `tenant_id` 的查询会被拒绝（安全默认值）
+- `app.mode = 'single'/'schema'/'database'` 时，RLS 不约束 tenant_id
 
 ***
 
