@@ -12,7 +12,7 @@ import (
 // moduleRegistry 存储所有可用的外部插件
 // 添加新 app 只需在这里添加一行
 var moduleRegistry = map[string]func() plugin.Module{
-	"cms": cms.Module,
+	"cms": func() plugin.Module { return cms.Module(cms.NewHandler()) },
 	// future apps: "shop": shop.Module, "blog": blog.Module, ...
 }
 
