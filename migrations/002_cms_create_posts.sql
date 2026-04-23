@@ -36,8 +36,6 @@ COMMENT ON COLUMN cms_posts.is_deleted IS '软删除标记';
 -- app.mode 配置：
 --   single：不约束 tenant_id（放行所有行）
 --   saas：必须约束 tenant_id（tenant_id 必须匹配）
---   schema：不约束 tenant_id（由连接层 schema 隔离）
---   database：不约束 tenant_id（由连接层 database 隔离）
 ALTER TABLE cms_posts ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_policy ON cms_posts
