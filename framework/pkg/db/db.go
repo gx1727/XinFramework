@@ -49,22 +49,6 @@ func Get() *pgxpool.Pool {
 	return Pool
 }
 
-func SetTenantID(ctx context.Context, tenantID uint) error {
-	if Pool != nil && tenantID > 0 {
-		_, err := Pool.Exec(ctx, "SET app.tenant_id = $1", tenantID)
-		return err
-	}
-	return nil
-}
-
-func ClearTenantID(ctx context.Context) error {
-	if Pool != nil {
-		_, err := Pool.Exec(ctx, "RESET app.tenant_id")
-		return err
-	}
-	return nil
-}
-
 func Close() {
 	if Pool != nil {
 		Pool.Close()

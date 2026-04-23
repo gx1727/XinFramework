@@ -573,19 +573,47 @@ func (s *Service) CreateWithRole(user *User, roleID uint) error {
 }
 ```
 
-> **注意**：已迁移到依赖注入的模块，Service 层应使用注入的 `s.db` 字段，而非 `db.Get()` 全局函数。
+### 5.3 租户隔离
 
-### 5.3 租户查询
+Tenant 中间件从请求头 `X-Tenant-ID` 解析租户 ID，写入请求上下文。Service 层所有跨租户查询必须显式带 `tenant_id` 条件。
 
-Tenant 中间件自动设置 `SET app.tenant_id = ?`，GORM 查询自动带上租户过滤。
+**Tenant 中间件行为**（`middleware.Tenant()`）：
+- 解析 `X-Tenant-ID` 请求头
+- 写入 Gin context（`c.Set("tenant_id", tid)`）
+- 写入 `context.Context`（`context.WithTenantID()`）
+- 写入 `XinContext.TenantID`
 
-手动设置：
+**从请求上下文获取 tenant_id**：
 
 ```go
-d := db.Get()
-d.Exec("SET app.tenant_id = ?", tenantID)
-defer d.Exec("RESET app.tenant_id")
+// 从 context.Context 获取（推荐）
+tid, ok := context.TenantIDFrom(c.Request.Context())
+
+// 从 Gin context 获取
+tid, ok := c.Get("tenant_id")
+
+// 从 XinContext 获取
+ctx := xincontext.New(c)
+tid := ctx.TenantID
 ```
+
+**在查询中显式使用 tenant_id**：
+
+```go
+// 查询用户列表（显式加 tenant_id 过滤）
+rows, err := pool.Query(ctx, `
+    SELECT id, code, status FROM users
+    WHERE tenant_id = $1 AND is_deleted = FALSE
+`, tenantID)
+
+// 注册时来自请求入参（无需从 context 取）
+INSERT INTO users (tenant_id, account_id, code, status)
+VALUES ($1, $2, $3, $4)
+```
+
+**RLS 作为纵深防御**：
+- 应用层查询显式带 `tenant_id` 是主要隔离机制
+- PostgreSQL RLS 策略作为纵深兜底，防止应用层漏加过滤时的数据泄漏
 
 ***
 

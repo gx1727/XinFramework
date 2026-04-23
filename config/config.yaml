@@ -39,7 +39,7 @@ jwt:
   refresh_expire: 86400
 
 saas:
-  mode: shared # shared | schema | database
+  mode: saas # single | saas | schema | database
 
 log:
   dir: logs

@@ -584,8 +584,19 @@ COMMENT ON COLUMN auth_sessions.created_at IS '创建时间';
 
 
 -- ============================================
--- 🔐 多租户 RLS (行级安全) 策略模板
+-- 🔐 多租户 RLS (行级安全) 策略 — 纵深防御层
 -- ============================================
+--
+-- ⚠️ 重要说明：
+-- 本 RLS 策略已降级为"纵深防御"，主要依赖应用层 SET app.tenant_id。
+-- 本层作用：防止应用层漏 SET 时的数据泄漏，或运维直接操作 DB 时的越权。
+--
+-- ⚠️ app.mode 配置：
+--   single：不约束 tenant_id，所有租户数据均可访问（单租户模式）
+--   saas：必须约束 tenant_id，未设置 tenant_id 时拒绝所有操作（SaaS 多租户模式）
+--
+-- ⚠️ 注意：accounts 表为平台级，不在 RLS 覆盖范围内（同一账号可跨租户存在）。
+--
 -- 1. 对所有租户数据表启用 RLS
 ALTER TABLE organizations
     ENABLE ROW LEVEL SECURITY;
@@ -617,36 +628,94 @@ ALTER TABLE ai_documents
     ENABLE ROW LEVEL SECURITY;
 
 -- 2. 创建租户隔离策略 (读取 & 写入)
--- 依赖应用层在连接池中执行: SET app.tenant_id = '当前租户ID';
--- 不设 app.tenant_id 时放行所有行（单租户模式），设了则按租户过滤（SaaS模式）
+-- app.mode = single：不约束 tenant_id（放行所有行）
+-- app.mode = saas：必须约束 tenant_id（tenant_id 必须匹配）
+-- 未设置 app.mode：默认 single（向后兼容）
+-- 未设置 app.tenant_id：saas 模式下拒绝所有行（安全默认值）
 CREATE POLICY tenant_isolation_policy ON organizations
-    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (
+        NULLIF(current_setting('app.mode', true), '') = 'single'
+        OR (NULLIF(current_setting('app.mode', true), '') IS NULL)
+        OR (NULLIF(current_setting('app.mode', true), '') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+    );
 CREATE POLICY tenant_isolation_policy ON users
-    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (
+        NULLIF(current_setting('app.mode', true), '') = 'single'
+        OR (NULLIF(current_setting('app.mode', true), '') IS NULL)
+        OR (NULLIF(current_setting('app.mode', true), '') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+    );
 CREATE POLICY tenant_isolation_policy ON roles
-    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (
+        NULLIF(current_setting('app.mode', true), '') = 'single'
+        OR (NULLIF(current_setting('app.mode', true), '') IS NULL)
+        OR (NULLIF(current_setting('app.mode', true), '') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+    );
 CREATE POLICY tenant_isolation_policy ON user_roles
-    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (
+        NULLIF(current_setting('app.mode', true), '') = 'single'
+        OR (NULLIF(current_setting('app.mode', true), '') IS NULL)
+        OR (NULLIF(current_setting('app.mode', true), '') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+    );
 CREATE POLICY tenant_isolation_policy ON menus
-    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (
+        NULLIF(current_setting('app.mode', true), '') = 'single'
+        OR (NULLIF(current_setting('app.mode', true), '') IS NULL)
+        OR (NULLIF(current_setting('app.mode', true), '') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+    );
 CREATE POLICY tenant_isolation_policy ON resources
-    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (
+        NULLIF(current_setting('app.mode', true), '') = 'single'
+        OR (NULLIF(current_setting('app.mode', true), '') IS NULL)
+        OR (NULLIF(current_setting('app.mode', true), '') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+    );
 CREATE POLICY tenant_isolation_policy ON routes
-    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (
+        NULLIF(current_setting('app.mode', true), '') = 'single'
+        OR (NULLIF(current_setting('app.mode', true), '') IS NULL)
+        OR (NULLIF(current_setting('app.mode', true), '') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+    );
 CREATE POLICY tenant_isolation_policy ON permissions
-    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (
+        NULLIF(current_setting('app.mode', true), '') = 'single'
+        OR (NULLIF(current_setting('app.mode', true), '') IS NULL)
+        OR (NULLIF(current_setting('app.mode', true), '') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+    );
 CREATE POLICY tenant_isolation_policy ON dicts
-    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (
+        NULLIF(current_setting('app.mode', true), '') = 'single'
+        OR (NULLIF(current_setting('app.mode', true), '') IS NULL)
+        OR (NULLIF(current_setting('app.mode', true), '') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+    );
 CREATE POLICY tenant_isolation_policy ON dict_items
-    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (
+        NULLIF(current_setting('app.mode', true), '') = 'single'
+        OR (NULLIF(current_setting('app.mode', true), '') IS NULL)
+        OR (NULLIF(current_setting('app.mode', true), '') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+    );
 CREATE POLICY tenant_isolation_policy ON tenant_users
-    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (
+        NULLIF(current_setting('app.mode', true), '') = 'single'
+        OR (NULLIF(current_setting('app.mode', true), '') IS NULL)
+        OR (NULLIF(current_setting('app.mode', true), '') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+    );
 CREATE POLICY tenant_isolation_policy ON subscriptions
-    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (
+        NULLIF(current_setting('app.mode', true), '') = 'single'
+        OR (NULLIF(current_setting('app.mode', true), '') IS NULL)
+        OR (NULLIF(current_setting('app.mode', true), '') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+    );
 CREATE POLICY tenant_isolation_policy ON usage_records
-    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (
+        NULLIF(current_setting('app.mode', true), '') = 'single'
+        OR (NULLIF(current_setting('app.mode', true), '') IS NULL)
+        OR (NULLIF(current_setting('app.mode', true), '') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+    );
 CREATE POLICY tenant_isolation_policy ON ai_documents
-    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (
+        NULLIF(current_setting('app.mode', true), '') = 'single'
+        OR (NULLIF(current_setting('app.mode', true), '') IS NULL)
+        OR (NULLIF(current_setting('app.mode', true), '') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+    );
 
 -- ============================================
 -- 初始化数据

@@ -12,7 +12,6 @@ import (
 	"github.com/google/uuid"
 	"gx1727.com/xin/framework/internal/core/context"
 	"gx1727.com/xin/framework/pkg/config"
-	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 	"gx1727.com/xin/framework/pkg/resp"
 	"gx1727.com/xin/framework/pkg/session"
@@ -127,14 +126,13 @@ func Tenant(mode string) gin.HandlerFunc {
 		ctx := context.New(c)
 		if tenantIDStr := c.GetHeader("X-Tenant-ID"); tenantIDStr != "" {
 			if tenantID, err := strconv.ParseUint(tenantIDStr, 10, 64); err == nil {
-				ctx.SetTenantID(uint(tenantID))
-				_ = db.SetTenantID(c.Request.Context(), uint(tenantID))
+				tid := uint(tenantID)
+				ctx.SetTenantID(tid)
+				c.Set("tenant_id", tid)
+				c.Request = c.Request.WithContext(context.WithTenantID(c.Request.Context(), tid))
 			}
 		}
 
-		defer func() {
-			_ = db.ClearTenantID(c.Request.Context())
-		}()
 		c.Next()
 	}
 }

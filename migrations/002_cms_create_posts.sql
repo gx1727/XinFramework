@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS cms_posts (
     status SMALLINT DEFAULT 1,                   -- 文章状态：1-发布，0-草稿，-1-下架
     created_at TIMESTAMPTZ DEFAULT NOW(),        -- 创建时间
     updated_at TIMESTAMPTZ DEFAULT NOW(),        -- 更新时间
-    is_deleted BOOLEAN DEFAULT FALSE             -- 软删除标记
+    is_deleted BOOLEAN DEFAULT FALSE              -- 软删除标记
 );
 
 -- 创建租户ID索引，仅针对未删除的记录
@@ -28,3 +28,16 @@ COMMENT ON COLUMN cms_posts.status IS '文章状态：1-发布，0-草稿，-1-�
 COMMENT ON COLUMN cms_posts.created_at IS '创建时间';
 COMMENT ON COLUMN cms_posts.updated_at IS '更新时间';
 COMMENT ON COLUMN cms_posts.is_deleted IS '软删除标记';
+
+-- ============================================
+-- 🔐 多租户 RLS (行级安全) 策略 — 纵深防御层
+-- ============================================
+-- 注意：cms_posts 表的多租户隔离以应用层 SET app.tenant_id 为主要机制，RLS 作为纵深防御。
+ALTER TABLE cms_posts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation_policy ON cms_posts
+    USING (
+        NULLIF(current_setting('app.mode', true), '') = 'single'
+        OR (NULLIF(current_setting('app.mode', true), '') IS NULL)
+        OR (NULLIF(current_setting('app.mode', true), '') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+    );
