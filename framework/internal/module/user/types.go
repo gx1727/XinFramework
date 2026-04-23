@@ -6,7 +6,7 @@ type loginRequest struct {
 	TenantID uint   `json:"tenant_id"`
 }
 
-type loginResult struct {
+type LoginResult struct {
 	Token        string
 	RefreshToken string
 	User         struct {

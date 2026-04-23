@@ -59,7 +59,7 @@ func (s *Service) generateTokens(ctx context.Context, userID, tenantID uint, rol
 	}, nil
 }
 
-func (s *Service) Login(ctx context.Context, req loginRequest) (*loginResult, error) {
+func (s *Service) Login(ctx context.Context, req loginRequest) (*LoginResult, error) {
 	identity, err := ResolveLoginIdentity(ctx, s.db, req.Account, req.TenantID)
 	if err != nil {
 		switch {
@@ -87,7 +87,7 @@ func (s *Service) Login(ctx context.Context, req loginRequest) (*loginResult, er
 		return nil, err
 	}
 
-	res := &loginResult{
+	res := &LoginResult{
 		Token:        tokens.accessToken,
 		RefreshToken: tokens.refreshToken,
 	}

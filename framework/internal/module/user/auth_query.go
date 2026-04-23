@@ -3,6 +3,8 @@ package user
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strconv"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -22,9 +24,20 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 		return nil, ErrBackendUnavailable
 	}
 
+	tx, err := d.Begin(ctx)
+	if err != nil {
+		return nil, ErrRegisterFailed
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(tenantID)))
+	if err != nil {
+		return nil, fmt.Errorf("set tenant_id: %w", err)
+	}
+
 	var accID uint
 	var password string
-	err := d.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 		SELECT id, password 
 		FROM accounts 
 		WHERE is_deleted = FALSE 
@@ -54,7 +67,7 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 	var uTenantID uint
 	var uCode string
 	var uStatus int16
-	err = d.QueryRow(ctx, query, args...).Scan(&uID, &uTenantID, &uCode, &uStatus)
+	err = tx.QueryRow(ctx, query, args...).Scan(&uID, &uTenantID, &uCode, &uStatus)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errTenantBindingNotFound
@@ -63,7 +76,7 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 	}
 
 	roleCode := "user"
-	err = d.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 		SELECT r.code 
 		FROM user_roles ur 
 		JOIN roles r ON r.id = ur.role_id 
@@ -73,6 +86,10 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 		ORDER BY ur.id ASC LIMIT 1`, uID).Scan(&roleCode)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		// Ignore role error, fallback to "user"
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, ErrRegisterFailed
 	}
 
 	return &LoginIdentity{
