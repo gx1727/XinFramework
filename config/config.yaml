@@ -51,6 +51,28 @@ module:
 apps:
   - cms
 
+cors:
+  enabled: true
+  # 允许的来源，支持两种写法：
+  # 1. YAML 数组（推荐）：
+  #   allow_origins:
+  #     - https://admin.mi7.com
+  #     - https://app.mi7.com
+  # 2. 单个通配符：
+  #   allow_origins: 
+  #   - "*"
+  allow_origins:
+    - "http://localhost:5173"
+  # 允许的请求方法
+  allow_methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS"
+  # 允许的请求头
+  allow_headers: "Content-Type,Authorization,X-Requested-With,X-Request-ID,X-Tenant-ID"
+  # 是否允许携带凭证（Cookie/Authorization header）
+  # 注意：allow_credentials=true 时，allow_origins 不能为 "*"
+  allow_credentials: true
+  # 预检请求缓存时间（秒）
+  max_age: 86400
+
 user:
   max_login_attempts: 5
   lock_duration_sec: 300

@@ -21,6 +21,7 @@ type Config struct {
 	Log      LogConfig      `yaml:"log"`
 	Module   []string       `yaml:"module"`
 	Apps     []string       `yaml:"apps"`
+	CORS     CORSConfig     `yaml:"cors"`
 }
 
 type AppConfig struct {
@@ -65,6 +66,19 @@ type JWTConfig struct {
 
 type SaasConfig struct {
 	Mode string `yaml:"mode"`
+}
+
+type CORSConfig struct {
+	Enabled          bool     `yaml:"enabled"`
+	AllowOrigins     []string `yaml:"allow_origins"`
+	AllowMethods     string   `yaml:"allow_methods"`
+	AllowHeaders     string   `yaml:"allow_headers"`
+	AllowCredentials bool     `yaml:"allow_credentials"`
+	MaxAge           int      `yaml:"max_age"`
+}
+
+func (c *CORSConfig) IsEnabled() bool {
+	return c.Enabled
 }
 
 type LogConfig struct {
@@ -118,6 +132,14 @@ func defaults() *Config {
 		},
 		Saas: SaasConfig{
 			Mode: "shared",
+		},
+		CORS: CORSConfig{
+			Enabled:          true,
+			AllowOrigins:     []string{"*"},
+			AllowMethods:     "GET,POST,PUT,DELETE,PATCH,OPTIONS",
+			AllowHeaders:     "Content-Type,Authorization,X-Requested-With,X-Request-ID,X-Tenant-ID",
+			AllowCredentials: false,
+			MaxAge:           86400,
 		},
 		Log: LogConfig{
 			Dir:   "logs",
@@ -214,6 +236,15 @@ func overrideWithEnv(c *Config) {
 	envInt("XIN_JWT_REFRESH_EXPIRE", &c.JWT.RefreshExpire)
 
 	envStr("XIN_SAAS_MODE", &c.Saas.Mode)
+
+	envBool("XIN_CORS_ENABLED", &c.CORS.Enabled)
+	if origins := os.Getenv("XIN_CORS_ALLOW_ORIGINS"); origins != "" {
+		c.CORS.AllowOrigins = strings.Split(origins, ",")
+	}
+	envStr("XIN_CORS_ALLOW_METHODS", &c.CORS.AllowMethods)
+	envStr("XIN_CORS_ALLOW_HEADERS", &c.CORS.AllowHeaders)
+	envBool("XIN_CORS_ALLOW_CREDENTIALS", &c.CORS.AllowCredentials)
+	envInt("XIN_CORS_MAX_AGE", &c.CORS.MaxAge)
 
 	envStr("XIN_LOG_DIR", &c.Log.Dir)
 	envStr("XIN_LOG_LEVEL", &c.Log.Level)

@@ -61,6 +61,8 @@ func runServer(cfg *config.Config) {
 
 	// 初始化所有插件模块
 	initModules()
+
+	// 执行数据迁移
 	runMigrations()
 
 	// 配置路由和中间件
@@ -107,6 +109,7 @@ func setupRouter(app *boot.App) {
 	cfg := app.Config
 
 	// 注册全局中间件
+	srv.Engine.Use(middleware.CORS(&cfg.CORS))       // CORS 中间件
 	srv.Engine.Use(middleware.RequestID())           // 请求ID中间件
 	srv.Engine.Use(middleware.Logger())              // 日志中间件
 	srv.Engine.Use(middleware.Recovery())            // 异常恢复中间件
