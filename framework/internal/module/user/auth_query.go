@@ -97,9 +97,7 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 		SELECT r.code 
 		FROM user_roles ur 
 		JOIN roles r ON r.id = ur.role_id 
-		WHERE ur.is_deleted = FALSE 
-		AND r.is_deleted = FALSE 
-		AND ur.user_id = $1 
+		WHERE ur.user_id = $1 
 		ORDER BY ur.id ASC LIMIT 1`, uID).Scan(&roleCode)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		// Ignore role error, fallback to "user"
