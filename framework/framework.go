@@ -8,6 +8,7 @@ import (
 	v1 "gx1727.com/xin/framework/api/v1"
 	"gx1727.com/xin/framework/internal/core/boot"
 	"gx1727.com/xin/framework/internal/core/middleware"
+	"gx1727.com/xin/framework/internal/module/tenant"
 	"gx1727.com/xin/framework/internal/module/user"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/migrate"
@@ -119,7 +120,12 @@ func setupRouter(app *boot.App) {
 	userDeps := user.DefaultDependencies(cfg, app.DB)
 	userService := user.NewService(userDeps)
 	userHandler := user.NewHandler(userService)
+
+	tenantService := tenant.NewService(app.DB)
+	tenantHandler := tenant.NewHandler(tenantService)
+
 	v1.RegisterRoutes(srv.Engine, cfg, v1.Dependencies{
-		UserHandler: userHandler,
+		UserHandler:   userHandler,
+		TenantHandler: tenantHandler,
 	})
 }

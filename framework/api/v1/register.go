@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/internal/core/middleware"
 	"gx1727.com/xin/framework/internal/module/system"
+	"gx1727.com/xin/framework/internal/module/tenant"
 	"gx1727.com/xin/framework/internal/module/user"
 	"gx1727.com/xin/framework/internal/module/weixin"
 	"gx1727.com/xin/framework/pkg/config"
@@ -11,12 +12,14 @@ import (
 )
 
 type Dependencies struct {
-	UserHandler *user.Handler
+	UserHandler   *user.Handler
+	TenantHandler *tenant.Handler
 }
 
 func builtinModules(deps Dependencies) []plugin.Module {
 	return []plugin.Module{
 		user.Module(deps.UserHandler),
+		tenant.Module(deps.TenantHandler),
 		system.Module(),
 		weixin.Module(),
 	}
