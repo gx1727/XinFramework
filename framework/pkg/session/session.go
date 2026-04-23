@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/gorm"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/cache"
 	"gx1727.com/xin/framework/pkg/db"
 )
@@ -49,18 +49,20 @@ func Create(sessionID string, userID, tenantID uint, role string, ttl time.Durat
 		return rdb.Set(ctx, sessionKeyPrefix+sessionID, b, ttl).Err()
 	}
 
-	d := db.Get()
-	if d == nil {
+	pool := db.Get()
+	if pool == nil {
 		return ErrBackendUnavailable
 	}
-	ensureSessionTable(d)
+	ctx := context.Background()
+	ensureSessionTable(ctx, pool)
 	expiresAt := time.Now().Add(ttl)
-	return d.Exec(`
-INSERT INTO auth_sessions (session_id, user_id, tenant_id, role, expires_at)
-VALUES (?, ?, ?, ?, ?)
-ON CONFLICT (session_id)
-DO UPDATE SET user_id = EXCLUDED.user_id, tenant_id = EXCLUDED.tenant_id, role = EXCLUDED.role, expires_at = EXCLUDED.expires_at
-`, sessionID, userID, tenantID, role, expiresAt).Error
+	_, err := pool.Exec(ctx, `
+		INSERT INTO auth_sessions (session_id, user_id, tenant_id, role, expires_at)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (session_id)
+		DO UPDATE SET user_id = EXCLUDED.user_id, tenant_id = EXCLUDED.tenant_id, role = EXCLUDED.role, expires_at = EXCLUDED.expires_at
+	`, sessionID, userID, tenantID, role, expiresAt)
+	return err
 }
 
 func Validate(sessionID string) (bool, error) {
@@ -78,17 +80,19 @@ func Validate(sessionID string) (bool, error) {
 		return n == 1, nil
 	}
 
-	d := db.Get()
-	if d == nil {
+	pool := db.Get()
+	if pool == nil {
 		return false, ErrBackendUnavailable
 	}
-	ensureSessionTable(d)
+	ctx := context.Background()
+	ensureSessionTable(ctx, pool)
 	var cnt int64
-	if err := d.Raw(`
-SELECT COUNT(1)
-FROM auth_sessions
-WHERE session_id = ? AND expires_at > NOW()
-`, sessionID).Scan(&cnt).Error; err != nil {
+	err := pool.QueryRow(ctx, `
+		SELECT COUNT(1)
+		FROM auth_sessions
+		WHERE session_id = $1 AND expires_at > NOW()
+	`, sessionID).Scan(&cnt)
+	if err != nil {
 		return false, err
 	}
 	return cnt > 0, nil
@@ -105,17 +109,19 @@ func Revoke(sessionID string) error {
 		return rdb.Del(ctx, sessionKeyPrefix+sessionID).Err()
 	}
 
-	d := db.Get()
-	if d == nil {
+	pool := db.Get()
+	if pool == nil {
 		return nil
 	}
-	ensureSessionTable(d)
-	return d.Exec(`DELETE FROM auth_sessions WHERE session_id = ?`, sessionID).Error
+	ctx := context.Background()
+	ensureSessionTable(ctx, pool)
+	_, err := pool.Exec(ctx, `DELETE FROM auth_sessions WHERE session_id = $1`, sessionID)
+	return err
 }
 
-func ensureSessionTable(d *gorm.DB) {
+func ensureSessionTable(ctx context.Context, pool *pgxpool.Pool) {
 	ensureTableOnce.Do(func() {
-		_ = d.Exec(`
+		_, _ = pool.Exec(ctx, `
 CREATE TABLE IF NOT EXISTS auth_sessions (
     session_id VARCHAR(64) PRIMARY KEY,
     user_id BIGINT NOT NULL,
@@ -123,7 +129,7 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
     role VARCHAR(64),
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
-)`).Error
-		_ = d.Exec(`CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at ON auth_sessions (expires_at)`).Error
+)`)
+		_, _ = pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at ON auth_sessions (expires_at)`)
 	})
 }

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"gorm.io/gorm"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/internal/core/server"
 	"gx1727.com/xin/framework/internal/module/auth"
 	"gx1727.com/xin/framework/internal/module/user"
@@ -16,7 +16,7 @@ import (
 
 type App struct {
 	Config *config.Config
-	DB     *gorm.DB
+	DB     *pgxpool.Pool
 	Server *server.XinServer
 }
 
@@ -53,8 +53,6 @@ func Shutdown() {
 	if err := cache.Close(); err != nil {
 		log.Printf("cache close failed: %v", err)
 	}
-	if err := db.Close(); err != nil {
-		log.Printf("db close failed: %v", err)
-	}
+	db.Close()
 	logger.Close()
 }

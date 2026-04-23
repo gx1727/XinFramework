@@ -19,7 +19,7 @@ func (h *Handler) Login(c *gin.Context) {
 		resp.BadRequest(c, "请求参数格式错误")
 		return
 	}
-	result, err := h.svc.Login(req)
+	result, err := h.svc.Login(c.Request.Context(), req)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -52,7 +52,7 @@ func (h *Handler) Register(c *gin.Context) {
 		resp.BadRequest(c, "请求参数格式错误")
 		return
 	}
-	result, err := h.svc.Register(req)
+	result, err := h.svc.Register(c.Request.Context(), req)
 	if err != nil {
 		resp.HandleError(c, err)
 		return

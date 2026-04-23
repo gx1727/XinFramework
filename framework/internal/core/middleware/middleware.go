@@ -81,11 +81,13 @@ func Tenant(mode string) gin.HandlerFunc {
 		if tenantIDStr := c.GetHeader("X-Tenant-ID"); tenantIDStr != "" {
 			if tenantID, err := strconv.ParseUint(tenantIDStr, 10, 64); err == nil {
 				ctx.SetTenantID(uint(tenantID))
-				db.SetTenantID(uint(tenantID))
+				_ = db.SetTenantID(c.Request.Context(), uint(tenantID))
 			}
 		}
 
-		defer db.ClearTenantID()
+		defer func() {
+			_ = db.ClearTenantID(c.Request.Context())
+		}()
 		c.Next()
 	}
 }

@@ -1,18 +1,19 @@
 package user
 
 import (
+	"context"
 	"errors"
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/config"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 )
 
 type Service struct {
-	db      *gorm.DB
+	db      *pgxpool.Pool
 	config  *config.Config
 	session SessionManager
 }
@@ -25,8 +26,8 @@ func NewService(deps Dependencies) *Service {
 	}
 }
 
-func (s *Service) Login(req loginRequest) (*loginResult, error) {
-	identity, err := ResolveLoginIdentity(s.db, req.Account, req.TenantID)
+func (s *Service) Login(ctx context.Context, req loginRequest) (*loginResult, error) {
+	identity, err := ResolveLoginIdentity(ctx, s.db, req.Account, req.TenantID)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrBackendUnavailable):
@@ -83,35 +84,36 @@ func (s *Service) Logout(sessionID string) error {
 	return nil
 }
 
-func (s *Service) Register(req registerRequest) (*registerResult, error) {
+func (s *Service) Register(ctx context.Context, req registerRequest) (*registerResult, error) {
 	if s.db == nil || s.config == nil || s.session == nil {
 		return nil, ErrBackendUnavailable
 	}
-	d := s.db
 
-	var count int64
-	if err := d.Table("accounts").
-		Where("is_deleted = FALSE").
-		Where("phone = ? OR email = ?", req.Account, req.Account).
-		Count(&count).Error; err != nil {
+	var exists bool
+	err := s.db.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM accounts 
+			WHERE is_deleted = FALSE 
+			AND (phone = $1 OR email = $1)
+		)`, req.Account).Scan(&exists)
+	if err != nil {
 		return nil, ErrRegisterFailed
 	}
-	if count > 0 {
+	if exists {
 		return nil, ErrAccountAlreadyExists
 	}
 
-	var tenant struct {
-		ID     uint
-		Status int16
+	var tenantStatus int16
+	err = s.db.QueryRow(ctx, `
+		SELECT status FROM tenants 
+		WHERE is_deleted = FALSE AND id = $1`, req.TenantID).Scan(&tenantStatus)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrTenantNotFound
+		}
+		return nil, ErrRegisterFailed
 	}
-	if err := d.Table("tenants").
-		Select("id, status").
-		Where("is_deleted = FALSE").
-		Where("id = ?", req.TenantID).
-		First(&tenant).Error; err != nil {
-		return nil, ErrTenantNotFound
-	}
-	if tenant.Status != 1 {
+	if tenantStatus != 1 {
 		return nil, ErrTenantNotFound
 	}
 
@@ -124,80 +126,50 @@ func (s *Service) Register(req registerRequest) (*registerResult, error) {
 	var newUserID uint
 	var newUserCode string
 
-	err = d.Transaction(func(tx *gorm.DB) error {
-		acc := struct {
-			ID       uint `gorm:"primaryKey"`
-			Phone    string
-			Email    string
-			Username string
-			Password string
-			RealName string
-		}{
-			Phone:    req.Account,
-			Email:    req.Account,
-			Username: req.Account,
-			Password: passwordHash,
-			RealName: req.RealName,
-		}
-		if err := tx.Table("accounts").Clauses(clause.Returning{Columns: []clause.Column{{Name: "id"}}}).Create(&acc).Error; err != nil {
-			return ErrRegisterFailed
-		}
-		if acc.ID == 0 {
-			return ErrRegisterFailed
-		}
-		newAccountID = acc.ID
-
-		userCode := uuid.NewString()[:8]
-		usr := struct {
-			ID        uint `gorm:"primaryKey"`
-			TenantID  uint
-			AccountID uint
-			Code      string
-			Status    int
-		}{
-			TenantID:  req.TenantID,
-			AccountID: newAccountID,
-			Code:      userCode,
-			Status:    1,
-		}
-		if err := tx.Table("users").Clauses(clause.Returning{Columns: []clause.Column{{Name: "id"}}}).Create(&usr).Error; err != nil {
-			return ErrRegisterFailed
-		}
-		if usr.ID == 0 {
-			return ErrRegisterFailed
-		}
-		newUserID = usr.ID
-		newUserCode = userCode
-
-		var role struct {
-			ID uint
-		}
-		if err := tx.Table("roles").
-			Select("id").
-			Where("is_deleted = FALSE").
-			Where("tenant_id = ?", req.TenantID).
-			Where("is_default = TRUE").
-			First(&role).Error; err != nil {
-			return ErrDefaultRoleNotFound
-		}
-
-		if err := tx.Table("user_roles").Create(&struct {
-			TenantID uint
-			UserID   uint
-			RoleID   uint
-		}{
-			TenantID: req.TenantID,
-			UserID:   newUserID,
-			RoleID:   role.ID,
-		}).Error; err != nil {
-			return ErrRegisterFailed
-		}
-
-		return nil
-	})
-
+	tx, err := s.db.Begin(ctx)
 	if err != nil {
-		return nil, err
+		return nil, ErrRegisterFailed
+	}
+	defer tx.Rollback(ctx)
+
+	err = tx.QueryRow(ctx, `
+		INSERT INTO accounts (phone, email, username, password, real_name) 
+		VALUES ($1, $2, $3, $4, $5) 
+		RETURNING id`, req.Account, req.Account, req.Account, passwordHash, req.RealName).Scan(&newAccountID)
+	if err != nil {
+		return nil, ErrRegisterFailed
+	}
+
+	newUserCode = uuid.NewString()[:8]
+	err = tx.QueryRow(ctx, `
+		INSERT INTO users (tenant_id, account_id, code, status) 
+		VALUES ($1, $2, $3, $4) 
+		RETURNING id`, req.TenantID, newAccountID, newUserCode, 1).Scan(&newUserID)
+	if err != nil {
+		return nil, ErrRegisterFailed
+	}
+
+	var roleID uint
+	err = tx.QueryRow(ctx, `
+		SELECT id FROM roles 
+		WHERE is_deleted = FALSE AND tenant_id = $1 AND is_default = TRUE 
+		LIMIT 1`, req.TenantID).Scan(&roleID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrDefaultRoleNotFound
+		}
+		return nil, ErrRegisterFailed
+	}
+
+	_, err = tx.Exec(ctx, `
+		INSERT INTO user_roles (tenant_id, user_id, role_id) 
+		VALUES ($1, $2, $3)`, req.TenantID, newUserID, roleID)
+	if err != nil {
+		return nil, ErrRegisterFailed
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, ErrRegisterFailed
 	}
 
 	sessionID := uuid.NewString()

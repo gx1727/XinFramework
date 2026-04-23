@@ -1,66 +1,72 @@
 package db
 
 import (
+	"context"
+	"fmt"
 	"time"
 
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/config"
 )
 
-var DB *gorm.DB
+var Pool *pgxpool.Pool
 
 func Init(cfg *config.DatabaseConfig) error {
-	var err error
-	DB, err = gorm.Open(postgres.Open(cfg.DSN()), &gorm.Config{})
-	if err != nil {
-		return err
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	sqlDB, err := DB.DB()
+	poolConfig, err := pgxpool.ParseConfig(cfg.DSN())
 	if err != nil {
-		return err
+		return fmt.Errorf("parse dsn: %w", err)
 	}
 
 	if cfg.MaxOpenConns > 0 {
-		sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
+		poolConfig.MaxConns = int32(cfg.MaxOpenConns)
 	}
 	if cfg.MaxIdleConns > 0 {
-		sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
+		poolConfig.MinConns = int32(cfg.MaxIdleConns)
 	}
 	if cfg.ConnMaxLifetimeSec > 0 {
-		sqlDB.SetConnMaxLifetime(time.Duration(cfg.ConnMaxLifetimeSec) * time.Second)
+		poolConfig.MaxConnLifetime = time.Duration(cfg.ConnMaxLifetimeSec) * time.Second
 	}
 	if cfg.ConnMaxIdleTimeSec > 0 {
-		sqlDB.SetConnMaxIdleTime(time.Duration(cfg.ConnMaxIdleTimeSec) * time.Second)
+		poolConfig.MaxConnIdleTime = time.Duration(cfg.ConnMaxIdleTimeSec) * time.Second
+	}
+
+	Pool, err = pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		return fmt.Errorf("create pool: %w", err)
+	}
+
+	if err := Pool.Ping(ctx); err != nil {
+		return fmt.Errorf("ping db: %w", err)
 	}
 
 	return nil
 }
 
-func Get() *gorm.DB {
-	return DB
+func Get() *pgxpool.Pool {
+	return Pool
 }
 
-func SetTenantID(tenantID uint) {
-	if DB != nil && tenantID > 0 {
-		DB.Exec("SET app.tenant_id = ?", tenantID)
-	}
-}
-
-func ClearTenantID() {
-	if DB != nil {
-		DB.Exec("RESET app.tenant_id")
-	}
-}
-
-func Close() error {
-	if DB == nil {
-		return nil
-	}
-	sqlDB, err := DB.DB()
-	if err != nil {
+func SetTenantID(ctx context.Context, tenantID uint) error {
+	if Pool != nil && tenantID > 0 {
+		_, err := Pool.Exec(ctx, "SET app.tenant_id = $1", tenantID)
 		return err
 	}
-	return sqlDB.Close()
+	return nil
+}
+
+func ClearTenantID(ctx context.Context) error {
+	if Pool != nil {
+		_, err := Pool.Exec(ctx, "RESET app.tenant_id")
+		return err
+	}
+	return nil
+}
+
+func Close() {
+	if Pool != nil {
+		Pool.Close()
+	}
 }

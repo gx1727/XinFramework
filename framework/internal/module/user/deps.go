@@ -3,14 +3,14 @@ package user
 import (
 	"time"
 
-	"gorm.io/gorm"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/config"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 	"gx1727.com/xin/framework/pkg/session"
 )
 
 type Dependencies struct {
-	DB      *gorm.DB
+	DB      *pgxpool.Pool
 	Config  *config.Config
 	Session SessionManager
 }
@@ -25,7 +25,7 @@ func (defaultSessionManager) Revoke(sessionID string) error {
 	return session.Revoke(sessionID)
 }
 
-func DefaultDependencies(cfg *config.Config, db *gorm.DB) Dependencies {
+func DefaultDependencies(cfg *config.Config, db *pgxpool.Pool) Dependencies {
 	return Dependencies{
 		DB:      db,
 		Config:  cfg,

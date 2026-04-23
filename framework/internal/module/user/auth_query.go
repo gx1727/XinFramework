@@ -1,7 +1,11 @@
 package user
 
 import (
-	"gorm.io/gorm"
+	"context"
+	"errors"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type LoginIdentity struct {
@@ -13,63 +17,70 @@ type LoginIdentity struct {
 	PasswordHash string
 }
 
-func ResolveLoginIdentity(d *gorm.DB, account string, tenantID uint) (*LoginIdentity, error) {
+func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, tenantID uint) (*LoginIdentity, error) {
 	if d == nil {
 		return nil, ErrBackendUnavailable
 	}
 
-	var acc struct {
-		ID       uint
-		Password string
-	}
-	if err := d.Table("accounts").
-		Select("id, password").
-		Where("is_deleted = FALSE").
-		Where("username = ? OR phone = ? OR email = ?", account, account, account).
-		First(&acc).Error; err != nil {
-		return nil, ErrAccountNotFound
+	var accID uint
+	var password string
+	err := d.QueryRow(ctx, `
+		SELECT id, password 
+		FROM accounts 
+		WHERE is_deleted = FALSE 
+		AND (username = $1 OR phone = $1 OR email = $1)
+		LIMIT 1`, account).Scan(&accID, &password)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrAccountNotFound
+		}
+		return nil, err
 	}
 
-	q := d.Table("users").
-		Select("id, tenant_id, code, status").
-		Where("is_deleted = FALSE").
-		Where("account_id = ?", acc.ID)
+	query := `
+		SELECT id, tenant_id, code, status 
+		FROM users 
+		WHERE is_deleted = FALSE 
+		AND account_id = $1`
+	args := []interface{}{accID}
+
 	if tenantID > 0 {
-		q = q.Where("tenant_id = ?", tenantID)
+		query += " AND tenant_id = $2"
+		args = append(args, tenantID)
 	}
+	query += " ORDER BY id ASC LIMIT 1"
 
-	var u struct {
-		ID       uint
-		TenantID uint
-		Code     string
-		Status   int16
-	}
-	if err := q.Order("id ASC").First(&u).Error; err != nil {
-		return nil, ErrTenantBindingNotFound
+	var uID uint
+	var uTenantID uint
+	var uCode string
+	var uStatus int16
+	err = d.QueryRow(ctx, query, args...).Scan(&uID, &uTenantID, &uCode, &uStatus)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrTenantBindingNotFound
+		}
+		return nil, err
 	}
 
 	roleCode := "user"
-	var role struct {
-		Code string
-	}
-	_ = d.Table("user_roles ur").
-		Select("r.code").
-		Joins("JOIN roles r ON r.id = ur.role_id").
-		Where("ur.is_deleted = FALSE").
-		Where("r.is_deleted = FALSE").
-		Where("ur.user_id = ?", u.ID).
-		Order("ur.id ASC").
-		First(&role).Error
-	if role.Code != "" {
-		roleCode = role.Code
+	err = d.QueryRow(ctx, `
+		SELECT r.code 
+		FROM user_roles ur 
+		JOIN roles r ON r.id = ur.role_id 
+		WHERE ur.is_deleted = FALSE 
+		AND r.is_deleted = FALSE 
+		AND ur.user_id = $1 
+		ORDER BY ur.id ASC LIMIT 1`, uID).Scan(&roleCode)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		// Ignore role error, fallback to "user"
 	}
 
 	return &LoginIdentity{
-		UserID:       u.ID,
-		TenantID:     u.TenantID,
-		UserCode:     u.Code,
-		UserStatus:   u.Status,
+		UserID:       uID,
+		TenantID:     uTenantID,
+		UserCode:     uCode,
+		UserStatus:   uStatus,
 		RoleCode:     roleCode,
-		PasswordHash: acc.Password,
+		PasswordHash: password,
 	}, nil
 }

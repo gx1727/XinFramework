@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,13 +12,13 @@ import (
 )
 
 // ensureTable 确保数据库迁移记录表存在
-func ensureTable() {
-	d := db.Get()
-	if d == nil {
+func ensureTable(ctx context.Context) {
+	pool := db.Get()
+	if pool == nil {
 		return
 	}
 	// 创建迁移版本记录表
-	d.Exec(`
+	_, _ = pool.Exec(ctx, `
 CREATE TABLE IF NOT EXISTS _schema_migrations (
     version VARCHAR(255) PRIMARY KEY,     -- 迁移版本号（文件名）
     applied_at TIMESTAMPTZ DEFAULT NOW()  -- 应用时间
@@ -25,23 +26,24 @@ CREATE TABLE IF NOT EXISTS _schema_migrations (
 }
 
 // isApplied 检查指定版本的迁移是否已应用
-func isApplied(version string) bool {
-	d := db.Get()
-	if d == nil {
+func isApplied(ctx context.Context, version string) bool {
+	pool := db.Get()
+	if pool == nil {
 		return false
 	}
-	var count int64
-	d.Table("_schema_migrations").Where("version = ?", version).Count(&count)
-	return count > 0
+	var exists bool
+	_ = pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM _schema_migrations WHERE version = $1)", version).Scan(&exists)
+	return exists
 }
 
 // markApplied 标记指定版本的迁移为已应用
-func markApplied(version string) error {
-	d := db.Get()
-	if d == nil {
+func markApplied(ctx context.Context, version string) error {
+	pool := db.Get()
+	if pool == nil {
 		return ErrDBNotInitialized
 	}
-	return d.Table("_schema_migrations").Create(map[string]interface{}{"version": version}).Error
+	_, err := pool.Exec(ctx, "INSERT INTO _schema_migrations (version) VALUES ($1)", version)
+	return err
 }
 
 // Migration 迁移结构，表示单个SQL迁移文件
@@ -88,13 +90,15 @@ func loadFromDir(dir string) ([]Migration, error) {
 
 // Run 执行指定目录下的所有未应用的数据库迁移
 func Run(dir string) error {
-	d := db.Get()
-	if d == nil {
+	pool := db.Get()
+	if pool == nil {
 		return ErrDBNotInitialized
 	}
 
+	ctx := context.Background()
+
 	// 确保迁移记录表存在
-	ensureTable()
+	ensureTable(ctx)
 
 	// 加载所有迁移文件
 	migrations, err := loadFromDir(dir)
@@ -109,18 +113,18 @@ func Run(dir string) error {
 	// 逐个应用未执行的迁移
 	for _, m := range migrations {
 		// 跳过已应用的迁移
-		if isApplied(m.Version) {
+		if isApplied(ctx, m.Version) {
 			continue
 		}
 
 		fmt.Printf("[migrate] applying %s ...\n", m.Version)
 		// 执行SQL迁移
-		if err := d.Exec(m.SQL).Error; err != nil {
+		if _, err := pool.Exec(ctx, m.SQL); err != nil {
 			return fmt.Errorf("migration %s failed: %w", m.Version, err)
 		}
 
 		// 标记为已应用
-		if err := markApplied(m.Version); err != nil {
+		if err := markApplied(ctx, m.Version); err != nil {
 			return fmt.Errorf("mark %s applied failed: %w", m.Version, err)
 		}
 		fmt.Printf("[migrate] %s done\n", m.Version)
