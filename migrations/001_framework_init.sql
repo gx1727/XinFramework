@@ -7,6 +7,9 @@
 
 SET client_encoding = 'UTF8';
 
+-- 启用 ltree 扩展以支持高效的树形结构存储和查询
+CREATE EXTENSION IF NOT EXISTS ltree;
+
 -- 1. tenants (租户表)
 DROP TABLE IF EXISTS tenants;
 CREATE TABLE tenants
@@ -107,7 +110,7 @@ CREATE TABLE account_auths
     is_deleted   BOOLEAN     DEFAULT FALSE
 );
 CREATE UNIQUE INDEX uk_auth_openid ON account_auths (tenant_id, type, openid) WHERE is_deleted = FALSE;
-CREATE INDEX idx_auth_account ON account_auths (account_id);
+CREATE INDEX idx_auth_account ON account_auths (account_id) WHERE is_deleted = FALSE;
 CREATE INDEX idx_auth_unionid ON account_auths (unionid) WHERE is_deleted = FALSE AND unionid IS NOT NULL;
 
 COMMENT ON TABLE account_auths IS '第三方授权表 - 微信、QQ等OAuth授权信息';
@@ -136,7 +139,7 @@ CREATE TABLE organizations
     description VARCHAR(512),
     admin_code  VARCHAR(32),
     parent_id   BIGINT,
-    ancestors   VARCHAR(512),
+    ancestors   ltree,
     created_at  TIMESTAMPTZ DEFAULT NOW(),
     updated_at  TIMESTAMPTZ DEFAULT NOW(),
     created_by  BIGINT,
@@ -144,8 +147,9 @@ CREATE TABLE organizations
     is_deleted  BOOLEAN     DEFAULT FALSE
 );
 CREATE UNIQUE INDEX uk_org_code ON organizations (tenant_id, code) WHERE is_deleted = FALSE;
-CREATE INDEX idx_org_tenant ON organizations (tenant_id);
+CREATE INDEX idx_org_tenant ON organizations (tenant_id) WHERE is_deleted = FALSE;
 CREATE INDEX idx_org_parent ON organizations (parent_id) WHERE is_deleted = FALSE;
+CREATE INDEX idx_org_ancestors_gist ON organizations USING GIST (ancestors);
 
 COMMENT ON TABLE organizations IS '组织机构表 - 树形结构';
 COMMENT ON COLUMN organizations.id IS '机构ID';
@@ -156,7 +160,7 @@ COMMENT ON COLUMN organizations.type IS '机构类型：department-部门，comp
 COMMENT ON COLUMN organizations.description IS '机构描述';
 COMMENT ON COLUMN organizations.admin_code IS '管理员编码';
 COMMENT ON COLUMN organizations.parent_id IS '父机构ID';
-COMMENT ON COLUMN organizations.ancestors IS '祖先节点路径';
+COMMENT ON COLUMN organizations.ancestors IS '祖先节点路径(ltree格式，如: 1.2.3)';
 
 -- 5. users (租户用户表)
 DROP TABLE IF EXISTS users;
@@ -175,7 +179,7 @@ CREATE TABLE users
     avatar      VARCHAR(512),
     status      SMALLINT    DEFAULT 1,
     parent_code VARCHAR(32),
-    ancestors   VARCHAR(255),
+    ancestors   ltree,
     created_at  TIMESTAMPTZ DEFAULT NOW(),
     updated_at  TIMESTAMPTZ DEFAULT NOW(),
     created_by  BIGINT,
@@ -184,8 +188,9 @@ CREATE TABLE users
 );
 CREATE UNIQUE INDEX uk_user_code ON users (tenant_id, code) WHERE is_deleted = FALSE;
 CREATE UNIQUE INDEX uk_user_tenant_account ON users (tenant_id, account_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_user_tenant ON users (tenant_id);
+CREATE INDEX idx_user_tenant ON users (tenant_id) WHERE is_deleted = FALSE;
 CREATE INDEX idx_user_org ON users (org_id) WHERE is_deleted = FALSE;
+CREATE INDEX idx_user_ancestors_gist ON users USING GIST (ancestors);
 
 COMMENT ON TABLE users IS '租户用户表 - 租户内的用户信息';
 COMMENT ON COLUMN users.id IS '用户ID';
@@ -201,7 +206,7 @@ COMMENT ON COLUMN users.title IS '职称';
 COMMENT ON COLUMN users.avatar IS '头像URL';
 COMMENT ON COLUMN users.status IS '用户状态：0-禁用，1-启用';
 COMMENT ON COLUMN users.parent_code IS '上级用户编码';
-COMMENT ON COLUMN users.ancestors IS '祖先用户路径';
+COMMENT ON COLUMN users.ancestors IS '祖先用户路径(ltree格式，使用code构建，如: root.admin.test)';
 
 -- 6. roles (角色表)
 DROP TABLE IF EXISTS roles;
@@ -224,7 +229,7 @@ CREATE TABLE roles
     is_deleted  BOOLEAN              DEFAULT FALSE
 );
 CREATE UNIQUE INDEX uk_role_code ON roles (tenant_id, code) WHERE is_deleted = FALSE;
-CREATE INDEX idx_role_tenant ON roles (tenant_id);
+CREATE INDEX idx_role_tenant ON roles (tenant_id) WHERE is_deleted = FALSE;
 CREATE INDEX idx_role_scope_gin ON roles USING GIN (scope_orgs);
 
 COMMENT ON TABLE roles IS '角色表 - RBAC权限模型';
@@ -252,7 +257,7 @@ CREATE TABLE user_roles
     is_deleted BOOLEAN     DEFAULT FALSE
 );
 CREATE UNIQUE INDEX uk_user_role ON user_roles (user_id, role_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_ur_tenant ON user_roles (tenant_id);
+CREATE INDEX idx_ur_tenant ON user_roles (tenant_id) WHERE is_deleted = FALSE;
 
 COMMENT ON TABLE user_roles IS '用户角色关联表 - 多对多关系';
 COMMENT ON COLUMN user_roles.id IS '关联ID';
@@ -274,13 +279,14 @@ CREATE TABLE menus
     icon       VARCHAR(64),
     sort       INT         DEFAULT 1024,
     parent_id  BIGINT,
-    ancestors  VARCHAR(255),
+    ancestors  ltree,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     is_deleted BOOLEAN     DEFAULT FALSE
 );
 CREATE UNIQUE INDEX uk_menu_code ON menus (tenant_id, code) WHERE is_deleted = FALSE;
-CREATE INDEX idx_menu_tenant ON menus (tenant_id);
+CREATE INDEX idx_menu_tenant ON menus (tenant_id) WHERE is_deleted = FALSE;
+CREATE INDEX idx_menu_ancestors_gist ON menus USING GIST (ancestors);
 
 COMMENT ON TABLE menus IS '菜单表 - 前端导航菜单';
 COMMENT ON COLUMN menus.id IS '菜单ID';
@@ -293,7 +299,7 @@ COMMENT ON COLUMN menus.path IS '路由路径';
 COMMENT ON COLUMN menus.icon IS '图标';
 COMMENT ON COLUMN menus.sort IS '排序号';
 COMMENT ON COLUMN menus.parent_id IS '父菜单ID';
-COMMENT ON COLUMN menus.ancestors IS '祖先节点路径';
+COMMENT ON COLUMN menus.ancestors IS '祖先节点路径(ltree格式，如: 1.2.3)';
 
 -- 9. resources (资源/按钮权限表)
 DROP TABLE IF EXISTS resources;
@@ -310,7 +316,7 @@ CREATE TABLE resources
     is_deleted  BOOLEAN     DEFAULT FALSE
 );
 CREATE UNIQUE INDEX uk_resource_code ON resources (tenant_id, code) WHERE is_deleted = FALSE;
-CREATE INDEX idx_resource_tenant ON resources (tenant_id);
+CREATE INDEX idx_resource_tenant ON resources (tenant_id) WHERE is_deleted = FALSE;
 
 COMMENT ON TABLE resources IS '资源/按钮权限表 - 细粒度权限控制';
 COMMENT ON COLUMN resources.id IS '资源ID';
@@ -336,7 +342,7 @@ CREATE TABLE routes
     is_deleted  BOOLEAN     DEFAULT FALSE
 );
 CREATE UNIQUE INDEX uk_route_code ON routes (tenant_id, code) WHERE is_deleted = FALSE;
-CREATE INDEX idx_route_tenant ON routes (tenant_id);
+CREATE INDEX idx_route_tenant ON routes (tenant_id) WHERE is_deleted = FALSE;
 
 COMMENT ON TABLE routes IS '路由表 - API路由权限控制';
 COMMENT ON COLUMN routes.id IS '路由ID';
@@ -362,7 +368,7 @@ CREATE TABLE permissions
     is_deleted    BOOLEAN     DEFAULT FALSE
 );
 CREATE UNIQUE INDEX uk_permission_role_res ON permissions (role_id, resource_type, resource_code) WHERE is_deleted = FALSE;
-CREATE INDEX idx_permission_tenant ON permissions (tenant_id);
+CREATE INDEX idx_permission_tenant ON permissions (tenant_id) WHERE is_deleted = FALSE;
 
 COMMENT ON TABLE permissions IS '权限关联表 - 角色与资源/路由的关联';
 COMMENT ON COLUMN permissions.id IS '权限ID';
@@ -386,7 +392,7 @@ CREATE TABLE dicts
     is_deleted BOOLEAN     DEFAULT FALSE
 );
 CREATE UNIQUE INDEX uk_dict_code ON dicts (tenant_id, code) WHERE is_deleted = FALSE;
-CREATE INDEX idx_dict_tenant ON dicts (tenant_id);
+CREATE INDEX idx_dict_tenant ON dicts (tenant_id) WHERE is_deleted = FALSE;
 
 COMMENT ON TABLE dicts IS '字典表 - 系统数据字典';
 COMMENT ON COLUMN dicts.id IS '字典ID';
@@ -411,7 +417,7 @@ CREATE TABLE dict_items
     is_deleted BOOLEAN     DEFAULT FALSE
 );
 CREATE UNIQUE INDEX uk_dict_item_code ON dict_items (dict_id, code) WHERE is_deleted = FALSE;
-CREATE INDEX idx_dict_item_dict ON dict_items (dict_id);
+CREATE INDEX idx_dict_item_dict ON dict_items (dict_id) WHERE is_deleted = FALSE;
 CREATE INDEX idx_dict_item_tenant ON dict_items (tenant_id) WHERE is_deleted = FALSE;
 
 COMMENT ON TABLE dict_items IS '字典项表 - 字典的具体选项';

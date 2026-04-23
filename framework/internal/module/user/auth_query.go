@@ -58,14 +58,9 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 	query := `
 		SELECT id, tenant_id, code, status 
 		FROM users 
-		WHERE is_deleted = FALSE 
-		AND account_id = $1`
+		WHERE  account_id = $1`
 	args := []interface{}{accID}
 
-	if tenantID > 0 {
-		query += " AND tenant_id = $2"
-		args = append(args, tenantID)
-	}
 	query += " ORDER BY id ASC LIMIT 1"
 
 	var uID uint
