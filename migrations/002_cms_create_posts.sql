@@ -36,13 +36,20 @@ COMMENT ON COLUMN cms_posts.is_deleted IS '软删除标记';
 -- app.mode 配置：
 --   single：不约束 tenant_id（放行所有行）
 --   saas：必须约束 tenant_id（tenant_id 必须匹配）
+-- is_deleted = TRUE 的行默认不可见，除非 SET app.show_deleted = true
 ALTER TABLE cms_posts ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_policy ON cms_posts
     USING (
-    current_setting('app.mode') = 'single'
-    OR (
-        current_setting('app.mode') = 'saas'
-        AND tenant_id = current_setting('app.tenant_id')::BIGINT
+    (
+        current_setting('app.mode') = 'single'
+        OR (
+            current_setting('app.mode') = 'saas'
+            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        )
+    )
+    AND (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
 );

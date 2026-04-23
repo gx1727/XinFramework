@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/config"
 )
 
 var Pool *pgxpool.Pool
 
-func Init(cfg *config.DatabaseConfig) error {
+func Init(cfg *config.DatabaseConfig, saasMode string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -33,6 +35,14 @@ func Init(cfg *config.DatabaseConfig) error {
 		poolConfig.MaxConnIdleTime = time.Duration(cfg.ConnMaxIdleTimeSec) * time.Second
 	}
 
+	if saasMode != "" {
+		mode := saasMode
+		poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+			_, err := conn.Exec(ctx, "SET app.mode = $1", mode)
+			return err
+		}
+	}
+
 	Pool, err = pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return fmt.Errorf("create pool: %w", err)
@@ -43,6 +53,50 @@ func Init(cfg *config.DatabaseConfig) error {
 	}
 
 	return nil
+}
+
+type Conn struct {
+	pool   *pgxpool.Pool
+	conn   *pgxpool.Conn
+	tenant uint
+}
+
+func Acquire(ctx context.Context) (*Conn, error) {
+	conn, err := Pool.Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &Conn{pool: Pool, conn: conn}, nil
+}
+
+func (c *Conn) SetTenant(ctx context.Context, tenantID uint) error {
+	c.tenant = tenantID
+	_, err := c.conn.Exec(ctx, "SET app.tenant_id = $1", tenantID)
+	return err
+}
+
+func (c *Conn) ShowDeleted(ctx context.Context) error {
+	_, err := c.conn.Exec(ctx, "SET app.show_deleted = true")
+	return err
+}
+
+func (c *Conn) Exec(ctx context.Context, sql string, args ...interface{}) (pgconn.CommandTag, error) {
+	return c.conn.Exec(ctx, sql, args...)
+}
+
+func (c *Conn) Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error) {
+	return c.conn.Query(ctx, sql, args...)
+}
+
+func (c *Conn) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
+	return c.conn.QueryRow(ctx, sql, args...)
+}
+
+func (c *Conn) Release() {
+	if c.tenant > 0 {
+		_, _ = c.conn.Exec(context.Background(), "RESET app.tenant_id")
+	}
+	c.conn.Release()
 }
 
 func Get() *pgxpool.Pool {

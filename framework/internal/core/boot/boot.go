@@ -22,7 +22,7 @@ type App struct {
 
 func Init(cfg *config.Config) (*App, error) {
 	logger.Init(cfg.Log.Dir, cfg.Log.Level)
-	if err := db.Init(&cfg.Database); err != nil {
+	if err := db.Init(&cfg.Database, cfg.Saas.Mode); err != nil {
 		return nil, fmt.Errorf("db init failed: %w", err)
 	}
 	if err := cache.Init(&cfg.Redis); err != nil {

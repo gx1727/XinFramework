@@ -632,118 +632,203 @@ ALTER TABLE ai_documents
 -- 2. 创建租户隔离策略 (读取 & 写入)
 -- app.mode = single：不约束 tenant_id（放行所有行）
 -- app.mode = saas：必须约束 tenant_id（tenant_id 必须匹配）
+-- is_deleted = TRUE 的行默认不可见，除非 SET app.show_deleted = true
 -- 未设置 app.mode：默认 single（向后兼容）
 -- 未设置 app.tenant_id：saas 模式下拒绝所有行（安全默认值）
 CREATE POLICY tenant_isolation_policy ON organizations
     USING (
+    (
         current_setting('app.mode') = 'single'
-    OR (
-        current_setting('app.mode') = 'saas'
-        AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        OR (
+            current_setting('app.mode') = 'saas'
+            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        )
+    )
+    AND (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
     );
 CREATE POLICY tenant_isolation_policy ON users
     USING (
+    (
         current_setting('app.mode') = 'single'
-    OR (
-        current_setting('app.mode') = 'saas'
-        AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        OR (
+            current_setting('app.mode') = 'saas'
+            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        )
+    )
+    AND (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
     );
 CREATE POLICY tenant_isolation_policy ON roles
     USING (
+    (
         current_setting('app.mode') = 'single'
-    OR (
-        current_setting('app.mode') = 'saas'
-        AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        OR (
+            current_setting('app.mode') = 'saas'
+            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        )
+    )
+    AND (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
     );
 CREATE POLICY tenant_isolation_policy ON user_roles
     USING (
+    (
         current_setting('app.mode') = 'single'
-    OR (
-        current_setting('app.mode') = 'saas'
-        AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        OR (
+            current_setting('app.mode') = 'saas'
+            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        )
+    )
+    AND (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
     );
 CREATE POLICY tenant_isolation_policy ON menus
     USING (
+    (
         current_setting('app.mode') = 'single'
-    OR (
-        current_setting('app.mode') = 'saas'
-        AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        OR (
+            current_setting('app.mode') = 'saas'
+            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        )
+    )
+    AND (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
     );
 CREATE POLICY tenant_isolation_policy ON resources
     USING (
+    (
         current_setting('app.mode') = 'single'
-    OR (
-        current_setting('app.mode') = 'saas'
-        AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        OR (
+            current_setting('app.mode') = 'saas'
+            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        )
+    )
+    AND (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
     );
 CREATE POLICY tenant_isolation_policy ON routes
     USING (
+    (
         current_setting('app.mode') = 'single'
-    OR (
-        current_setting('app.mode') = 'saas'
-        AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        OR (
+            current_setting('app.mode') = 'saas'
+            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        )
+    )
+    AND (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
     );
 CREATE POLICY tenant_isolation_policy ON permissions
     USING (
+    (
         current_setting('app.mode') = 'single'
-    OR (
-        current_setting('app.mode') = 'saas'
-        AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        OR (
+            current_setting('app.mode') = 'saas'
+            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        )
+    )
+    AND (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
     );
 CREATE POLICY tenant_isolation_policy ON dicts
     USING (
+    (
         current_setting('app.mode') = 'single'
-    OR (
-        current_setting('app.mode') = 'saas'
-        AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        OR (
+            current_setting('app.mode') = 'saas'
+            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        )
+    )
+    AND (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
     );
 CREATE POLICY tenant_isolation_policy ON dict_items
     USING (
+    (
         current_setting('app.mode') = 'single'
-    OR (
-        current_setting('app.mode') = 'saas'
-        AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        OR (
+            current_setting('app.mode') = 'saas'
+            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        )
+    )
+    AND (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
     );
 CREATE POLICY tenant_isolation_policy ON tenant_users
     USING (
+    (
         current_setting('app.mode') = 'single'
-    OR (
-        current_setting('app.mode') = 'saas'
-        AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        OR (
+            current_setting('app.mode') = 'saas'
+            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        )
+    )
+    AND (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
     );
 CREATE POLICY tenant_isolation_policy ON subscriptions
     USING (
+    (
         current_setting('app.mode') = 'single'
-    OR (
-        current_setting('app.mode') = 'saas'
-        AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        OR (
+            current_setting('app.mode') = 'saas'
+            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        )
+    )
+    AND (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
     );
 CREATE POLICY tenant_isolation_policy ON usage_records
     USING (
+    (
         current_setting('app.mode') = 'single'
-    OR (
-        current_setting('app.mode') = 'saas'
-        AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        OR (
+            current_setting('app.mode') = 'saas'
+            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        )
+    )
+    AND (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
     );
 CREATE POLICY tenant_isolation_policy ON ai_documents
     USING (
+    (
         current_setting('app.mode') = 'single'
-    OR (
-        current_setting('app.mode') = 'saas'
-        AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        OR (
+            current_setting('app.mode') = 'saas'
+            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+        )
+    )
+    AND (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
     );
 
