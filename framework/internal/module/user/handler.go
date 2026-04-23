@@ -26,7 +26,8 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	resp.Success(c, gin.H{
-		"token": result.Token,
+		"token":         result.Token,
+		"refresh_token": result.RefreshToken,
 		"user": gin.H{
 			"id":        result.User.ID,
 			"tenant_id": result.User.TenantID,
@@ -59,12 +60,31 @@ func (h *Handler) Register(c *gin.Context) {
 	}
 
 	resp.Success(c, gin.H{
-		"token": result.Token,
+		"token":         result.Token,
+		"refresh_token": result.RefreshToken,
 		"user": gin.H{
 			"id":        result.User.ID,
 			"tenant_id": result.User.TenantID,
 			"code":      result.User.Code,
 			"role":      result.User.Role,
 		},
+	})
+}
+
+func (h *Handler) Refresh(c *gin.Context) {
+	var req refreshRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.BadRequest(c, "请求参数格式错误")
+		return
+	}
+	result, err := h.svc.Refresh(c.Request.Context(), req)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+
+	resp.Success(c, gin.H{
+		"token":         result.Token,
+		"refresh_token": result.RefreshToken,
 	})
 }

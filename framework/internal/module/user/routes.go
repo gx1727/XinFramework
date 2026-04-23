@@ -8,6 +8,7 @@ import (
 func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
 	public.POST("/login", h.Login)
 	public.POST("/register", h.Register)
+	public.POST("/refresh", h.Refresh)
 	protected.POST("/logout", h.Logout)
 }
 

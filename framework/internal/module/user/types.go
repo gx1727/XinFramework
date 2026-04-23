@@ -7,8 +7,9 @@ type loginRequest struct {
 }
 
 type loginResult struct {
-	Token string
-	User  struct {
+	Token        string
+	RefreshToken string
+	User         struct {
 		ID       uint
 		TenantID uint
 		Code     string
@@ -24,11 +25,21 @@ type registerRequest struct {
 }
 
 type registerResult struct {
-	Token string
-	User  struct {
+	Token        string
+	RefreshToken string
+	User         struct {
 		ID       uint
 		TenantID uint
 		Code     string
 		Role     string
 	}
+}
+
+type refreshRequest struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
+}
+
+type refreshResult struct {
+	Token        string
+	RefreshToken string
 }

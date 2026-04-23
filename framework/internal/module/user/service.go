@@ -26,6 +26,39 @@ func NewService(deps Dependencies) *Service {
 	}
 }
 
+type tokenPair struct {
+	accessToken  string
+	refreshToken string
+}
+
+func (s *Service) generateTokens(ctx context.Context, userID, tenantID uint, role string) (*tokenPair, error) {
+	if s.config == nil || s.session == nil {
+		return nil, ErrBackendUnavailable
+	}
+
+	sessionID := uuid.NewString()
+	refreshTTL := time.Duration(s.config.JWT.RefreshExpire) * time.Second
+
+	if err := s.session.Create(sessionID, userID, tenantID, role, refreshTTL); err != nil {
+		return nil, ErrSessionCreateFailed
+	}
+
+	accessToken, err := jwtpkg.Generate(&s.config.JWT, userID, tenantID, role, sessionID)
+	if err != nil {
+		return nil, ErrGenerateTokenFailed
+	}
+
+	refreshToken, err := jwtpkg.GenerateWithType(&s.config.JWT, userID, tenantID, role, sessionID, jwtpkg.TokenTypeRefresh)
+	if err != nil {
+		return nil, ErrGenerateTokenFailed
+	}
+
+	return &tokenPair{
+		accessToken:  accessToken,
+		refreshToken: refreshToken,
+	}, nil
+}
+
 func (s *Service) Login(ctx context.Context, req loginRequest) (*loginResult, error) {
 	identity, err := ResolveLoginIdentity(ctx, s.db, req.Account, req.TenantID)
 	if err != nil {
@@ -49,21 +82,15 @@ func (s *Service) Login(ctx context.Context, req loginRequest) (*loginResult, er
 		return nil, ErrUserDisabled
 	}
 
-	if s.config == nil || s.session == nil {
-		return nil, ErrBackendUnavailable
-	}
-
-	sessionID := uuid.NewString()
-	if err := s.session.Create(sessionID, identity.UserID, identity.TenantID, identity.RoleCode, time.Duration(s.config.JWT.Expire)*time.Second); err != nil {
-		return nil, ErrSessionCreateFailed
-	}
-
-	token, err := jwtpkg.Generate(&s.config.JWT, identity.UserID, identity.TenantID, identity.RoleCode, sessionID)
+	tokens, err := s.generateTokens(ctx, identity.UserID, identity.TenantID, identity.RoleCode)
 	if err != nil {
-		return nil, ErrGenerateTokenFailed
+		return nil, err
 	}
 
-	res := &loginResult{Token: token}
+	res := &loginResult{
+		Token:        tokens.accessToken,
+		RefreshToken: tokens.refreshToken,
+	}
 	res.User.ID = identity.UserID
 	res.User.TenantID = identity.TenantID
 	res.User.Code = identity.UserCode
@@ -82,6 +109,31 @@ func (s *Service) Logout(sessionID string) error {
 		return ErrSessionRevokeFailed
 	}
 	return nil
+}
+
+func (s *Service) Refresh(ctx context.Context, req refreshRequest) (*refreshResult, error) {
+	if s.config == nil || s.session == nil {
+		return nil, ErrBackendUnavailable
+	}
+
+	claims, err := jwtpkg.ValidateRefresh(req.RefreshToken, &s.config.JWT)
+	if err != nil {
+		return nil, ErrInvalidRefreshToken
+	}
+
+	newTokens, err := s.generateTokens(ctx, claims.UserID, claims.TenantID, claims.Role)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.session.Revoke(claims.SessionID); err != nil {
+		// Ignore revoke error, new session is already created
+	}
+
+	return &refreshResult{
+		Token:        newTokens.accessToken,
+		RefreshToken: newTokens.refreshToken,
+	}, nil
 }
 
 func (s *Service) Register(ctx context.Context, req registerRequest) (*registerResult, error) {
@@ -172,17 +224,15 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 		return nil, ErrRegisterFailed
 	}
 
-	sessionID := uuid.NewString()
-	if err := s.session.Create(sessionID, newUserID, req.TenantID, "user", time.Duration(s.config.JWT.Expire)*time.Second); err != nil {
-		return nil, ErrSessionCreateFailed
-	}
-
-	token, err := jwtpkg.Generate(&s.config.JWT, newUserID, req.TenantID, "user", sessionID)
+	tokens, err := s.generateTokens(ctx, newUserID, req.TenantID, "user")
 	if err != nil {
-		return nil, ErrGenerateTokenFailed
+		return nil, err
 	}
 
-	res := &registerResult{Token: token}
+	res := &registerResult{
+		Token:        tokens.accessToken,
+		RefreshToken: tokens.refreshToken,
+	}
 	res.User.ID = newUserID
 	res.User.TenantID = req.TenantID
 	res.User.Code = newUserCode
