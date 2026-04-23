@@ -3,6 +3,8 @@ package user
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -183,6 +185,11 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 		return nil, ErrRegisterFailed
 	}
 	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(req.TenantID)))
+	if err != nil {
+		return nil, fmt.Errorf("set tenant_id: %w", err)
+	}
 
 	err = tx.QueryRow(ctx, `
 		INSERT INTO accounts (phone, email, username, password, real_name) 

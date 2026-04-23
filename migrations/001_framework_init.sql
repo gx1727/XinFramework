@@ -600,6 +600,12 @@ COMMENT ON COLUMN auth_sessions.created_at IS '创建时间';
 -- ⚠️ 注意：accounts 表为平台级，不在 RLS 覆盖范围内（同一账号可跨租户存在）。
 --
 -- 1. 对所有租户数据表启用 RLS
+ALTER TABLE tenants
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE accounts
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE account_auths
+    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE organizations
     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users
@@ -635,13 +641,28 @@ ALTER TABLE ai_documents
 -- is_deleted = TRUE 的行默认不可见，除非 SET app.show_deleted = true
 -- 未设置 app.mode：默认 single（向后兼容）
 -- 未设置 app.tenant_id：saas 模式下拒绝所有行（安全默认值）
+CREATE POLICY tenant_isolation_policy ON tenants
+    USING (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
+    );
+CREATE POLICY tenant_isolation_policy ON accounts
+    USING (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
+    );
+CREATE POLICY tenant_isolation_policy ON account_auths
+    USING (
+        is_deleted = FALSE
+        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
+    );
 CREATE POLICY tenant_isolation_policy ON organizations
     USING (
     (
         current_setting('app.mode') = 'single'
         OR (
             current_setting('app.mode') = 'saas'
-            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+            AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         )
     )
     AND (
@@ -655,7 +676,7 @@ CREATE POLICY tenant_isolation_policy ON users
         current_setting('app.mode') = 'single'
         OR (
             current_setting('app.mode') = 'saas'
-            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+            AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         )
     )
     AND (
@@ -669,7 +690,7 @@ CREATE POLICY tenant_isolation_policy ON roles
         current_setting('app.mode') = 'single'
         OR (
             current_setting('app.mode') = 'saas'
-            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+            AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         )
     )
     AND (
@@ -683,7 +704,7 @@ CREATE POLICY tenant_isolation_policy ON user_roles
         current_setting('app.mode') = 'single'
         OR (
             current_setting('app.mode') = 'saas'
-            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+            AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         )
     )
     AND (
@@ -697,7 +718,7 @@ CREATE POLICY tenant_isolation_policy ON menus
         current_setting('app.mode') = 'single'
         OR (
             current_setting('app.mode') = 'saas'
-            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+            AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         )
     )
     AND (
@@ -711,7 +732,7 @@ CREATE POLICY tenant_isolation_policy ON resources
         current_setting('app.mode') = 'single'
         OR (
             current_setting('app.mode') = 'saas'
-            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+            AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         )
     )
     AND (
@@ -725,7 +746,7 @@ CREATE POLICY tenant_isolation_policy ON routes
         current_setting('app.mode') = 'single'
         OR (
             current_setting('app.mode') = 'saas'
-            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+            AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         )
     )
     AND (
@@ -739,7 +760,7 @@ CREATE POLICY tenant_isolation_policy ON permissions
         current_setting('app.mode') = 'single'
         OR (
             current_setting('app.mode') = 'saas'
-            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+            AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         )
     )
     AND (
@@ -753,7 +774,7 @@ CREATE POLICY tenant_isolation_policy ON dicts
         current_setting('app.mode') = 'single'
         OR (
             current_setting('app.mode') = 'saas'
-            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+            AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         )
     )
     AND (
@@ -767,7 +788,7 @@ CREATE POLICY tenant_isolation_policy ON dict_items
         current_setting('app.mode') = 'single'
         OR (
             current_setting('app.mode') = 'saas'
-            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+            AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         )
     )
     AND (
@@ -781,7 +802,7 @@ CREATE POLICY tenant_isolation_policy ON tenant_users
         current_setting('app.mode') = 'single'
         OR (
             current_setting('app.mode') = 'saas'
-            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+            AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         )
     )
     AND (
@@ -795,7 +816,7 @@ CREATE POLICY tenant_isolation_policy ON subscriptions
         current_setting('app.mode') = 'single'
         OR (
             current_setting('app.mode') = 'saas'
-            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+            AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         )
     )
     AND (
@@ -809,7 +830,7 @@ CREATE POLICY tenant_isolation_policy ON usage_records
         current_setting('app.mode') = 'single'
         OR (
             current_setting('app.mode') = 'saas'
-            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+            AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         )
     )
     AND (
@@ -823,7 +844,7 @@ CREATE POLICY tenant_isolation_policy ON ai_documents
         current_setting('app.mode') = 'single'
         OR (
             current_setting('app.mode') = 'saas'
-            AND tenant_id = current_setting('app.tenant_id')::BIGINT
+            AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         )
     )
     AND (

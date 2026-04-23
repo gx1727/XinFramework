@@ -4,10 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
-
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"strconv"
 )
 
 type LoginIdentity struct {
@@ -30,9 +29,16 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 	}
 	defer tx.Rollback(ctx)
 
-	_, err = tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(tenantID)))
-	if err != nil {
-		return nil, fmt.Errorf("set tenant_id: %w", err)
+	if tenantID > 0 {
+		_, err = tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(tenantID)))
+		if err != nil {
+			return nil, fmt.Errorf("set tenant_id: %w", err)
+		}
+	} else {
+		_, err = tx.Exec(ctx, "SELECT set_config('app.mode', $1, true)", "single")
+		if err != nil {
+			return nil, fmt.Errorf("set mode: %w", err)
+		}
 	}
 
 	var accID uint
@@ -40,8 +46,7 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 	err = tx.QueryRow(ctx, `
 		SELECT id, password 
 		FROM accounts 
-		WHERE is_deleted = FALSE 
-		AND (username = $1 OR phone = $1 OR email = $1)
+		WHERE username = $1 OR phone = $1 OR email = $1
 		LIMIT 1`, account).Scan(&accID, &password)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -73,6 +78,18 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 			return nil, errTenantBindingNotFound
 		}
 		return nil, err
+	}
+
+	if tenantID == 0 {
+		_, err = tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(uTenantID)))
+		if err != nil {
+			return nil, fmt.Errorf("set tenant_id: %w", err)
+		}
+
+		_, err = tx.Exec(ctx, "SELECT set_config('app.mode', $1, true)", "saas")
+		if err != nil {
+			return nil, fmt.Errorf("set mode: %w", err)
+		}
 	}
 
 	roleCode := "user"
