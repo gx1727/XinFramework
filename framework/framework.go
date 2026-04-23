@@ -61,10 +61,7 @@ func runServer(cfg *config.Config) {
 
 	// 初始化所有插件模块
 	initModules()
-	// 执行框架级别的数据库迁移
-	runFrameworkMigrations()
-	// 执行所有插件模块的数据库迁移
-	migrateModules()
+	runMigrations()
 
 	// 配置路由和中间件
 	setupRouter(app)
@@ -90,13 +87,12 @@ func runServer(cfg *config.Config) {
 }
 
 // runFrameworkMigrations 执行框架核心数据库迁移
-func runFrameworkMigrations() {
-	if err := migrate.Run("migrations/framework"); err != nil {
-		log.Fatalf("framework migrations failed: %v", err)
+func runMigrations() {
+	if err := migrate.Run("migrations"); err != nil {
+		log.Fatalf("migrations failed: %v", err)
 	}
 }
 
-// initModules 初始化所有已注册的插件模块
 func initModules() {
 	for _, m := range plugin.All() {
 		if err := m.Init(); err != nil {
@@ -106,16 +102,6 @@ func initModules() {
 	}
 }
 
-// migrateModules 执行所有插件模块的数据库迁移
-func migrateModules() {
-	for _, m := range plugin.All() {
-		if err := m.Migrate(); err != nil {
-			log.Fatalf("module %s migrate failed: %v", m.Name(), err)
-		}
-	}
-}
-
-// setupRouter 配置服务器路由和中间件
 func setupRouter(app *boot.App) {
 	srv := app.Server
 	cfg := app.Config

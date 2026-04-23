@@ -27,24 +27,9 @@ if [ $? -eq 0 ]; then
     fi
 
     echo "Copying migration files..."
-    MigrationsDir="$OutDir/migrations"
-    mkdir -p "$MigrationsDir"
-
-    if [ -d "./framework/migrations" ]; then
-        mkdir -p "$MigrationsDir/framework"
-        cp -r ./framework/migrations/* "$MigrationsDir/framework/"
-        echo "Framework migrations copied"
-    fi
-
-    if [ -d "./apps" ]; then
-        for appDir in ./apps/*/; do
-            appName=$(basename "$appDir")
-            if [ -d "$appDir/migrations" ]; then
-                mkdir -p "$MigrationsDir/$appName"
-                cp -r "$appDir/migrations/"* "$MigrationsDir/$appName/"
-                echo "$appName migrations copied"
-            fi
-        done
+    if [ -d "./migrations" ]; then
+        cp -r ./migrations "$OutDir/migrations"
+        echo "Migration files copied to $OutDir/migrations/"
     fi
 
     echo ""

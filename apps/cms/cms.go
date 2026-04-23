@@ -1,11 +1,8 @@
 package cms
 
 import (
-	"path/filepath"
-
 	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/pkg/config"
-	"gx1727.com/xin/framework/pkg/migrate"
 	"gx1727.com/xin/framework/pkg/plugin"
 	"gx1727.com/xin/framework/pkg/resp"
 )
@@ -35,7 +32,6 @@ func Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
 func Module() plugin.Module {
 	return plugin.NewModuleWithOpts("cms", Register,
 		plugin.WithInit(initModule),
-		plugin.WithMigrate(migrateModule),
 	)
 }
 
@@ -46,14 +42,4 @@ func initModule() error {
 		UploadDir:     "uploads/cms",
 	}
 	return config.LoadModule("cms", moduleCfg)
-}
-
-func migrateModule() error {
-	dev := filepath.Join("apps", "cms", "migrations")
-	if _, err := filepath.Abs(dev); err == nil {
-		if _, err := filepath.Glob(dev); err == nil {
-			return migrate.Run(dev)
-		}
-	}
-	return migrate.Run(filepath.Join("migrations", "cms"))
 }
