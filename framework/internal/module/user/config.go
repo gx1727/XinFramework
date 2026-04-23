@@ -31,7 +31,9 @@ func InitConfig() error {
 		RefreshTokenExpireSec: 86400,
 	}
 
-	_ = config.LoadModule("user", authCfg)
+	if err := config.LoadModule("user", authCfg); err != nil {
+		return err
+	}
 
 	if userLogger != nil {
 		userLogger.Infof("user module config loaded: attempts=%d lock=%ds policy=%s",

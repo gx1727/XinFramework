@@ -32,7 +32,7 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 		LIMIT 1`, account).Scan(&accID, &password)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrAccountNotFound
+			return nil, errAccountNotFound
 		}
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 	err = d.QueryRow(ctx, query, args...).Scan(&uID, &uTenantID, &uCode, &uStatus)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrTenantBindingNotFound
+			return nil, errTenantBindingNotFound
 		}
 		return nil, err
 	}

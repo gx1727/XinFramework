@@ -29,3 +29,8 @@ var (
 	ErrInvalidHashFormat = errors.New("invalid argon2id hash format")
 	ErrUnsupportedHash   = errors.New("unsupported hash algorithm")
 )
+
+var (
+	errAccountNotFound       = errors.New("account not found")
+	errTenantBindingNotFound = errors.New("tenant binding not found")
+)

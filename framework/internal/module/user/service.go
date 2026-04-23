@@ -32,9 +32,9 @@ func (s *Service) Login(ctx context.Context, req loginRequest) (*loginResult, er
 		switch {
 		case errors.Is(err, ErrBackendUnavailable):
 			return nil, ErrBackendUnavailable
-		case errors.Is(err, ErrAccountNotFound):
+		case errors.Is(err, errAccountNotFound):
 			return nil, ErrInvalidAccountOrPassword
-		case errors.Is(err, ErrTenantBindingNotFound):
+		case errors.Is(err, errTenantBindingNotFound):
 			return nil, ErrTenantBindingNotFound
 		default:
 			return nil, ErrInvalidAccountOrPassword
