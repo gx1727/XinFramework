@@ -1,231 +1,272 @@
 # XinFramework
 
-轻量的 Go SaaS 基础框架，当前已具备：
-- 配置管理（YAML + `.env` 覆盖）
-- PostgreSQL + Redis 基础设施
-- JWT 登录鉴权 + Session 校验（Redis 优先，DB 兜底）
-- 多租户中间件（可开关）
-- 按天分割日志（`logs/YYYY-MM-DD.log`）
-- 跨平台启动/信号兼容（Windows / Unix）
+<div align="center">
 
-## 技术栈
+**轻量的 Go SaaS 基础框架** — 不用 ORM，手写 SQL 的企业级开发框架
 
-- Web：Gin
-- ORM：GORM（PostgreSQL 驱动）
-- Cache：go-redis/v8
-- Auth：JWT（`github.com/golang-jwt/jwt/v5`）
-- Config：YAML + 环境变量覆盖
+[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat-square&logo=go)](https://golang.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
 
-## 项目结构（当前实际）
+</div>
 
-```text
+---
+
+## ✨ 为什么选择 XinFramework
+
+| 特性 | 说明 |
+|------|------|
+| 🚫 **无 ORM** | 直接使用 `pgx/v5`，完全掌控 SQL |
+| 🔐 **安全认证** | Argon2id 密码加密 + JWT + Session 双层校验 |
+| 🏢 **多租户** | 完整的租户隔离，支持行级安全策略 (RLS) |
+| 📝 **轻量日志** | 按天分割，自动归档，支持模块分离 |
+| 🌐 **跨平台** | Windows / Linux / macOS 全平台兼容 |
+| 🧩 **插件架构** | 业务模块热插拔，按需启用 |
+| ⚡ **高性能** | pgx 连接池 + Redis 连接池优化 |
+
+---
+
+## 🛠️ 技术栈
+
+| 领域 | 技术 | 版本 |
+|------|------|------|
+| Web 框架 | [Gin](https://github.com/gin-gonic/gin) | v1.12.0 |
+| 数据库驱动 | [pgx/v5](https://github.com/jackc/pgx) | v5.9.0 |
+| Redis 客户端 | [go-redis/redis](https://github.com/go-redis/redis) | v8.11.5 |
+| JWT | [golang-jwt/jwt](https://github.com/golang-jwt/jwt) | v5.2.2 |
+| 密码加密 | Argon2id | golang.org/x/crypto |
+| 配置解析 | yaml.v3 | gopkg.in/yaml.v3 |
+
+---
+
+## 📂 项目结构
+
+```
 xin/
-├── cmd/server/                   # 启动入口、命令控制、信号处理
-│   ├── main.go
-│   ├── cmd.go
-│   ├── signal.go
-│   ├── cmd_compat_unix.go
-│   ├── cmd_compat_windows.go
-│   ├── signal_compat_unix.go
-│   └── signal_compat_windows.go
+├── cmd/xin/                     # 程序入口
+│   └── main.go                   # 启动入口、插件注册
 │
-├── config/                       # 仅配置文件（无 Go 代码）
+├── framework/                    # 框架核心
+│   ├── framework.go              # Run() 主函数
+│   ├── cmd.go                    # 命令控制 (start/stop/restart)
+│   ├── signal.go                  # 信号处理 (优雅关闭)
+│   │
+│   ├── pkg/                      # 公共包
+│   │   ├── config/               # 配置加载 (YAML + env)
+│   │   ├── db/                    # PostgreSQL (pgx) + 租户会话
+│   │   ├── cache/                # Redis 客户端
+│   │   ├── logger/               # 日志 (按天分割)
+│   │   ├── session/              # Session 管理 (Redis/DB)
+│   │   ├── jwt/                  # Token 工具
+│   │   ├── migrate/              # SQL 迁移
+│   │   ├── plugin/               # 插件注册机制
+│   │   └── resp/                 # 统一响应封装
+│   │
+│   ├── internal/
+│   │   ├── core/                 # 核心组件
+│   │   │   ├── boot/             # 初始化流程
+│   │   │   ├── server/           # HTTP Server + 优雅关闭
+│   │   │   ├── middleware/        # 中间件栈
+│   │   │   └── context/          # 请求上下文 (租户/用户)
+│   │   │
+│   │   └── module/               # 内置模块
+│   │       ├── user/             # 用户认证
+│   │       ├── tenant/           # 租户管理
+│   │       ├── system/           # 系统模块
+│   │       └── weixin/           # 微信模块
+│   │
+│   └── api/v1/                   # API 路由注册
+│
+├── apps/                         # 外部插件 (可扩展)
+│   └── cms/
+│
+├── config/                       # 配置文件
 │   ├── config.yaml
 │   ├── config.dev.yaml
 │   └── config.prod.yaml
 │
-├── api/v1/
-│   └── register.go               # v1 路由注册（薄路由层）
-│
-├── internal/
-│   ├── core/
-│   │   ├── boot/boot.go          # 初始化与优雅关闭
-│   │   ├── context/context.go
-│   │   ├── middleware/middleware.go
-│   │   └── server/server.go
-│   ├── infra/
-│   │   ├── db/db.go
-│   │   ├── cache/cache.go
-│   │   ├── logger/logger.go
-│   │   └── session/session.go    # 会话存储（Redis/DB）
-│   └── module/
-│       ├── auth/                 # 登录模块（已拆分）
-│       │   ├── handler.go
-│       │   ├── service.go
-│       │   ├── password.go
-│       │   └── types.go
-│       └── user/model.go
-│
-├── pkg/
-│   ├── config/config.go          # 配置加载与 env 覆盖
-│   ├── jwt/jwt.go
-│   └── resp/resp.go
-│
-├── migrations/001_init.sql
-├── .env.example
-└── go.mod
+└── migrations/                   # SQL 迁移脚本
 ```
 
-## 快速开始
+---
 
-### 1. 准备依赖
+## 🚀 快速开始
 
-- PostgreSQL（必需）
-- Redis（可选，见配置 `redis.enabled`）
+### 前置要求
 
-### 2. 配置
+- Go 1.21+
+- PostgreSQL 15+
+- Redis (可选)
 
-复制并修改环境变量（可选）：
+### 1. 克隆项目
+
+```bash
+git clone https://github.com/gx1727/XinFramework.git
+cd XinFramework
+```
+
+### 2. 配置环境
 
 ```bash
 cp .env.example .env
+# 编辑 .env 配置数据库等信息
 ```
-
-主配置文件：
-- `config/config.yaml`
-
-> 运行时优先级：环境变量 > `.env` > `config.yaml`
 
 ### 3. 初始化数据库
 
-执行：
-- `migrations/001_init.sql`
-
-> 脚本包含：多租户/RLS、认证相关表、`auth_sessions`（Session DB 兜底）
-
-### 4. 启动
-
 ```bash
-go run ./cmd/server
+psql -U postgres -d xin_db -f migrations/001_init.sql
 ```
 
-或：
+### 4. 启动服务
 
 ```bash
-go run ./cmd/server run
+# 开发模式
+go run ./cmd/xin run
+
+# 编译运行
+go build -o xin ./cmd/xin
+./xin start
 ```
 
 服务默认监听：`0.0.0.0:8080`
 
-## 运行命令
+---
 
-`cmd/server/main.go` 支持：
+## 📋 服务管理命令
 
-- `run`：前台运行
-- `start`：后台启动
-- `stop`：停止
-- `restart`：重启
-- `reload`：热加载信号（Windows 下不支持）
-- `status`：状态检查
-- `hot-restart`：热重启流程
+| 命令 | 说明 |
+|------|------|
+| `run` | 前台运行 |
+| `start` | 后台启动 |
+| `stop` | 停止服务 |
+| `restart` | 重启服务 |
+| `reload` | 热加载配置 (Unix) |
+| `status` | 查看运行状态 |
 
-## API（当前）
+---
 
-公开路由：
+## 🌐 API 路由
 
-- `GET /api/v1/health`
-- `POST /api/v1/login`
-- `POST /api/v1/logout`
+### 公开路由
 
-受保护示例路由（占位）：
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/health` | 健康检查 |
+| POST | `/api/v1/login` | 用户登录 |
+| POST | `/api/v1/register` | 用户注册 |
+| POST | `/api/v1/logout` | 用户登出 |
+| POST | `/api/v1/refresh` | 刷新 Token |
 
-- `GET /api/v1/users`
-- `POST /api/v1/users`
-- `PUT /api/v1/users/:id`
-- `DELETE /api/v1/users/:id`
+### 租户管理
 
-## 登录与会话机制
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/tenants` | 获取租户列表 |
+| POST | `/api/v1/tenants` | 创建租户 |
+| PUT | `/api/v1/tenants/:id` | 更新租户 |
+| DELETE | `/api/v1/tenants/:id` | 删除租户 |
 
-1. `/login` 校验账号（`username/phone/email`）与密码  
-2. 生成 `session_id`  
-3. Session 存储策略：
-   - Redis 可用：写 Redis（TTL）
-   - Redis 不可用：写 `auth_sessions` 表（DB 兜底）
-4. 签发 JWT（Claims 含 `sid`）  
-5. `Auth` 中间件每次请求校验 `sid` 是否有效  
-6. `/logout` 撤销会话（Redis 删 key / DB 删记录）
+---
 
-## 多租户模式
-
-配置项：
-- `saas.mode`
-
-行为：
-- 空值：单租户模式（不注入 tenant）
-- 非空：启用租户注入（从 `X-Tenant-ID` 读取）
-
-数据库侧 RLS 已支持“未设置 tenant 时放行、设置后按 tenant 过滤”的策略。
-
-## 业务域开关（Domain）
-
-业务代码按目录放在：
-- `internal/module/system`
-- `internal/module/cms`
-- `internal/module/weixin`
-- 其他业务建议继续按 `internal/module/<domain>` 增加
+## 🏢 多租户
 
 配置项：
-- `domain`（YAML 数组）
-- `XIN_DOMAIN`（环境变量，逗号分隔）
 
-允许值仅：
-- `system`
-- `cms`
-- `weixin`
+```yaml
+saas:
+  mode: shared  # shared | schema | database
+```
 
-启动时会严格校验，出现其他值会直接启动失败。  
-路由注册按开关生效：未启用的业务域不会注册路由，因此不可访问。
-
-## 关键配置项
-
-### 数据库连接池
-
-- `database.max_open_conns`
-- `database.max_idle_conns`
-- `database.conn_max_lifetime_sec`
-- `database.conn_max_idle_time_sec`
-
-### Redis 开关与连接池
-
-- `redis.enabled`
-- `redis.required`
-- `redis.pool_size`
-- `redis.min_idle_conns`
-- `redis.pool_timeout_sec`
-- `redis.idle_timeout_sec`
-- `redis.max_conn_age_sec`
-
-### 日志
-
-- `log.dir`（默认 `logs`）
-- `log.level`（`debug|info|warn|error`）
-
-## 优雅关闭
-
-退出流程：
-1. HTTP Server Shutdown
-2. `boot.Shutdown()`
-3. 关闭 Redis
-4. 关闭 DB 连接池
-5. 关闭日志文件句柄
-
-## 跨平台兼容
-
-`cmd/server` 已使用 build tags 做平台兼容：
-
-- Unix：`*_unix.go`
-- Windows：`*_windows.go`
-
-无需额外配置，`go build` 会自动选择对应文件。
-
-## 开发说明
-
-- 数据库设计规范：`doc/database-conventions.md`
-- API 调试示例：`doc/api.http`
-- 其他文档：`doc/developer-guide.md`、`doc/handbook.md`
-
-## 编译
+请求时传递租户 ID：
 
 ```bash
-go build ./...
+curl -H "X-Tenant-ID: tenant_001" http://localhost:8080/api/v1/users
 ```
+
+实现机制：通过 PostgreSQL `SET app.tenant_id = $1` 设置会话变量，配合行级安全策略 (RLS) 实现租户隔离。
+
+---
+
+## 🔐 认证机制
+
+```
+用户登录
+    ↓
+验证账号密码 (Argon2id)
+    ↓
+生成 Session (Redis 优先, DB 兜底)
+    ↓
+签发 JWT (含 sid)
+    ↓
+后续请求携带 JWT
+    ↓
+中间件校验 sid 有效性
+    ↓
+登出: 撤销 Session
+```
+
+---
+
+## 🧩 插件开发
+
+### 1. 创建插件
+
+```go
+// apps/myplugin/myplugin.go
+package myplugin
+
+import (
+    "github.com/gin-gonic/gin"
+    "gx1727.com/xin/framework/pkg/plugin"
+)
+
+type Module struct{}
+
+func (m *Module) Name() string           { return "myplugin" }
+func (m *Module) Init() error            { return nil }
+func (m *Module) Register(public, protected *gin.RouterGroup) {
+    protected.GET("/data", func(c *gin.Context) {
+        c.JSON(200, gin.H{"message": "myplugin"})
+    })
+}
+
+var _ plugin.Module = (*Module)(nil)
+```
+
+### 2. 注册插件
+
+```go
+// cmd/xin/main.go
+if cfg.AppEnabled("myplugin") {
+    framework.RegisterModule(&myplugin.Module{})
+}
+```
+
+### 3. 启用插件
+
+```yaml
+# config.yaml
+apps:
+  - myplugin
+```
+
+---
+
+## 📖 文档
+
+- [开发指南](doc/developer-guide.md) — 框架使用详解
+- [数据库规范](doc/database-conventions.md) — 表设计规范
+- [API 调试示例](doc/api.http) — HTTP 调试文件
+
+---
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+---
+
+## 📄 License
+
+MIT License
