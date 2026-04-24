@@ -1,5 +1,6 @@
-baseURL = 'https://example.org/'
+baseURL = '/'
 locale = 'en-us'
 title = '重新出发：从0写一个Go SaaS系统'
 theme = "PaperMod"
 publishDir = "../docs"
+relativeURLs = true
