@@ -1,0 +1,5 @@
+baseURL = 'https://example.org/'
+locale = 'en-us'
+title = '重新出发：从0写一个Go SaaS系统'
+theme = "PaperMod"
+publishDir = "../docs"
