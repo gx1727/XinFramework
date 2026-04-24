@@ -1,0 +1,269 @@
+---
+import BaseHead from '../components/BaseHead.astro';
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+import { SITE_DESCRIPTION, SITE_TITLE, SITE_GITHUB } from '../consts';
+---
+
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
+	</head>
+	<body>
+		<Header />
+		<main>
+			<!-- Hero Section -->
+			<section class="hero">
+				<h1 class="hero-title">轻量的 Go SaaS 基础框架</h1>
+				<p class="hero-slogan">不用 ORM，手写 SQL 的企业级开发框架</p>
+				<div class="hero-actions">
+					<a href={SITE_GITHUB} target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+						<svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true">
+							<path
+								fill="currentColor"
+								d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+							></path>
+						</svg>
+						GitHub
+					</a>
+					<a href="/blog" class="btn btn-secondary">开始阅读</a>
+				</div>
+			</section>
+
+			<!-- Features Section -->
+			<section class="features">
+				<h2>为什么选择 xin</h2>
+				<div class="grid grid-2">
+					<div class="card feature-card">
+						<div class="feature-icon">🚫</div>
+						<h3>无 ORM</h3>
+						<p>直接使用 pgx/v5，完全掌控 SQL，性能优先，调试无忧</p>
+					</div>
+					<div class="card feature-card">
+						<div class="feature-icon">🔐</div>
+						<h3>安全认证</h3>
+						<p>Argon2id 密码加密 + JWT + Session 双层校验，安全可靠</p>
+					</div>
+					<div class="card feature-card">
+						<div class="feature-icon">🏢</div>
+						<h3>多租户</h3>
+						<p>完整的租户隔离，支持 shared/schema/database 三种模式，行级安全策略 (RLS)</p>
+					</div>
+					<div class="card feature-card">
+						<div class="feature-icon">🧩</div>
+						<h3>插件架构</h3>
+						<p>业务模块热插拔，按需启用，灵活扩展</p>
+					</div>
+					<div class="card feature-card">
+						<div class="feature-icon">⚡</div>
+						<h3>高性能</h3>
+						<p>pgx 连接池 + Redis 连接池优化，高并发场景无忧</p>
+					</div>
+					<div class="card feature-card">
+						<div class="feature-icon">🌐</div>
+						<h3>跨平台</h3>
+						<p>Windows / Linux / macOS 全平台兼容，守护进程管理</p>
+					</div>
+				</div>
+			</section>
+
+			<!-- Tech Stack Section -->
+			<section class="tech-stack">
+				<h2>技术栈</h2>
+				<div class="stack-grid">
+					<div class="stack-item">
+						<span class="stack-icon">Go</span>
+						<span class="stack-name">Go 1.21+</span>
+					</div>
+					<div class="stack-item">
+						<span class="stack-icon">Gin</span>
+						<span class="stack-name">Gin v1.12</span>
+					</div>
+					<div class="stack-item">
+						<span class="stack-icon">pgx</span>
+						<span class="stack-name">pgx/v5 v5.9</span>
+					</div>
+					<div class="stack-item">
+						<span class="stack-icon">PG</span>
+						<span class="stack-name">PostgreSQL 15+</span>
+					</div>
+					<div class="stack-item">
+						<span class="stack-icon">Redis</span>
+						<span class="stack-name">go-redis v8</span>
+					</div>
+					<div class="stack-item">
+						<span class="stack-icon">JWT</span>
+						<span class="stack-name">golang-jwt v5</span>
+					</div>
+				</div>
+			</section>
+
+			<!-- Quick Start Section -->
+			<section class="quick-start">
+				<h2>快速开始</h2>
+				<div class="code-block">
+					<pre><code># 克隆项目
+git clone https://github.com/gx1727/XinFramework.git
+cd XinFramework
+
+# 配置环境
+cp .env.example .env
+
+# 启动服务
+go run ./cmd/xin run</code></pre>
+				</div>
+				<p class="text-center text-muted">
+					服务默认监听：<code>0.0.0.0:8080</code>
+				</p>
+			</section>
+		</main>
+		<Footer />
+	</body>
+</html>
+
+<style>
+	/* Hero Section */
+	.hero {
+		text-align: center;
+		padding: 4em 0;
+		margin-bottom: 3em;
+	}
+
+	.hero-title {
+		font-size: 2.5em;
+		margin-bottom: 0.5em;
+		background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		background-clip: text;
+	}
+
+	.hero-slogan {
+		font-size: 1.25em;
+		color: var(--text-secondary);
+		margin-bottom: 2em;
+	}
+
+	.hero-actions {
+		display: flex;
+		justify-content: center;
+		gap: 1em;
+		flex-wrap: wrap;
+	}
+
+	/* Features Section */
+	.features {
+		margin-bottom: 4em;
+	}
+
+	.features h2 {
+		text-align: center;
+		margin-bottom: 1.5em;
+	}
+
+	.feature-card {
+		text-align: left;
+	}
+
+	.feature-icon {
+		font-size: 2em;
+		margin-bottom: 0.5em;
+	}
+
+	.feature-card h3 {
+		font-size: 1.25em;
+		margin-bottom: 0.5em;
+	}
+
+	.feature-card p {
+		color: var(--text-secondary);
+		margin: 0;
+		font-size: 0.95em;
+	}
+
+	/* Tech Stack Section */
+	.tech-stack {
+		text-align: center;
+		margin-bottom: 4em;
+		padding: 2em;
+		background: var(--bg-secondary);
+		border-radius: 12px;
+	}
+
+	.tech-stack h2 {
+		margin-bottom: 1.5em;
+	}
+
+	.stack-grid {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 1em;
+	}
+
+	.stack-item {
+		display: flex;
+		align-items: center;
+		gap: 0.5em;
+		padding: 0.5em 1em;
+		background: var(--bg-primary);
+		border: 1px solid var(--border-color);
+		border-radius: 8px;
+	}
+
+	.stack-icon {
+		font-weight: 700;
+		color: var(--accent);
+	}
+
+	.stack-name {
+		font-size: 0.875em;
+		color: var(--text-secondary);
+	}
+
+	/* Quick Start Section */
+	.quick-start {
+		text-align: center;
+		margin-bottom: 2em;
+	}
+
+	.quick-start h2 {
+		margin-bottom: 1em;
+	}
+
+	.code-block {
+		background: var(--code-bg);
+		border-radius: 12px;
+		padding: 1.5em;
+		text-align: left;
+		overflow-x: auto;
+	}
+
+	.code-block pre {
+		margin: 0;
+		padding: 0;
+		background: transparent;
+	}
+
+	.code-block code {
+		background: transparent;
+		padding: 0;
+		font-size: 0.9em;
+		color: var(--text-primary);
+	}
+
+	@media (max-width: 720px) {
+		.hero-title {
+			font-size: 2em;
+		}
+
+		.hero {
+			padding: 2em 0;
+		}
+
+		.stack-grid {
+			flex-direction: column;
+		}
+	}
+</style>

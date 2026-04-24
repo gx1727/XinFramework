@@ -1,126 +1,63 @@
----
-title: 重新出发：从0写一个Go SaaS系统
-description: 一个普通程序员的SaaS实践记录。从0开始，手动构建一个Go SaaS系统，完整记录架构设计、技术选型与踩坑过程。不讲空话，只讲真实开发。
-created: 2026-04-24
-tags:
-  - Go
-  - SaaS
-  - 项目日志
-  - 全栈开发
----
+# Astro Starter Kit: Blog
 
-# 🚀 重新出发：从0写一个Go SaaS系统
-
-<div align="center">
-
-**一个普通程序员的SaaS实践记录。**  
-从0开始，手动构建一个Go SaaS系统，完整记录架构设计、技术选型与踩坑过程。  
-**不讲空话，只讲真实开发。**
-
-[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat-square&logo=go)](https://golang.org/)
-[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
-
-</div>
-
----
-
-## 📖 关于这个项目
-
-你是否也有过这样的经历？
-
-> 做了很多项目，最后什么都没留下。代码散了，思路断了，时间也过去了。
-
-这个项目源于一次重新出发 —— **用一年的时间，从0开始构建一个Go SaaS系统**。
-
-不是写Demo，不是写教程，而是尽可能接近真实项目的开发过程：
-- 用户系统与认证机制
-- 多租户架构设计
-- 权限模型（RBAC）
-- 计费与订阅模块
-
-我会记录：
-- ✅ 为什么这样设计
-- ❌ 哪些地方做错了
-- ⚠️ 哪些坑踩过
-- 🔄 哪些地方推翻重来
-
-**你将看到的是一个系统，是怎么一点点长出来的 —— 而非一开始就完美。**
-
----
-
-## 🔗 关联项目
-
-📦 **XinFramework** — 本项目开发的 Go SaaS 基础框架
-
-> 轻量的 Go SaaS 基础框架，当前已具备：
-> - 配置管理（YAML + `.env` 覆盖）
-> - PostgreSQL + Redis 基础设施
-> - JWT 登录鉴权 + Session 校验
-> - 多租户中间件
-> - 按天分割日志
-> - 跨平台启动/信号兼容
-
-📂 代码仓库：`D:\work\xin\XinFramework`
-
----
-
-## 📂 项目结构
-
-```
-重新出发：从0写一个Go SaaS系统/
-├── README.md                # 项目总览
-├── 01-架构设计/             # 技术架构、方案选型
-├── 02-开发日志/             # 日常开发记录
-│   └── YYYY-MM-DD/          # 按日期归档
-├── 03-踩坑记录/             # 遇到的问题与解决方案
-└── 04-知识沉淀/             # 学到的知识点整理
+```sh
+npm create astro@latest -- --template blog
 ```
 
----
+> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
 
-## 📝 内容分类
+Features:
 
-| 类型 | 说明 |
-|------|------|
-| **开发日志** | 每天的真实进度与问题 |
-| **技术拆解** | 深入讲解某一个技术点 |
-| **思考与复盘** | 关于选择、方向和过程的反思 |
+- ✅ Minimal styling (make it your own!)
+- ✅ 100/100 Lighthouse performance
+- ✅ SEO-friendly with canonical URLs and Open Graph data
+- ✅ Sitemap support
+- ✅ RSS Feed support
+- ✅ Markdown & MDX support
 
-> 可以按顺序看，也可以按主题跳着看
+## 🚀 Project Structure
 
----
+Inside of your Astro project, you'll see the following folders and files:
 
-## 🛠️ 技术栈
+```text
+├── public/
+├── src/
+│   ├── assets/
+│   ├── components/
+│   ├── content/
+│   ├── layouts/
+│   └── pages/
+├── astro.config.mjs
+├── README.md
+├── package.json
+└── tsconfig.json
+```
 
-| 领域 | 技术 |
-|------|------|
-| 后端 | Go 1.21+ / Gin |
-| 数据库 | PostgreSQL + GORM |
-| 缓存 | Redis |
-| 认证 | JWT |
-| 配置 | YAML + 环境变量 |
+Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
 
----
+There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
 
-## 📅 更新计划
+The `src/content/` directory contains "collections" of related Markdown and MDX documents. Use `getCollection()` to retrieve posts from `src/content/blog/`, and type-check your frontmatter using an optional schema. See [Astro's Content Collections docs](https://docs.astro.build/en/guides/content-collections/) to learn more.
 
-- 每天 1 篇（开发日志 + 技术拆解交替）
-- 每篇都是真实开发过程，不做秀
+Any static assets, like images, can be placed in the `public/` directory.
 
----
+## 🧞 Commands
 
-## 🤝 适合谁看
+All commands are run from the root of the project, from a terminal:
 
-- 想做 SaaS 系统的开发者
-- 正在做后端架构的程序员
-- 想看看"真实开发过程"的人
+| Command                   | Action                                           |
+| :------------------------ | :----------------------------------------------- |
+| `npm install`             | Installs dependencies                            |
+| `npm run dev`             | Starts local dev server at `localhost:4321`      |
+| `npm run build`           | Build your production site to `./dist/`          |
+| `npm run preview`         | Preview your build locally, before deploying     |
+| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
+| `npm run astro -- --help` | Get help using the Astro CLI                     |
 
----
+## 👀 Want to learn more?
 
-## 📄 License
+Check out [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
 
-MIT License
+## Credit
 
----
-
-*🗓️ 开始日期：2026-04-24*
+This theme is based off of the lovely [Bear Blog](https://github.com/HermanMartinus/bearblog/).

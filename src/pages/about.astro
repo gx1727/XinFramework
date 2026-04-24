@@ -1,0 +1,253 @@
+---
+import BaseHead from '../components/BaseHead.astro';
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+import { SITE_DESCRIPTION, SITE_TITLE, SITE_GITHUB } from '../consts';
+---
+
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<BaseHead title="关于" description="关于 xin - 轻量的 Go SaaS 基础框架" />
+	</head>
+	<body>
+		<Header />
+		<main>
+			<section class="about-intro">
+				<h1>关于 xin</h1>
+				<p class="lead">
+					xin 是一个轻量的 Go SaaS 基础框架，致力于为开发者提供一套简洁、高效、可扩展的后端开发方案。
+				</p>
+			</section>
+
+			<section class="vision">
+				<h2>愿景</h2>
+				<p>
+					不做臃肿的框架，不依赖复杂的 ORM。用最直接的方式掌控 SQL，用最朴素的设计构建 SaaS。
+				</p>
+				<p>
+					我们相信：好的框架应该让开发者专注于业务，而不是被框架本身束缚。
+				</p>
+			</section>
+
+			<section class="principles">
+				<h2>设计原则</h2>
+				<div class="principle-list">
+					<div class="principle-item">
+						<h3>简单至上</h3>
+						<p>不引入不必要的复杂性。每个功能都有明确的用途。</p>
+					</div>
+					<div class="principle-item">
+						<h3>性能优先</h3>
+						<p>直接使用 pgx，无 ORM 中间层，高性能从底层开始。</p>
+					</div>
+					<div class="principle-item">
+						<h3>可扩展</h3>
+						<p>插件架构让业务模块可以热插拔，按需启用。</p>
+					</div>
+					<div class="principle-item">
+						<h3>可维护</h3>
+						<p>清晰的代码结构，完整的文档，降低维护成本。</p>
+					</div>
+				</div>
+			</section>
+
+			<section class="tech-details">
+				<h2>核心技术</h2>
+				<div class="tech-table">
+					<table>
+						<thead>
+							<tr>
+								<th>领域</th>
+								<th>技术</th>
+								<th>说明</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>Web 框架</td>
+								<td><a href="https://github.com/gin-gonic/gin" target="_blank">Gin</a></td>
+								<td>高性能 HTTP 框架</td>
+							</tr>
+							<tr>
+								<td>数据库驱动</td>
+								<td><a href="https://github.com/jackc/pgx" target="_blank">pgx/v5</a></td>
+								<td>PostgreSQL 高性能驱动</td>
+							</tr>
+							<tr>
+								<td>缓存</td>
+								<td><a href="https://github.com/go-redis/redis" target="_blank">go-redis</a></td>
+								<td>Redis 客户端</td>
+							</tr>
+							<tr>
+								<td>认证</td>
+								<td><a href="https://github.com/golang-jwt/jwt" target="_blank">golang-jwt</a></td>
+								<td>Token 生成与验证</td>
+							</tr>
+							<tr>
+								<td>密码加密</td>
+								<td>Argon2id</td>
+								<td>业界领先的密码哈希算法</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</section>
+
+			<section class="features-detail">
+				<h2>框架特性</h2>
+				<ul>
+					<li><strong>配置管理</strong> — YAML + 环境变量覆盖</li>
+					<li><strong>多租户</strong> — 完整的租户隔离中间件，支持 RLS</li>
+					<li><strong>日志系统</strong> — 按天分割，自动归档</li>
+					<li><strong>服务管理</strong> — start/stop/restart/reload 命令</li>
+					<li><strong>优雅关闭</strong> — 信号处理，资源释放</li>
+					<li><strong>跨平台</strong> — Windows / Linux / macOS 兼容</li>
+				</ul>
+			</section>
+
+			<section class="contact">
+				<h2>联系与参与</h2>
+				<p>
+					xin 是开源项目，欢迎任何人参与贡献。
+				</p>
+				<div class="contact-links">
+					<a href={SITE_GITHUB} target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+						<svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true">
+							<path
+								fill="currentColor"
+								d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+							></path>
+						</svg>
+						GitHub
+					</a>
+				</div>
+			</section>
+		</main>
+		<Footer />
+	</body>
+</html>
+
+<style>
+	section {
+		margin-bottom: 3em;
+	}
+
+	.about-intro {
+		text-align: center;
+		padding-bottom: 2em;
+		border-bottom: 1px solid var(--border-color);
+	}
+
+	.about-intro h1 {
+		margin-bottom: 0.5em;
+	}
+
+	.lead {
+		font-size: 1.2em;
+		color: var(--text-secondary);
+	}
+
+	.vision {
+		padding: 2em;
+		background: var(--bg-secondary);
+		border-radius: 12px;
+	}
+
+	.vision h2 {
+		margin-bottom: 1em;
+	}
+
+	.principle-list {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		gap: 1.5em;
+	}
+
+	.principle-item {
+		padding: 1.5em;
+		background: var(--bg-secondary);
+		border-radius: 12px;
+		border: 1px solid var(--border-color);
+	}
+
+	.principle-item h3 {
+		font-size: 1.1em;
+		margin-bottom: 0.5em;
+		color: var(--accent);
+	}
+
+	.principle-item p {
+		margin: 0;
+		color: var(--text-secondary);
+		font-size: 0.95em;
+	}
+
+	.tech-details h2 {
+		margin-bottom: 1em;
+	}
+
+	.tech-table {
+		overflow-x: auto;
+	}
+
+	table {
+		width: 100%;
+		border-collapse: collapse;
+	}
+
+	th, td {
+		padding: 1em;
+		text-align: left;
+		border-bottom: 1px solid var(--border-color);
+	}
+
+	th {
+		font-weight: 600;
+		color: var(--text-primary);
+	}
+
+	td {
+		color: var(--text-secondary);
+	}
+
+	td a {
+		color: var(--accent);
+	}
+
+	.features-detail ul {
+		list-style: none;
+		padding: 0;
+	}
+
+	.features-detail li {
+		padding: 0.75em 0;
+		border-bottom: 1px solid var(--border-color);
+	}
+
+	.features-detail li:last-child {
+		border-bottom: none;
+	}
+
+	.contact {
+		text-align: center;
+		padding: 2em;
+		background: var(--bg-secondary);
+		border-radius: 12px;
+	}
+
+	.contact h2 {
+		margin-bottom: 0.5em;
+	}
+
+	.contact p {
+		color: var(--text-secondary);
+		margin-bottom: 1.5em;
+	}
+
+	.contact-links {
+		display: flex;
+		justify-content: center;
+		gap: 1em;
+	}
+</style>

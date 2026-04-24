@@ -1,0 +1,86 @@
+---
+import { SITE_GITHUB } from '../consts';
+
+const today = new Date();
+---
+
+<footer>
+	<div class="footer-content">
+		<div class="footer-brand">
+			<span class="brand-name">xin</span>
+			<span class="brand-desc">轻量的 Go SaaS 基础框架</span>
+		</div>
+		<div class="footer-links">
+			<a href={SITE_GITHUB} target="_blank" rel="noopener noreferrer">
+				<svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true">
+					<path
+						fill="currentColor"
+						d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+					></path>
+				</svg>
+				GitHub
+			</a>
+		</div>
+		<div class="footer-copyright">
+			&copy; {today.getFullYear()} xin. MIT License.
+		</div>
+	</div>
+</footer>
+
+<style>
+	footer {
+		padding: 3em 1em;
+		background: var(--bg-secondary);
+		border-top: 1px solid var(--border-color);
+		color: var(--text-secondary);
+	}
+
+	.footer-content {
+		max-width: 720px;
+		margin: 0 auto;
+		text-align: center;
+	}
+
+	.footer-brand {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25em;
+		margin-bottom: 1.5em;
+	}
+
+	.brand-name {
+		font-size: 1.5em;
+		font-weight: 700;
+		color: var(--text-primary);
+	}
+
+	.brand-desc {
+		font-size: 0.875em;
+		color: var(--text-muted);
+	}
+
+	.footer-links {
+		display: flex;
+		justify-content: center;
+		gap: 1em;
+		margin-bottom: 1.5em;
+	}
+
+	.footer-links a {
+		display: flex;
+		align-items: center;
+		gap: 0.5em;
+		color: var(--text-secondary);
+		text-decoration: none;
+		transition: color 0.2s ease;
+	}
+
+	.footer-links a:hover {
+		color: var(--accent);
+	}
+
+	.footer-copyright {
+		font-size: 0.875em;
+		color: var(--text-muted);
+	}
+</style>
