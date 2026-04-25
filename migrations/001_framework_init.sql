@@ -10,6 +10,9 @@ SET client_encoding = 'UTF8';
 -- 启用 ltree 扩展以支持高效的树形结构存储和查询
 CREATE EXTENSION IF NOT EXISTS ltree;
 
+-- 启用 pg_trgm 扩展以支持 ILIKE 模糊搜索优化
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 -- 1. tenants (租户表)
 DROP TABLE IF EXISTS tenants;
 CREATE TABLE tenants
@@ -35,6 +38,18 @@ CREATE TABLE tenants
 );
 CREATE UNIQUE INDEX uk_tenants_code ON tenants (code) WHERE is_deleted = FALSE;
 CREATE INDEX idx_tenants_config_gin ON tenants USING GIN (config);
+DO $$
+BEGIN
+    CREATE INDEX IF NOT EXISTS idx_tenants_name_trgm ON tenants USING gin (name gin_trgm_ops);
+EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'Skipped idx_tenants_name_trgm: no privileges on tenants table';
+END $$;
+DO $$
+BEGIN
+    CREATE INDEX IF NOT EXISTS idx_tenants_code_trgm ON tenants USING gin (code gin_trgm_ops);
+EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'Skipped idx_tenants_code_trgm: no privileges on tenants table';
+END $$;
 
 COMMENT ON TABLE tenants IS '租户表 - SaaS多租户核心表';
 COMMENT ON COLUMN tenants.id IS '租户ID';
@@ -171,6 +186,7 @@ CREATE TABLE users
     account_id  BIGINT      NOT NULL,
     org_id      BIGINT,
     code        VARCHAR(32) NOT NULL,
+    real_name   VARCHAR(64),
     phone       VARCHAR(20),
     email       VARCHAR(100),
     type        VARCHAR(64),
@@ -191,6 +207,24 @@ CREATE UNIQUE INDEX uk_user_tenant_account ON users (tenant_id, account_id) WHER
 CREATE INDEX idx_user_tenant ON users (tenant_id) WHERE is_deleted = FALSE;
 CREATE INDEX idx_user_org ON users (org_id) WHERE is_deleted = FALSE;
 CREATE INDEX idx_user_ancestors_gist ON users USING GIST (ancestors);
+DO $$
+BEGIN
+    CREATE INDEX IF NOT EXISTS idx_users_code_trgm ON users USING gin (code gin_trgm_ops);
+EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'Skipped idx_users_code_trgm: no privileges on users table';
+END $$;
+DO $$
+BEGIN
+    CREATE INDEX IF NOT EXISTS idx_users_real_name_trgm ON users USING gin (real_name gin_trgm_ops);
+EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'Skipped idx_users_real_name_trgm: no privileges on users table';
+END $$;
+DO $$
+BEGIN
+    CREATE INDEX IF NOT EXISTS idx_users_phone_trgm ON users USING gin (phone gin_trgm_ops);
+EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'Skipped idx_users_phone_trgm: no privileges on users table';
+END $$;
 
 COMMENT ON TABLE users IS '租户用户表 - 租户内的用户信息';
 COMMENT ON COLUMN users.id IS '用户ID';
@@ -198,6 +232,7 @@ COMMENT ON COLUMN users.tenant_id IS '租户ID';
 COMMENT ON COLUMN users.account_id IS '关联全局账号ID';
 COMMENT ON COLUMN users.org_id IS '所属机构ID';
 COMMENT ON COLUMN users.code IS '用户编码';
+COMMENT ON COLUMN users.real_name IS '真实姓名（冗余自accounts）';
 COMMENT ON COLUMN users.phone IS '手机号';
 COMMENT ON COLUMN users.email IS '邮箱';
 COMMENT ON COLUMN users.type IS '用户类型';
@@ -258,6 +293,8 @@ CREATE TABLE user_roles
 );
 CREATE UNIQUE INDEX uk_user_role ON user_roles (user_id, role_id) WHERE is_deleted = FALSE;
 CREATE INDEX idx_ur_tenant ON user_roles (tenant_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_active
+    ON user_roles (user_id) WHERE is_deleted = FALSE;
 
 COMMENT ON TABLE user_roles IS '用户角色关联表 - 多对多关系';
 COMMENT ON COLUMN user_roles.id IS '关联ID';
@@ -287,6 +324,8 @@ CREATE TABLE menus
 CREATE UNIQUE INDEX uk_menu_code ON menus (tenant_id, code) WHERE is_deleted = FALSE;
 CREATE INDEX idx_menu_tenant ON menus (tenant_id) WHERE is_deleted = FALSE;
 CREATE INDEX idx_menu_ancestors_gist ON menus USING GIST (ancestors);
+CREATE INDEX IF NOT EXISTS idx_menus_tenant_active
+    ON menus (tenant_id) WHERE is_deleted = FALSE;
 
 COMMENT ON TABLE menus IS '菜单表 - 前端导航菜单';
 COMMENT ON COLUMN menus.id IS '菜单ID';
@@ -369,6 +408,8 @@ CREATE TABLE permissions
 );
 CREATE UNIQUE INDEX uk_permission_role_res ON permissions (role_id, resource_type, resource_code) WHERE is_deleted = FALSE;
 CREATE INDEX idx_permission_tenant ON permissions (tenant_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_permissions_role_resource
+    ON permissions (role_id, resource_type, resource_code);
 
 COMMENT ON TABLE permissions IS '权限关联表 - 角色与资源/路由的关联';
 COMMENT ON COLUMN permissions.id IS '权限ID';
@@ -579,6 +620,8 @@ CREATE TABLE auth_sessions
     created_at TIMESTAMPTZ          DEFAULT NOW()
 );
 CREATE INDEX idx_auth_sessions_expires_at ON auth_sessions (expires_at);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_session_expires
+    ON auth_sessions (session_id, expires_at);
 
 COMMENT ON TABLE auth_sessions IS '登录会话表 - Redis 不可用时的会话持久化兜底';
 COMMENT ON COLUMN auth_sessions.session_id IS '会话ID';

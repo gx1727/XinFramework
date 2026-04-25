@@ -38,8 +38,7 @@ func Init(cfg *config.DatabaseConfig, saasMode string) error {
 	if saasMode != "" {
 		mode := saasMode
 		poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-			// conn.Exec(ctx, "SELECT set_config('app.mode', $1, false)", mode)
-			_, err := conn.Exec(ctx, "SET app.mode = '"+mode+"'")
+			_, err := conn.Exec(ctx, "SELECT set_config('app.mode', $1, false)", mode)
 			if err != nil {
 				return fmt.Errorf("set app.mode: %w", err) // ✅ 包装错误，提供上下文
 			}

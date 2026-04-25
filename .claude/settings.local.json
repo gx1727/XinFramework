@@ -12,7 +12,8 @@
       "Bash(./out/xin stop *)",
       "Bash(go mod *)",
       "Bash(./build.sh *)",
-      "Bash(go vet *)"
+      "Bash(go vet *)",
+      "Bash(git checkout *)"
     ]
   }
 }

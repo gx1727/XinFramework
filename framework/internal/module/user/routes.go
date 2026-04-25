@@ -5,15 +5,14 @@ import (
 	"gx1727.com/xin/framework/pkg/plugin"
 )
 
-func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
-	public.POST("/login", h.Login)
-	public.POST("/register", h.Register)
-	public.POST("/refresh", h.Refresh)
-	protected.POST("/logout", h.Logout)
+func Register(protected *gin.RouterGroup, h *Handler) {
+	protected.GET("/users", h.List)
+	protected.GET("/users/:id", h.Get)
+	protected.PUT("/users/:id/status", h.UpdateStatus)
 }
 
 func Module(h *Handler) plugin.Module {
-	return plugin.NewModule("user", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
-		Register(public, protected, h)
+	return plugin.NewModule("user", func(_, protected *gin.RouterGroup) {
+		Register(protected, h)
 	})
 }

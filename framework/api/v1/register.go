@@ -3,6 +3,7 @@ package v1
 import (
 	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/internal/core/middleware"
+	"gx1727.com/xin/framework/internal/module/auth"
 	"gx1727.com/xin/framework/internal/module/system"
 	"gx1727.com/xin/framework/internal/module/tenant"
 	"gx1727.com/xin/framework/internal/module/user"
@@ -13,14 +14,16 @@ import (
 )
 
 type Dependencies struct {
-	UserHandler   *user.Handler
+	AuthHandler   *auth.Handler
 	TenantHandler *tenant.Handler
+	UserHandler   *user.Handler
 }
 
 func builtinModules(deps Dependencies) []plugin.Module {
 	return []plugin.Module{
-		user.Module(deps.UserHandler),
+		auth.Module(deps.AuthHandler),
 		tenant.Module(deps.TenantHandler),
+		user.Module(deps.UserHandler),
 		system.Module(),
 		weixin.Module(),
 	}

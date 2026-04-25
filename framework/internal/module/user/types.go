@@ -1,45 +1,36 @@
 package user
 
-type loginRequest struct {
-	Account  string `json:"account" binding:"required"`
-	Password string `json:"password" binding:"required"`
-	TenantID uint   `json:"tenant_id"`
+type listRequest struct {
+	Keyword string `form:"keyword"`
+	Page    int    `form:"page,default=1"`
+	Size    int    `form:"size,default=20"`
 }
 
-type LoginResult struct {
-	Token        string
-	RefreshToken string
-	User         struct {
-		ID       uint
-		TenantID uint
-		Code     string
-		Role     string
-	}
+type listResponse struct {
+	List  []UserInfo `json:"list"`
+	Total int64      `json:"total"`
+	Page  int        `json:"page"`
+	Size  int        `json:"size"`
 }
 
-type registerRequest struct {
-	Account  string `json:"account" binding:"required"`
-	Password string `json:"password" binding:"required,min=6,max=32"`
-	TenantID uint   `json:"tenant_id" binding:"required"`
-	RealName string `json:"real_name"`
+type UserInfo struct {
+	ID        uint   `json:"id"`
+	TenantID  uint   `json:"tenant_id"`
+	AccountID uint   `json:"account_id"`
+	Code      string `json:"code"`
+	Status    int8   `json:"status"`
+	RealName  string `json:"real_name"`
+	Avatar    string `json:"avatar"`
+	Phone     string `json:"phone"`
+	Email     string `json:"email"`
+	Role      string `json:"role"`
 }
 
-type registerResult struct {
-	Token        string
-	RefreshToken string
-	User         struct {
-		ID       uint
-		TenantID uint
-		Code     string
-		Role     string
-	}
+type getRequest struct {
+	ID uint `uri:"id" binding:"required"`
 }
 
-type refreshRequest struct {
-	RefreshToken string `json:"refresh_token" binding:"required"`
-}
-
-type refreshResult struct {
-	Token        string
-	RefreshToken string
+type updateStatusRequest struct {
+	ID     uint `json:"id" binding:"required"`
+	Status int8 `json:"status" binding:"required,oneof=1 2"`
 }

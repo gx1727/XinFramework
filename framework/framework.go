@@ -8,6 +8,7 @@ import (
 	v1 "gx1727.com/xin/framework/api/v1"
 	"gx1727.com/xin/framework/internal/core/boot"
 	"gx1727.com/xin/framework/internal/core/middleware"
+	"gx1727.com/xin/framework/internal/module/auth"
 	"gx1727.com/xin/framework/internal/module/tenant"
 	"gx1727.com/xin/framework/internal/module/user"
 	"gx1727.com/xin/framework/pkg/config"
@@ -120,8 +121,9 @@ func setupRouter(app *boot.App) {
 	handlers := buildBuiltinHandlers(app)
 
 	v1.RegisterRoutes(srv.Engine, cfg, app.SessionMgr, v1.Dependencies{
-		UserHandler:   handlers["user"].(*user.Handler),
+		AuthHandler:   handlers["auth"].(*auth.Handler),
 		TenantHandler: handlers["tenant"].(*tenant.Handler),
+		UserHandler:   handlers["user"].(*user.Handler),
 	})
 }
 
@@ -129,18 +131,21 @@ func setupRouter(app *boot.App) {
 type builtinHandlerBuilder func(*boot.App) interface{}
 
 var builtinHandlers = map[string]builtinHandlerBuilder{
-	"user": func(app *boot.App) interface{} {
-		repos := user.Repositories{
+	"auth": func(app *boot.App) interface{} {
+		repos := auth.Repositories{
 			Account: app.Repository.Account(),
 			Tenant:  app.Repository.Tenant(),
 			Role:    app.Repository.Role(),
 			User:    app.Repository.User(),
 		}
-		deps := user.DefaultDependencies(app.Config, app.DB, repos)
-		return user.NewHandler(user.NewService(deps))
+		deps := auth.DefaultDependencies(app.Config, app.DB, repos)
+		return auth.NewHandler(auth.NewService(deps))
 	},
 	"tenant": func(app *boot.App) interface{} {
 		return tenant.NewHandler(tenant.NewService(app.Repository.Tenant()))
+	},
+	"user": func(app *boot.App) interface{} {
+		return user.NewHandler(user.NewService(app.Repository.User(), app.Repository.Role()))
 	},
 }
 
