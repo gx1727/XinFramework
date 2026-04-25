@@ -298,7 +298,10 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 	}
 	newAccountID = newAccount.ID
 
-	newUserCode = uuid.NewString()[:8]
+	newUserCode, err = generateUserCode(ctx, s.db, req.TenantID, UserCodeFormatSequential)
+	if err != nil {
+		return nil, ErrRegisterFailed
+	}
 	err = tx.QueryRow(ctx, `
 		INSERT INTO users (tenant_id, account_id, code, status)
 		VALUES ($1, $2, $3, $4)

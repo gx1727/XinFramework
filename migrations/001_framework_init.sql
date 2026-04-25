@@ -631,6 +631,19 @@ COMMENT ON COLUMN auth_sessions.role IS '角色编码';
 COMMENT ON COLUMN auth_sessions.expires_at IS '过期时间';
 COMMENT ON COLUMN auth_sessions.created_at IS '创建时间';
 
+DROP TABLE IF EXISTS tenant_user_seq;
+CREATE TABLE tenant_user_seq
+(
+    tenant_id        BIGINT PRIMARY KEY,
+    seq              BIGINT       NOT NULL DEFAULT 0,
+    user_code_format VARCHAR(32)  NOT NULL DEFAULT 'sequential',
+    updated_at       TIMESTAMPTZ           DEFAULT NOW()
+);
+COMMENT ON TABLE tenant_user_seq IS '租户用户序号表 - 用于生成自增user_code';
+COMMENT ON COLUMN tenant_user_seq.tenant_id IS '租户ID';
+COMMENT ON COLUMN tenant_user_seq.seq IS '当前序号';
+COMMENT ON COLUMN tenant_user_seq.user_code_format IS '用户编码格式: sequential(U00000001), tenant_prefix(U001-00001), tenant_random(U001-AB3F2)';
+
 
 -- ============================================
 -- 🔐 多租户 RLS (行级安全) 策略 — 纵深防御层
@@ -682,6 +695,8 @@ ALTER TABLE subscriptions
 ALTER TABLE usage_records
     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_documents
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tenant_user_seq
     ENABLE ROW LEVEL SECURITY;
 
 -- 2. 创建租户隔离策略 (读取 & 写入)
@@ -901,6 +916,14 @@ CREATE POLICY tenant_isolation_policy ON ai_documents
         OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
     );
+CREATE POLICY tenant_isolation_policy ON tenant_user_seq
+    USING (
+        current_setting('app.mode') = 'single'
+        OR (
+            current_setting('app.mode') = 'saas'
+            AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
+        )
+    );
 
 -- ============================================
 -- 初始化数据
@@ -918,3 +941,4 @@ VALUES (1, 'admin', '管理员', '系统管理员', 5, FALSE, 0, 0),
        (1, 'user', '普通用户', '普通用户', 4, TRUE, 0, 0);
 INSERT INTO user_roles (tenant_id, user_id, role_id)
 VALUES (1, 1, 1);
+INSERT INTO tenant_user_seq (tenant_id, seq, user_code_format) VALUES (1, 0, 'sequential');
