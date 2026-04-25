@@ -52,7 +52,7 @@ func waitForProcess(pid int, timeout time.Duration) {
 	}
 }
 
-func waitForSignal(srv *server.XinServer) {
+func waitForSignal(srv *server.XinServer, app *boot.App) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, notifySignals()...)
 
@@ -62,7 +62,7 @@ func waitForSignal(srv *server.XinServer) {
 	if err := srv.Shutdown(30 * time.Second); err != nil {
 		log.Printf("server shutdown error: %v", err)
 	}
-	boot.Shutdown()
+	boot.Shutdown(app)
 
 	log.Printf("Server exited gracefully")
 	os.Exit(0)

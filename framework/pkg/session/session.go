@@ -8,7 +8,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/cache"
-	"gx1727.com/xin/framework/pkg/db"
 )
 
 const sessionKeyPrefix = "sess:"
@@ -21,9 +20,28 @@ type payload struct {
 	ExpiresAt int64  `json:"expires_at"`
 }
 
-var ensureTableOnce sync.Once
+type SessionManager interface {
+	Create(sessionID string, userID, tenantID uint, role string, ttl time.Duration) error
+	Validate(sessionID string) (bool, error)
+	Revoke(sessionID string) error
+}
 
-func Create(sessionID string, userID, tenantID uint, role string, ttl time.Duration) error {
+var (
+	ensureTableOnce sync.Once
+	defaultManager  SessionManager
+)
+
+func Init(manager SessionManager) {
+	defaultManager = manager
+}
+
+func Manager() SessionManager {
+	return defaultManager
+}
+
+type redisSessionManager struct{}
+
+func (m *redisSessionManager) Create(sessionID string, userID, tenantID uint, role string, ttl time.Duration) error {
 	if sessionID == "" {
 		return ErrEmptySessionID
 	}
@@ -31,32 +49,63 @@ func Create(sessionID string, userID, tenantID uint, role string, ttl time.Durat
 		return ErrInvalidSessionTTL
 	}
 
-	if rdb := cache.Get(); rdb != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 
-		p := payload{
-			SessionID: sessionID,
-			UserID:    userID,
-			TenantID:  tenantID,
-			Role:      role,
-			ExpiresAt: time.Now().Add(ttl).Unix(),
-		}
-		b, err := json.Marshal(p)
-		if err != nil {
-			return err
-		}
-		return rdb.Set(ctx, sessionKeyPrefix+sessionID, b, ttl).Err()
+	p := payload{
+		SessionID: sessionID,
+		UserID:    userID,
+		TenantID:  tenantID,
+		Role:      role,
+		ExpiresAt: time.Now().Add(ttl).Unix(),
+	}
+	b, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	return cache.Get().Set(ctx, sessionKeyPrefix+sessionID, b, ttl).Err()
+}
+
+func (m *redisSessionManager) Validate(sessionID string) (bool, error) {
+	if sessionID == "" {
+		return false, nil
 	}
 
-	pool := db.Get()
-	if pool == nil {
-		return ErrBackendUnavailable
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	n, err := cache.Get().Exists(ctx, sessionKeyPrefix+sessionID).Result()
+	if err != nil {
+		return false, err
 	}
+	return n == 1, nil
+}
+
+func (m *redisSessionManager) Revoke(sessionID string) error {
+	if sessionID == "" {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	return cache.Get().Del(ctx, sessionKeyPrefix+sessionID).Err()
+}
+
+type dbSessionManager struct {
+	pool *pgxpool.Pool
+}
+
+func (m *dbSessionManager) Create(sessionID string, userID, tenantID uint, role string, ttl time.Duration) error {
+	if sessionID == "" {
+		return ErrEmptySessionID
+	}
+	if ttl <= 0 {
+		return ErrInvalidSessionTTL
+	}
+
 	ctx := context.Background()
-	ensureSessionTable(ctx, pool)
+	ensureSessionTable(ctx, m.pool)
 	expiresAt := time.Now().Add(ttl)
-	_, err := pool.Exec(ctx, `
+	_, err := m.pool.Exec(ctx, `
 		INSERT INTO auth_sessions (session_id, user_id, tenant_id, role, expires_at)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (session_id)
@@ -65,29 +114,15 @@ func Create(sessionID string, userID, tenantID uint, role string, ttl time.Durat
 	return err
 }
 
-func Validate(sessionID string) (bool, error) {
+func (m *dbSessionManager) Validate(sessionID string) (bool, error) {
 	if sessionID == "" {
 		return false, nil
 	}
 
-	if rdb := cache.Get(); rdb != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		n, err := rdb.Exists(ctx, sessionKeyPrefix+sessionID).Result()
-		if err != nil {
-			return false, err
-		}
-		return n == 1, nil
-	}
-
-	pool := db.Get()
-	if pool == nil {
-		return false, ErrBackendUnavailable
-	}
 	ctx := context.Background()
-	ensureSessionTable(ctx, pool)
+	ensureSessionTable(ctx, m.pool)
 	var cnt int64
-	err := pool.QueryRow(ctx, `
+	err := m.pool.QueryRow(ctx, `
 		SELECT COUNT(1)
 		FROM auth_sessions
 		WHERE session_id = $1 AND expires_at > NOW()
@@ -98,24 +133,14 @@ func Validate(sessionID string) (bool, error) {
 	return cnt > 0, nil
 }
 
-func Revoke(sessionID string) error {
+func (m *dbSessionManager) Revoke(sessionID string) error {
 	if sessionID == "" {
 		return nil
 	}
 
-	if rdb := cache.Get(); rdb != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		return rdb.Del(ctx, sessionKeyPrefix+sessionID).Err()
-	}
-
-	pool := db.Get()
-	if pool == nil {
-		return nil
-	}
 	ctx := context.Background()
-	ensureSessionTable(ctx, pool)
-	_, err := pool.Exec(ctx, `DELETE FROM auth_sessions WHERE session_id = $1`, sessionID)
+	ensureSessionTable(ctx, m.pool)
+	_, err := m.pool.Exec(ctx, `DELETE FROM auth_sessions WHERE session_id = $1`, sessionID)
 	return err
 }
 
@@ -128,8 +153,42 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
     tenant_id BIGINT NOT NULL DEFAULT 0,
     role VARCHAR(64),
     expires_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-)`)
+    created_at TIMESTAMPTZ DEFAULT NOW())
+`)
 		_, _ = pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at ON auth_sessions (expires_at)`)
 	})
+}
+
+// NewRedisSessionManager creates a session manager using Redis
+func NewRedisSessionManager() SessionManager {
+	return &redisSessionManager{}
+}
+
+// NewDBSessionManager creates a session manager using database
+func NewDBSessionManager(pool *pgxpool.Pool) SessionManager {
+	return &dbSessionManager{pool: pool}
+}
+
+// Create delegates to defaultManager if available, otherwise returns error
+func Create(sessionID string, userID, tenantID uint, role string, ttl time.Duration) error {
+	if defaultManager != nil {
+		return defaultManager.Create(sessionID, userID, tenantID, role, ttl)
+	}
+	return ErrBackendUnavailable
+}
+
+// Validate delegates to defaultManager if available, otherwise returns error
+func Validate(sessionID string) (bool, error) {
+	if defaultManager != nil {
+		return defaultManager.Validate(sessionID)
+	}
+	return false, ErrBackendUnavailable
+}
+
+// Revoke delegates to defaultManager if available, otherwise returns error
+func Revoke(sessionID string) error {
+	if defaultManager != nil {
+		return defaultManager.Revoke(sessionID)
+	}
+	return ErrBackendUnavailable
 }

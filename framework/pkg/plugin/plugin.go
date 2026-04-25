@@ -6,14 +6,16 @@ type Module interface {
 	Name() string
 	Init() error
 	Register(public *gin.RouterGroup, protected *gin.RouterGroup)
+	Shutdown() error
 }
 
 type ModuleFunc func(public *gin.RouterGroup, protected *gin.RouterGroup)
 
 type SimpleModule struct {
-	name     string
-	register ModuleFunc
-	initFn   func() error
+	name       string
+	register   ModuleFunc
+	initFn     func() error
+	shutdownFn func() error
 }
 
 func NewModule(name string, register ModuleFunc) *SimpleModule {
@@ -35,10 +37,21 @@ func (m *SimpleModule) Init() error {
 	return nil
 }
 
+func (m *SimpleModule) Shutdown() error {
+	if m.shutdownFn != nil {
+		return m.shutdownFn()
+	}
+	return nil
+}
+
 type ModuleOption func(*SimpleModule)
 
 func WithInit(fn func() error) ModuleOption {
 	return func(m *SimpleModule) { m.initFn = fn }
+}
+
+func WithShutdown(fn func() error) ModuleOption {
+	return func(m *SimpleModule) { m.shutdownFn = fn }
 }
 
 func NewModuleWithOpts(name string, register ModuleFunc, opts ...ModuleOption) *SimpleModule {

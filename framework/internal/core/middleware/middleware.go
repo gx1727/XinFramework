@@ -64,7 +64,7 @@ func CORS(cfg *config.CORSConfig) gin.HandlerFunc {
 	}
 }
 
-func Auth(cfg *config.JWTConfig) gin.HandlerFunc {
+func Auth(cfg *config.JWTConfig, sm session.SessionManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		auth := c.GetHeader("Authorization")
 		if auth == "" {
@@ -85,7 +85,7 @@ func Auth(cfg *config.JWTConfig) gin.HandlerFunc {
 			return
 		}
 
-		ok, err := session.Validate(claims.SessionID)
+		ok, err := sm.Validate(claims.SessionID)
 		if err != nil || !ok {
 			resp.Unauthorized(c, "session expired or revoked")
 			c.Abort()

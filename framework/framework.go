@@ -13,7 +13,6 @@ import (
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/migrate"
 	"gx1727.com/xin/framework/pkg/plugin"
-	"gx1727.com/xin/framework/pkg/repository"
 )
 
 const (
@@ -87,7 +86,7 @@ func runServer(cfg *config.Config) {
 	}
 
 	// 等待系统信号（用于优雅关闭）
-	waitForSignal(app.Server)
+	waitForSignal(app.Server, app)
 }
 
 // runFrameworkMigrations 执行框架核心数据库迁移
@@ -117,25 +116,43 @@ func setupRouter(app *boot.App) {
 	srv.Engine.Use(middleware.Recovery())            // 异常恢复中间件
 	srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode)) // 租户中间件
 
-	// 注册API v1路由
-	p := repository.P()
+	// 构建内置模块处理器
+	handlers := buildBuiltinHandlers(app)
 
-	repos := user.Repositories{
-		Account: p.Account(),
-		Tenant:  p.Tenant(),
-		Role:    p.Role(),
-		User:    p.User(),
-	}
-
-	userDeps := user.DefaultDependencies(cfg, app.DB, repos)
-	userService := user.NewService(userDeps)
-	userHandler := user.NewHandler(userService)
-
-	tenantService := tenant.NewService(p.Tenant())
-	tenantHandler := tenant.NewHandler(tenantService)
-
-	v1.RegisterRoutes(srv.Engine, cfg, v1.Dependencies{
-		UserHandler:   userHandler,
-		TenantHandler: tenantHandler,
+	v1.RegisterRoutes(srv.Engine, cfg, app.SessionMgr, v1.Dependencies{
+		UserHandler:   handlers["user"].(*user.Handler),
+		TenantHandler: handlers["tenant"].(*tenant.Handler),
 	})
+}
+
+// builtinHandlerBuilder creates handlers for built-in modules given app context
+type builtinHandlerBuilder func(*boot.App) interface{}
+
+var builtinHandlers = map[string]builtinHandlerBuilder{
+	"user": func(app *boot.App) interface{} {
+		repos := user.Repositories{
+			Account: app.Repository.Account(),
+			Tenant:  app.Repository.Tenant(),
+			Role:    app.Repository.Role(),
+			User:    app.Repository.User(),
+		}
+		deps := user.DefaultDependencies(app.Config, app.DB, repos)
+		return user.NewHandler(user.NewService(deps))
+	},
+	"tenant": func(app *boot.App) interface{} {
+		return tenant.NewHandler(tenant.NewService(app.Repository.Tenant()))
+	},
+}
+
+func buildBuiltinHandlers(app *boot.App) map[string]interface{} {
+	result := make(map[string]interface{})
+	for name, builder := range builtinHandlers {
+		result[name] = builder(app)
+	}
+	return result
+}
+
+// RegisterBuiltinHandler registers a handler builder for a built-in module
+func RegisterBuiltinHandler(name string, builder builtinHandlerBuilder) {
+	builtinHandlers[name] = builder
 }

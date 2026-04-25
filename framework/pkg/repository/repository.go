@@ -7,13 +7,13 @@ import (
 )
 
 type Provider struct {
-	db            *pgxpool.Pool
-	userRepo      model.UserRepository
-	tenantRepo    model.TenantRepository
-	accountRepo   model.AccountRepository
-	roleRepo      model.RoleRepository
-	menuRepo      model.MenuRepository
-	resourceRepo  model.ResourceRepository
+	db           *pgxpool.Pool
+	userRepo     model.UserRepository
+	tenantRepo   model.TenantRepository
+	accountRepo  model.AccountRepository
+	roleRepo     model.RoleRepository
+	menuRepo     model.MenuRepository
+	resourceRepo model.ResourceRepository
 }
 
 var defaultProvider *Provider
@@ -30,12 +30,8 @@ func NewProvider(pool *pgxpool.Pool) *Provider {
 	}
 }
 
-func Init(pool *pgxpool.Pool) {
-	defaultProvider = NewProvider(pool)
-}
-
-func P() *Provider {
-	return defaultProvider
+func Init(provider *Provider) {
+	defaultProvider = provider
 }
 
 func (p *Provider) User() model.UserRepository {

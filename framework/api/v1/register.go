@@ -9,6 +9,7 @@ import (
 	"gx1727.com/xin/framework/internal/module/weixin"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/plugin"
+	"gx1727.com/xin/framework/pkg/session"
 )
 
 type Dependencies struct {
@@ -25,12 +26,12 @@ func builtinModules(deps Dependencies) []plugin.Module {
 	}
 }
 
-func RegisterRoutes(r *gin.Engine, cfg *config.Config, deps Dependencies) {
+func RegisterRoutes(r *gin.Engine, cfg *config.Config, sm session.SessionManager, deps Dependencies) {
 	v1 := r.Group("/api/v1")
 
 	public := v1.Group("")
 	protected := v1.Group("")
-	protected.Use(middleware.Auth(&cfg.JWT))
+	protected.Use(middleware.Auth(&cfg.JWT, sm))
 
 	for _, m := range builtinModules(deps) {
 		if cfg.ModuleEnabled(m.Name()) {
