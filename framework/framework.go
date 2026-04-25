@@ -118,18 +118,20 @@ func setupRouter(app *boot.App) {
 	srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode)) // 租户中间件
 
 	// 注册API v1路由
+	p := repository.P()
+
 	repos := user.Repositories{
-		Account: repository.Account(),
-		Tenant:  repository.Tenant(),
-		Role:    repository.Role(),
-		User:    repository.User(),
+		Account: p.Account(),
+		Tenant:  p.Tenant(),
+		Role:    p.Role(),
+		User:    p.User(),
 	}
 
 	userDeps := user.DefaultDependencies(cfg, app.DB, repos)
 	userService := user.NewService(userDeps)
 	userHandler := user.NewHandler(userService)
 
-	tenantService := tenant.NewService(repository.Tenant())
+	tenantService := tenant.NewService(p.Tenant())
 	tenantHandler := tenant.NewHandler(tenantService)
 
 	v1.RegisterRoutes(srv.Engine, cfg, v1.Dependencies{

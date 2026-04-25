@@ -6,54 +6,100 @@ import (
 	"gx1727.com/xin/framework/pkg/model"
 )
 
-// 全局 Repository 实例
-var (
-	_userRepo     model.UserRepository
-	_tenantRepo   model.TenantRepository
-	_accountRepo  model.AccountRepository
-	_roleRepo     model.RoleRepository
-	_menuRepo     model.MenuRepository
-	_resourceRepo model.ResourceRepository
-	_dbPool       *pgxpool.Pool
-)
+type Provider struct {
+	db            *pgxpool.Pool
+	userRepo      model.UserRepository
+	tenantRepo    model.TenantRepository
+	accountRepo   model.AccountRepository
+	roleRepo      model.RoleRepository
+	menuRepo      model.MenuRepository
+	resourceRepo  model.ResourceRepository
+}
 
-// Init 初始化 Repository（在框架启动时调用）
+var defaultProvider *Provider
+
+func NewProvider(pool *pgxpool.Pool) *Provider {
+	return &Provider{
+		db:           pool,
+		userRepo:     repository.NewUserRepository(pool),
+		tenantRepo:   repository.NewTenantRepository(pool),
+		accountRepo:  repository.NewAccountRepository(pool),
+		roleRepo:     repository.NewRoleRepository(pool),
+		menuRepo:     repository.NewMenuRepository(pool),
+		resourceRepo: repository.NewResourceRepository(pool),
+	}
+}
+
 func Init(pool *pgxpool.Pool) {
-	_dbPool = pool
-	_userRepo = repository.NewUserRepository(pool)
-	_tenantRepo = repository.NewTenantRepository(pool)
-	_accountRepo = repository.NewAccountRepository(pool)
-	_roleRepo = repository.NewRoleRepository(pool)
-	_menuRepo = repository.NewMenuRepository(pool)
-	_resourceRepo = repository.NewResourceRepository(pool)
+	defaultProvider = NewProvider(pool)
 }
 
-// User 返回 UserRepository
+func P() *Provider {
+	return defaultProvider
+}
+
+func (p *Provider) User() model.UserRepository {
+	return p.userRepo
+}
+
+func (p *Provider) Tenant() model.TenantRepository {
+	return p.tenantRepo
+}
+
+func (p *Provider) Account() model.AccountRepository {
+	return p.accountRepo
+}
+
+func (p *Provider) Role() model.RoleRepository {
+	return p.roleRepo
+}
+
+func (p *Provider) Menu() model.MenuRepository {
+	return p.menuRepo
+}
+
+func (p *Provider) Resource() model.ResourceRepository {
+	return p.resourceRepo
+}
+
 func User() model.UserRepository {
-	return _userRepo
+	if defaultProvider == nil {
+		return nil
+	}
+	return defaultProvider.User()
 }
 
-// Tenant 返回 TenantRepository
 func Tenant() model.TenantRepository {
-	return _tenantRepo
+	if defaultProvider == nil {
+		return nil
+	}
+	return defaultProvider.Tenant()
 }
 
-// Account 返回 AccountRepository
 func Account() model.AccountRepository {
-	return _accountRepo
+	if defaultProvider == nil {
+		return nil
+	}
+	return defaultProvider.Account()
 }
 
-// Role 返回 RoleRepository
 func Role() model.RoleRepository {
-	return _roleRepo
+	if defaultProvider == nil {
+		return nil
+	}
+	return defaultProvider.Role()
 }
 
-// Menu 返回 MenuRepository
 func Menu() model.MenuRepository {
-	return _menuRepo
+	if defaultProvider == nil {
+		return nil
+	}
+	return defaultProvider.Menu()
 }
 
-// Resource 返回 ResourceRepository
 func Resource() model.ResourceRepository {
-	return _resourceRepo
+	if defaultProvider == nil {
+		return nil
+	}
+	return defaultProvider.Resource()
 }
