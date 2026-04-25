@@ -26,10 +26,7 @@ type SessionManager interface {
 	Revoke(sessionID string) error
 }
 
-var (
-	ensureTableOnce sync.Once
-	defaultManager  SessionManager
-)
+var defaultManager SessionManager
 
 func Init(manager SessionManager) {
 	defaultManager = manager
@@ -49,6 +46,11 @@ func (m *redisSessionManager) Create(sessionID string, userID, tenantID uint, ro
 		return ErrInvalidSessionTTL
 	}
 
+	rdb := cache.Get()
+	if rdb == nil {
+		return ErrBackendUnavailable
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -63,7 +65,7 @@ func (m *redisSessionManager) Create(sessionID string, userID, tenantID uint, ro
 	if err != nil {
 		return err
 	}
-	return cache.Get().Set(ctx, sessionKeyPrefix+sessionID, b, ttl).Err()
+	return rdb.Set(ctx, sessionKeyPrefix+sessionID, b, ttl).Err()
 }
 
 func (m *redisSessionManager) Validate(sessionID string) (bool, error) {
@@ -71,9 +73,14 @@ func (m *redisSessionManager) Validate(sessionID string) (bool, error) {
 		return false, nil
 	}
 
+	rdb := cache.Get()
+	if rdb == nil {
+		return false, ErrBackendUnavailable
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	n, err := cache.Get().Exists(ctx, sessionKeyPrefix+sessionID).Result()
+	n, err := rdb.Exists(ctx, sessionKeyPrefix+sessionID).Result()
 	if err != nil {
 		return false, err
 	}
@@ -85,13 +92,34 @@ func (m *redisSessionManager) Revoke(sessionID string) error {
 		return nil
 	}
 
+	rdb := cache.Get()
+	if rdb == nil {
+		return ErrBackendUnavailable
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	return cache.Get().Del(ctx, sessionKeyPrefix+sessionID).Err()
+	return rdb.Del(ctx, sessionKeyPrefix+sessionID).Err()
 }
 
 type dbSessionManager struct {
-	pool *pgxpool.Pool
+	pool      *pgxpool.Pool
+	tableOnce sync.Once
+}
+
+func (m *dbSessionManager) ensureTable(ctx context.Context) {
+	m.tableOnce.Do(func() {
+		_, _ = m.pool.Exec(ctx, `
+CREATE TABLE IF NOT EXISTS auth_sessions (
+    session_id VARCHAR(64) PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    tenant_id BIGINT NOT NULL DEFAULT 0,
+    role VARCHAR(64),
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW())
+`)
+		_, _ = m.pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at ON auth_sessions (expires_at)`)
+	})
 }
 
 func (m *dbSessionManager) Create(sessionID string, userID, tenantID uint, role string, ttl time.Duration) error {
@@ -103,7 +131,7 @@ func (m *dbSessionManager) Create(sessionID string, userID, tenantID uint, role 
 	}
 
 	ctx := context.Background()
-	ensureSessionTable(ctx, m.pool)
+	m.ensureTable(ctx)
 	expiresAt := time.Now().Add(ttl)
 	_, err := m.pool.Exec(ctx, `
 		INSERT INTO auth_sessions (session_id, user_id, tenant_id, role, expires_at)
@@ -120,7 +148,7 @@ func (m *dbSessionManager) Validate(sessionID string) (bool, error) {
 	}
 
 	ctx := context.Background()
-	ensureSessionTable(ctx, m.pool)
+	m.ensureTable(ctx)
 	var cnt int64
 	err := m.pool.QueryRow(ctx, `
 		SELECT COUNT(1)
@@ -139,24 +167,9 @@ func (m *dbSessionManager) Revoke(sessionID string) error {
 	}
 
 	ctx := context.Background()
-	ensureSessionTable(ctx, m.pool)
+	m.ensureTable(ctx)
 	_, err := m.pool.Exec(ctx, `DELETE FROM auth_sessions WHERE session_id = $1`, sessionID)
 	return err
-}
-
-func ensureSessionTable(ctx context.Context, pool *pgxpool.Pool) {
-	ensureTableOnce.Do(func() {
-		_, _ = pool.Exec(ctx, `
-CREATE TABLE IF NOT EXISTS auth_sessions (
-    session_id VARCHAR(64) PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    tenant_id BIGINT NOT NULL DEFAULT 0,
-    role VARCHAR(64),
-    expires_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW())
-`)
-		_, _ = pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at ON auth_sessions (expires_at)`)
-	})
 }
 
 // NewRedisSessionManager creates a session manager using Redis

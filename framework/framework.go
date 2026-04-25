@@ -109,12 +109,12 @@ func setupRouter(app *boot.App) {
 	srv := app.Server
 	cfg := app.Config
 
-	// 注册全局中间件
-	srv.Engine.Use(middleware.CORS(&cfg.CORS))       // CORS 中间件
-	srv.Engine.Use(middleware.RequestID())           // 请求ID中间件
-	srv.Engine.Use(middleware.Logger())              // 日志中间件
-	srv.Engine.Use(middleware.Recovery())            // 异常恢复中间件
-	srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode)) // 租户中间件
+	// 注册全局中间件（按执行顺序）
+	srv.Engine.Use(middleware.Recovery())            // 1. 异常恢复，最先执行以捕获所有下游 panic
+	srv.Engine.Use(middleware.RequestID())           // 2. 请求ID，尽早标记每次请求
+	srv.Engine.Use(middleware.CORS(&cfg.CORS))       // 3. CORS 预检请求处理
+	srv.Engine.Use(middleware.Logger())              // 4. 日志（依赖 RequestID）
+	srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode)) // 5. 租户上下文
 
 	// 构建内置模块处理器
 	handlers := buildBuiltinHandlers(app)
