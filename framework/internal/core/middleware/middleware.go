@@ -10,8 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"gx1727.com/xin/framework/internal/core/context"
 	"gx1727.com/xin/framework/pkg/config"
+	"gx1727.com/xin/framework/pkg/context"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 	"gx1727.com/xin/framework/pkg/resp"
 	"gx1727.com/xin/framework/pkg/session"
@@ -92,9 +92,15 @@ func Auth(cfg *config.JWTConfig, sm session.SessionManager) gin.HandlerFunc {
 			return
 		}
 
-		ctx := context.New(c)
-		ctx.SetUserID(claims.UserID)
-		ctx.SetTenantID(claims.TenantID)
+		xc := context.New(c)
+		xc.SetUserID(claims.UserID)
+		xc.SetTenantID(claims.TenantID)
+		xc.SetSessionID(claims.SessionID)
+		xc.SetRole(claims.Role)
+
+		// 存入 request context（推荐方式）
+		c.Request = c.Request.WithContext(context.WithXinContext(c.Request.Context(), xc))
+		// 兼容 gin.Context 方式（外部模块使用）
 		c.Set("user_id", claims.UserID)
 		c.Set("tenant_id", claims.TenantID)
 		c.Set("session_id", claims.SessionID)
@@ -123,13 +129,13 @@ func Tenant(mode string) gin.HandlerFunc {
 			return
 		}
 
-		ctx := context.New(c)
 		if tenantIDStr := c.GetHeader("X-Tenant-ID"); tenantIDStr != "" {
 			if tenantID, err := strconv.ParseUint(tenantIDStr, 10, 64); err == nil {
 				tid := uint(tenantID)
-				ctx.SetTenantID(tid)
+				xc := context.New(c)
+				xc.SetTenantID(tid)
+				c.Request = c.Request.WithContext(context.WithTenantID(context.WithXinContext(c.Request.Context(), xc), tid))
 				c.Set("tenant_id", tid)
-				c.Request = c.Request.WithContext(context.WithTenantID(c.Request.Context(), tid))
 			}
 		}
 

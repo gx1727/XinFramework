@@ -2,6 +2,7 @@ package user
 
 import (
 	"github.com/gin-gonic/gin"
+	"gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
@@ -38,9 +39,7 @@ func (h *Handler) Login(c *gin.Context) {
 }
 
 func (h *Handler) Logout(c *gin.Context) {
-	sessionID, _ := c.Get("session_id")
-	sid, _ := sessionID.(string)
-	if err := h.svc.Logout(sid); err != nil {
+	if err := h.svc.Logout(context.New(c).GetSessionID()); err != nil {
 		resp.HandleError(c, err)
 		return
 	}

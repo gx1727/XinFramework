@@ -3,22 +3,37 @@ package cms
 import (
 	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/pkg/plugin"
+	"gx1727.com/xin/framework/pkg/repository"
+	"gx1727.com/xin/module/cms/internal/handler"
+	"gx1727.com/xin/module/cms/internal/service"
 )
 
-func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
-	protected.GET("/cms/ping", h.Ping)
-	protected.GET("/cms/user", h.GetUserByID)
-	protected.GET("/cms/users", h.ListTenantUsers)
-	protected.GET("/cms/tenant", h.GetTenant)
-	protected.GET("/cms/users/search", h.SearchUsers)
+type Handler = handler.Handler
+
+func Register(h *Handler, public, protected *gin.RouterGroup) {
+	public.GET("/cms/ping", h.Ping)
 	protected.GET("/cms/me", h.GetCurrentUser)
+	protected.GET("/cms/users", h.ListUsers)
+	protected.GET("/cms/tenant", h.GetTenant)
 }
 
-func Module(h *Handler) plugin.Module {
-	return plugin.NewModuleWithOpts("cms",
-		func(public *gin.RouterGroup, protected *gin.RouterGroup) {
-			Register(public, protected, h)
-		},
-		plugin.WithInit(InitConfig),
-	)
+type module struct {
+	name string
+}
+
+func (m *module) Name() string { return m.name }
+
+func (m *module) Init() error { return nil }
+
+func (m *module) Shutdown() error { return nil }
+
+func (m *module) Register(public, protected *gin.RouterGroup) {
+	svc := service.NewService(repository.User(), repository.Tenant())
+	h := handler.NewHandler(svc)
+	Register(h, public, protected)
+}
+
+// Module creates the CMS plugin module
+func Module() plugin.Module {
+	return &module{name: "cms"}
 }

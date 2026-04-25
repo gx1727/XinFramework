@@ -1,24 +1,24 @@
 package cms
 
-import "gx1727.com/xin/framework/pkg/config"
+import (
+	"gx1727.com/xin/framework/pkg/config"
+)
 
-type CmsConfig struct {
+type Config struct {
 	PostPerPage   int    `yaml:"post_per_page"`
 	UploadMaxSize int64  `yaml:"upload_max_size"`
 	UploadDir     string `yaml:"upload_dir"`
 }
 
-var moduleCfg *CmsConfig
+var cfg *Config
 
-func Cfg() *CmsConfig {
-	return moduleCfg
-}
+func Cfg() *Config { return cfg }
 
-func InitConfig() error {
-	moduleCfg = &CmsConfig{
+func LoadConfig() error {
+	cfg = &Config{
 		PostPerPage:   20,
 		UploadMaxSize: 10 << 20,
 		UploadDir:     "uploads/cms",
 	}
-	return config.LoadModule("cms", moduleCfg)
+	return config.LoadModule("cms", cfg)
 }

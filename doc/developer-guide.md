@@ -546,30 +546,59 @@ func MyMiddleware() gin.HandlerFunc {
 ```go
 import "gx1727.com/xin/framework/pkg/db"
 
-d := db.Get() // 获取全局 db 实例
+pool := db.Get() // 获取全局 *pgxpool.Pool 实例
 ```
 
-### 5.2 事务规范
+### 5.2 Repository 模式
+
+框架提供 `pkg/repository` 实现仓储提供者模式，通过接口解耦数据访问：
+
+```go
+import "gx1727.com/xin/framework/pkg/repository"
+
+p := repository.P()
+userRepo := p.User()      // model.UserRepository
+tenantRepo := p.Tenant()  // model.TenantRepository
+accountRepo := p.Account() // model.AccountRepository
+```
+
+**在模块中使用 Repository**：
+
+```go
+type Dependencies struct {
+    DB          *pgxpool.Pool
+    Config      *config.Config
+    UserRepo    model.UserRepository
+    TenantRepo  model.TenantRepository
+    AccountRepo model.AccountRepository
+}
+```
+
+### 5.3 事务规范
 
 | 层 | 职责 | 禁止 |
 |---|---|---|
 | **Handler** | 不感知事务 | 调用 Begin/Commit/Rollback |
 | **Service** | 定义事务边界 | 直接写 SQL |
-| **Repo** | 接受 `*gorm.DB` 执行操作 | 自己开事务 |
+| **Repo** | 接受 `*pgxpool.Pool` 执行操作 | 自己开事务 |
 
-**Service 层事务示例**（使用注入的 `s.db`）：
+**Service 层事务示例**（使用注入的 `pool`）：
 
 ```go
-func (s *Service) CreateWithRole(user *User, roleID uint) error {
-    return s.db.Transaction(func(tx *gorm.DB) error {
-        if err := s.repo.Create(tx, user); err != nil {
-            return err
-        }
-        if err := s.repo.AssignRole(tx, user.ID, roleID); err != nil {
-            return err
-        }
-        return nil
-    })
+func (s *Service) CreateWithRole(ctx context.Context, user *User, roleID uint) error {
+    tx, err := s.pool.Begin(ctx)
+    if err != nil {
+        return err
+    }
+    defer tx.Rollback(ctx)
+
+    if err := s.repo.Create(tx, user); err != nil {
+        return err
+    }
+    if err := s.repo.AssignRole(tx, user.ID, roleID); err != nil {
+        return err
+    }
+    return tx.Commit(ctx)
 }
 ```
 
@@ -708,12 +737,14 @@ XinFramework/
 │   │   └── register.go        # 路由注册
 │   ├── pkg/                   # 公共包
 │   │   ├── config/
-│   │   ├── db/
+│   │   ├── db/                # pgx/v5/pgxpool
 │   │   ├── cache/
 │   │   ├── logger/
 │   │   ├── session/
 │   │   ├── jwt/
 │   │   ├── migrate/
+│   │   ├── model/             # 领域模型和仓储接口
+│   │   ├── repository/        # 仓储提供者模式实现
 │   │   ├── plugin/
 │   │   └── resp/
 │   └── internal/
@@ -726,7 +757,11 @@ XinFramework/
 │           ├── auth/          # 占位符
 │           ├── user/
 │           │   ├── deps.go    # 依赖声明（接口 + Dependencies）
-│           │   ├── session_manager.go
+│           │   ├── handler.go
+│           │   ├── service.go
+│           │   ├── routes.go
+│           │   └── ...
+│           ├── tenant/
 │           │   ├── handler.go
 │           │   ├── service.go
 │           │   ├── routes.go

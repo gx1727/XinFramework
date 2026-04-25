@@ -142,8 +142,8 @@ auth.Use(middleware.Auth(&cfg.JWT))
 
 | 模式 | 说明 |
 |:----|:-----|
-| `""`（空） | 单租户模式，不做租户隔离 |
-| `shared` | 共享数据库，通过 `tenant_id` 字段隔离 |
+| `single` | 单租户模式，不做租户隔离 |
+| `saas` | 共享数据库，通过 `tenant_id` 字段隔离（默认） |
 | `schema` | PostgreSQL Schema 隔离 |
 | `database` | 独立数据库隔离 |
 
@@ -202,11 +202,13 @@ defer db.ClearTenantID()
 ### 5.1 中间件执行顺序
 
 ```go
-srv.Engine.Use(middleware.Logger())   // 1. 请求日志
-srv.Engine.Use(middleware.Recovery()) // 2. 异常恢复
-srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode)) // 3. 租户隔离
+srv.Engine.Use(middleware.CORS(&cfg.CORS))            // 1. CORS 跨域
+srv.Engine.Use(middleware.RequestID())                // 2. 请求ID
+srv.Engine.Use(middleware.Logger())                   // 3. 请求日志
+srv.Engine.Use(middleware.Recovery())                 // 4. 异常恢复
+srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode))      // 5. 租户隔离
 // ... 路由处理 ...
-srv.Engine.Group("/api/v1").Use(middleware.Auth(&cfg.JWT)) // 4. 认证
+srv.Engine.Group("/api/v1").Use(middleware.Auth(&cfg.JWT)) // 认证
 ```
 
 ### 5.2 自定义中间件

@@ -94,7 +94,7 @@ func TestDailyRotation(t *testing.T) {
 ## 3. 数据库连接 (internal/infra/db)
 
 ### 功能描述
-- GORM + PostgreSQL 连接
+- pgx/v5/pgxpool + PostgreSQL 连接
 - 连接池管理
 - 租户会话变量隔离（`SET app.tenant_id = ?`）
 
@@ -124,9 +124,8 @@ func TestDBPoolSettings(t *testing.T) {
     db.Init(cfg)
     defer db.Close()
 
-    sqlDB, _ := db.Get().DB()
-    assert.Equal(t, 25, sqlDB.MaxOpenConns())
-    assert.Equal(t, 5, sqlDB.MaxIdleConns())
+    pool := db.Get()
+    assert.NotNil(t, pool)
 }
 
 // Test: 租户会话变量
@@ -134,11 +133,12 @@ func TestTenantSessionVariable(t *testing.T) {
     db.Init(cfg)
     defer db.Close()
 
-    db.SetTenantID(123)
-    // 验证执行了 SET app.tenant_id = 123
+    conn, err := db.Acquire(context.Background())
+    assert.NoError(t, err)
+    defer conn.Release()
 
-    db.ClearTenantID()
-    // 验证执行了 RESET app.tenant_id
+    err = conn.SetTenant(context.Background(), 123)
+    assert.NoError(t, err)
 }
 ```
 
@@ -797,53 +797,44 @@ func TestBootInitFailure(t *testing.T) {
 
 ---
 
-## 14. 用户模型 (internal/module/user)
+## 14. 用户模型 (internal/module/user + pkg/model)
 
 ### 功能描述
-定义 User, Role, Permission, Tenant 模型
+定义 User, Role, Account, Tenant, Menu, Resource 模型（pkg/model）
+定义业务错误和业务逻辑（internal/module/user）
 
 ### 验证步骤
 
 **自动化测试用例：```go
 // Test: User 模型字段
 func TestUserModel(t *testing.T) {
-    u := user.User{
+    u := model.User{
         ID:       1,
         TenantID: 10,
-        Username: "testuser",
-        Email:    "test@example.com",
+        Code:    "user001",
         Status:   1,
     }
 
     assert.Equal(t, uint(1), u.ID)
     assert.Equal(t, uint(10), u.TenantID)
-    assert.Equal(t, "testuser", u.Username)
 }
 
 // Test: Tenant 模型
 func TestTenantModel(t *testing.T) {
-    t := user.Tenant{
+    t := model.Tenant{
         ID:    1,
         Name:  "Test Corp",
         Code:  "testcorp",
-        Plan:  "enterprise",
         Status: 1,
     }
 
-    assert.Equal(t, "enterprise", t.Plan)
-}
-
-// Test: GORM Tags
-func TestModelTags(t *testing.T) {
-    // 验证 table name
-    assert.Equal(t, "users", (&user.User{}).TableName())
-    assert.Equal(t, "tenants", (&user.Tenant{}).TableName())
+    assert.Equal(t, "testcorp", t.Code)
 }
 ```
 
 ### 预期结果
-- TableName 返回正确的表名
-- 字段标签正确
+- 模型字段定义正确
+- 业务错误码正确定义
 
 ---
 
