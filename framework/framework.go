@@ -13,6 +13,7 @@ import (
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/migrate"
 	"gx1727.com/xin/framework/pkg/plugin"
+	"gx1727.com/xin/framework/pkg/repository"
 )
 
 const (
@@ -117,11 +118,18 @@ func setupRouter(app *boot.App) {
 	srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode)) // 租户中间件
 
 	// 注册API v1路由
-	userDeps := user.DefaultDependencies(cfg, app.DB)
+	repos := user.Repositories{
+		Account: repository.Account(),
+		Tenant:  repository.Tenant(),
+		Role:    repository.Role(),
+		User:    repository.User(),
+	}
+
+	userDeps := user.DefaultDependencies(cfg, app.DB, repos)
 	userService := user.NewService(userDeps)
 	userHandler := user.NewHandler(userService)
 
-	tenantService := tenant.NewService(app.DB)
+	tenantService := tenant.NewService(repository.Tenant())
 	tenantHandler := tenant.NewHandler(tenantService)
 
 	v1.RegisterRoutes(srv.Engine, cfg, v1.Dependencies{

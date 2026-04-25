@@ -3,6 +3,7 @@ package tenant
 import (
 	"errors"
 
+	"gx1727.com/xin/framework/pkg/model"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
@@ -17,6 +18,16 @@ var (
 	ErrBackendUnavailable = resp.NewError(2008, "服务后端未初始化或不可用")
 )
 
-var (
-	errTenantNotFound = errors.New("tenant not found")
-)
+func mapRepoError(err error) error {
+	if err == nil {
+		return nil
+	}
+	switch {
+	case errors.Is(err, model.ErrTenantNotFound):
+		return ErrTenantNotFound
+	case errors.Is(err, model.ErrTenantCodeExists):
+		return ErrTenantCodeExists
+	default:
+		return err
+	}
+}

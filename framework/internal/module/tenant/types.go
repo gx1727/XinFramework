@@ -1,5 +1,7 @@
 package tenant
 
+import "gx1727.com/xin/framework/pkg/model"
+
 type CreateTenantReq struct {
 	Code    string `json:"code" binding:"required,min=1,max=50"`
 	Name    string `json:"name" binding:"required,min=1,max=100"`
@@ -42,4 +44,22 @@ type TenantResp struct {
 	Address   string `json:"address"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
+}
+
+func toResp(t *model.Tenant) TenantResp {
+	return TenantResp{
+		ID:        t.ID,
+		Code:      t.Code,
+		Name:      t.Name,
+		Status:    t.Status,
+		Contact:   t.Contact,
+		Phone:     t.Phone,
+		Email:     t.Email,
+		Province:  t.Province,
+		City:      t.City,
+		Area:      t.Area,
+		Address:   t.Address,
+		CreatedAt: t.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt: t.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
 }

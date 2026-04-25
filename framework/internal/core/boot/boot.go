@@ -12,6 +12,7 @@ import (
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/logger"
+	"gx1727.com/xin/framework/pkg/repository"
 )
 
 type App struct {
@@ -25,6 +26,9 @@ func Init(cfg *config.Config) (*App, error) {
 	if err := db.Init(&cfg.Database, cfg.Saas.Mode); err != nil {
 		return nil, fmt.Errorf("db init failed: %w", err)
 	}
+	// 初始化 repository
+	repository.Init(db.Get())
+
 	if err := cache.Init(&cfg.Redis); err != nil {
 		return nil, fmt.Errorf("cache init failed: %w", err)
 	}

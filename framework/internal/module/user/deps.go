@@ -5,14 +5,23 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/config"
-	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
+	"gx1727.com/xin/framework/pkg/model"
 	"gx1727.com/xin/framework/pkg/session"
 )
 
+type SessionManager interface {
+	Create(sessionID string, userID, tenantID uint, role string, ttl time.Duration) error
+	Revoke(sessionID string) error
+}
+
 type Dependencies struct {
-	DB      *pgxpool.Pool
-	Config  *config.Config
-	Session SessionManager
+	DB          *pgxpool.Pool
+	Config      *config.Config
+	Session     SessionManager
+	AccountRepo model.AccountRepository
+	TenantRepo  model.TenantRepository
+	RoleRepo    model.RoleRepository
+	UserRepo    model.UserRepository
 }
 
 type defaultSessionManager struct{}
@@ -25,25 +34,21 @@ func (defaultSessionManager) Revoke(sessionID string) error {
 	return session.Revoke(sessionID)
 }
 
-func DefaultDependencies(cfg *config.Config, db *pgxpool.Pool) Dependencies {
+func DefaultDependencies(cfg *config.Config, db *pgxpool.Pool, repos Repositories) Dependencies {
 	return Dependencies{
-		DB:      db,
-		Config:  cfg,
-		Session: defaultSessionManager{},
+		DB:          db,
+		Config:      cfg,
+		Session:     defaultSessionManager{},
+		AccountRepo: repos.Account,
+		TenantRepo:  repos.Tenant,
+		RoleRepo:    repos.Role,
+		UserRepo:    repos.User,
 	}
 }
 
-func (d Dependencies) jwtConfig() *config.JWTConfig {
-	if d.Config == nil {
-		return nil
-	}
-	return &d.Config.JWT
-}
-
-func (d Dependencies) generateToken(userID, tenantID uint, role, sessionID string) (string, error) {
-	jwtCfg := d.jwtConfig()
-	if jwtCfg == nil {
-		return "", ErrBackendUnavailable
-	}
-	return jwtpkg.Generate(jwtCfg, userID, tenantID, role, sessionID)
+type Repositories struct {
+	Account model.AccountRepository
+	Tenant  model.TenantRepository
+	Role    model.RoleRepository
+	User    model.UserRepository
 }

@@ -8,23 +8,31 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/config"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
+	"gx1727.com/xin/framework/pkg/model"
 )
 
 type Service struct {
-	db      *pgxpool.Pool
-	config  *config.Config
-	session SessionManager
+	db          *pgxpool.Pool
+	config      *config.Config
+	session     SessionManager
+	accountRepo model.AccountRepository
+	tenantRepo  model.TenantRepository
+	roleRepo    model.RoleRepository
+	userRepo    model.UserRepository
 }
 
 func NewService(deps Dependencies) *Service {
 	return &Service{
-		db:      deps.DB,
-		config:  deps.Config,
-		session: deps.Session,
+		db:          deps.DB,
+		config:      deps.Config,
+		session:     deps.Session,
+		accountRepo: deps.AccountRepo,
+		tenantRepo:  deps.TenantRepo,
+		roleRepo:    deps.RoleRepo,
+		userRepo:    deps.UserRepo,
 	}
 }
 
@@ -143,13 +151,7 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 		return nil, ErrBackendUnavailable
 	}
 
-	var exists bool
-	err := s.db.QueryRow(ctx, `
-		SELECT EXISTS(
-			SELECT 1 FROM accounts 
-			WHERE is_deleted = FALSE 
-			AND (phone = $1 OR email = $1)
-		)`, req.Account).Scan(&exists)
+	exists, err := s.accountRepo.Exists(ctx, req.Account)
 	if err != nil {
 		return nil, ErrRegisterFailed
 	}
@@ -157,17 +159,14 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 		return nil, ErrAccountAlreadyExists
 	}
 
-	var tenantStatus int16
-	err = s.db.QueryRow(ctx, `
-		SELECT status FROM tenants 
-		WHERE is_deleted = FALSE AND id = $1`, req.TenantID).Scan(&tenantStatus)
+	tenant, err := s.tenantRepo.GetByID(ctx, req.TenantID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, model.ErrTenantNotFound) {
 			return nil, ErrTenantNotFound
 		}
 		return nil, ErrRegisterFailed
 	}
-	if tenantStatus != 1 {
+	if tenant.Status != 1 {
 		return nil, ErrTenantNotFound
 	}
 
@@ -191,13 +190,11 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 		return nil, fmt.Errorf("set tenant_id: %w", err)
 	}
 
-	err = tx.QueryRow(ctx, `
-		INSERT INTO accounts (phone, email, username, password, real_name) 
-		VALUES ($1, $2, $3, $4, $5) 
-		RETURNING id`, req.Account, req.Account, req.Account, passwordHash, req.RealName).Scan(&newAccountID)
+	newAccount, err := s.accountRepo.Create(ctx, req.Account, req.Account, req.Account, req.RealName, passwordHash)
 	if err != nil {
 		return nil, ErrRegisterFailed
 	}
+	newAccountID = newAccount.ID
 
 	newUserCode = uuid.NewString()[:8]
 	err = tx.QueryRow(ctx, `
@@ -208,16 +205,19 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 		return nil, ErrRegisterFailed
 	}
 
-	var roleID uint
-	err = tx.QueryRow(ctx, `
-		SELECT id FROM roles 
-		WHERE is_deleted = FALSE AND tenant_id = $1 AND is_default = TRUE 
-		LIMIT 1`, req.TenantID).Scan(&roleID)
+	roles, err := s.roleRepo.List(ctx, req.TenantID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrDefaultRoleNotFound
-		}
 		return nil, ErrRegisterFailed
+	}
+	var roleID uint
+	for _, role := range roles {
+		if role.IsDefault {
+			roleID = role.ID
+			break
+		}
+	}
+	if roleID == 0 {
+		return nil, ErrDefaultRoleNotFound
 	}
 
 	_, err = tx.Exec(ctx, `
