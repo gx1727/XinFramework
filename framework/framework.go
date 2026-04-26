@@ -124,6 +124,7 @@ func setupRouter(app *boot.App) {
 		AuthHandler:   handlers["auth"].(*auth.Handler),
 		TenantHandler: handlers["tenant"].(*tenant.Handler),
 		UserHandler:   handlers["user"].(*user.Handler),
+		PermService:   app.PermService,
 	})
 }
 

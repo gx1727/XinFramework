@@ -1,21 +1,30 @@
 package middleware
 
 import (
+	"context"
 	"strconv"
 	"strings"
 	"time"
-
-	"gx1727.com/xin/framework/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"gx1727.com/xin/framework/pkg/config"
-	"gx1727.com/xin/framework/pkg/context"
+	xinContext "gx1727.com/xin/framework/pkg/context"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
+	"gx1727.com/xin/framework/pkg/logger"
+	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/resp"
 	"gx1727.com/xin/framework/pkg/session"
 )
+
+// PermissionServiceInterface defines the permission service methods needed by Auth middleware
+type PermissionServiceInterface interface {
+	LoadPermissions(ctx context.Context, userID uint) (map[string]bool, error)
+	LoadDataScope(ctx context.Context, userID uint) (*permission.DataScope, error)
+	LoadRoles(ctx context.Context, userID uint) ([]string, error)
+	GetUserOrgID(ctx context.Context, userID uint) (int64, error)
+}
 
 func CORS(cfg *config.CORSConfig) gin.HandlerFunc {
 	if cfg == nil || !cfg.Enabled || len(cfg.AllowOrigins) == 0 {
@@ -64,7 +73,7 @@ func CORS(cfg *config.CORSConfig) gin.HandlerFunc {
 	}
 }
 
-func Auth(cfg *config.JWTConfig, sm session.SessionManager) gin.HandlerFunc {
+func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc PermissionServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		auth := c.GetHeader("Authorization")
 		if auth == "" {
@@ -92,17 +101,40 @@ func Auth(cfg *config.JWTConfig, sm session.SessionManager) gin.HandlerFunc {
 			return
 		}
 
-		ctx := context.New(c)
-		ctx.SetUserID(claims.UserID)
-		ctx.SetTenantID(claims.TenantID)
-		ctx.SetSessionID(claims.SessionID)
-		ctx.SetRole(claims.Role)
+		// Prepare UserContext fields
+		var roles []string
+		var perms map[string]bool
+		var ds permission.DataScope
+		var orgID int64
 
-		c.Request = c.Request.WithContext(context.WithXinContext(c.Request.Context(), ctx))
+		if permSvc != nil {
+			ctx := c.Request.Context()
+			perms, _ = permSvc.LoadPermissions(ctx, claims.UserID)
+			roles, _ = permSvc.LoadRoles(ctx, claims.UserID)
+			dsPtr, _ := permSvc.LoadDataScope(ctx, claims.UserID)
+			if dsPtr != nil {
+				ds = *dsPtr
+			}
+			orgID, _ = permSvc.GetUserOrgID(ctx, claims.UserID)
+		}
+
+		// Create UserContext
+		uc := &xinContext.UserContext{
+			TenantID:    claims.TenantID,
+			UserID:      claims.UserID,
+			OrgID:       orgID,
+			SessionID:   claims.SessionID,
+			Roles:       roles,
+			Permissions: perms,
+			DataScope:   ds,
+		}
+
+		c.Request = c.Request.WithContext(xinContext.WithUserContext(c.Request.Context(), uc))
 		c.Set("user_id", claims.UserID)
 		c.Set("tenant_id", claims.TenantID)
 		c.Set("session_id", claims.SessionID)
 		c.Set("role", claims.Role)
+		c.Set("roles", roles)
 
 		c.Next()
 	}
@@ -130,9 +162,9 @@ func Tenant(mode string) gin.HandlerFunc {
 		if tenantIDStr := c.GetHeader("X-Tenant-ID"); tenantIDStr != "" {
 			if tenantID, err := strconv.ParseUint(tenantIDStr, 10, 64); err == nil {
 				tid := uint(tenantID)
-				ctx := context.New(c)
+				ctx := xinContext.New(c)
 				ctx.SetTenantID(tid)
-				c.Request = c.Request.WithContext(context.WithTenantID(context.WithXinContext(c.Request.Context(), ctx), tid))
+				c.Request = c.Request.WithContext(xinContext.WithTenantID(xinContext.WithXinContext(c.Request.Context(), ctx), tid))
 				c.Set("tenant_id", tid)
 			}
 		}
@@ -181,6 +213,81 @@ func Recovery() gin.HandlerFunc {
 
 func RateLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		c.Next()
+	}
+}
+
+// RequirePermission creates middleware that checks for a specific permission
+// Usage: protected.GET("/users", RequirePermission("user", "list"), h.List)
+func RequirePermission(resource, action string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		uc := xinContext.NewUserContext(c)
+		if uc.UserID == 0 {
+			resp.Unauthorized(c, "unauthorized")
+			c.Abort()
+			return
+		}
+
+		if !uc.HasPermission(resource, action) {
+			resp.Forbidden(c, "permission denied: "+resource+":"+action)
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// RequireAnyPermission creates middleware that passes if user has ANY of the permissions
+func RequireAnyPermission(permissions ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		uc := xinContext.NewUserContext(c)
+		if uc.UserID == 0 {
+			resp.Unauthorized(c, "unauthorized")
+			c.Abort()
+			return
+		}
+
+		for _, perm := range permissions {
+			parts := strings.SplitN(perm, ":", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			if uc.HasPermission(parts[0], parts[1]) {
+				c.Next()
+				return
+			}
+		}
+
+		resp.Forbidden(c, "permission denied")
+		c.Abort()
+	}
+}
+
+// RequireAllPermissions creates middleware that passes only if user has ALL permissions
+func RequireAllPermissions(permissions ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		uc := xinContext.NewUserContext(c)
+		if uc.UserID == 0 {
+			resp.Unauthorized(c, "unauthorized")
+			c.Abort()
+			return
+		}
+
+		for _, perm := range permissions {
+			parts := strings.SplitN(perm, ":", 2)
+			if len(parts) != 2 {
+				resp.Forbidden(c, "invalid permission format: "+perm)
+				c.Abort()
+				return
+			}
+			if !uc.HasPermission(parts[0], parts[1]) {
+				resp.Forbidden(c, "permission denied: "+perm)
+				c.Abort()
+				return
+			}
+		}
+
 		c.Next()
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/internal/repository"
 	"gx1727.com/xin/framework/pkg/model"
+	"gx1727.com/xin/framework/pkg/permission"
 )
 
 type Provider struct {
@@ -15,6 +16,8 @@ type Provider struct {
 	menuRepo     model.MenuRepository
 	resourceRepo model.ResourceRepository
 	cmsPostRepo  model.CmsPostRepository
+	permRepo     *repository.PostgresPermissionRepository
+	dsRepo       *repository.PostgresDataScopeRepository
 }
 
 var defaultProvider *Provider
@@ -29,6 +32,8 @@ func NewProvider(pool *pgxpool.Pool) *Provider {
 		menuRepo:     repository.NewMenuRepository(pool),
 		resourceRepo: repository.NewResourceRepository(pool),
 		cmsPostRepo:  repository.NewCmsPostRepository(pool),
+		permRepo:     repository.NewPermissionRepository(pool),
+		dsRepo:       repository.NewDataScopeRepository(pool),
 	}
 }
 
@@ -62,6 +67,14 @@ func (p *Provider) Resource() model.ResourceRepository {
 
 func (p *Provider) CmsPost() model.CmsPostRepository {
 	return p.cmsPostRepo
+}
+
+func (p *Provider) Permission() permission.PermissionRepository {
+	return p.permRepo
+}
+
+func (p *Provider) DataScope() permission.DataScopeRepository {
+	return p.dsRepo
 }
 
 func User() model.UserRepository {

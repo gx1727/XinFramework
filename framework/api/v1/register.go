@@ -8,6 +8,7 @@ import (
 	"gx1727.com/xin/framework/internal/module/tenant"
 	"gx1727.com/xin/framework/internal/module/user"
 	"gx1727.com/xin/framework/internal/module/weixin"
+	"gx1727.com/xin/framework/internal/service"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/plugin"
 	"gx1727.com/xin/framework/pkg/session"
@@ -17,6 +18,7 @@ type Dependencies struct {
 	AuthHandler   *auth.Handler
 	TenantHandler *tenant.Handler
 	UserHandler   *user.Handler
+	PermService   *service.PermissionService
 }
 
 func builtinModules(deps Dependencies) []plugin.Module {
@@ -34,7 +36,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, sm session.SessionManager
 
 	public := v1.Group("")
 	protected := v1.Group("")
-	protected.Use(middleware.Auth(&cfg.JWT, sm))
+	protected.Use(middleware.Auth(&cfg.JWT, sm, deps.PermService))
 
 	for _, m := range builtinModules(deps) {
 		if cfg.ModuleEnabled(m.Name()) {
