@@ -9,6 +9,7 @@ import (
 	"gx1727.com/xin/framework/internal/core/boot"
 	"gx1727.com/xin/framework/internal/core/middleware"
 	"gx1727.com/xin/framework/internal/module/auth"
+	"gx1727.com/xin/framework/internal/module/menu"
 	"gx1727.com/xin/framework/internal/module/tenant"
 	"gx1727.com/xin/framework/internal/module/user"
 	"gx1727.com/xin/framework/pkg/config"
@@ -124,6 +125,7 @@ func setupRouter(app *boot.App) {
 		AuthHandler:   handlers["auth"].(*auth.Handler),
 		TenantHandler: handlers["tenant"].(*tenant.Handler),
 		UserHandler:   handlers["user"].(*user.Handler),
+		MenuHandler:   handlers["menu"].(*menu.Handler),
 		PermService:   app.PermService,
 	})
 }
@@ -147,6 +149,9 @@ var builtinHandlers = map[string]builtinHandlerBuilder{
 	},
 	"user": func(app *boot.App) interface{} {
 		return user.NewHandler(user.NewService(app.Repository.User(), app.Repository.Role()))
+	},
+	"menu": func(app *boot.App) interface{} {
+		return menu.NewHandler(menu.NewService(app.Repository.Menu()))
 	},
 }
 
