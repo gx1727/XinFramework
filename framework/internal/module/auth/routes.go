@@ -6,10 +6,11 @@ import (
 )
 
 func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
-	public.POST("/login", h.Login)
-	public.POST("/register", h.Register)
-	public.POST("/refresh", h.Refresh)
-	protected.POST("/logout", h.Logout)
+	public.POST("/auth/login", h.Login)
+	public.POST("/auth/register", h.Register)
+	public.POST("/auth/refresh", h.Refresh)
+
+	protected.POST("/auth/logout", h.Logout)
 }
 
 func Module(h *Handler) plugin.Module {
