@@ -12,6 +12,7 @@ import (
 	"gx1727.com/xin/framework/pkg/cache"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/db"
+	"gx1727.com/xin/framework/pkg/dict"
 	"gx1727.com/xin/framework/pkg/logger"
 	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/plugin"
@@ -33,6 +34,9 @@ func Init(cfg *config.Config) (*App, error) {
 	if err := db.Init(&cfg.Database, cfg.Saas.Mode); err != nil {
 		return nil, fmt.Errorf("db init failed: %w", err)
 	}
+
+	// 初始化 dict 缓存
+	dict.Init(db.Get())
 
 	// 初始化 repository
 	repoProvider := pkgRepo.NewProvider(db.Get())

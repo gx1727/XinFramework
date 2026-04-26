@@ -46,6 +46,15 @@ log:
   level: info # debug | info | warn | error
 
 module:
+  - menu
+  - tenant
+  - user
+  - role
+  - resource
+  - organization
+  - dict
+  - permission
+  - auth
   - weixin
 
 apps:

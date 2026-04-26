@@ -181,10 +181,10 @@ func NewResourceRepository(db *pgxpool.Pool) model.ResourceRepository {
 func (r *PostgresResourceRepository) GetByID(ctx context.Context, id uint) (*model.Resource, error) {
 	var res model.Resource
 	err := r.db.QueryRow(ctx, `
-		SELECT id, tenant_id, menu_id, code, name, description, created_at, updated_at
+		SELECT id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
 		FROM resources
 		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
-		&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Description,
+		&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
 		&res.CreatedAt, &res.UpdatedAt,
 	)
 	if err != nil {
@@ -199,10 +199,10 @@ func (r *PostgresResourceRepository) GetByID(ctx context.Context, id uint) (*mod
 func (r *PostgresResourceRepository) GetByCode(ctx context.Context, tenantID uint, code string) (*model.Resource, error) {
 	var res model.Resource
 	err := r.db.QueryRow(ctx, `
-		SELECT id, tenant_id, menu_id, code, name, description, created_at, updated_at
+		SELECT id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
 		FROM resources
 		WHERE is_deleted = FALSE AND tenant_id = $1 AND code = $2`, tenantID, code).Scan(
-		&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Description,
+		&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
 		&res.CreatedAt, &res.UpdatedAt,
 	)
 	if err != nil {
@@ -216,7 +216,7 @@ func (r *PostgresResourceRepository) GetByCode(ctx context.Context, tenantID uin
 
 func (r *PostgresResourceRepository) GetByTenant(ctx context.Context, tenantID uint) ([]model.Resource, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, tenant_id, menu_id, code, name, description, created_at, updated_at
+		SELECT id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
 		FROM resources
 		WHERE is_deleted = FALSE AND tenant_id = $1
 		ORDER BY id ASC`, tenantID)
@@ -229,7 +229,7 @@ func (r *PostgresResourceRepository) GetByTenant(ctx context.Context, tenantID u
 	for rows.Next() {
 		var res model.Resource
 		if err := rows.Scan(
-			&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Description,
+			&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
 			&res.CreatedAt, &res.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -241,7 +241,7 @@ func (r *PostgresResourceRepository) GetByTenant(ctx context.Context, tenantID u
 
 func (r *PostgresResourceRepository) GetByMenu(ctx context.Context, menuID uint) ([]model.Resource, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, tenant_id, menu_id, code, name, description, created_at, updated_at
+		SELECT id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
 		FROM resources
 		WHERE is_deleted = FALSE AND menu_id = $1
 		ORDER BY sort ASC, id ASC`, menuID)
@@ -254,7 +254,7 @@ func (r *PostgresResourceRepository) GetByMenu(ctx context.Context, menuID uint)
 	for rows.Next() {
 		var res model.Resource
 		if err := rows.Scan(
-			&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Description,
+			&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
 			&res.CreatedAt, &res.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -266,7 +266,7 @@ func (r *PostgresResourceRepository) GetByMenu(ctx context.Context, menuID uint)
 
 func (r *PostgresResourceRepository) GetUserResources(ctx context.Context, tenantID, userID uint) ([]model.Resource, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT DISTINCT r.id, r.tenant_id, r.menu_id, r.code, r.name, r.description, r.created_at, r.updated_at
+		SELECT DISTINCT r.id, r.tenant_id, r.menu_id, r.code, r.name, r.action, r.description, r.sort, r.status, r.created_at, r.updated_at
 		FROM resources r
 		JOIN permissions p ON p.resource_type = 'resource' AND p.resource_code = r.code
 		JOIN user_roles ur ON ur.role_id = p.role_id
@@ -281,7 +281,7 @@ func (r *PostgresResourceRepository) GetUserResources(ctx context.Context, tenan
 	for rows.Next() {
 		var res model.Resource
 		if err := rows.Scan(
-			&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Description,
+			&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
 			&res.CreatedAt, &res.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -296,9 +296,9 @@ func (r *PostgresResourceRepository) Create(ctx context.Context, tenantID uint, 
 	err := r.db.QueryRow(ctx, `
 		INSERT INTO resources (tenant_id, menu_id, code, name, action, description, sort, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, tenant_id, menu_id, code, name, description, created_at, updated_at
+		RETURNING id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
 	`, tenantID, req.MenuID, req.Code, req.Name, req.Action, req.Description, req.Sort, req.Status).Scan(
-		&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Description,
+		&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
 		&res.CreatedAt, &res.UpdatedAt,
 	)
 	if err != nil {
@@ -315,9 +315,9 @@ func (r *PostgresResourceRepository) Update(ctx context.Context, id uint, req mo
 	err := r.db.QueryRow(ctx, `
 		UPDATE resources SET name = $2, action = $3, description = $4, sort = $5, status = $6, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1
-		RETURNING id, tenant_id, menu_id, code, name, description, created_at, updated_at
+		RETURNING id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
 	`, id, req.Name, req.Action, req.Description, req.Sort, req.Status).Scan(
-		&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Description,
+		&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
 		&res.CreatedAt, &res.UpdatedAt,
 	)
 	if err != nil {

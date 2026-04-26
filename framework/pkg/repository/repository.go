@@ -138,3 +138,17 @@ func CmsPost() model.CmsPostRepository {
 	}
 	return defaultProvider.CmsPost()
 }
+
+func Permission() permission.PermissionRepository {
+	if defaultProvider == nil {
+		return nil
+	}
+	return defaultProvider.Permission()
+}
+
+func DataScope() permission.DataScopeRepository {
+	if defaultProvider == nil {
+		return nil
+	}
+	return defaultProvider.DataScope()
+}

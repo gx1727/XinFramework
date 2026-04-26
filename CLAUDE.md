@@ -26,6 +26,8 @@ XinFramework/
 ├── framework/                      # gx1727.com/xin/framework
 │   ├── framework.go                # Run(), RegisterModule(), runServer()
 │   ├── signal.go                   # waitForSignal(), graceful shutdown
+│   ├── api/v1/
+│   │   └── register.go            # builtinModules, Dependencies, RegisterRoutes
 │   ├── pkg/                        # Public packages (importable by apps)
 │   │   ├── config/                 # YAML + env config system
 │   │   ├── db/                    # pgx/v5/pgxpool + tenant session variable
@@ -33,42 +35,27 @@ XinFramework/
 │   │   ├── logger/                # Daily rotating file logger
 │   │   ├── session/               # SessionManager interface + Redis/DB impl
 │   │   ├── jwt/                   # Token generation/validation
-│   │   ├── migrate/               # SQL migration runner
+│   │   ├── migrate/              # SQL migration runner
 │   │   ├── model/                 # Domain models and repository interfaces
 │   │   ├── plugin/                # Module interface and registry
 │   │   ├── repository/            # Repository Provider implementation
 │   │   ├── resp/                  # Unified response {code, msg, data}
-│   │   └── context/               # XinContext (UserID, TenantID, SessionID, Role)
-│   ├── internal/core/              # Core framework components
-│   │   ├── boot/                  # App initialization (boot.Init, Shutdown)
-│   │   ├── server/                # XinServer with graceful shutdown
-│   │   └── middleware/            # CORS, RequestID, Logger, Recovery, Tenant, Auth
-│   ├── internal/module/            # Built-in modules
-│   │   ├── user/                  # Login/Logout/Register/Refresh
-│   │   ├── tenant/                # Tenant CRUD
-│   │   ├── auth/                  # Role/permission placeholder
-│   │   ├── system/                # Health check (/health)
-│   │   └── weixin/               # WeChat integration (/weixin/ping)
-│   └── api/v1/                   # Route registration
-│       └── register.go            # Registers builtin + plugin modules
+│   │   ├── context/               # XinContext (UserID, TenantID, SessionID, Role)
+│   │   ├── dict/                  # Dictionary data access + cache
+│   │   └── permission/            # Permission types and interfaces
+│   ├── internal/
+│   │   ├── core/
+│   │   │   ├── boot/              # App initialization (boot.Init, Shutdown)
+│   │   │   ├── server/            # XinServer with graceful shutdown
+│   │   │   └── middleware/        # CORS, RequestID, Logger, Recovery, Tenant, Auth
+│   │   ├── module/                # Built-in modules (11 total)
+│   │   ├── repository/            # Repository implementations
+│   │   └── service/               # PermissionService
 ├── apps/                          # External business plugins
 │   └── cms/                       # CMS plugin template
-│       ├── go.mod                 # gx1727.com/xin/module/cms
-│       ├── config.yaml             # Default config
-│       ├── config.go              # LoadConfig()
-│       ├── routes.go              # Module factory + Register()
-│       ├── internal/
-│       │   ├── handler/           # HTTP handlers
-│       │   └── service/           # Business logic
-│       └── migrations/            # App-specific SQL
 ├── cmd/xin/                       # Entry point
-│   └── main.go                    # Config load, app registry, framework.Run()
-├── config/
-│   └── config.yaml                # System config
-└── migrations/
-    ├── 001_framework_init.sql     # Core tables
-    ├── 002_cms_create_posts.sql   # CMS tables
-    └── 003_search_indexes.sql     # Performance indexes
+├── config/                        # System config
+└── migrations/                   # SQL migrations (001-003)
 ```
 
 ## Key Interfaces
@@ -81,9 +68,14 @@ type Module interface {
     Register(public, protected *gin.RouterGroup)
     Shutdown() error
 }
+
+type SimpleModule struct { Name_, Init_, Register_, Shutdown_ func(...) }
+func NewModule(name string, fn func(*gin.RouterGroup, *gin.RouterGroup)) *SimpleModule
+func Register(m Module)
+func All() []Module
 ```
 
-### SessionManager Interface (`pkg/session/session.go`)
+### SessionManager (`pkg/session/session.go`)
 ```go
 type SessionManager interface {
     Create(sessionID string, userID, tenantID uint, role string, ttl time.Duration) error
@@ -100,9 +92,40 @@ type XinContext struct {
     SessionID string
     Role      string
 }
-func New(c *gin.Context) *XinContext  // reads from request context
+func New(c *gin.Context) *XinContext
 xc.GetUserID() / xc.GetTenantID() / xc.GetSessionID() / xc.GetRole()
 ```
+
+### Permission Interfaces (`pkg/permission/interfaces.go`)
+```go
+type PermissionRepository interface {
+    GetUserPermissions(ctx context.Context, userID uint) (map[string]bool, error)
+    GetUserRoles(ctx context.Context, userID uint) ([]string, error)
+}
+
+type DataScopeRepository interface {
+    GetDataScope(ctx context.Context, userID uint) (*DataScope, error)
+    GetUserOrgID(ctx context.Context, userID uint) (int64, error)
+    GetByRoleID(ctx context.Context, roleID uint) ([]uint, error)
+    SetForRole(ctx context.Context, roleID uint, orgIDs []uint) error
+}
+```
+
+## Built-in Modules (11 total)
+
+| Module | Path | Purpose | Key Routes |
+|--------|------|---------|------------|
+| auth | internal/module/auth | Login/Logout/Register/Refresh | POST /login, /register, /refresh |
+| tenant | internal/module/tenant | Tenant CRUD | GET/POST/PUT/DELETE /tenants |
+| user | internal/module/user | User queries | GET /users, /users/:id, PUT /users/:id/status |
+| menu | internal/module/menu | Menu hierarchy (ltree) | GET /menus, /menus/tree |
+| dict | internal/module/dict | Dictionary data | GET/POST/PUT/DELETE /dicts |
+| role | internal/module/role | Role CRUD + data scopes | CRUD /roles, GET/PUT /roles/:id/data-scopes |
+| resource | internal/module/resource | Button permissions | CRUD /resources, GET /resources/by-menu/:menu_id |
+| organization | internal/module/organization | Org tree | CRUD /organizations, GET /organizations/tree |
+| permission | internal/module/permission | Role-permission assignment | GET/POST/PUT /roles/:id/permissions |
+| system | internal/module/system | Health check | GET /health |
+| weixin | internal/module/weixin | WeChat stub | GET /weixin/ping |
 
 ## Startup Flow
 
@@ -118,7 +141,7 @@ framework.Run(cfg)
   → runMigrations()                 # migrate.Run("migrations")
   → setupRouter(app)               # middleware chain + route registration
   → srv.Start(addr)                # HTTP server start
-  → waitForSignal(srv, app)       # signal.Notify → srv.Shutdown() → boot.Shutdown(app)
+  → waitForSignal(srv, app)        # signal.Notify → srv.Shutdown() → boot.Shutdown(app)
 ```
 
 ## Dependency Injection
@@ -126,57 +149,66 @@ framework.Run(cfg)
 ### boot.App (`internal/core/boot/boot.go`)
 ```go
 type App struct {
-    Config     *config.Config
-    DB         *pgxpool.Pool
-    Repository *repository.Provider  // all repos
-    SessionMgr session.SessionManager
-    Server     *server.XinServer
+    Config       *config.Config
+    DB           *pgxpool.Pool
+    Repository   *repository.Provider
+    SessionMgr   session.SessionManager
+    Server       *server.XinServer
+    PermService  *service.PermissionService
 }
 ```
 
 ### Repository Provider (`pkg/repository/repository.go`)
-- Created in `boot.Init()` via `repository.NewProvider(db.Get())`
-- Stored globally via `repository.Init(provider)` for backward compatibility
-- CMS app accesses via `repository.User()` / `repository.Tenant()`
-
-### SessionManager (`pkg/session/session.go`)
-- Redis impl: `NewRedisSessionManager()` when `cache.Get() != nil`
-- DB impl: `NewDBSessionManager(db.Get())` otherwise
-- Stored globally via `session.Init(sm)`
+- `User() / Tenant() / Account() / Role() / Menu() / Resource() / Organization()`
+- `Permission() / DataScope()`
+- Created via `NewProvider(pool)` in `boot.Init()`
 
 ### Builtin Module Handlers (`framework/framework.go`)
 ```go
 var builtinHandlers = map[string]builtinHandlerBuilder{
-    "user": func(app *boot.App) interface{} {
-        repos := user.Repositories{
-            Account: app.Repository.Account(),
-            Tenant:  app.Repository.Tenant(),
-            Role:    app.Repository.Role(),
-            User:    app.Repository.User(),
-        }
-        deps := user.DefaultDependencies(app.Config, app.DB, repos)
-        return user.NewHandler(user.NewService(deps))
+    "auth": func(app *boot.App) interface{} {
+        repos := auth.Repositories{Account: ..., Tenant: ..., Role: ..., User: ...}
+        deps := auth.DefaultDependencies(app.Config, app.DB, repos)
+        return auth.NewHandler(auth.NewService(deps))
     },
-    "tenant": func(app *boot.App) interface{} {
-        return tenant.NewHandler(tenant.NewService(app.Repository.Tenant()))
+    "role": func(app *boot.App) interface{} {
+        return role.NewHandler(role.NewService(app.Repository.Role(), app.Repository.DataScope()))
     },
+    "permission": func(app *boot.App) interface{} {
+        permRepo := repository.NewRolePermissionRepository(app.DB)
+        return permission.NewHandler(permission.NewService(app.DB, permRepo, app.Repository.Menu(), app.Repository.Resource()))
+    },
+    // dict, menu, organization, resource, tenant, user
 }
 ```
 
 ## Middleware Chain (order matters)
 
 ```
-1. Recovery()     — panic recovery, must be first to catch all downstream panics
-2. RequestID()    — X-Request-ID generation/propagation, runs early
+1. Recovery()     — panic recovery, must be first
+2. RequestID()    — X-Request-ID generation/propagation
 3. CORS()        — Cross-origin resource sharing + OPTIONS preflight
 4. Logger()      — Request logging (after RequestID set)
 5. Tenant()      — Tenant isolation via SET app.tenant_id = ?
 6. [protected routes] → Auth(cfg, sm) — JWT validation + session check
 ```
 
-## Context System
+## Permission System
 
-**Auth middleware sets XinContext** (`middleware/middleware.go`):
+**Permission format**: `"resource_code:action"` (e.g., `"user:create"`, `"*:*"` for super admin)
+
+**RBAC flow**: `users → user_roles → roles → permissions → resources`
+
+**Data scope types** (`pkg/permission/types.go`):
+| Value | Name | Description |
+|-------|------|-------------|
+| 1 | DataScopeAll | All data in tenant |
+| 2 | DataScopeCustom | Only specified org_ids (from role_data_scopes) |
+| 3 | DataScopeDept | Only user's department (org_id) |
+| 4 | DataScopeDeptAndBelow | User's dept + all descendant depts |
+| 5 | DataScopeSelf | Only own records |
+
+**Auth middleware** sets `UserContext`:
 ```go
 xc := context.New(c)
 xc.SetUserID(claims.UserID)
@@ -184,46 +216,18 @@ xc.SetTenantID(claims.TenantID)
 xc.SetSessionID(claims.SessionID)
 xc.SetRole(claims.Role)
 c.Request = c.Request.WithContext(context.WithXinContext(c.Request.Context(), xc))
-c.Set("user_id", claims.UserID)   // also set on gin.Context for compatibility
 ```
 
-**Handlers read via XinContext** (`pkg/context/context.go`):
-```go
-xc := context.New(c)
-userID := xc.GetUserID()
-```
+## Tenant Isolation Modes
 
-## Plugin System
+| Mode | Behavior |
+|------|----------|
+| `single` | No tenant_id constraint (single-tenant) |
+| `saas` | RLS enforces tenant_id = current_setting('app.tenant_id') |
+| `schema` | Each tenant has own schema, RLS not needed |
+| `database` | Each tenant has own DB, RLS not needed |
 
-**Two types of modules:**
-
-1. **Built-in modules** (`framework/internal/module/*`) - Always loaded (system, auth, user), others via `module:` config
-2. **External apps** (`apps/*`) - Registered in `main.go` moduleRegistry, enabled via `apps:` config
-
-**Registration:**
-```go
-// cmd/xin/main.go
-var moduleRegistry = map[string]func() plugin.Module{
-    "cms": cms.Module,
-}
-
-for _, app := range cfg.Apps {
-    if factory, ok := moduleRegistry[app]; ok {
-        framework.RegisterModule(factory())
-    }
-}
-framework.Run(cfg)
-```
-
-**CMS app structure** (`apps/cms/`):
-```
-config.go       → LoadConfig() + Config struct
-routes.go       → Module() returns plugin.Module, Register() wires routes
-internal/
-  handler/      → thin HTTP handlers, delegates to service
-  service/      → business logic, uses repository.User()/Tenant()
-migrations/     → app-specific SQL
-```
+**RLS policies** use `current_setting('app.tenant_id')` and `current_setting('app.mode')`.
 
 ## Configuration System
 
@@ -238,8 +242,6 @@ Config loads from `config/config.yaml`, overrides with `XIN_*` env vars.
 | SaaS | `XIN_SAAS_*` | `XIN_SAAS_MODE=saas` |
 | Module Config | `XIN_<NAME>_*` | `XIN_CMS_POST_PER_PAGE=20` |
 
-Module config: `config.LoadModule("cms", &cfg)` looks for `config/cms.yaml` or `cms:` section in `config.yaml`.
-
 ## API Response Format
 
 Unified response: `{"code": 0, "msg": "ok", "data": {...}}`
@@ -253,13 +255,57 @@ Unified response: `{"code": 0, "msg": "ok", "data": {...}}`
 | `BadRequest` | 400 | 400 |
 | `NotFound` | 404 | 404 |
 | `ServerError` | 500 | 500 |
-| `Paginate` | 200 | 0 |
 
 ## Database Conventions
 
-- Tables use `BIGSERIAL PRIMARY KEY` / `BIGINT GENERATED ALWAYS AS IDENTITY`
+- Tables use `BIGSERIAL PRIMARY KEY` or `BIGINT GENERATED ALWAYS AS IDENTITY`
 - All tables have `created_at`, `updated_at`, `is_deleted`
 - Tenant tables include `tenant_id` + partial index `WHERE is_deleted = FALSE`
 - Use `TIMESTAMPTZ` (not `TIMESTAMP`)
 - Migrations tracked in `_schema_migrations` table
-- `users`/`tenants` table indexes created with privilege check (skip if not owner)
+- `ltree` extension for hierarchical data (menus, organizations)
+- `pg_trgm` extension for ILIKE fuzzy search
+
+## Plugin System
+
+**Two types of modules:**
+
+1. **Built-in modules** (`framework/internal/module/*`) - Always loaded unless disabled via `module:` config
+2. **External apps** (`apps/*`) - Registered in `main.go` moduleRegistry, enabled via `apps:` config
+
+**CMS app structure** (`apps/cms/`):
+```
+config.go       → LoadConfig() + Config struct
+routes.go       → Module() returns plugin.Module, Register() wires routes
+internal/
+  handler/      → thin HTTP handlers, delegates to service
+  service/      → business logic, uses repository.User()/Tenant()
+migrations/     → app-specific SQL
+```
+
+## Tables (21 in 001_framework_init.sql)
+
+| Table | Purpose |
+|-------|---------|
+| tenants | SaaS multi-tenant core |
+| accounts | Global cross-tenant account (phone/email/password) |
+| account_auths | Third-party OAuth (WeChat, QQ, Weibo) |
+| organizations | Org tree structure (ltree) |
+| users | Tenant-scoped user, links account_id to tenant |
+| roles | RBAC role with data_scope |
+| role_data_scopes | Custom org IDs per role |
+| user_roles | Many-to-many user-role |
+| menus | Navigation menu items with ltree |
+| resources | Button/operation permissions |
+| routes | API route permissions |
+| permissions | Role-to-resource assignment |
+| dicts | System data dictionaries |
+| dict_items | Dictionary items |
+| db_logs | Audit log |
+| subscriptions | Tenant subscription plans |
+| plans | SaaS billing plans |
+| usage_records | Tenant resource usage tracking |
+| ai_documents | AI knowledge base |
+| auth_sessions | Session persistence fallback |
+| tenant_user_seq | Auto-increment user_code per tenant |
+| account_roles | Platform-level roles (super_admin) |
