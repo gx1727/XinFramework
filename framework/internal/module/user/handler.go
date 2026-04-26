@@ -21,8 +21,8 @@ func (h *Handler) List(c *gin.Context) {
 		return
 	}
 
-	xc := context.New(c)
-	tenantID := xc.GetTenantID()
+	ctx := context.New(c)
+	tenantID := ctx.GetTenantID()
 
 	list, total, err := h.svc.List(c.Request.Context(), tenantID, req)
 	if err != nil {
@@ -45,8 +45,8 @@ func (h *Handler) Get(c *gin.Context) {
 		return
 	}
 
-	xc := context.New(c)
-	tenantID := xc.GetTenantID()
+	ctx := context.New(c)
+	tenantID := ctx.GetTenantID()
 
 	info, err := h.svc.Get(c.Request.Context(), tenantID, req.ID)
 	if err != nil {
@@ -64,8 +64,8 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	xc := context.New(c)
-	tenantID := xc.GetTenantID()
+	ctx := context.New(c)
+	tenantID := ctx.GetTenantID()
 
 	if err := h.svc.UpdateStatus(c.Request.Context(), tenantID, req.ID, req.Status); err != nil {
 		resp.HandleError(c, err)

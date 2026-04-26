@@ -23,8 +23,8 @@ type listResponse struct {
 }
 
 func (h *Handler) List(c *gin.Context) {
-	xc := context.New(c)
-	tenantID := xc.GetTenantID()
+	ctx := context.New(c)
+	tenantID := ctx.GetTenantID()
 
 	list, total, err := h.repo.List(c.Request.Context(), tenantID)
 	if err != nil {
@@ -36,8 +36,8 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
-	xc := context.New(c)
-	tenantID := xc.GetTenantID()
+	ctx := context.New(c)
+	tenantID := ctx.GetTenantID()
 	dictCode := c.Param("code")
 
 	d, ok := dict.Get(tenantID, dictCode)
@@ -54,8 +54,8 @@ func (h *Handler) Get(c *gin.Context) {
 // 接收HTTP请求，解析JSON参数，调用仓储层创建字典，
 // 刷新字典缓存并返回创建结果
 func (h *Handler) Create(c *gin.Context) {
-	xc := context.New(c)
-	tenantID := xc.GetTenantID()
+	ctx := context.New(c)
+	tenantID := ctx.GetTenantID()
 
 	var req dict.DictCreate
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -74,8 +74,8 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
-	xc := context.New(c)
-	tenantID := xc.GetTenantID()
+	ctx := context.New(c)
+	tenantID := ctx.GetTenantID()
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
@@ -101,8 +101,8 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
-	xc := context.New(c)
-	tenantID := xc.GetTenantID()
+	ctx := context.New(c)
+	tenantID := ctx.GetTenantID()
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
@@ -119,8 +119,8 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) CreateItem(c *gin.Context) {
-	xc := context.New(c)
-	tenantID := xc.GetTenantID()
+	ctx := context.New(c)
+	tenantID := ctx.GetTenantID()
 	dictCode := c.Param("code")
 
 	var req dict.DictItemCreate
@@ -146,8 +146,8 @@ func (h *Handler) CreateItem(c *gin.Context) {
 }
 
 func (h *Handler) UpdateItem(c *gin.Context) {
-	xc := context.New(c)
-	tenantID := xc.GetTenantID()
+	ctx := context.New(c)
+	tenantID := ctx.GetTenantID()
 	idStr := c.Param("item_id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
@@ -174,8 +174,8 @@ func (h *Handler) UpdateItem(c *gin.Context) {
 }
 
 func (h *Handler) DeleteItem(c *gin.Context) {
-	xc := context.New(c)
-	tenantID := xc.GetTenantID()
+	ctx := context.New(c)
+	tenantID := ctx.GetTenantID()
 	idStr := c.Param("item_id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {

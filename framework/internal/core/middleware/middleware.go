@@ -92,15 +92,13 @@ func Auth(cfg *config.JWTConfig, sm session.SessionManager) gin.HandlerFunc {
 			return
 		}
 
-		xc := context.New(c)
-		xc.SetUserID(claims.UserID)
-		xc.SetTenantID(claims.TenantID)
-		xc.SetSessionID(claims.SessionID)
-		xc.SetRole(claims.Role)
+		ctx := context.New(c)
+		ctx.SetUserID(claims.UserID)
+		ctx.SetTenantID(claims.TenantID)
+		ctx.SetSessionID(claims.SessionID)
+		ctx.SetRole(claims.Role)
 
-		// 存入 request context（推荐方式）
-		c.Request = c.Request.WithContext(context.WithXinContext(c.Request.Context(), xc))
-		// 兼容 gin.Context 方式（外部模块使用）
+		c.Request = c.Request.WithContext(context.WithXinContext(c.Request.Context(), ctx))
 		c.Set("user_id", claims.UserID)
 		c.Set("tenant_id", claims.TenantID)
 		c.Set("session_id", claims.SessionID)
@@ -132,9 +130,9 @@ func Tenant(mode string) gin.HandlerFunc {
 		if tenantIDStr := c.GetHeader("X-Tenant-ID"); tenantIDStr != "" {
 			if tenantID, err := strconv.ParseUint(tenantIDStr, 10, 64); err == nil {
 				tid := uint(tenantID)
-				xc := context.New(c)
-				xc.SetTenantID(tid)
-				c.Request = c.Request.WithContext(context.WithTenantID(context.WithXinContext(c.Request.Context(), xc), tid))
+				ctx := context.New(c)
+				ctx.SetTenantID(tid)
+				c.Request = c.Request.WithContext(context.WithTenantID(context.WithXinContext(c.Request.Context(), ctx), tid))
 				c.Set("tenant_id", tid)
 			}
 		}

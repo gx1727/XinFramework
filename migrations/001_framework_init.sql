@@ -507,25 +507,6 @@ COMMENT ON COLUMN db_logs.table_name IS '操作的表名';
 COMMENT ON COLUMN db_logs.detail IS '操作详情（JSONB）';
 COMMENT ON COLUMN db_logs.created_at IS '操作时间';
 
-DROP TABLE IF EXISTS tenant_users;
-CREATE TABLE tenant_users
-(
-    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    tenant_id  BIGINT NOT NULL,
-    user_id    BIGINT NOT NULL,
-    role       VARCHAR(64),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    is_deleted BOOLEAN     DEFAULT FALSE
-);
-CREATE UNIQUE INDEX uk_tenant_user ON tenant_users (tenant_id, user_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_tenant_users_tenant ON tenant_users (tenant_id) WHERE is_deleted = FALSE;
-
-COMMENT ON TABLE tenant_users IS '租户用户关联表 - 用户在多个租户中的角色';
-COMMENT ON COLUMN tenant_users.id IS '关联ID';
-COMMENT ON COLUMN tenant_users.tenant_id IS '租户ID';
-COMMENT ON COLUMN tenant_users.user_id IS '用户ID';
-COMMENT ON COLUMN tenant_users.role IS '在该租户中的角色';
 
 DROP TABLE IF EXISTS subscriptions;
 CREATE TABLE subscriptions
@@ -688,8 +669,6 @@ ALTER TABLE dicts
     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dict_items
     ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tenant_users
-    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscriptions
     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE usage_records
@@ -847,20 +826,6 @@ CREATE POLICY tenant_isolation_policy ON dicts
     )
     );
 CREATE POLICY tenant_isolation_policy ON dict_items
-    USING (
-    (
-        current_setting('app.mode') = 'single'
-        OR (
-            current_setting('app.mode') = 'saas'
-            AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
-        )
-    )
-    AND (
-        is_deleted = FALSE
-        OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
-    )
-    );
-CREATE POLICY tenant_isolation_policy ON tenant_users
     USING (
     (
         current_setting('app.mode') = 'single'

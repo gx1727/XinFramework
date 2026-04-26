@@ -23,10 +23,10 @@ func (h *Handler) Ping(c *gin.Context) {
 }
 
 func (h *Handler) GetCurrentUser(c *gin.Context) {
-	xc := context.New(c)
-	userID := xc.GetUserID()
-	tenantID := xc.GetTenantID()
-	role := xc.GetRole()
+	ctx := context.New(c)
+	userID := ctx.GetUserID()
+	tenantID := ctx.GetTenantID()
+	role := ctx.GetRole()
 
 	if userID == 0 {
 		resp.Error(c, 401, "unauthorized")
@@ -53,8 +53,8 @@ func (h *Handler) GetCurrentUser(c *gin.Context) {
 }
 
 func (h *Handler) ListUsers(c *gin.Context) {
-	xc := context.New(c)
-	tenantID := xc.GetTenantID()
+	ctx := context.New(c)
+	tenantID := ctx.GetTenantID()
 	if tenantID == 0 {
 		resp.Error(c, 400, "tenant_id is required")
 		return
@@ -77,8 +77,8 @@ func (h *Handler) ListUsers(c *gin.Context) {
 }
 
 func (h *Handler) GetTenant(c *gin.Context) {
-	xc := context.New(c)
-	tenantID := xc.GetTenantID()
+	ctx := context.New(c)
+	tenantID := ctx.GetTenantID()
 	if tenantID == 0 {
 		resp.Error(c, 400, "tenant_id is required")
 		return
