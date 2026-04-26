@@ -14,6 +14,7 @@ type Provider struct {
 	roleRepo     model.RoleRepository
 	menuRepo     model.MenuRepository
 	resourceRepo model.ResourceRepository
+	cmsPostRepo  model.CmsPostRepository
 }
 
 var defaultProvider *Provider
@@ -27,6 +28,7 @@ func NewProvider(pool *pgxpool.Pool) *Provider {
 		roleRepo:     repository.NewRoleRepository(pool),
 		menuRepo:     repository.NewMenuRepository(pool),
 		resourceRepo: repository.NewResourceRepository(pool),
+		cmsPostRepo:  repository.NewCmsPostRepository(pool),
 	}
 }
 
@@ -56,6 +58,10 @@ func (p *Provider) Menu() model.MenuRepository {
 
 func (p *Provider) Resource() model.ResourceRepository {
 	return p.resourceRepo
+}
+
+func (p *Provider) CmsPost() model.CmsPostRepository {
+	return p.cmsPostRepo
 }
 
 func User() model.UserRepository {
@@ -98,4 +104,11 @@ func Resource() model.ResourceRepository {
 		return nil
 	}
 	return defaultProvider.Resource()
+}
+
+func CmsPost() model.CmsPostRepository {
+	if defaultProvider == nil {
+		return nil
+	}
+	return defaultProvider.CmsPost()
 }
