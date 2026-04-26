@@ -12,9 +12,9 @@ func Register(protected *gin.RouterGroup, h *Handler) {
 	protected.PUT("/dicts/:id", h.Update)
 	protected.DELETE("/dicts/:id", h.Delete)
 
-	protected.POST("/dicts/:code/items", h.CreateItem)
-	protected.PUT("/dicts/:code/items/:item_id", h.UpdateItem)
-	protected.DELETE("/dicts/:code/items/:item_id", h.DeleteItem)
+	protected.POST("/dicts/:id/items", h.CreateItem)
+	protected.PUT("/dicts/:id/items/:item_id", h.UpdateItem)
+	protected.DELETE("/dicts/:id/items/:item_id", h.DeleteItem)
 }
 
 func Module(h *Handler) plugin.Module {

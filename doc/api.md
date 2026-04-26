@@ -697,7 +697,7 @@ Authorization: Bearer <token>
 
 ---
 
-#### POST /dicts/:code/items - 创建字典项
+#### POST /dicts/:id/items - 创建字典项
 
 **请求参数:**
 ```json
@@ -726,7 +726,7 @@ Authorization: Bearer <token>
 
 ---
 
-#### PUT /dicts/:code/items/:item_id - 更新字典项
+#### PUT /dicts/:id/items/:item_id - 更新字典项
 
 **请求参数:**
 ```json
@@ -750,7 +750,7 @@ Authorization: Bearer <token>
 
 ---
 
-#### DELETE /dicts/:code/items/:item_id - 删除字典项
+#### DELETE /dicts/:id/items/:item_id - 删除字典项
 
 **响应示例:**
 ```json

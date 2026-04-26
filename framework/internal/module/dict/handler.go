@@ -121,7 +121,12 @@ func (h *Handler) Delete(c *gin.Context) {
 func (h *Handler) CreateItem(c *gin.Context) {
 	ctx := context.New(c)
 	tenantID := ctx.GetTenantID()
-	dictCode := c.Param("code")
+	idStr := c.Param("id")
+	dictID, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		resp.BadRequest(c, "无效的字典ID")
+		return
+	}
 
 	var req dict.DictItemCreate
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -129,19 +134,12 @@ func (h *Handler) CreateItem(c *gin.Context) {
 		return
 	}
 
-	d, ok := dict.Get(tenantID, dictCode)
-	if !ok {
-		resp.NotFound(c, "字典不存在")
-		return
-	}
-
-	item, err := h.repo.CreateItem(c.Request.Context(), tenantID, d.ID, req)
+	item, err := h.repo.CreateItem(c.Request.Context(), tenantID, uint(dictID), req)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
 	}
 
-	dict.RefreshDict(c.Request.Context(), tenantID, dictCode)
 	resp.Success(c, item)
 }
 
