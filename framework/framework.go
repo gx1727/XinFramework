@@ -9,10 +9,17 @@ import (
 	"gx1727.com/xin/framework/internal/core/boot"
 	"gx1727.com/xin/framework/internal/core/middleware"
 	"gx1727.com/xin/framework/internal/module/auth"
+	"gx1727.com/xin/framework/internal/module/dict"
 	"gx1727.com/xin/framework/internal/module/menu"
+	"gx1727.com/xin/framework/internal/module/organization"
+	"gx1727.com/xin/framework/internal/module/permission"
+	"gx1727.com/xin/framework/internal/module/resource"
+	"gx1727.com/xin/framework/internal/module/role"
 	"gx1727.com/xin/framework/internal/module/tenant"
 	"gx1727.com/xin/framework/internal/module/user"
+	"gx1727.com/xin/framework/internal/repository"
 	"gx1727.com/xin/framework/pkg/config"
+	dictpkg "gx1727.com/xin/framework/pkg/dict"
 	"gx1727.com/xin/framework/pkg/migrate"
 	"gx1727.com/xin/framework/pkg/plugin"
 )
@@ -122,11 +129,16 @@ func setupRouter(app *boot.App) {
 	handlers := buildBuiltinHandlers(app)
 
 	v1.RegisterRoutes(srv.Engine, cfg, app.SessionMgr, v1.Dependencies{
-		AuthHandler:   handlers["auth"].(*auth.Handler),
-		TenantHandler: handlers["tenant"].(*tenant.Handler),
-		UserHandler:   handlers["user"].(*user.Handler),
-		MenuHandler:   handlers["menu"].(*menu.Handler),
-		PermService:   app.PermService,
+		AuthHandler:         handlers["auth"].(*auth.Handler),
+		TenantHandler:       handlers["tenant"].(*tenant.Handler),
+		UserHandler:         handlers["user"].(*user.Handler),
+		MenuHandler:         handlers["menu"].(*menu.Handler),
+		DictHandler:         handlers["dict"].(*dict.Handler),
+		RoleHandler:         handlers["role"].(*role.Handler),
+		ResourceHandler:     handlers["resource"].(*resource.Handler),
+		OrganizationHandler: handlers["organization"].(*organization.Handler),
+		PermHandler:         handlers["permission"].(*permission.Handler),
+		PermService:         app.PermService,
 	})
 }
 
@@ -152,6 +164,22 @@ var builtinHandlers = map[string]builtinHandlerBuilder{
 	},
 	"menu": func(app *boot.App) interface{} {
 		return menu.NewHandler(menu.NewService(app.Repository.Menu()))
+	},
+	"dict": func(app *boot.App) interface{} {
+		return dict.NewHandler(dictpkg.NewRepository(app.DB))
+	},
+	"role": func(app *boot.App) interface{} {
+		return role.NewHandler(role.NewService(app.Repository.Role(), app.Repository.DataScope()))
+	},
+	"resource": func(app *boot.App) interface{} {
+		return resource.NewHandler(resource.NewService(app.Repository.Resource(), app.Repository.Menu()))
+	},
+	"organization": func(app *boot.App) interface{} {
+		return organization.NewHandler(organization.NewService(app.Repository.Organization()))
+	},
+	"permission": func(app *boot.App) interface{} {
+		permRepo := repository.NewRolePermissionRepository(app.DB)
+		return permission.NewHandler(permission.NewService(app.DB, permRepo, app.Repository.Menu(), app.Repository.Resource()))
 	},
 }
 

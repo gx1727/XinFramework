@@ -310,7 +310,7 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 		return nil, ErrRegisterFailed
 	}
 
-	roles, err := s.roleRepo.List(ctx, req.TenantID)
+	roles, _, err := s.roleRepo.List(ctx, req.TenantID, "", 1, 100)
 	if err != nil {
 		return nil, ErrRegisterFailed
 	}

@@ -39,10 +39,14 @@ type UserRepository interface {
 type Role struct {
 	ID          uint      `json:"id"`
 	TenantID    uint      `json:"tenant_id"`
-	Name        string    `json:"name"`
+	OrgID       uint      `json:"org_id"`
 	Code        string    `json:"code"`
+	Name        string    `json:"name"`
 	Description string    `json:"description"`
+	DataScope   int8      `json:"data_scope"`
+	Extend      string    `json:"extend"`
 	IsDefault   bool      `json:"is_default"`
+	Sort        int       `json:"sort"`
 	Status      int8      `json:"status"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -53,7 +57,31 @@ type RoleRepository interface {
 	GetByID(ctx context.Context, id uint) (*Role, error)
 	GetByCode(ctx context.Context, tenantID uint, code string) (*Role, error)
 	GetUserRoles(ctx context.Context, userID uint) ([]Role, error)
-	List(ctx context.Context, tenantID uint) ([]Role, error)
+	List(ctx context.Context, tenantID uint, keyword string, page, size int) ([]Role, int64, error)
+	Create(ctx context.Context, tenantID uint, req CreateRoleRepoReq) (*Role, error)
+	Update(ctx context.Context, id uint, req UpdateRoleRepoReq) (*Role, error)
+	Delete(ctx context.Context, id uint) error
+}
+
+// CreateRoleRepoReq fields for role creation
+type CreateRoleRepoReq struct {
+	Code        string
+	Name        string
+	Description string
+	DataScope   int8
+	IsDefault   bool
+	Sort        int
+	Status      int8
+}
+
+// UpdateRoleRepoReq fields for role update
+type UpdateRoleRepoReq struct {
+	Name        string
+	Description string
+	DataScope   int8
+	IsDefault   bool
+	Sort        int
+	Status      int8
 }
 
 // ============ Account Repository ============
@@ -112,6 +140,60 @@ type TenantRepository interface {
 	Create(ctx context.Context, code, name, contact, phone, email string) (*Tenant, error)
 	Update(ctx context.Context, id uint, name, contact, phone, email, province, city, area, address string) (*Tenant, error)
 	Delete(ctx context.Context, id uint) error
+}
+
+// ============ Organization Repository ============
+
+// Organization represents an organization entity
+type Organization struct {
+	ID          uint      `json:"id"`
+	TenantID    uint      `json:"tenant_id"`
+	Code        string    `json:"code"`
+	Name        string    `json:"name"`
+	Type        string    `json:"type"`
+	Description string    `json:"description"`
+	AdminCode   string    `json:"admin_code"`
+	ParentID    uint      `json:"parent_id"`
+	Ancestors   string    `json:"ancestors"`
+	Sort        int       `json:"sort"`
+	Status      int8      `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// OrganizationRepository defines data access operations for organizations
+type OrganizationRepository interface {
+	GetByID(ctx context.Context, id uint) (*Organization, error)
+	GetByCode(ctx context.Context, tenantID uint, code string) (*Organization, error)
+	GetByTenant(ctx context.Context, tenantID uint) ([]Organization, error)
+	GetChildren(ctx context.Context, parentID uint) ([]Organization, error)
+	GetTree(ctx context.Context, tenantID uint) ([]Organization, error)
+	Create(ctx context.Context, tenantID uint, req CreateOrgRepoReq) (*Organization, error)
+	Update(ctx context.Context, id uint, req UpdateOrgRepoReq) (*Organization, error)
+	Delete(ctx context.Context, id uint) error
+}
+
+// CreateOrgRepoReq fields for organization creation
+type CreateOrgRepoReq struct {
+	Code        string
+	Name        string
+	Type        string
+	Description string
+	AdminCode   string
+	ParentID    uint
+	Ancestors   string
+	Sort        int
+	Status      int8
+}
+
+// UpdateOrgRepoReq fields for organization update
+type UpdateOrgRepoReq struct {
+	Name        string
+	Type        string
+	Description string
+	AdminCode   string
+	Sort        int
+	Status      int8
 }
 
 // ============ Menu Repository ============
@@ -183,7 +265,10 @@ type Resource struct {
 	MenuID      uint      `json:"menu_id"`
 	Code        string    `json:"code"`
 	Name        string    `json:"name"`
+	Action      string    `json:"action"`
 	Description string    `json:"description"`
+	Sort        int       `json:"sort"`
+	Status      int8      `json:"status"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -193,7 +278,31 @@ type ResourceRepository interface {
 	GetByID(ctx context.Context, id uint) (*Resource, error)
 	GetByCode(ctx context.Context, tenantID uint, code string) (*Resource, error)
 	GetByTenant(ctx context.Context, tenantID uint) ([]Resource, error)
+	GetByMenu(ctx context.Context, menuID uint) ([]Resource, error)
 	GetUserResources(ctx context.Context, tenantID, userID uint) ([]Resource, error)
+	Create(ctx context.Context, tenantID uint, req CreateResourceRepoReq) (*Resource, error)
+	Update(ctx context.Context, id uint, req UpdateResourceRepoReq) (*Resource, error)
+	Delete(ctx context.Context, id uint) error
+}
+
+// CreateResourceRepoReq fields for resource creation
+type CreateResourceRepoReq struct {
+	MenuID      uint
+	Code        string
+	Name        string
+	Action      string
+	Description string
+	Sort        int
+	Status      int8
+}
+
+// UpdateResourceRepoReq fields for resource update
+type UpdateResourceRepoReq struct {
+	Name        string
+	Action      string
+	Description string
+	Sort        int
+	Status      int8
 }
 
 // ============ CmsPost Repository ============

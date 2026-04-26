@@ -239,6 +239,31 @@ func (r *PostgresResourceRepository) GetByTenant(ctx context.Context, tenantID u
 	return resources, nil
 }
 
+func (r *PostgresResourceRepository) GetByMenu(ctx context.Context, menuID uint) ([]model.Resource, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT id, tenant_id, menu_id, code, name, description, created_at, updated_at
+		FROM resources
+		WHERE is_deleted = FALSE AND menu_id = $1
+		ORDER BY sort ASC, id ASC`, menuID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var resources []model.Resource
+	for rows.Next() {
+		var res model.Resource
+		if err := rows.Scan(
+			&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Description,
+			&res.CreatedAt, &res.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		resources = append(resources, res)
+	}
+	return resources, nil
+}
+
 func (r *PostgresResourceRepository) GetUserResources(ctx context.Context, tenantID, userID uint) ([]model.Resource, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT DISTINCT r.id, r.tenant_id, r.menu_id, r.code, r.name, r.description, r.created_at, r.updated_at
@@ -264,4 +289,53 @@ func (r *PostgresResourceRepository) GetUserResources(ctx context.Context, tenan
 		resources = append(resources, res)
 	}
 	return resources, nil
+}
+
+func (r *PostgresResourceRepository) Create(ctx context.Context, tenantID uint, req model.CreateResourceRepoReq) (*model.Resource, error) {
+	var res model.Resource
+	err := r.db.QueryRow(ctx, `
+		INSERT INTO resources (tenant_id, menu_id, code, name, action, description, sort, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id, tenant_id, menu_id, code, name, description, created_at, updated_at
+	`, tenantID, req.MenuID, req.Code, req.Name, req.Action, req.Description, req.Sort, req.Status).Scan(
+		&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Description,
+		&res.CreatedAt, &res.UpdatedAt,
+	)
+	if err != nil {
+		if strings.Contains(err.Error(), "uk_resource_code") {
+			return nil, errors.New("resource code already exists")
+		}
+		return nil, fmt.Errorf("create resource: %w", err)
+	}
+	return &res, nil
+}
+
+func (r *PostgresResourceRepository) Update(ctx context.Context, id uint, req model.UpdateResourceRepoReq) (*model.Resource, error) {
+	var res model.Resource
+	err := r.db.QueryRow(ctx, `
+		UPDATE resources SET name = $2, action = $3, description = $4, sort = $5, status = $6, updated_at = NOW()
+		WHERE is_deleted = FALSE AND id = $1
+		RETURNING id, tenant_id, menu_id, code, name, description, created_at, updated_at
+	`, id, req.Name, req.Action, req.Description, req.Sort, req.Status).Scan(
+		&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Description,
+		&res.CreatedAt, &res.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, model.ErrResourceNotFound
+		}
+		return nil, fmt.Errorf("update resource: %w", err)
+	}
+	return &res, nil
+}
+
+func (r *PostgresResourceRepository) Delete(ctx context.Context, id uint) error {
+	tag, err := r.db.Exec(ctx, `UPDATE resources SET is_deleted = TRUE, updated_at = NOW() WHERE is_deleted = FALSE AND id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("delete resource: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return model.ErrResourceNotFound
+	}
+	return nil
 }

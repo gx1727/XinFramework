@@ -152,3 +152,58 @@ func (r *PostgresDataScopeRepository) GetUserOrgID(ctx context.Context, userID u
 	}
 	return orgID, nil
 }
+
+// GetByRoleID returns org_ids for a role's custom data scope
+func (r *PostgresDataScopeRepository) GetByRoleID(ctx context.Context, roleID uint) ([]uint, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT org_id FROM role_data_scopes WHERE role_id = $1
+	`, roleID)
+	if err != nil {
+		return nil, fmt.Errorf("get role data scopes: %w", err)
+	}
+	defer rows.Close()
+
+	var orgIDs []uint
+	for rows.Next() {
+		var oid int64
+		if err := rows.Scan(&oid); err != nil {
+			return nil, err
+		}
+		orgIDs = append(orgIDs, uint(oid))
+	}
+	return orgIDs, nil
+}
+
+// SetForRole replaces all data scopes for a role
+func (r *PostgresDataScopeRepository) SetForRole(ctx context.Context, roleID uint, orgIDs []uint) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Delete existing
+	_, err = tx.Exec(ctx, `DELETE FROM role_data_scopes WHERE role_id = $1`, roleID)
+	if err != nil {
+		return fmt.Errorf("delete existing: %w", err)
+	}
+
+	// Get tenant_id for the role
+	var tenantID int64
+	err = tx.QueryRow(ctx, `SELECT tenant_id FROM roles WHERE id = $1`, roleID).Scan(&tenantID)
+	if err != nil {
+		return fmt.Errorf("get tenant_id: %w", err)
+	}
+
+	// Insert new
+	for _, orgID := range orgIDs {
+		_, err = tx.Exec(ctx, `
+			INSERT INTO role_data_scopes (tenant_id, role_id, org_id) VALUES ($1, $2, $3)
+		`, tenantID, roleID, orgID)
+		if err != nil {
+			return fmt.Errorf("insert data scope: %w", err)
+		}
+	}
+
+	return tx.Commit(ctx)
+}

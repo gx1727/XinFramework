@@ -20,6 +20,12 @@ type DataScopeRepository interface {
 
 	// GetUserOrgID returns the user's organization ID
 	GetUserOrgID(ctx context.Context, userID uint) (int64, error)
+
+	// GetByRoleID returns org_ids for a role's custom data scope
+	GetByRoleID(ctx context.Context, roleID uint) ([]uint, error)
+
+	// SetForRole replaces all data scopes for a role
+	SetForRole(ctx context.Context, roleID uint, orgIDs []uint) error
 }
 
 // PermissionCache defines caching operations for permissions
