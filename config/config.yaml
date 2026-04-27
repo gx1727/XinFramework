@@ -69,6 +69,7 @@ module:
 
 apps:
   - cms
+  - flag
 
 cors:
   enabled: true
