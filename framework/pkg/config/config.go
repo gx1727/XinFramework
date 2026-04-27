@@ -12,12 +12,27 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type StorageConfig struct {
+	Provider string `yaml:"provider"` // local | cos
+	
+	// Local storage
+	LocalDir     string `yaml:"local_dir"`
+	LocalBaseURL string `yaml:"local_base_url"`
+
+	// COS storage
+	CosURL       string `yaml:"cos_url"`        // https://<bucket>.cos.<region>.myqcloud.com
+	CosSecretID  string `yaml:"cos_secret_id"`
+	CosSecretKey string `yaml:"cos_secret_key"`
+	CosBaseURL   string `yaml:"cos_base_url"`   // https://img.gx1727.com
+}
+
 type Config struct {
 	App      AppConfig      `yaml:"app"`
 	Database DatabaseConfig `yaml:"database"`
 	Redis    RedisConfig    `yaml:"redis"`
 	JWT      JWTConfig      `yaml:"jwt"`
 	Saas     SaasConfig     `yaml:"saas"`
+	Storage  StorageConfig  `yaml:"storage"`
 	Log      LogConfig      `yaml:"log"`
 	Module   []string       `yaml:"module"`
 	Apps     []string       `yaml:"apps"`
@@ -133,6 +148,11 @@ func defaults() *Config {
 		Saas: SaasConfig{
 			Mode: "shared",
 		},
+		Storage: StorageConfig{
+			Provider:     "local",
+			LocalDir:     "./uploads",
+			LocalBaseURL: "/uploads",
+		},
 		CORS: CORSConfig{
 			Enabled:          true,
 			AllowOrigins:     []string{"*"},
@@ -236,6 +256,14 @@ func overrideWithEnv(c *Config) {
 	envInt("XIN_JWT_REFRESH_EXPIRE", &c.JWT.RefreshExpire)
 
 	envStr("XIN_SAAS_MODE", &c.Saas.Mode)
+
+	envStr("XIN_STORAGE_PROVIDER", &c.Storage.Provider)
+	envStr("XIN_STORAGE_LOCAL_DIR", &c.Storage.LocalDir)
+	envStr("XIN_STORAGE_LOCAL_BASE_URL", &c.Storage.LocalBaseURL)
+	envStr("XIN_STORAGE_COS_URL", &c.Storage.CosURL)
+	envStr("XIN_STORAGE_COS_SECRET_ID", &c.Storage.CosSecretID)
+	envStr("XIN_STORAGE_COS_SECRET_KEY", &c.Storage.CosSecretKey)
+	envStr("XIN_STORAGE_COS_BASE_URL", &c.Storage.CosBaseURL)
 
 	envBool("XIN_CORS_ENABLED", &c.CORS.Enabled)
 	if origins := os.Getenv("XIN_CORS_ALLOW_ORIGINS"); origins != "" {

@@ -41,6 +41,15 @@ jwt:
 saas:
   mode: saas # single | saas | schema | database
 
+storage:
+  provider: cos # local | cos
+  local_dir: ./uploads
+  local_base_url: /uploads
+  cos_url: https://xin-1303413944.cos.ap-shanghai.myqcloud.com
+  cos_secret_id: ""  # 通过环境变量 XIN_STORAGE_COS_SECRET_ID 注入
+  cos_secret_key: "" # 通过环境变量 XIN_STORAGE_COS_SECRET_KEY 注入
+  cos_base_url: https://img.gx1727.com
+
 log:
   dir: logs
   level: info # debug | info | warn | error

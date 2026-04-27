@@ -24,6 +24,8 @@ import (
 	dictpkg "gx1727.com/xin/framework/pkg/dict"
 	"gx1727.com/xin/framework/pkg/migrate"
 	"gx1727.com/xin/framework/pkg/plugin"
+	"gx1727.com/xin/framework/pkg/storage"
+	storage_cos "gx1727.com/xin/framework/pkg/storage/cos"
 	storage_local "gx1727.com/xin/framework/pkg/storage/local"
 )
 
@@ -152,10 +154,27 @@ type builtinHandlerBuilder func(*boot.App) interface{}
 
 var builtinHandlers = map[string]builtinHandlerBuilder{
 	"asset": func(app *boot.App) interface{} {
-		// Default local storage logic for asset
-		// In a real scenario, baseDir and baseURL should be read from app.Config
-		localStorage := storage_local.NewLocalStorage("./uploads", "/uploads")
-		svc := asset.NewFileService(localStorage, app.Repository.Attachment())
+		var s storage.Storage
+		var err error
+
+		if app.Config.Storage.Provider == "cos" {
+			s, err = storage_cos.NewCosStorage(storage_cos.Config{
+				URL:       app.Config.Storage.CosURL,
+				SecretID:  app.Config.Storage.CosSecretID,
+				SecretKey: app.Config.Storage.CosSecretKey,
+				BaseURL:   app.Config.Storage.CosBaseURL,
+			})
+			if err != nil {
+				log.Fatalf("failed to init cos storage: %v", err)
+			}
+		} else {
+			s = storage_local.NewLocalStorage(
+				app.Config.Storage.LocalDir,
+				app.Config.Storage.LocalBaseURL,
+			)
+		}
+
+		svc := asset.NewFileService(s, app.Repository.Attachment())
 		return asset.NewFileHandler(svc)
 	},
 	"auth": func(app *boot.App) interface{} {
