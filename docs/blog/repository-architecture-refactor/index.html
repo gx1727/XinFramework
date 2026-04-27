@@ -1,0 +1,243 @@
+<!DOCTYPE html><html lang="zh-CN" data-astro-cid-bvzihdzo> <head><!-- Global Metadata --><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="generator" content="Astro v6.1.9"><meta name="author" content="xin"><!-- Favicon --><link rel="icon" type="image/svg+xml" href="/favicon.svg"><link rel="icon" href="/favicon.ico"><!-- Canonical URL --><link rel="canonical" href="https://gx1727.github.io/XinFramework/blog/repository-architecture-refactor/"><!-- Primary Meta Tags --><title>记一次 Repository 架构重构：让 apps 也能调用 framework 接口 | xin</title><meta name="title" content="记一次 Repository 架构重构：让 apps 也能调用 framework 接口 | xin"><meta name="description" content="XinFramework 开发过程中，如何让 apps 插件调用 framework 数据访问接口的架构设计记录。"><!-- Open Graph / Facebook --><meta property="og:type" content="website"><meta property="og:url" content="https://gx1727.github.io/XinFramework/blog/repository-architecture-refactor/"><meta property="og:title" content="记一次 Repository 架构重构：让 apps 也能调用 framework 接口 | xin"><meta property="og:description" content="XinFramework 开发过程中，如何让 apps 插件调用 framework 数据访问接口的架构设计记录。"><meta property="og:image" content="https://gx1727.github.io/XinFramework/_astro/blog-placeholder-1.Bx0Zcyzv.jpg"><meta property="og:site_name" content="xin"><!-- Twitter --><meta property="twitter:card" content="summary_large_image"><meta property="twitter:url" content="https://gx1727.github.io/XinFramework/blog/repository-architecture-refactor/"><meta property="twitter:title" content="记一次 Repository 架构重构：让 apps 也能调用 framework 接口 | xin"><meta property="twitter:description" content="XinFramework 开发过程中，如何让 apps 插件调用 framework 数据访问接口的架构设计记录。"><meta property="twitter:image" content="https://gx1727.github.io/XinFramework/_astro/blog-placeholder-1.Bx0Zcyzv.jpg"><!-- Sitemap & RSS --><link rel="sitemap" href="/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="xin" href="https://gx1727.github.io/rss.xml"><!-- Fonts --><style>@font-face{font-family:Atkinson-c7f4c4e8b285552f;src:url("/XinFramework/_astro/fonts/79c35adb9432c5c6.woff") format("woff");font-display:swap;font-weight:400;font-style:normal;}@font-face{font-family:Atkinson-c7f4c4e8b285552f;src:url("/XinFramework/_astro/fonts/adc55d72c19ebaf9.woff") format("woff");font-display:swap;font-weight:700;font-style:normal;}@font-face{font-family:"Atkinson-c7f4c4e8b285552f fallback: Arial";src:local("Arial");font-display:swap;font-weight:400;font-style:normal;size-adjust:99.3717%;ascent-override:80.1033%;descent-override:25.2587%;line-gap-override:0%;}@font-face{font-family:"Atkinson-c7f4c4e8b285552f fallback: Arial";src:local("Arial");font-display:swap;font-weight:700;font-style:normal;size-adjust:99.3717%;ascent-override:80.1033%;descent-override:25.2587%;line-gap-override:0%;}:root{--font-atkinson:Atkinson-c7f4c4e8b285552f,"Atkinson-c7f4c4e8b285552f fallback: Arial",sans-serif;}</style><link rel="preload" href="/XinFramework/_astro/fonts/79c35adb9432c5c6.woff" as="font" type="font/woff" crossorigin><link rel="preload" href="/XinFramework/_astro/fonts/adc55d72c19ebaf9.woff" as="font" type="font/woff" crossorigin><!-- Theme Color (for mobile browsers) --><meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)"><meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><!-- Preconnect to external resources --><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="/XinFramework/_astro/Header.BHjm0pna.css">
+<style>main[data-astro-cid-bvzihdzo]{width:calc(100% - 2em);max-width:100%;margin:0}.hero-image[data-astro-cid-bvzihdzo]{width:100%;padding:0}.hero-image[data-astro-cid-bvzihdzo] img[data-astro-cid-bvzihdzo]{display:block;margin:0 auto;border-radius:12px;box-shadow:var(--shadow-lg)}.prose[data-astro-cid-bvzihdzo]{width:720px;max-width:calc(100% - 2em);margin:auto;padding:1em 1em 3em;color:var(--text-primary)}.title[data-astro-cid-bvzihdzo]{margin-bottom:1em;padding:2em 0;text-align:center;line-height:1.2}.title[data-astro-cid-bvzihdzo] h1[data-astro-cid-bvzihdzo]{margin:.5em 0;font-size:2em}.date[data-astro-cid-bvzihdzo]{margin-bottom:.5em;color:var(--text-muted);font-size:.9em}.last-updated-on[data-astro-cid-bvzihdzo]{font-style:italic;font-size:.85em;color:var(--text-muted)}
+</style></head> <body data-astro-cid-bvzihdzo> <header data-astro-cid-3ef6ksr2> <nav data-astro-cid-3ef6ksr2> <div class="nav-left" data-astro-cid-3ef6ksr2> <a href="/" class="logo-link" data-astro-cid-3ef6ksr2> <svg width="60" height="24" viewBox="0 0 100 40" fill="none" xmlns="http://www.w3.org/2000/svg" class="logo" data-astro-cid-tvrurpns> <text x="0" y="32" font-family="system-ui, -apple-system, sans-serif" font-size="32" font-weight="700" fill="currentColor" data-astro-cid-tvrurpns>
+xin
+</text> </svg> </a> </div> <div class="nav-center" data-astro-cid-3ef6ksr2> <a href="/" data-astro-cid-3ef6ksr2="true" data-astro-cid-eimmu3lg> 首页 </a> <a href="/blog" class="active" data-astro-cid-3ef6ksr2="true" data-astro-cid-eimmu3lg> 博客 </a> <a href="/about" data-astro-cid-3ef6ksr2="true" data-astro-cid-eimmu3lg> 关于 </a> </div> <div class="nav-right" data-astro-cid-3ef6ksr2> <button id="theme-toggle" class="theme-toggle" aria-label="切换主题" title="切换明暗主题" data-astro-cid-x3pjskd3> <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-x3pjskd3> <circle cx="12" cy="12" r="5" data-astro-cid-x3pjskd3></circle> <line x1="12" y1="1" x2="12" y2="3" data-astro-cid-x3pjskd3></line> <line x1="12" y1="21" x2="12" y2="23" data-astro-cid-x3pjskd3></line> <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" data-astro-cid-x3pjskd3></line> <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" data-astro-cid-x3pjskd3></line> <line x1="1" y1="12" x2="3" y2="12" data-astro-cid-x3pjskd3></line> <line x1="21" y1="12" x2="23" y2="12" data-astro-cid-x3pjskd3></line> <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" data-astro-cid-x3pjskd3></line> <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" data-astro-cid-x3pjskd3></line> </svg> <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-x3pjskd3> <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" data-astro-cid-x3pjskd3></path> </svg> </button> <script type="module">function m(){const e=document.getElementById("theme-toggle");if(!e)return;const n=localStorage.getItem("theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",n),e.addEventListener("click",()=>{const t=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";document.documentElement.setAttribute("data-theme",t),localStorage.setItem("theme",t)})}m();document.addEventListener("astro:after-swap",m);</script> <a href="https://github.com/gx1727/XinFramework" target="_blank" rel="noopener noreferrer" class="github-link" title="GitHub" data-astro-cid-3ef6ksr2> <svg viewBox="0 0 16 16" width="24" height="24" aria-hidden="true" data-astro-cid-3ef6ksr2> <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z" data-astro-cid-3ef6ksr2></path> </svg> </a> </div> </nav> </header> <main data-astro-cid-bvzihdzo> <article data-astro-cid-bvzihdzo>  <div class="prose" data-astro-cid-bvzihdzo> <div class="title" data-astro-cid-bvzihdzo> <div class="date" data-astro-cid-bvzihdzo> <time datetime="2026-04-25T00:00:00.000Z"> Apr 25, 2026 </time>  </div> <h1 data-astro-cid-bvzihdzo>记一次 Repository 架构重构：让 apps 也能调用 framework 接口</h1> <hr data-astro-cid-bvzihdzo> </div>  <h1 id="记一次-repository-架构重构让-apps-也能调用-framework-接口">记一次 Repository 架构重构：让 apps 也能调用 framework 接口</h1>
+<h2 id="背景">背景</h2>
+<p>今天继续完善 XinFramework 框架，期间遇到了一个架构设计问题，记录一下发现、思考、解决的全过程。</p>
+<hr>
+<h2 id="一发现问题provider-会无限膨胀">一、发现问题：Provider 会无限膨胀</h2>
+<p>写代码时发现，每新增一个 Model（如 Post、Category、Order），都要改三处地方：</p>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="go"><code><span class="line"><span style="color:#6A737D">// 1. pkg/model/interfaces.go → 加 Entity + Repository 接口</span></span>
+<span class="line"><span style="color:#6A737D">// 2. internal/repository/ → 加 PostgreSQL 实现</span></span>
+<span class="line"><span style="color:#6A737D">// 3. pkg/repository/repository.go → Provider 加字段 + getter + 包级函数</span></span></code></pre>
+<p>这让我思考：<strong>Provider 会无限膨胀，是否需要用泛型注册表方案？</strong></p>
+<h3 id="收益比分析">收益比分析</h3>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>维度</th><th>当前方案（手动注册）</th><th>泛型注册表</th></tr></thead><tbody><tr><td>新增 model 改动处</td><td>3 处</td><td>2 处</td></tr><tr><td>每次节省代码</td><td>—</td><td>~5 行</td></tr><tr><td>编译时类型安全</td><td>✅ 100%</td><td>⚠️ 运行时 panic 风险</td></tr><tr><td>IDE 补全</td><td>✅ 一目了然</td><td>❌ 不直观</td></tr><tr><td>调试难度</td><td>✅ 编译器报错</td><td>❌ 运行时 nil panic</td></tr></tbody></table>
+<p><strong>结论</strong>：在我的项目规模下（10-20 个 repo），手动注册的代价是每 1-2 个月写 5 行代码，而泛型注册表带来的隐式风险远超这 5 行的收益。</p>
+<blockquote>
+<p>Provider struct 的字段列表本身就是一份活文档，告诉所有人系统有哪些数据访问能力。</p>
+</blockquote>
+<hr>
+<h2 id="二新问题apps-无法调用-framework-的接口">二、新问题：apps 无法调用 framework 的接口</h2>
+<p>写 CMS 插件时，发现 <code>apps/cms</code> 无法访问 <code>internal</code> 中的 User 模型功能。</p>
+<p>这是 Go 语言的设计特性：<strong><code>internal</code> 目录是私有的，只能被同一个模块内的代码访问</strong>。</p>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>framework/internal/     → 仅框架内部，外部无法访问</span></span>
+<span class="line"><span>framework/pkg/         → 可被外部模块使用</span></span>
+<span class="line"><span>apps/                  → 独立模块，无法 import internal</span></span></code></pre>
+<h3 id="思考apps-如何调用-user-数据">思考：apps 如何调用 User 数据？</h3>
+<p>当时想到几个方案：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>方案</th><th>说明</th><th>评价</th></tr></thead><tbody><tr><td>A. apps 直接写 SQL</td><td>简单直接</td><td>⚠️ 重复逻辑</td></tr><tr><td>B. 暴露实现到 pkg</td><td>把 internal/repository 复制到 pkg</td><td>✅ 复用</td></tr></tbody></table>
+<p>但这里涉及一个核心问题：<strong>DRY 原则</strong>。</p>
+<blockquote>
+<p>系统中，每一段知识、逻辑、功能，在系统内必须有且仅有唯一、权威的实现位置。</p>
+</blockquote>
+<p>如果 <code>internal/repository</code> 和 <code>pkg/repository</code> 都写 SQL，就是违背 DRY。应该让 <code>pkg/repository</code> <strong>复用</strong> <code>internal/repository</code> 的实现。</p>
+<hr>
+<h2 id="三解决分层架构设计">三、解决：分层架构设计</h2>
+<p>最终设计如下：</p>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>framework/</span></span>
+<span class="line"><span>├── pkg/</span></span>
+<span class="line"><span>│   ├── model/</span></span>
+<span class="line"><span>│   │   └── interfaces.go     # Repository 接口定义（稳定 API）</span></span>
+<span class="line"><span>│   └── repository/</span></span>
+<span class="line"><span>│       └── repository.go     # 暴露给 apps 的入口</span></span>
+<span class="line"><span>└── internal/</span></span>
+<span class="line"><span>    └── repository/           # 内部实现（SQL 逻辑只写一次）</span></span>
+<span class="line"><span>        ├── user_repository.go</span></span>
+<span class="line"><span>        ├── tenant_repository.go</span></span>
+<span class="line"><span>        └── ...</span></span></code></pre>
+<h3 id="架构分层职责">架构分层职责</h3>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>层级</th><th>位置</th><th>职责</th></tr></thead><tbody><tr><td>接口定义</td><td><code>pkg/model/interfaces.go</code></td><td>供框架内部实现，也供外部参考</td></tr><tr><td>接口实现</td><td><code>internal/repository/</code></td><td>框架内部使用，复用 SQL 逻辑</td></tr><tr><td>业务模块</td><td><code>internal/module/</code></td><td>调用 Repository</td></tr><tr><td>业务插件</td><td><code>apps/*</code></td><td>调用 <code>pkg/repository</code></td></tr></tbody></table>
+<h3 id="pkgrepository-调用-internalrepository">pkg/repository 调用 internal/repository</h3>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="go"><code><span class="line"><span style="color:#6A737D">// framework/pkg/repository/user.go</span></span>
+<span class="line"><span style="color:#F97583">package</span><span style="color:#B392F0"> repository</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">import</span><span style="color:#9ECBFF"> "</span><span style="color:#B392F0">gx1727.com/xin/framework/internal/repository</span><span style="color:#9ECBFF">"</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// User 返回 UserRepository 实例</span></span>
+<span class="line"><span style="color:#F97583">func</span><span style="color:#B392F0"> User</span><span style="color:#E1E4E8">() </span><span style="color:#B392F0">model</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">UserRepository</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">    return</span><span style="color:#E1E4E8"> internal_user.</span><span style="color:#B392F0">NewUserRepository</span><span style="color:#E1E4E8">()</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span></code></pre>
+<p>这样：</p>
+<ul>
+<li><strong>SQL 逻辑只写一次</strong>（在 internal/repository）</li>
+<li><strong>apps 可以调用</strong>（通过 pkg/repository）</li>
+<li><strong>DRY 原则得以遵守</strong></li>
+</ul>
+<hr>
+<h2 id="四额外收获repository-模式-vs-直接写-sql">四、额外收获：Repository 模式 vs 直接写 SQL</h2>
+<p>在探索过程中，也理清了 Repository 模式的一些疑问：</p>
+<h3 id="1-handler-中直接写-sql-好不好">1. Handler 中直接写 SQL 好不好？</h3>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>方式</th><th>适用场景</th></tr></thead><tbody><tr><td>直接写 SQL</td><td>小项目、微服务、快速原型</td></tr><tr><td>Repository 模式</td><td>中大型项目、需要测试、多数据源</td></tr></tbody></table>
+<p><strong>我的选择</strong>：</p>
+<ul>
+<li>framework 核心代码：用 Repository 模式（长期维护）</li>
+<li>apps 业务代码：可以直接写 SQL（灵活快速）</li>
+</ul>
+<h3 id="2-repository-模式有性能损耗吗">2. Repository 模式有性能损耗吗？</h3>
+<p><strong>没有明显性能损耗。</strong> Go 的接口调用是静态绑定，编译时已确定具体实现，不存在 Java 那样的虚函数表查找开销。</p>
+<hr>
+<h2 id="五最终效果">五、最终效果</h2>
+<p>现在 apps/cms 可以这样调用：</p>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="go"><code><span class="line"><span style="color:#F97583">import</span><span style="color:#E1E4E8"> (</span></span>
+<span class="line"><span style="color:#9ECBFF">    "</span><span style="color:#B392F0">gx1727.com/xin/framework/pkg/model</span><span style="color:#9ECBFF">"</span></span>
+<span class="line"><span style="color:#9ECBFF">    "</span><span style="color:#B392F0">gx1727.com/xin/framework/pkg/repository</span><span style="color:#9ECBFF">"</span></span>
+<span class="line"><span style="color:#E1E4E8">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">func</span><span style="color:#E1E4E8"> (</span><span style="color:#FFAB70">h </span><span style="color:#F97583">*</span><span style="color:#B392F0">Handler</span><span style="color:#E1E4E8">) </span><span style="color:#B392F0">GetUser</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">c</span><span style="color:#F97583"> *</span><span style="color:#B392F0">gin</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Context</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#E1E4E8">    ctx </span><span style="color:#F97583">:=</span><span style="color:#E1E4E8"> c.Request.</span><span style="color:#B392F0">Context</span><span style="color:#E1E4E8">()</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#E1E4E8">    user, err </span><span style="color:#F97583">:=</span><span style="color:#E1E4E8"> repository.</span><span style="color:#B392F0">User</span><span style="color:#E1E4E8">().</span><span style="color:#B392F0">GetByID</span><span style="color:#E1E4E8">(ctx, userID)</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> err </span><span style="color:#F97583">==</span><span style="color:#E1E4E8"> model.ErrUserNotFound {</span></span>
+<span class="line"><span style="color:#6A737D">        // 处理未找到</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span></code></pre>
+<h3 id="可用的-repository-方法">可用的 Repository 方法</h3>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>调用</th><th>功能</th></tr></thead><tbody><tr><td><code>repository.User().GetByID(ctx, id)</code></td><td>获取用户</td></tr><tr><td><code>repository.User().List(ctx, tenantID, keyword, page, size)</code></td><td>用户列表</td></tr><tr><td><code>repository.Tenant().GetByID(ctx, id)</code></td><td>获取租户</td></tr><tr><td><code>repository.Account().GetByID(ctx, id)</code></td><td>获取账号</td></tr><tr><td><code>repository.Role().GetUserRoles(ctx, userID)</code></td><td>用户角色</td></tr></tbody></table>
+<hr>
+<h2 id="六总结">六、总结</h2>
+<p>今天的重构解决了一个关键问题：<strong>如何让 apps 调用 framework 的数据访问接口</strong>。</p>
+<p>核心设计原则：</p>
+<ol>
+<li><strong>DRY 优先</strong>：SQL 逻辑只写一次</li>
+<li><strong>分层明确</strong>：internal 实现，pkg 暴露</li>
+<li><strong>灵活适用</strong>：framework 用 Repository，apps 可以直接 SQL</li>
+<li><strong>不过度设计</strong>：当前规模不需要泛型注册表</li>
+</ol>
+<p>一个好的架构不是”一步到位”，而是<strong>持续演进、解决实际问题</strong>。</p>  </div> </article> </main> <footer data-astro-cid-sz7xmlte> <div class="footer-content" data-astro-cid-sz7xmlte> <div class="footer-brand" data-astro-cid-sz7xmlte> <span class="brand-name" data-astro-cid-sz7xmlte>xin</span> <span class="brand-desc" data-astro-cid-sz7xmlte>轻量的 Go SaaS 基础框架</span> </div> <div class="footer-links" data-astro-cid-sz7xmlte> <a href="https://github.com/gx1727/XinFramework" target="_blank" rel="noopener noreferrer" data-astro-cid-sz7xmlte> <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true" data-astro-cid-sz7xmlte> <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z" data-astro-cid-sz7xmlte></path> </svg>
+GitHub
+</a> </div> <div class="footer-copyright" data-astro-cid-sz7xmlte>
+&copy; 2026 xin. MIT License.
+</div> </div> </footer> </body></html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html><html lang="zh-CN" data-astro-cid-bvzihdzo> <head><!-- Global Metadata --><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="generator" content="Astro v6.1.9"><meta name="author" content="xin"><!-- Favicon --><link rel="icon" type="image/svg+xml" href="/favicon.svg"><link rel="icon" href="/favicon.ico"><!-- Canonical URL --><link rel="canonical" href="https://gx1727.github.io/XinFramework/blog/permission-system-design-2026-04-26/"><!-- Primary Meta Tags --><title>XinFramework 权限系统设计笔记 | xin</title><meta name="title" content="XinFramework 权限系统设计笔记 | xin"><meta name="description" content="记录 XinFramework 开发过程中关于 REST API 设计、HTTP 状态码、Token 机制和 RBAC 权限系统的深度讨论。"><!-- Open Graph / Facebook --><meta property="og:type" content="website"><meta property="og:url" content="https://gx1727.github.io/XinFramework/blog/permission-system-design-2026-04-26/"><meta property="og:title" content="XinFramework 权限系统设计笔记 | xin"><meta property="og:description" content="记录 XinFramework 开发过程中关于 REST API 设计、HTTP 状态码、Token 机制和 RBAC 权限系统的深度讨论。"><meta property="og:image" content="https://gx1727.github.io/XinFramework/_astro/blog-placeholder-1.Bx0Zcyzv.jpg"><meta property="og:site_name" content="xin"><!-- Twitter --><meta property="twitter:card" content="summary_large_image"><meta property="twitter:url" content="https://gx1727.github.io/XinFramework/blog/permission-system-design-2026-04-26/"><meta property="twitter:title" content="XinFramework 权限系统设计笔记 | xin"><meta property="twitter:description" content="记录 XinFramework 开发过程中关于 REST API 设计、HTTP 状态码、Token 机制和 RBAC 权限系统的深度讨论。"><meta property="twitter:image" content="https://gx1727.github.io/XinFramework/_astro/blog-placeholder-1.Bx0Zcyzv.jpg"><!-- Sitemap & RSS --><link rel="sitemap" href="/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="xin" href="https://gx1727.github.io/rss.xml"><!-- Fonts --><style>@font-face{font-family:Atkinson-c7f4c4e8b285552f;src:url("/XinFramework/_astro/fonts/79c35adb9432c5c6.woff") format("woff");font-display:swap;font-weight:400;font-style:normal;}@font-face{font-family:Atkinson-c7f4c4e8b285552f;src:url("/XinFramework/_astro/fonts/adc55d72c19ebaf9.woff") format("woff");font-display:swap;font-weight:700;font-style:normal;}@font-face{font-family:"Atkinson-c7f4c4e8b285552f fallback: Arial";src:local("Arial");font-display:swap;font-weight:400;font-style:normal;size-adjust:99.3717%;ascent-override:80.1033%;descent-override:25.2587%;line-gap-override:0%;}@font-face{font-family:"Atkinson-c7f4c4e8b285552f fallback: Arial";src:local("Arial");font-display:swap;font-weight:700;font-style:normal;size-adjust:99.3717%;ascent-override:80.1033%;descent-override:25.2587%;line-gap-override:0%;}:root{--font-atkinson:Atkinson-c7f4c4e8b285552f,"Atkinson-c7f4c4e8b285552f fallback: Arial",sans-serif;}</style><link rel="preload" href="/XinFramework/_astro/fonts/79c35adb9432c5c6.woff" as="font" type="font/woff" crossorigin><link rel="preload" href="/XinFramework/_astro/fonts/adc55d72c19ebaf9.woff" as="font" type="font/woff" crossorigin><!-- Theme Color (for mobile browsers) --><meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)"><meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><!-- Preconnect to external resources --><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="/XinFramework/_astro/Header.BHjm0pna.css">
+<style>main[data-astro-cid-bvzihdzo]{width:calc(100% - 2em);max-width:100%;margin:0}.hero-image[data-astro-cid-bvzihdzo]{width:100%;padding:0}.hero-image[data-astro-cid-bvzihdzo] img[data-astro-cid-bvzihdzo]{display:block;margin:0 auto;border-radius:12px;box-shadow:var(--shadow-lg)}.prose[data-astro-cid-bvzihdzo]{width:720px;max-width:calc(100% - 2em);margin:auto;padding:1em 1em 3em;color:var(--text-primary)}.title[data-astro-cid-bvzihdzo]{margin-bottom:1em;padding:2em 0;text-align:center;line-height:1.2}.title[data-astro-cid-bvzihdzo] h1[data-astro-cid-bvzihdzo]{margin:.5em 0;font-size:2em}.date[data-astro-cid-bvzihdzo]{margin-bottom:.5em;color:var(--text-muted);font-size:.9em}.last-updated-on[data-astro-cid-bvzihdzo]{font-style:italic;font-size:.85em;color:var(--text-muted)}
+</style></head> <body data-astro-cid-bvzihdzo> <header data-astro-cid-3ef6ksr2> <nav data-astro-cid-3ef6ksr2> <div class="nav-left" data-astro-cid-3ef6ksr2> <a href="/" class="logo-link" data-astro-cid-3ef6ksr2> <svg width="60" height="24" viewBox="0 0 100 40" fill="none" xmlns="http://www.w3.org/2000/svg" class="logo" data-astro-cid-tvrurpns> <text x="0" y="32" font-family="system-ui, -apple-system, sans-serif" font-size="32" font-weight="700" fill="currentColor" data-astro-cid-tvrurpns>
+xin
+</text> </svg> </a> </div> <div class="nav-center" data-astro-cid-3ef6ksr2> <a href="/" data-astro-cid-3ef6ksr2="true" data-astro-cid-eimmu3lg> 首页 </a> <a href="/blog" class="active" data-astro-cid-3ef6ksr2="true" data-astro-cid-eimmu3lg> 博客 </a> <a href="/about" data-astro-cid-3ef6ksr2="true" data-astro-cid-eimmu3lg> 关于 </a> </div> <div class="nav-right" data-astro-cid-3ef6ksr2> <button id="theme-toggle" class="theme-toggle" aria-label="切换主题" title="切换明暗主题" data-astro-cid-x3pjskd3> <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-x3pjskd3> <circle cx="12" cy="12" r="5" data-astro-cid-x3pjskd3></circle> <line x1="12" y1="1" x2="12" y2="3" data-astro-cid-x3pjskd3></line> <line x1="12" y1="21" x2="12" y2="23" data-astro-cid-x3pjskd3></line> <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" data-astro-cid-x3pjskd3></line> <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" data-astro-cid-x3pjskd3></line> <line x1="1" y1="12" x2="3" y2="12" data-astro-cid-x3pjskd3></line> <line x1="21" y1="12" x2="23" y2="12" data-astro-cid-x3pjskd3></line> <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" data-astro-cid-x3pjskd3></line> <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" data-astro-cid-x3pjskd3></line> </svg> <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-x3pjskd3> <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" data-astro-cid-x3pjskd3></path> </svg> </button> <script type="module">function m(){const e=document.getElementById("theme-toggle");if(!e)return;const n=localStorage.getItem("theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",n),e.addEventListener("click",()=>{const t=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";document.documentElement.setAttribute("data-theme",t),localStorage.setItem("theme",t)})}m();document.addEventListener("astro:after-swap",m);</script> <a href="https://github.com/gx1727/XinFramework" target="_blank" rel="noopener noreferrer" class="github-link" title="GitHub" data-astro-cid-3ef6ksr2> <svg viewBox="0 0 16 16" width="24" height="24" aria-hidden="true" data-astro-cid-3ef6ksr2> <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z" data-astro-cid-3ef6ksr2></path> </svg> </a> </div> </nav> </header> <main data-astro-cid-bvzihdzo> <article data-astro-cid-bvzihdzo>  <div class="prose" data-astro-cid-bvzihdzo> <div class="title" data-astro-cid-bvzihdzo> <div class="date" data-astro-cid-bvzihdzo> <time datetime="2026-04-26T00:00:00.000Z"> Apr 26, 2026 </time>  </div> <h1 data-astro-cid-bvzihdzo>XinFramework 权限系统设计笔记</h1> <hr data-astro-cid-bvzihdzo> </div>  <h1 id="xinframework-权限系统设计笔记">XinFramework 权限系统设计笔记</h1>
+<p>今天继续推进 XinFramework 的开发，核心集中在<strong>权限系统的表结构设计</strong>和** API 设计规范**上。记录一些关键的设计决策。</p>
+<hr>
+<h2 id="一rest-api-方法选择">一、REST API 方法选择</h2>
+<h3 id="不要走全-post的偷懒路线">不要走”全 POST”的偷懒路线</h3>
+<p>在设计 CMS 相关接口时，讨论了是否只使用 GET + POST。结论是：<strong>不要</strong>。</p>
+<p>标准 REST 语义：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>方法</th><th>用途</th></tr></thead><tbody><tr><td>GET</td><td>查询</td></tr><tr><td>POST</td><td>创建</td></tr><tr><td>PUT</td><td>全量更新</td></tr><tr><td>PATCH</td><td>部分更新</td></tr><tr><td>DELETE</td><td>删除</td></tr></tbody></table>
+<h3 id="为什么不能全-post">为什么不能全 POST？</h3>
+<ol>
+<li><strong>语义混乱</strong> — <code>/user/update</code> 是改一个字段还是全部？</li>
+<li><strong>缓存/网关能力废掉</strong> — GET 可以天然缓存，全 POST 就没有了</li>
+<li><strong>权限系统更难做</strong> — 无法天然区分 read/write/delete 权限</li>
+<li><strong>前端协作困难</strong> — React Query / TanStack Query 默认按 REST 设计</li>
+</ol>
+<hr>
+<h2 id="二http-状态码设计">二、HTTP 状态码设计</h2>
+<h3 id="结论http-状态码--业务-code-双层结构">结论：HTTP 状态码 + 业务 Code 双层结构</h3>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>类型</th><th>HTTP 状态码</th></tr></thead><tbody><tr><td>成功</td><td>200</td></tr><tr><td>参数错误</td><td>400</td></tr><tr><td>未登录</td><td>401</td></tr><tr><td>无权限</td><td>403</td></tr><tr><td>不存在</td><td>404</td></tr><tr><td>服务器错误</td><td>500</td></tr></tbody></table>
+<p>业务 Code 表达具体错误（如 <code>1001</code> = 用户名已存在）。</p>
+<p>“全 200” 设计只适合网关封装或历史包袱系统，不适合从零搭建的 SaaS。</p>
+<hr>
+<h2 id="三token-刷新机制">三、Token 刷新机制</h2>
+<h3 id="access_token-过期时返回-401">access_token 过期时返回 401</h3>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>错误码</th><th>含义</th><th>前端处理</th></tr></thead><tbody><tr><td>40101</td><td>access_token 过期</td><td>自动刷新</td></tr><tr><td>40102</td><td>refresh_token 过期</td><td>强制登录</td></tr><tr><td>40103</td><td>token 非法</td><td>安全警告</td></tr></tbody></table>
+<hr>
+<h2 id="四权限系统表结构评审">四、权限系统表结构评审</h2>
+<h3 id="当前问题与优化">当前问题与优化</h3>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>问题</th><th>建议</th></tr></thead><tbody><tr><td>tenant_users 表</td><td>删除（冗余设计）</td></tr><tr><td>permissions 表</td><td>改为 ID 模型（resource_id + action）</td></tr><tr><td>roles.scope_orgs (JSONB)</td><td>改为结构化（role_data_scopes 表）</td></tr></tbody></table>
+<h3 id="核心原则">核心原则</h3>
+<blockquote>
+<p><strong>权限不是一张表解决的，而是三层叠加：</strong></p>
+<ul>
+<li>租户隔离（RLS）</li>
+<li>功能权限（RBAC）</li>
+<li>数据范围（Data Scope）</li>
+</ul>
+</blockquote>
+<h3 id="数据权限data-scope">数据权限（Data Scope）</h3>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="go"><code><span class="line"><span style="color:#F97583">type</span><span style="color:#B392F0"> DataScope</span><span style="color:#F97583"> struct</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#E1E4E8">    Type   </span><span style="color:#F97583">int</span><span style="color:#6A737D">     // 1全部 2自定义 3本部门 4本部门及以下 5本人</span></span>
+<span class="line"><span style="color:#E1E4E8">    OrgIDs []</span><span style="color:#F97583">int64</span><span style="color:#6A737D"> // 自定义时使用</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span></code></pre>
+<p>根据 DataScope 动态拼接 SQL：</p>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="go"><code><span class="line"><span style="color:#F97583">func</span><span style="color:#B392F0"> BuildDataScopeSQL</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">u</span><span style="color:#F97583"> *</span><span style="color:#B392F0">UserContext</span><span style="color:#E1E4E8">) (</span><span style="color:#F97583">string</span><span style="color:#E1E4E8">, []</span><span style="color:#B392F0">any</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#F97583">    switch</span><span style="color:#E1E4E8"> u.DataScope.Type {</span></span>
+<span class="line"><span style="color:#F97583">    case</span><span style="color:#79B8FF"> 1</span><span style="color:#E1E4E8">:  </span><span style="color:#F97583">return</span><span style="color:#9ECBFF"> ""</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">nil</span><span style="color:#6A737D">                                    // 全部</span></span>
+<span class="line"><span style="color:#F97583">    case</span><span style="color:#79B8FF"> 3</span><span style="color:#E1E4E8">:  </span><span style="color:#F97583">return</span><span style="color:#9ECBFF"> " AND org_id = $1"</span><span style="color:#E1E4E8">, []</span><span style="color:#B392F0">any</span><span style="color:#E1E4E8">{u.OrgID}        </span><span style="color:#6A737D">// 本部门</span></span>
+<span class="line"><span style="color:#F97583">    case</span><span style="color:#79B8FF"> 4</span><span style="color:#E1E4E8">:  </span><span style="color:#F97583">return</span><span style="color:#E1E4E8"> ltree_query, []</span><span style="color:#B392F0">any</span><span style="color:#E1E4E8">{u.OrgID}               </span><span style="color:#6A737D">// 本部门及以下</span></span>
+<span class="line"><span style="color:#F97583">    case</span><span style="color:#79B8FF"> 5</span><span style="color:#E1E4E8">:  </span><span style="color:#F97583">return</span><span style="color:#9ECBFF"> " AND id = $1"</span><span style="color:#E1E4E8">, []</span><span style="color:#B392F0">any</span><span style="color:#E1E4E8">{u.UserID}           </span><span style="color:#6A737D">// 仅本人</span></span>
+<span class="line"><span style="color:#F97583">    case</span><span style="color:#79B8FF"> 2</span><span style="color:#E1E4E8">:  </span><span style="color:#F97583">return</span><span style="color:#9ECBFF"> " AND org_id = ANY($1)"</span><span style="color:#E1E4E8">, []</span><span style="color:#B392F0">any</span><span style="color:#E1E4E8">{u.DataScope.OrgIDs}</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span></code></pre>
+<hr>
+<h2 id="五澄清tenant_users-表">五、澄清：tenant_users 表</h2>
+<p><strong>结论</strong>：不需要。</p>
+<p>现有模型已经支持多角色：</p>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>accounts 1 --- N users</span></span>
+<span class="line"><span>users N --- 1 tenant</span></span>
+<span class="line"><span>users 1 --- N user_roles</span></span>
+<span class="line"><span>user_roles N --- 1 roles</span></span></code></pre>
+<p>“一个用户多个角色” = <code>user_roles</code> 表，与租户无关。</p>
+<hr>
+<h2 id="总结">总结</h2>
+<p>今天的核心收获：</p>
+<ol>
+<li><strong>API 设计</strong> — 遵循 REST 语义，不用偷懒的全 POST</li>
+<li><strong>HTTP 状态码</strong> — 正确使用 4xx/5xx，让网关和前端都能正确处理</li>
+<li><strong>权限系统</strong> — 三层叠加：RLS + RBAC + DataScope</li>
+<li><strong>表结构</strong> — 删除冗余，用 ID 关联替代字符串 code</li>
+</ol>
+<p>下一步将把这些设计决策落地到代码中。</p>  </div> </article> </main> <footer data-astro-cid-sz7xmlte> <div class="footer-content" data-astro-cid-sz7xmlte> <div class="footer-brand" data-astro-cid-sz7xmlte> <span class="brand-name" data-astro-cid-sz7xmlte>xin</span> <span class="brand-desc" data-astro-cid-sz7xmlte>轻量的 Go SaaS 基础框架</span> </div> <div class="footer-links" data-astro-cid-sz7xmlte> <a href="https://github.com/gx1727/XinFramework" target="_blank" rel="noopener noreferrer" data-astro-cid-sz7xmlte> <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true" data-astro-cid-sz7xmlte> <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z" data-astro-cid-sz7xmlte></path> </svg>
+GitHub
+</a> </div> <div class="footer-copyright" data-astro-cid-sz7xmlte>
+&copy; 2026 xin. MIT License.
+</div> </div> </footer> </body></html>
