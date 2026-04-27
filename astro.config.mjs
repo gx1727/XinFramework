@@ -6,10 +6,14 @@ import { defineConfig, fontProviders } from "astro/config";
 
 // https://astro.build/config
 export default defineConfig({
+  // site 和 base 用于绝对路径部署
+  // 注释掉则使用相对路径（适合任意子目录部署）
+  // site: "https://gx1727.github.io",
+  // base: "/XinFramework",
   site: "https://gx1727.github.io",
+  base: "/XinFramework",
   integrations: [mdx(), sitemap()],
   outDir: "./docs",
-  base: "/XinFramework",
   fonts: [
     {
       provider: fontProviders.local(),
