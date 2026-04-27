@@ -18,6 +18,7 @@ type Provider struct {
 	resourceRepo    model.ResourceRepository
 	orgRepo         model.OrganizationRepository
 	cmsPostRepo     model.CmsPostRepository
+	attachmentRepo  model.AttachmentRepository
 	permRepo        *repository.PostgresPermissionRepository
 	dsRepo          *repository.PostgresDataScopeRepository
 }
@@ -36,6 +37,7 @@ func NewProvider(pool *pgxpool.Pool) *Provider {
 		resourceRepo:    repository.NewResourceRepository(pool),
 		orgRepo:         repository.NewOrganizationRepository(pool),
 		cmsPostRepo:     repository.NewCmsPostRepository(pool),
+		attachmentRepo:  repository.NewAttachmentRepository(pool),
 		permRepo:        repository.NewPermissionRepository(pool),
 		dsRepo:          repository.NewDataScopeRepository(pool),
 	}
@@ -79,6 +81,10 @@ func (p *Provider) Organization() model.OrganizationRepository {
 
 func (p *Provider) CmsPost() model.CmsPostRepository {
 	return p.cmsPostRepo
+}
+
+func (p *Provider) Attachment() model.AttachmentRepository {
+	return p.attachmentRepo
 }
 
 func (p *Provider) Permission() permission.PermissionRepository {
@@ -150,6 +156,13 @@ func CmsPost() model.CmsPostRepository {
 		return nil
 	}
 	return defaultProvider.CmsPost()
+}
+
+func Attachment() model.AttachmentRepository {
+	if defaultProvider == nil {
+		return nil
+	}
+	return defaultProvider.Attachment()
 }
 
 func Permission() permission.PermissionRepository {

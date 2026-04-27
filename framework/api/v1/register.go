@@ -3,6 +3,7 @@ package v1
 import (
 	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/internal/core/middleware"
+	"gx1727.com/xin/framework/internal/module/asset"
 	"gx1727.com/xin/framework/internal/module/auth"
 	"gx1727.com/xin/framework/internal/module/dict"
 	"gx1727.com/xin/framework/internal/module/menu"
@@ -21,6 +22,7 @@ import (
 )
 
 type Dependencies struct {
+	AssetHandler        *asset.FileHandler
 	AuthHandler         *auth.Handler
 	TenantHandler       *tenant.Handler
 	UserHandler         *user.Handler
@@ -36,6 +38,7 @@ type Dependencies struct {
 
 func builtinModules(deps Dependencies) []plugin.Module {
 	return []plugin.Module{
+		asset.Module(deps.AssetHandler),
 		auth.Module(deps.AuthHandler),
 		tenant.Module(deps.TenantHandler),
 		user.Module(deps.UserHandler),

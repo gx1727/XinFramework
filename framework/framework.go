@@ -8,6 +8,7 @@ import (
 	v1 "gx1727.com/xin/framework/api/v1"
 	"gx1727.com/xin/framework/internal/core/boot"
 	"gx1727.com/xin/framework/internal/core/middleware"
+	"gx1727.com/xin/framework/internal/module/asset"
 	"gx1727.com/xin/framework/internal/module/auth"
 	"gx1727.com/xin/framework/internal/module/dict"
 	"gx1727.com/xin/framework/internal/module/menu"
@@ -23,6 +24,7 @@ import (
 	dictpkg "gx1727.com/xin/framework/pkg/dict"
 	"gx1727.com/xin/framework/pkg/migrate"
 	"gx1727.com/xin/framework/pkg/plugin"
+	storage_local "gx1727.com/xin/framework/pkg/storage/local"
 )
 
 const (
@@ -130,6 +132,7 @@ func setupRouter(app *boot.App) {
 	handlers := buildBuiltinHandlers(app)
 
 	v1.RegisterRoutes(srv.Engine, cfg, app.SessionMgr, v1.Dependencies{
+		AssetHandler:        handlers["asset"].(*asset.FileHandler),
 		AuthHandler:         handlers["auth"].(*auth.Handler),
 		TenantHandler:       handlers["tenant"].(*tenant.Handler),
 		UserHandler:         handlers["user"].(*user.Handler),
@@ -148,6 +151,13 @@ func setupRouter(app *boot.App) {
 type builtinHandlerBuilder func(*boot.App) interface{}
 
 var builtinHandlers = map[string]builtinHandlerBuilder{
+	"asset": func(app *boot.App) interface{} {
+		// Default local storage logic for asset
+		// In a real scenario, baseDir and baseURL should be read from app.Config
+		localStorage := storage_local.NewLocalStorage("./uploads", "/uploads")
+		svc := asset.NewFileService(localStorage, app.Repository.Attachment())
+		return asset.NewFileHandler(svc)
+	},
 	"auth": func(app *boot.App) interface{} {
 		repos := auth.Repositories{
 			Account: app.Repository.Account(),

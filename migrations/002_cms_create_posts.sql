@@ -53,18 +53,3 @@ CREATE POLICY tenant_isolation_policy ON cms_posts
         OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
 );
-
--- ============================================
-CREATE POLICY tenant_rw_policy ON users
-FOR SELECT, UPDATE, DELETE
-    USING (...);
-
-CREATE POLICY tenant_insert_policy ON users
-FOR INSERT
-WITH CHECK (
-    current_setting('app.mode') = 'single'
-    OR (
-        current_setting('app.mode') = 'saas'
-        AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
-    )
-);
