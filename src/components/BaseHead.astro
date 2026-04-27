@@ -27,8 +27,8 @@ const pageTitle = title === SITE_TITLE ? SITE_TITLE : `${title} | ${SITE_TITLE}`
 <meta name="author" content={SITE_TITLE} />
 
 <!-- Favicon -->
-<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<link rel="icon" href="/favicon.ico" />
+<link rel="icon" type="image/svg+xml" href={`${Astro.base}/favicon.svg`} />
+<link rel="icon" href={`${Astro.base}/favicon.ico`} />
 
 <!-- Canonical URL -->
 <link rel="canonical" href={canonicalURL} />
@@ -54,7 +54,7 @@ const pageTitle = title === SITE_TITLE ? SITE_TITLE : `${title} | ${SITE_TITLE}`
 <meta property="twitter:image" content={new URL(image.src, Astro.url)} />
 
 <!-- Sitemap & RSS -->
-<link rel="sitemap" href="/sitemap-index.xml" />
+<link rel="sitemap" href={`${Astro.base}/sitemap-index.xml`} />
 <link
 	rel="alternate"
 	type="application/rss+xml"

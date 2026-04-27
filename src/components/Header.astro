@@ -8,14 +8,14 @@ import ThemeToggle from './ThemeToggle.astro';
 <header>
 	<nav>
 		<div class="nav-left">
-			<a href="/" class="logo-link">
+			<a href={`${Astro.base}/`} class="logo-link">
 				<Logo size="sm" />
 			</a>
 		</div>
 		<div class="nav-center">
-			<HeaderLink href="/">首页</HeaderLink>
-			<HeaderLink href="/blog">博客</HeaderLink>
-			<HeaderLink href="/about">关于</HeaderLink>
+			<HeaderLink href={`${Astro.base}/`}>首页</HeaderLink>
+			<HeaderLink href={`${Astro.base}/blog`}>博客</HeaderLink>
+			<HeaderLink href={`${Astro.base}/about`}>关于</HeaderLink>
 		</div>
 		<div class="nav-right">
 			<ThemeToggle />
