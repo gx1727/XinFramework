@@ -298,7 +298,7 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 	}
 	newAccountID = newAccount.ID
 
-	newUserCode, err = generateUserCode(ctx, s.db, req.TenantID, UserCodeFormatSequential)
+	newUserCode, err = generateUserCode(ctx, tx, req.TenantID, UserCodeFormatSequential)
 	if err != nil {
 		return nil, ErrRegisterFailed
 	}
@@ -310,18 +310,13 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 		return nil, ErrRegisterFailed
 	}
 
-	roles, _, err := s.roleRepo.List(ctx, req.TenantID, "", 1, 100)
-	if err != nil {
-		return nil, ErrRegisterFailed
-	}
 	var roleID uint
-	for _, role := range roles {
-		if role.IsDefault {
-			roleID = role.ID
-			break
-		}
-	}
-	if roleID == 0 {
+	err = tx.QueryRow(ctx, `
+		SELECT id FROM roles
+		WHERE is_deleted = FALSE AND tenant_id = $1 AND is_default = TRUE
+		LIMIT 1
+	`, req.TenantID).Scan(&roleID)
+	if err != nil {
 		return nil, ErrDefaultRoleNotFound
 	}
 

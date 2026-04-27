@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -16,8 +17,8 @@ const (
 	UserCodeFormatTenantRandom UserCodeFormat = "tenant_random"
 )
 
-func generateUserCode(ctx context.Context, db *pgxpool.Pool, tenantID uint, format UserCodeFormat) (string, error) {
-	seq, format, err := getNextSeqWithFormat(ctx, db, tenantID, format)
+func generateUserCode(ctx context.Context, tx pgx.Tx, tenantID uint, format UserCodeFormat) (string, error) {
+	seq, format, err := getNextSeqWithFormat(ctx, tx, tenantID, format)
 	if err != nil {
 		return "", err
 	}
@@ -37,9 +38,9 @@ type seqResult struct {
 	format UserCodeFormat
 }
 
-func getNextSeqWithFormat(ctx context.Context, db *pgxpool.Pool, tenantID uint, defaultFormat UserCodeFormat) (int64, UserCodeFormat, error) {
+func getNextSeqWithFormat(ctx context.Context, tx pgx.Tx, tenantID uint, defaultFormat UserCodeFormat) (int64, UserCodeFormat, error) {
 	var result seqResult
-	err := db.QueryRow(ctx, `
+	err := tx.QueryRow(ctx, `
 		INSERT INTO tenant_user_seq (tenant_id, seq, user_code_format)
 		VALUES ($1, 1, $2)
 		ON CONFLICT (tenant_id)
