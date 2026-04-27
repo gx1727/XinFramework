@@ -101,3 +101,36 @@ func (s *Service) UpdateStatus(ctx context.Context, tenantID, userID uint, statu
 	}
 	return nil
 }
+
+func (s *Service) Profile(ctx context.Context, tenantID, userID uint) (*UserInfo, error) {
+	u, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, model.ErrUserNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	if u.TenantID != tenantID {
+		return nil, ErrUserNotFound
+	}
+
+	info := &UserInfo{
+		ID:        u.ID,
+		TenantID:  u.TenantID,
+		AccountID: u.AccountID,
+		Code:      u.Code,
+		Status:    u.Status,
+		RealName:  u.RealName,
+		Avatar:    u.Avatar,
+		Phone:     u.Phone,
+		Email:     u.Email,
+	}
+
+	roles, err := s.roleRepo.GetUserRoles(ctx, u.ID)
+	if err == nil && len(roles) > 0 {
+		info.Role = roles[0].Code
+	}
+
+	return info, nil
+}

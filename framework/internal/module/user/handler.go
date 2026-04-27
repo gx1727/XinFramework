@@ -74,3 +74,19 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 
 	resp.Success(c, gin.H{"ok": true})
 }
+
+func (h *Handler) Profile(c *gin.Context) {
+	uc := context.NewUserContext(c)
+	if uc.UserID == 0 {
+		resp.Unauthorized(c, "未登录")
+		return
+	}
+
+	info, err := h.svc.Profile(c.Request.Context(), uc.TenantID, uc.UserID)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+
+	resp.Success(c, info)
+}
