@@ -17,6 +17,7 @@ import (
 	"gx1727.com/xin/framework/internal/module/role"
 	"gx1727.com/xin/framework/internal/module/tenant"
 	"gx1727.com/xin/framework/internal/module/user"
+	"gx1727.com/xin/framework/internal/module/weixin"
 	"gx1727.com/xin/framework/internal/repository"
 	"gx1727.com/xin/framework/pkg/config"
 	dictpkg "gx1727.com/xin/framework/pkg/dict"
@@ -139,6 +140,7 @@ func setupRouter(app *boot.App) {
 		OrganizationHandler: handlers["organization"].(*organization.Handler),
 		PermHandler:         handlers["permission"].(*permission.Handler),
 		PermService:         app.PermService,
+		WeixinHandler:       handlers["weixin"].(*weixin.Handler),
 	})
 }
 
@@ -180,6 +182,18 @@ var builtinHandlers = map[string]builtinHandlerBuilder{
 	"permission": func(app *boot.App) interface{} {
 		permRepo := repository.NewRolePermissionRepository(app.DB)
 		return permission.NewHandler(permission.NewService(app.DB, permRepo, app.Repository.Menu(), app.Repository.Resource()))
+	},
+	"weixin": func(app *boot.App) interface{} {
+		svc := weixin.NewService(
+			app.DB,
+			app.SessionMgr,
+			app.Repository.AccountAuth(),
+			app.Repository.Account(),
+			app.Repository.Tenant(),
+			app.Repository.Role(),
+			app.Repository.User(),
+		)
+		return weixin.NewHandler(svc)
 	},
 }
 

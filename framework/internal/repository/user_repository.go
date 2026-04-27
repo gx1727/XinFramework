@@ -174,6 +174,19 @@ func (r *PostgresUserRepository) Delete(ctx context.Context, id uint) error {
 	return nil
 }
 
+func (r *PostgresUserRepository) UpdatePhone(ctx context.Context, userID uint, phone string) error {
+	tag, err := r.db.Exec(ctx, `
+		UPDATE users SET phone = $2, updated_at = NOW()
+		WHERE is_deleted = FALSE AND id = $1`, userID, phone)
+	if err != nil {
+		return fmt.Errorf("update user phone: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return model.ErrUserNotFound
+	}
+	return nil
+}
+
 // PostgresRoleRepository implements model.RoleRepository
 type PostgresRoleRepository struct {
 	db *pgxpool.Pool

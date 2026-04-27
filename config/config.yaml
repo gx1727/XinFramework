@@ -88,3 +88,8 @@ user:
   password_policy: standard
   token_expire_sec: 3600
   refresh_token_expire_sec: 86400
+
+
+weixin:
+  appid: wx3e18aa16ef3c9ea9
+  appsecret: 87cbb533602cde12e30094df147783fb

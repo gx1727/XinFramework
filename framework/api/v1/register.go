@@ -31,6 +31,7 @@ type Dependencies struct {
 	OrganizationHandler *organization.Handler
 	PermHandler         *permission.Handler
 	PermService         *service.PermissionService
+	WeixinHandler       *weixin.Handler
 }
 
 func builtinModules(deps Dependencies) []plugin.Module {
@@ -45,7 +46,7 @@ func builtinModules(deps Dependencies) []plugin.Module {
 		organization.Module(deps.OrganizationHandler),
 		permission.Module(deps.PermHandler),
 		system.Module(),
-		weixin.Module(),
+		weixin.Module(deps.WeixinHandler),
 	}
 }
 

@@ -15,6 +15,9 @@ var (
 	ErrAccountNotFound      = errors.New("account not found")
 	ErrAccountAlreadyExists = errors.New("account already exists")
 
+	// Account Auth errors
+	ErrAccountAuthNotFound = errors.New("account auth not found")
+
 	// Tenant errors
 	ErrTenantNotFound   = errors.New("tenant not found")
 	ErrTenantCodeExists = errors.New("tenant code already exists")

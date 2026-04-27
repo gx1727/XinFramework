@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/internal/core/server"
 	"gx1727.com/xin/framework/internal/module/auth"
+	"gx1727.com/xin/framework/internal/module/weixin"
 	internalRepo "gx1727.com/xin/framework/internal/repository"
 	"gx1727.com/xin/framework/internal/service"
 	"gx1727.com/xin/framework/pkg/cache"
@@ -83,6 +84,9 @@ func Init(cfg *config.Config) (*App, error) {
 
 func loadModuleConfigs(cfg *config.Config) error {
 	if err := auth.InitConfig(); err != nil {
+		return err
+	}
+	if err := weixin.InitConfig(); err != nil {
 		return err
 	}
 	return nil

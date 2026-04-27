@@ -13,7 +13,13 @@
       "Bash(go mod *)",
       "Bash(./build.sh *)",
       "Bash(go vet *)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "WebFetch(domain:powerwechat.artisan-cloud.com)",
+      "Bash(go run *)",
+      "Bash(curl -s -X POST http://localhost:8080/api/v1/weixin/login -H \"Content-Type: application/json\" -d '{\"code\":\"test\"}')",
+      "Bash(kill %1)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill *)"
     ]
   }
 }

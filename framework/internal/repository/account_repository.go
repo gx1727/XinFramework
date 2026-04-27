@@ -111,8 +111,8 @@ func (r *PostgresAccountRepository) Exists(ctx context.Context, account string) 
 	var exists bool
 	err := r.db.QueryRow(ctx, `
 		SELECT EXISTS(
-			SELECT 1 FROM accounts 
-			WHERE is_deleted = FALSE 
+			SELECT 1 FROM accounts
+			WHERE is_deleted = FALSE
 			AND (phone = $1 OR email = $1 OR username = $1)
 		)`, account).Scan(&exists)
 	if err != nil {

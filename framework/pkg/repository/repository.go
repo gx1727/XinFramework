@@ -8,34 +8,36 @@ import (
 )
 
 type Provider struct {
-	db           *pgxpool.Pool
-	userRepo     model.UserRepository
-	tenantRepo   model.TenantRepository
-	accountRepo  model.AccountRepository
-	roleRepo     model.RoleRepository
-	menuRepo     model.MenuRepository
-	resourceRepo model.ResourceRepository
-	orgRepo      model.OrganizationRepository
-	cmsPostRepo  model.CmsPostRepository
-	permRepo     *repository.PostgresPermissionRepository
-	dsRepo       *repository.PostgresDataScopeRepository
+	db              *pgxpool.Pool
+	userRepo        model.UserRepository
+	tenantRepo      model.TenantRepository
+	accountRepo     model.AccountRepository
+	accountAuthRepo model.AccountAuthRepository
+	roleRepo        model.RoleRepository
+	menuRepo        model.MenuRepository
+	resourceRepo    model.ResourceRepository
+	orgRepo         model.OrganizationRepository
+	cmsPostRepo     model.CmsPostRepository
+	permRepo        *repository.PostgresPermissionRepository
+	dsRepo          *repository.PostgresDataScopeRepository
 }
 
 var defaultProvider *Provider
 
 func NewProvider(pool *pgxpool.Pool) *Provider {
 	return &Provider{
-		db:           pool,
-		userRepo:     repository.NewUserRepository(pool),
-		tenantRepo:   repository.NewTenantRepository(pool),
-		accountRepo:  repository.NewAccountRepository(pool),
-		roleRepo:     repository.NewRoleRepository(pool),
-		menuRepo:     repository.NewMenuRepository(pool),
-		resourceRepo: repository.NewResourceRepository(pool),
-		orgRepo:      repository.NewOrganizationRepository(pool),
-		cmsPostRepo:  repository.NewCmsPostRepository(pool),
-		permRepo:     repository.NewPermissionRepository(pool),
-		dsRepo:       repository.NewDataScopeRepository(pool),
+		db:              pool,
+		userRepo:        repository.NewUserRepository(pool),
+		tenantRepo:      repository.NewTenantRepository(pool),
+		accountRepo:     repository.NewAccountRepository(pool),
+		accountAuthRepo: repository.NewAccountAuthRepository(pool),
+		roleRepo:        repository.NewRoleRepository(pool),
+		menuRepo:        repository.NewMenuRepository(pool),
+		resourceRepo:    repository.NewResourceRepository(pool),
+		orgRepo:         repository.NewOrganizationRepository(pool),
+		cmsPostRepo:     repository.NewCmsPostRepository(pool),
+		permRepo:        repository.NewPermissionRepository(pool),
+		dsRepo:          repository.NewDataScopeRepository(pool),
 	}
 }
 
@@ -53,6 +55,10 @@ func (p *Provider) Tenant() model.TenantRepository {
 
 func (p *Provider) Account() model.AccountRepository {
 	return p.accountRepo
+}
+
+func (p *Provider) AccountAuth() model.AccountAuthRepository {
+	return p.accountAuthRepo
 }
 
 func (p *Provider) Role() model.RoleRepository {
@@ -102,6 +108,13 @@ func Account() model.AccountRepository {
 		return nil
 	}
 	return defaultProvider.Account()
+}
+
+func AccountAuth() model.AccountAuthRepository {
+	if defaultProvider == nil {
+		return nil
+	}
+	return defaultProvider.AccountAuth()
 }
 
 func Role() model.RoleRepository {

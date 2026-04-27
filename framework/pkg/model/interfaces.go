@@ -30,6 +30,7 @@ type UserRepository interface {
 	List(ctx context.Context, tenantID uint, keyword string, page, size int) ([]User, int64, error)
 	Create(ctx context.Context, tenantID, accountID uint, code string) (*User, error)
 	UpdateStatus(ctx context.Context, id uint, status int8) error
+	UpdatePhone(ctx context.Context, userID uint, phone string) error
 	Delete(ctx context.Context, id uint) error
 }
 
@@ -106,6 +107,32 @@ type AccountRepository interface {
 	GetByEmail(ctx context.Context, email string) (*Account, error)
 	Create(ctx context.Context, username, phone, email, realName, passwordHash string) (*Account, error)
 	Exists(ctx context.Context, account string) (bool, error)
+}
+
+// ============ Account Auth Repository ============
+
+// AccountAuth represents a third-party authentication binding
+type AccountAuth struct {
+	ID         uint      `json:"id"`
+	TenantID   uint      `json:"tenant_id"`
+	AccountID  uint      `json:"account_id"`
+	Type       string    `json:"type"` // wechat, qq, weibo, wxxcx
+	OpenID     string    `json:"openid"`
+	UnionID    string    `json:"unionid"`
+	Nickname   string    `json:"nickname"`
+	Avatar     string    `json:"avatar"`
+	SessionKey string    `json:"session_key"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+// AccountAuthRepository defines data access operations for account auths
+type AccountAuthRepository interface {
+	GetByOpenID(ctx context.Context, tenantID uint, authType, openID string) (*AccountAuth, error)
+	GetByAccountID(ctx context.Context, accountID uint) ([]AccountAuth, error)
+	Create(ctx context.Context, tenantID, accountID uint, authType, openID, unionID, sessionKey string) (*AccountAuth, error)
+	UpdateSessionKey(ctx context.Context, id uint, sessionKey string) error
+	Delete(ctx context.Context, id uint) error
 }
 
 // ============ Tenant Repository ============

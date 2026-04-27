@@ -77,8 +77,8 @@ DROP TABLE IF EXISTS accounts;
 CREATE TABLE accounts
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    phone      VARCHAR(20) NOT NULL,
-    email      VARCHAR(100) NOT NULL,
+    phone      VARCHAR(20),
+    email      VARCHAR(100),
     password   VARCHAR(255),
     username   VARCHAR(64),
     real_name  VARCHAR(64),
@@ -324,9 +324,6 @@ CREATE INDEX idx_ur_role ON user_roles (role_id) WHERE is_deleted = FALSE;
 CREATE INDEX IF NOT EXISTS idx_user_roles_user_active
     ON user_roles (user_id) WHERE is_deleted = FALSE;
 
--- 添加外键约束
-ALTER TABLE user_roles ADD CONSTRAINT fk_ur_user FOREIGN KEY (user_id) REFERENCES users(id);
-ALTER TABLE user_roles ADD CONSTRAINT fk_ur_role FOREIGN KEY (role_id) REFERENCES roles(id);
 
 COMMENT ON TABLE user_roles IS '用户角色关联表 - 多对多关系';
 COMMENT ON COLUMN user_roles.id IS '关联ID';
@@ -461,8 +458,6 @@ CREATE INDEX idx_permission_tenant ON permissions (tenant_id) WHERE is_deleted =
 CREATE INDEX idx_permission_role ON permissions (role_id) WHERE is_deleted = FALSE;
 CREATE INDEX idx_permission_resource ON permissions (resource_type, resource_id) WHERE is_deleted = FALSE;
 
--- 添加外键约束
-ALTER TABLE permissions ADD CONSTRAINT fk_perm_role FOREIGN KEY (role_id) REFERENCES roles(id);
 
 COMMENT ON TABLE permissions IS '权限关联表 - 角色与资源/路由的关联';
 COMMENT ON COLUMN permissions.id IS '权限ID';
@@ -742,7 +737,7 @@ CREATE TABLE account_roles
     role_code  VARCHAR(64) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE UNIQUE INDEX uk_account_role ON account_roles (account_id, role_code) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX uk_account_role ON account_roles (account_id, role_code);
 CREATE INDEX idx_ar_account ON account_roles (account_id);
 CREATE INDEX idx_ar_role ON account_roles (role_code);
 
