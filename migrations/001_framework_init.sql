@@ -196,6 +196,7 @@ CREATE TABLE users
     account_id  BIGINT      NOT NULL,
     org_id      BIGINT,
     code        VARCHAR(32) NOT NULL,
+    nickname    VARCHAR(100),
     real_name   VARCHAR(64),
     phone       VARCHAR(20),
     email       VARCHAR(100),
@@ -232,6 +233,12 @@ CREATE INDEX IF NOT EXISTS idx_users_phone_trgm ON users USING gin (phone gin_tr
 EXCEPTION WHEN insufficient_privilege THEN
     RAISE NOTICE 'Skipped idx_users_phone_trgm: no privileges on users table';
 END $$;
+DO $$
+BEGIN
+CREATE INDEX IF NOT EXISTS idx_users_nickname_trgm ON users USING gin (nickname gin_trgm_ops);
+EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'Skipped idx_users_nickname_trgm: no privileges on users table';
+END $$;
 
 COMMENT ON TABLE users IS '租户用户表 - 租户内的用户信息';
 COMMENT ON COLUMN users.id IS '用户ID';
@@ -239,6 +246,7 @@ COMMENT ON COLUMN users.tenant_id IS '租户ID';
 COMMENT ON COLUMN users.account_id IS '关联全局账号ID';
 COMMENT ON COLUMN users.org_id IS '所属机构ID';
 COMMENT ON COLUMN users.code IS '用户编码';
+COMMENT ON COLUMN users.nickname IS '用户昵称/显示名（优先级高于real_name）';
 COMMENT ON COLUMN users.real_name IS '真实姓名（冗余自accounts，仅用于租户内展示）';
 COMMENT ON COLUMN users.phone IS '手机号（冗余自accounts）';
 COMMENT ON COLUMN users.email IS '邮箱（冗余自accounts）';
@@ -746,6 +754,46 @@ COMMENT ON COLUMN account_roles.id IS '记录ID';
 COMMENT ON COLUMN account_roles.account_id IS '账号ID';
 COMMENT ON COLUMN account_roles.role_code IS '角色编码：super_admin-超级管理员，platform_admin-平台管理员';
 
+-- 22. attachments (附件资源表)
+DROP TABLE IF EXISTS attachments;
+CREATE TABLE attachments
+(
+    id          BIGSERIAL PRIMARY KEY,
+    tenant_id   BIGINT      NOT NULL DEFAULT 0,
+    user_id     BIGINT,
+    file_name   TEXT,
+    file_ext    VARCHAR(20),
+    mime_type   VARCHAR(100),
+    file_size   BIGINT,
+    storage     VARCHAR(20),
+    object_key  TEXT,
+    url         TEXT,
+    hash        VARCHAR(64),
+    status      SMALLINT    DEFAULT 1,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW(),
+    is_deleted  BOOLEAN     DEFAULT FALSE
+);
+CREATE INDEX IF NOT EXISTS idx_attachments_tenant_hash ON attachments(tenant_id, hash) WHERE is_deleted = FALSE;
+CREATE INDEX idx_attachments_tenant ON attachments(tenant_id) WHERE is_deleted = FALSE;
+
+COMMENT ON TABLE attachments IS '附件资源表 - 多租户文件存储元数据';
+COMMENT ON COLUMN attachments.id IS '主键ID，自增序列';
+COMMENT ON COLUMN attachments.tenant_id IS '租户ID，用于多租户隔离';
+COMMENT ON COLUMN attachments.user_id IS '上传用户ID';
+COMMENT ON COLUMN attachments.file_name IS '原始文件名';
+COMMENT ON COLUMN attachments.file_ext IS '文件扩展名';
+COMMENT ON COLUMN attachments.mime_type IS 'MIME类型';
+COMMENT ON COLUMN attachments.file_size IS '文件大小(字节)';
+COMMENT ON COLUMN attachments.storage IS '存储方式: local / oss / s3';
+COMMENT ON COLUMN attachments.object_key IS '存储路径(关键)';
+COMMENT ON COLUMN attachments.url IS '访问URL';
+COMMENT ON COLUMN attachments.hash IS '去重用文件哈希值';
+COMMENT ON COLUMN attachments.status IS '状态：1-正常，0-隐藏';
+COMMENT ON COLUMN attachments.created_at IS '创建时间';
+COMMENT ON COLUMN attachments.updated_at IS '更新时间';
+COMMENT ON COLUMN attachments.is_deleted IS '软删除标记';
+
 
 -- ============================================
 -- 🔐 多租户 RLS (行级安全) 策略 — 纵深防御层
@@ -781,6 +829,7 @@ ALTER TABLE dict_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE usage_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attachments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tenant_user_seq ENABLE ROW LEVEL SECURITY;
 
 -- 2. 创建租户隔离策略 (读取 & 写入)
@@ -877,6 +926,12 @@ CREATE POLICY tenant_isolation_policy ON usage_records
     );
 
 CREATE POLICY tenant_isolation_policy ON ai_documents
+    USING (
+        (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
+        AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
+    );
+
+CREATE POLICY tenant_isolation_policy ON attachments
     USING (
         (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))

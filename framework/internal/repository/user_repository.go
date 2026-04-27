@@ -10,7 +10,6 @@ import (
 	"gx1727.com/xin/framework/pkg/model"
 )
 
-// PostgresUserRepository implements model.UserRepository
 type PostgresUserRepository struct {
 	db *pgxpool.Pool
 }
@@ -22,10 +21,10 @@ func NewUserRepository(db *pgxpool.Pool) model.UserRepository {
 func (r *PostgresUserRepository) GetByID(ctx context.Context, id uint) (*model.User, error) {
 	var u model.User
 	err := r.db.QueryRow(ctx, `
-		SELECT id, tenant_id, account_id, code, status, real_name, avatar, phone, email, created_at, updated_at
+		SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
 		FROM users
 		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
-		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &u.Status,
+		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &u.Nickname, &u.Status,
 		&u.RealName, &u.Avatar, &u.Phone, &u.Email,
 		&u.CreatedAt, &u.UpdatedAt,
 	)
@@ -41,10 +40,10 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id uint) (*model.U
 func (r *PostgresUserRepository) GetByAccountID(ctx context.Context, accountID uint) (*model.User, error) {
 	var u model.User
 	err := r.db.QueryRow(ctx, `
-		SELECT id, tenant_id, account_id, code, status, real_name, avatar, phone, email, created_at, updated_at
+		SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
 		FROM users
 		WHERE is_deleted = FALSE AND account_id = $1`, accountID).Scan(
-		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &u.Status,
+		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &u.Nickname, &u.Status,
 		&u.RealName, &u.Avatar, &u.Phone, &u.Email,
 		&u.CreatedAt, &u.UpdatedAt,
 	)
@@ -60,10 +59,10 @@ func (r *PostgresUserRepository) GetByAccountID(ctx context.Context, accountID u
 func (r *PostgresUserRepository) GetByCode(ctx context.Context, code string) (*model.User, error) {
 	var u model.User
 	err := r.db.QueryRow(ctx, `
-		SELECT id, tenant_id, account_id, code, status, real_name, avatar, phone, email, created_at, updated_at
+		SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
 		FROM users
 		WHERE is_deleted = FALSE AND code = $1`, code).Scan(
-		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &u.Status,
+		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &u.Nickname, &u.Status,
 		&u.RealName, &u.Avatar, &u.Phone, &u.Email,
 		&u.CreatedAt, &u.UpdatedAt,
 	)
@@ -87,7 +86,7 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keywor
 		argIdx++
 	}
 	if keyword != "" {
-		where += fmt.Sprintf(" AND (code ILIKE $%d OR real_name ILIKE $%d OR phone ILIKE $%d)", argIdx, argIdx, argIdx)
+		where += fmt.Sprintf(" AND (code ILIKE $%d OR nickname ILIKE $%d OR real_name ILIKE $%d OR phone ILIKE $%d)", argIdx, argIdx, argIdx, argIdx)
 		args = append(args, "%"+keyword+"%")
 		argIdx++
 	}
@@ -106,7 +105,7 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keywor
 	}
 	offset := (page - 1) * size
 
-	query := fmt.Sprintf(`SELECT id, tenant_id, account_id, code, status, real_name, avatar, phone, email, created_at, updated_at
+	query := fmt.Sprintf(`SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
 		FROM users %s ORDER BY id DESC LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
 	args = append(args, size, offset)
 
@@ -120,7 +119,7 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keywor
 	for rows.Next() {
 		var u model.User
 		if err := rows.Scan(
-			&u.ID, &u.TenantID, &u.AccountID, &u.Code, &u.Status,
+			&u.ID, &u.TenantID, &u.AccountID, &u.Code, &u.Nickname, &u.Status,
 			&u.RealName, &u.Avatar, &u.Phone, &u.Email,
 			&u.CreatedAt, &u.UpdatedAt,
 		); err != nil {
@@ -136,9 +135,9 @@ func (r *PostgresUserRepository) Create(ctx context.Context, tenantID, accountID
 	err := r.db.QueryRow(ctx, `
 		INSERT INTO users (tenant_id, account_id, code, status)
 		VALUES ($1, $2, $3, 1)
-		RETURNING id, tenant_id, account_id, code, status, real_name, avatar, phone, email, created_at, updated_at`,
+		RETURNING id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at`,
 		tenantID, accountID, code).Scan(
-		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &u.Status,
+		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &u.Nickname, &u.Status,
 		&u.RealName, &u.Avatar, &u.Phone, &u.Email,
 		&u.CreatedAt, &u.UpdatedAt,
 	)

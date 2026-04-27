@@ -18,12 +18,22 @@ type UserInfo struct {
 	TenantID  uint   `json:"tenant_id"`
 	AccountID uint   `json:"account_id"`
 	Code      string `json:"code"`
-	Status    int8   `json:"status"`
+	Nickname  string `json:"nickname"`
 	RealName  string `json:"real_name"`
 	Avatar    string `json:"avatar"`
 	Phone     string `json:"phone"`
 	Email     string `json:"email"`
 	Role      string `json:"role"`
+}
+
+func (u *UserInfo) GetDisplayName() string {
+	if u.Nickname != "" {
+		return u.Nickname
+	}
+	if u.RealName != "" {
+		return u.RealName
+	}
+	return u.Code
 }
 
 type getRequest struct {

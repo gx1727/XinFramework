@@ -13,6 +13,7 @@ type User struct {
 	TenantID  uint      `json:"tenant_id"`
 	AccountID uint      `json:"account_id"`
 	Code      string    `json:"code"`
+	Nickname  string    `json:"nickname"`
 	Status    int8      `json:"status"`
 	RealName  string    `json:"real_name"`
 	Avatar    string    `json:"avatar"`
