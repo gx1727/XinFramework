@@ -527,9 +527,6 @@ CREATE INDEX idx_dict_item_dict ON dict_items (dict_id) WHERE is_deleted = FALSE
 CREATE INDEX idx_dict_item_tenant ON dict_items (tenant_id) WHERE is_deleted = FALSE;
 CREATE INDEX idx_dict_item_sort ON dict_items (sort) WHERE is_deleted = FALSE;
 
--- 添加外键约束
-ALTER TABLE dict_items ADD CONSTRAINT fk_di_dict FOREIGN KEY (dict_id) REFERENCES dicts(id);
-
 COMMENT ON TABLE dict_items IS '字典项表 - 字典的具体选项';
 COMMENT ON COLUMN dict_items.id IS '字典项ID';
 COMMENT ON COLUMN dict_items.tenant_id IS '租户ID';
