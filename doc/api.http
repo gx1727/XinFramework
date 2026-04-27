@@ -35,7 +35,7 @@ GET http://localhost:8080/api/v1/weixin/ping
 ###
 GET http://localhost:8080/api/v1/cms/ping
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ0ZW5hbnRfaWQiOjEsInJvbGUiOiJ1c2VyIiwic2lkIjoiZDJlZmNkOWQtMWM5MS00NWRhLTg1NDUtOWIyYWQ2NjBhMmM5IiwiZXhwIjoxNzc2NzYxNjIwfQ.o6gdSdY5lV4NMsnKgHqpb5IeEmZ9hm7XSnPTL6QuLCg
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ0ZW5hbnRfaWQiOjEsInJvbGUiOiJhZG1pbiIsInNpZCI6Ijc3YTFkMmRkLTQwMTktNDU2ZC05MDA3LTA1Yzg4Yzg2MDM5NyIsInRva2VuX3R5cGUiOiJhY2Nlc3MiLCJleHAiOjE3NzcyOTQ3NTZ9.k8MbhavPm8GY7zaCjlQ3Oell3saLy5Jkn3GCaQTgCKg
 
 
 ###
