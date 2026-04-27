@@ -7,6 +7,8 @@ import FallbackImage from '../assets/blog-placeholder-1.jpg';
 import { SITE_TITLE, SITE_DESCRIPTION, SITE_GITHUB } from '../consts';
 import { Font } from 'astro:assets';
 
+const BASE_URL = import.meta.env.BASE_URL;
+
 interface Props {
 	title: string;
 	description: string;
@@ -27,8 +29,8 @@ const pageTitle = title === SITE_TITLE ? SITE_TITLE : `${title} | ${SITE_TITLE}`
 <meta name="author" content={SITE_TITLE} />
 
 <!-- Favicon -->
-<link rel="icon" type="image/svg+xml" href={`${Astro.base}/favicon.svg`} />
-<link rel="icon" href={`${Astro.base}/favicon.ico`} />
+<link rel="icon" type="image/svg+xml" href={`${BASE_URL}/favicon.svg`} />
+<link rel="icon" href={`${BASE_URL}/favicon.ico`} />
 
 <!-- Canonical URL -->
 <link rel="canonical" href={canonicalURL} />
@@ -54,7 +56,7 @@ const pageTitle = title === SITE_TITLE ? SITE_TITLE : `${title} | ${SITE_TITLE}`
 <meta property="twitter:image" content={new URL(image.src, Astro.url)} />
 
 <!-- Sitemap & RSS -->
-<link rel="sitemap" href={`${Astro.base}/sitemap-index.xml`} />
+<link rel="sitemap" href={`${BASE_URL}/sitemap-index.xml`} />
 <link
 	rel="alternate"
 	type="application/rss+xml"

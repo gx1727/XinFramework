@@ -3,19 +3,22 @@ import { SITE_TITLE, SITE_GITHUB } from '../consts';
 import HeaderLink from './HeaderLink.astro';
 import Logo from './Logo.astro';
 import ThemeToggle from './ThemeToggle.astro';
+
+const BASE_URL = import.meta.env.BASE_URL;
 ---
+
 
 <header>
 	<nav>
 		<div class="nav-left">
-			<a href={`${Astro.base}/`} class="logo-link">
+			<a href={`${BASE_URL}/`} class="logo-link">
 				<Logo size="sm" />
 			</a>
 		</div>
 		<div class="nav-center">
-			<HeaderLink href={`${Astro.base}/`}>首页</HeaderLink>
-			<HeaderLink href={`${Astro.base}/blog`}>博客</HeaderLink>
-			<HeaderLink href={`${Astro.base}/about`}>关于</HeaderLink>
+			<HeaderLink href={`${BASE_URL}/`}>首页</HeaderLink>
+			<HeaderLink href={`${BASE_URL}/blog`}>博客</HeaderLink>
+			<HeaderLink href={`${BASE_URL}/about`}>关于</HeaderLink>
 		</div>
 		<div class="nav-right">
 			<ThemeToggle />
