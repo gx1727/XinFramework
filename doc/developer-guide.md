@@ -551,18 +551,35 @@ pool := db.Get() // 获取全局 *pgxpool.Pool 实例
 
 ### 5.2 Repository 模式
 
-框架提供 `pkg/repository` 实现仓储提供者模式，通过接口解耦数据访问：
+框架采用 **Provider 模式**管理 Repository，通过接口解耦数据访问：
 
 ```go
-import "gx1727.com/xin/framework/pkg/repository"
+// 在 boot.go 中初始化
+repoProvider := repository.NewProvider(db.Get())
+repository.Init(repoProvider)
 
-p := repository.P()
-userRepo := p.User()      // model.UserRepository
-tenantRepo := p.Tenant()  // model.TenantRepository
-accountRepo := p.Account() // model.AccountRepository
+// App 结构体中包含 Repository Provider
+type App struct {
+    Config     *config.Config
+    DB         *pgxpool.Pool
+    Repository *repository.Provider  // Repository Provider
+    // ...
+}
 ```
 
 **在模块中使用 Repository**：
+
+```go
+// 从 App 中获取 Repository
+userRepo := app.Repository.User()      // model.UserRepository
+tenantRepo := app.Repository.Tenant()  // model.TenantRepository
+accountRepo := app.Repository.Account() // model.AccountRepository
+
+// 使用 Repository
+currentUser, err := userRepo.GetByID(ctx, userID)
+```
+
+**依赖注入示例**：
 
 ```go
 type Dependencies struct {
@@ -571,6 +588,15 @@ type Dependencies struct {
     UserRepo    model.UserRepository
     TenantRepo  model.TenantRepository
     AccountRepo model.AccountRepository
+}
+
+// 在 setupRouter 中构造
+userDeps := user.Dependencies{
+    DB:          app.DB,
+    Config:      app.Config,
+    UserRepo:    app.Repository.User(),
+    TenantRepo:  app.Repository.Tenant(),
+    AccountRepo: app.Repository.Account(),
 }
 ```
 
@@ -719,6 +745,8 @@ air  # 使用 go install github.com/air-verse/air@latest 安装
 
 ## 9. 目录结构参考
 
+### 9.1 整体结构
+
 ```
 XinFramework/
 ├── apps/                      # 外部业务插件
@@ -735,41 +763,107 @@ XinFramework/
 │   ├── signal.go
 │   ├── api/v1/
 │   │   └── register.go        # 路由注册
-│   ├── pkg/                   # 公共包
-│   │   ├── config/
-│   │   ├── db/                # pgx/v5/pgxpool
-│   │   ├── cache/
-│   │   ├── logger/
-│   │   ├── session/
-│   │   ├── jwt/
-│   │   ├── migrate/
-│   │   ├── model/             # 领域模型和仓储接口
-│   │   ├── repository/        # 仓储提供者模式实现
-│   │   ├── plugin/
-│   │   └── resp/
-│   └── internal/
+│   ├── pkg/                   # 公共包（可被外部导入）
+│   │   ├── config/            # 配置管理
+│   │   ├── db/                # 数据库连接池（pgx/v5/pgxpool）
+│   │   ├── cache/             # Redis 缓存客户端
+│   │   ├── logger/            # 日志系统
+│   │   ├── session/           # 会话管理
+│   │   ├── jwt/               # JWT 令牌处理
+│   │   ├── migrate/           # 数据库迁移工具
+│   │   ├── model/             # 领域模型和仓储接口（避免循环依赖）
+│   │   ├── permission/        # 权限类型和接口（避免循环依赖）
+│   │   ├── plugin/            # 插件系统
+│   │   ├── resp/              # HTTP 响应封装
+│   │   ├── dict/              # 数据字典缓存
+│   │   ├── context/           # 上下文管理
+│   │   └── storage/           # 存储抽象（本地/COS）
+│   └── internal/              # 内部实现（不可被外部导入）
 │       ├── core/
-│       │   ├── boot/
-│       │   ├── server/
-│       │   ├── middleware/
-│       │   └── context/
-│       └── module/
-│           ├── auth/          # 占位符
-│           ├── user/
-│           │   ├── deps.go    # 依赖声明（接口 + Dependencies）
-│           │   ├── handler.go
-│           │   ├── service.go
-│           │   ├── routes.go
-│           │   └── ...
-│           ├── tenant/
-│           │   ├── handler.go
-│           │   ├── service.go
-│           │   ├── routes.go
-│           │   └── ...
-│           ├── system/
-│           └── weixin/
+│       │   ├── boot/          # 启动初始化
+│       │   ├── server/        # HTTP 服务器
+│       │   └── middleware/    # 中间件
+│       ├── module/            # 内置模块
+│       │   ├── auth/
+│       │   ├── user/
+│       │   ├── tenant/
+│       │   └── ...
+│       ├── repository/        # Repository 实现 + Provider
+│       │   ├── provider.go    # Repository Provider（工厂模式）
+│       │   ├── user_repository.go
+│       │   └── ...
+│       └── service/           # Service 层
+│           └── permission_service.go
 └── migrations/
     └── framework/
+```
+
+### 9.2 pkg 与 internal 的使用原则
+
+#### pkg 目录（公共包）
+
+**用途**：存放可以被外部项目安全导入的通用库代码。
+
+**适合放在 pkg 的内容**：
+- ✅ **基础设施组件**：config, db, cache, logger, jwt, session
+- ✅ **通用工具**：resp, migrate, dict, storage, plugin
+- ✅ **类型定义和接口**：model, permission, context（为避免循环依赖）
+
+**不适合放在 pkg 的内容**：
+- ❌ **业务逻辑实现**：应放在 internal/module
+- ❌ **Repository 实现**：应放在 internal/repository
+- ❌ **Service 实现**：应放在 internal/service
+- ❌ **引用 internal 包的代码**：会造成架构混乱
+
+**关键原则**：
+1. **pkg 不能引用 internal**：这违反了分层原则
+2. **接口定义在 pkg，实现在 internal**：如 `model.UserRepository` 接口在 pkg/model，实现在 internal/repository
+3. **避免循环依赖**：pkg/model 和 pkg/permission 的存在是为了让 internal/repository 和 internal/module 都能引用这些类型而不形成循环依赖
+
+#### internal 目录（内部实现）
+
+**用途**：存放项目内部实现细节，不能被外部项目导入。
+
+**适合放在 internal 的内容**：
+- ✅ **Repository 实现**：internal/repository（包括 Provider）
+- ✅ **Service 实现**：internal/service
+- ✅ **Module 实现**：internal/module/*
+- ✅ **Middleware 实现**：internal/core/middleware
+- ✅ **Boot 逻辑**：internal/core/boot
+
+**Provider 模式**：
+```go
+// internal/repository/provider.go
+type Provider struct {
+    db         *pgxpool.Pool
+    userRepo   model.UserRepository
+    tenantRepo model.TenantRepository
+    // ...
+}
+
+func NewProvider(pool *pgxpool.Pool) *Provider {
+    return &Provider{
+        db:         pool,
+        userRepo:   NewUserRepository(pool),
+        tenantRepo: NewTenantRepository(pool),
+        // ...
+    }
+}
+
+func (p *Provider) User() model.UserRepository {
+    return p.userRepo
+}
+```
+
+**使用示例**：
+```go
+// 在 boot.go 中
+repoProvider := repository.NewProvider(db.Get())
+repository.Init(repoProvider)
+
+// 在模块中使用
+userRepo := app.Repository.User()
+tenantRepo := app.Repository.Tenant()
 ```
 
 ***
