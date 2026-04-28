@@ -2,7 +2,6 @@ package dict
 
 import (
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/framework/pkg/plugin"
 )
 
 func Register(protected *gin.RouterGroup, h *Handler) {
@@ -15,10 +14,4 @@ func Register(protected *gin.RouterGroup, h *Handler) {
 	protected.POST("/dicts/:id/items", h.CreateItem)
 	protected.PUT("/dicts/:id/items/:item_id", h.UpdateItem)
 	protected.DELETE("/dicts/:id/items/:item_id", h.DeleteItem)
-}
-
-func Module(h *Handler) plugin.Module {
-	return plugin.NewModule("dict", func(_, protected *gin.RouterGroup) {
-		Register(protected, h)
-	})
 }

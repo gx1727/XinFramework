@@ -1,0 +1,17 @@
+package permission
+
+import (
+	"github.com/gin-gonic/gin"
+	"gx1727.com/xin/framework/internal/core/boot"
+	"gx1727.com/xin/framework/internal/repository"
+	"gx1727.com/xin/framework/pkg/plugin"
+)
+
+// Module 返回 permission 模块的完整定义
+func Module(app *boot.App) plugin.Module {
+	return plugin.NewModule("permission", func(public, protected *gin.RouterGroup) {
+		permRepo := repository.NewRolePermissionRepository(app.DB)
+		h := NewHandler(NewService(app.DB, permRepo, app.Repository.Menu(), app.Repository.Resource()))
+		Register(protected, h)
+	})
+}

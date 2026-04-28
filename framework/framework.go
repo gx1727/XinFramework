@@ -5,28 +5,24 @@ import (
 	"log"
 	"os"
 
-	v1 "gx1727.com/xin/framework/api/v1"
+	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/internal/core/boot"
 	"gx1727.com/xin/framework/internal/core/middleware"
-	"gx1727.com/xin/framework/internal/module/asset"
-	"gx1727.com/xin/framework/internal/module/auth"
-	"gx1727.com/xin/framework/internal/module/dict"
-	"gx1727.com/xin/framework/internal/module/menu"
-	"gx1727.com/xin/framework/internal/module/organization"
-	"gx1727.com/xin/framework/internal/module/permission"
-	"gx1727.com/xin/framework/internal/module/resource"
-	"gx1727.com/xin/framework/internal/module/role"
-	"gx1727.com/xin/framework/internal/module/tenant"
-	"gx1727.com/xin/framework/internal/module/user"
-	"gx1727.com/xin/framework/internal/module/weixin"
-	"gx1727.com/xin/framework/internal/repository"
+	assetModule "gx1727.com/xin/framework/internal/module/asset"
+	authModule "gx1727.com/xin/framework/internal/module/auth"
+	dictModule "gx1727.com/xin/framework/internal/module/dict"
+	menuModule "gx1727.com/xin/framework/internal/module/menu"
+	orgModule "gx1727.com/xin/framework/internal/module/organization"
+	permModule "gx1727.com/xin/framework/internal/module/permission"
+	resourceModule "gx1727.com/xin/framework/internal/module/resource"
+	roleModule "gx1727.com/xin/framework/internal/module/role"
+	systemModule "gx1727.com/xin/framework/internal/module/system"
+	tenantModule "gx1727.com/xin/framework/internal/module/tenant"
+	userModule "gx1727.com/xin/framework/internal/module/user"
+	weixinModule "gx1727.com/xin/framework/internal/module/weixin"
 	"gx1727.com/xin/framework/pkg/config"
-	dictpkg "gx1727.com/xin/framework/pkg/dict"
 	"gx1727.com/xin/framework/pkg/migrate"
 	"gx1727.com/xin/framework/pkg/plugin"
-	"gx1727.com/xin/framework/pkg/storage"
-	storage_cos "gx1727.com/xin/framework/pkg/storage/cos"
-	storage_local "gx1727.com/xin/framework/pkg/storage/local"
 )
 
 const (
@@ -129,130 +125,43 @@ func setupRouter(app *boot.App) {
 	srv.Engine.Use(middleware.Logger())              // 4. 日志（依赖 RequestID）
 	srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode)) // 5. 租户上下文
 
-	// 构建内置模块处理器
-	handlers := buildBuiltinHandlers(app)
-
-	v1.RegisterRoutes(srv.Engine, cfg, app.SessionMgr, v1.Dependencies{
-		AssetHandler:        handlers["asset"].(*asset.FileHandler),
-		AuthHandler:         handlers["auth"].(*auth.Handler),
-		TenantHandler:       handlers["tenant"].(*tenant.Handler),
-		UserHandler:         handlers["user"].(*user.Handler),
-		MenuHandler:         handlers["menu"].(*menu.Handler),
-		DictHandler:         handlers["dict"].(*dict.Handler),
-		RoleHandler:         handlers["role"].(*role.Handler),
-		ResourceHandler:     handlers["resource"].(*resource.Handler),
-		OrganizationHandler: handlers["organization"].(*organization.Handler),
-		PermHandler:         handlers["permission"].(*permission.Handler),
-		PermService:         app.PermService,
-		WeixinHandler:       handlers["weixin"].(*weixin.Handler),
-	})
+	// 注册内置模块和外部插件
+	registerModules(srv.Engine, cfg, app)
 }
 
-// builtinHandlerBuilder creates handlers for built-in modules given app context
-type builtinHandlerBuilder func(*boot.App) interface{}
+// registerModules 注册内置模块和外部插件
+func registerModules(r *gin.Engine, cfg *config.Config, app *boot.App) {
+	v1 := r.Group("/api/v1")
+	public := v1.Group("")
+	protected := v1.Group("")
+	protected.Use(middleware.Auth(&cfg.JWT, app.SessionMgr, app.PermService))
 
-var builtinHandlers = map[string]builtinHandlerBuilder{
-	"asset": func(app *boot.App) interface{} {
-		var s storage.Storage
-		var err error
-
-		if app.Config.Storage.Provider == "cos" {
-			s, err = storage_cos.NewCosStorage(storage_cos.Config{
-				URL:       app.Config.Storage.CosURL,
-				SecretID:  app.Config.Storage.CosSecretID,
-				SecretKey: app.Config.Storage.CosSecretKey,
-				BaseURL:   app.Config.Storage.CosBaseURL,
-			})
-			if err != nil {
-				log.Fatalf("failed to init cos storage: %v", err)
-			}
-		} else {
-			s = storage_local.NewLocalStorage(
-				app.Config.Storage.LocalDir,
-				app.Config.Storage.LocalBaseURL,
-			)
-		}
-
-		svc := asset.NewFileService(s, app.Repository.Attachment())
-		return asset.NewFileHandler(svc)
-	},
-	"auth": func(app *boot.App) interface{} {
-		repos := auth.Repositories{
-			Account: app.Repository.Account(),
-			Tenant:  app.Repository.Tenant(),
-			Role:    app.Repository.Role(),
-			User:    app.Repository.User(),
-		}
-		deps := auth.DefaultDependencies(app.Config, app.DB, repos)
-		return auth.NewHandler(auth.NewService(deps))
-	},
-	"tenant": func(app *boot.App) interface{} {
-		return tenant.NewHandler(tenant.NewService(app.Repository.Tenant()))
-	},
-	"user": func(app *boot.App) interface{} {
-		var s storage.Storage
-		if app.Config.Storage.Provider == "cos" {
-			var err error
-			s, err = storage_cos.NewCosStorage(storage_cos.Config{
-				URL:       app.Config.Storage.CosURL,
-				SecretID:  app.Config.Storage.CosSecretID,
-				SecretKey: app.Config.Storage.CosSecretKey,
-				BaseURL:   app.Config.Storage.CosBaseURL,
-			})
-			if err != nil {
-				log.Fatalf("failed to init cos storage for user: %v", err)
-			}
-		} else {
-			s = storage_local.NewLocalStorage(
-				app.Config.Storage.LocalDir,
-				app.Config.Storage.LocalBaseURL,
-			)
-		}
-		assetSvc := asset.NewFileService(s, app.Repository.Attachment())
-		return user.NewHandler(user.NewService(app.Repository.User(), app.Repository.Role(), assetSvc))
-	},
-	"menu": func(app *boot.App) interface{} {
-		return menu.NewHandler(menu.NewService(app.Repository.Menu()))
-	},
-	"dict": func(app *boot.App) interface{} {
-		return dict.NewHandler(dictpkg.NewRepository(app.DB))
-	},
-	"role": func(app *boot.App) interface{} {
-		return role.NewHandler(role.NewService(app.Repository.Role(), app.Repository.DataScope()))
-	},
-	"resource": func(app *boot.App) interface{} {
-		return resource.NewHandler(resource.NewService(app.Repository.Resource(), app.Repository.Menu()))
-	},
-	"organization": func(app *boot.App) interface{} {
-		return organization.NewHandler(organization.NewService(app.Repository.Organization()))
-	},
-	"permission": func(app *boot.App) interface{} {
-		permRepo := repository.NewRolePermissionRepository(app.DB)
-		return permission.NewHandler(permission.NewService(app.DB, permRepo, app.Repository.Menu(), app.Repository.Resource()))
-	},
-	"weixin": func(app *boot.App) interface{} {
-		svc := weixin.NewService(
-			app.DB,
-			app.SessionMgr,
-			app.Repository.AccountAuth(),
-			app.Repository.Account(),
-			app.Repository.Tenant(),
-			app.Repository.Role(),
-			app.Repository.User(),
-		)
-		return weixin.NewHandler(svc)
-	},
-}
-
-func buildBuiltinHandlers(app *boot.App) map[string]interface{} {
-	result := make(map[string]interface{})
-	for name, builder := range builtinHandlers {
-		result[name] = builder(app)
+	// 注册内置模块
+	builtinModules := []plugin.Module{
+		assetModule.Module(app),
+		authModule.Module(app),
+		tenantModule.Module(app),
+		userModule.Module(app),
+		menuModule.Module(app),
+		dictModule.Module(app),
+		roleModule.Module(app),
+		resourceModule.Module(app),
+		orgModule.Module(app),
+		permModule.Module(app),
+		systemModule.Module(), // system 模块不需要 app 参数
+		weixinModule.Module(app),
 	}
-	return result
-}
 
-// RegisterBuiltinHandler registers a handler builder for a built-in module
-func RegisterBuiltinHandler(name string, builder builtinHandlerBuilder) {
-	builtinHandlers[name] = builder
+	for _, m := range builtinModules {
+		if cfg.ModuleEnabled(m.Name()) {
+			m.Register(public, protected)
+		}
+	}
+
+	// 注册外部插件
+	for _, m := range plugin.All() {
+		if cfg.ModuleEnabled(m.Name()) {
+			m.Register(public, protected)
+		}
+	}
 }

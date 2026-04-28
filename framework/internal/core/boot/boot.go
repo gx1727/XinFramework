@@ -6,8 +6,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/internal/core/server"
-	"gx1727.com/xin/framework/internal/module/auth"
-	"gx1727.com/xin/framework/internal/module/weixin"
 	internalRepo "gx1727.com/xin/framework/internal/repository"
 	"gx1727.com/xin/framework/internal/service"
 	"gx1727.com/xin/framework/pkg/cache"
@@ -56,10 +54,6 @@ func Init(cfg *config.Config) (*App, error) {
 	}
 	session.Init(sm)
 
-	if err := loadModuleConfigs(cfg); err != nil {
-		return nil, fmt.Errorf("module config failed: %w", err)
-	}
-
 	// 初始化 permission service
 	var permCache permission.PermissionCache
 	if cache.Get() != nil {
@@ -80,16 +74,6 @@ func Init(cfg *config.Config) (*App, error) {
 		Server:      server.New(cfg),
 		PermService: permService,
 	}, nil
-}
-
-func loadModuleConfigs(cfg *config.Config) error {
-	if err := auth.InitConfig(); err != nil {
-		return err
-	}
-	if err := weixin.InitConfig(); err != nil {
-		return err
-	}
-	return nil
 }
 
 func Shutdown(app *App) {
