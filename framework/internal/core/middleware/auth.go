@@ -2,17 +2,13 @@ package middleware
 
 import (
 	"context"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"gx1727.com/xin/framework/pkg/config"
 	xinContext "gx1727.com/xin/framework/pkg/context"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
-	"gx1727.com/xin/framework/pkg/logger"
 	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/resp"
 	"gx1727.com/xin/framework/pkg/session"
@@ -26,53 +22,7 @@ type PermissionServiceInterface interface {
 	GetUserOrgID(ctx context.Context, userID uint) (int64, error)
 }
 
-func CORS(cfg *config.CORSConfig) gin.HandlerFunc {
-	if cfg == nil || !cfg.Enabled || len(cfg.AllowOrigins) == 0 {
-		return func(c *gin.Context) { c.Next() }
-	}
-	return func(c *gin.Context) {
-		origin := c.GetHeader("Origin")
-		if origin == "" {
-			c.Next()
-			return
-		}
-
-		allowOrigin := ""
-		for _, o := range cfg.AllowOrigins {
-			o = strings.TrimSpace(o)
-			if o == "*" {
-				allowOrigin = "*"
-				break
-			}
-			if strings.EqualFold(o, origin) {
-				allowOrigin = origin
-				break
-			}
-		}
-
-		if allowOrigin == "" {
-			c.Next()
-			return
-		}
-
-		c.Header("Access-Control-Allow-Origin", allowOrigin)
-		c.Header("Access-Control-Allow-Methods", cfg.AllowMethods)
-		c.Header("Access-Control-Allow-Headers", cfg.AllowHeaders)
-		c.Header("Access-Control-Max-Age", strconv.Itoa(cfg.MaxAge))
-
-		if cfg.AllowCredentials {
-			c.Header("Access-Control-Allow-Credentials", "true")
-		}
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-
-		c.Next()
-	}
-}
-
+// Auth 认证中间件 - 验证 JWT Token 和 Session
 func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc PermissionServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		auth := c.GetHeader("Authorization")
@@ -160,85 +110,8 @@ func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc PermissionSe
 	}
 }
 
-func RequestID() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		requestID := c.GetHeader("X-Request-ID")
-		if requestID == "" {
-			requestID = uuid.New().String()
-		}
-		c.Set("request_id", requestID)
-		c.Header("X-Request-ID", requestID)
-		c.Next()
-	}
-}
-
-func Tenant(mode string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if mode == "" {
-			c.Next()
-			return
-		}
-
-		if tenantIDStr := c.GetHeader("X-Tenant-ID"); tenantIDStr != "" {
-			if tenantID, err := strconv.ParseUint(tenantIDStr, 10, 64); err == nil {
-				tid := uint(tenantID)
-				ctx := xinContext.New(c)
-				ctx.SetTenantID(tid)
-				c.Request = c.Request.WithContext(xinContext.WithTenantID(xinContext.WithXinContext(c.Request.Context(), ctx), tid))
-				c.Set("tenant_id", tid)
-			}
-		}
-
-		c.Next()
-	}
-}
-
-func Logger() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		start := time.Now()
-		path := c.Request.URL.Path
-		raw := c.Request.URL.RawQuery
-
-		c.Next()
-
-		latency := time.Since(start)
-		clientIP := c.ClientIP()
-		method := c.Request.Method
-		statusCode := c.Writer.Status()
-
-		requestID, _ := c.Get("request_id")
-		reqID, _ := requestID.(string)
-		if reqID == "" {
-			reqID = "-"
-		}
-
-		if raw != "" {
-			path = path + "?" + raw
-		}
-
-		switch {
-		case statusCode >= 500:
-			logger.Errorf("[%s] %s %s | %d | %v | %s", reqID, method, path, statusCode, latency, clientIP)
-		case statusCode >= 400:
-			logger.Warnf("[%s] %s %s | %d | %v | %s", reqID, method, path, statusCode, latency, clientIP)
-		default:
-			logger.Infof("[%s] %s %s | %d | %v | %s", reqID, method, path, statusCode, latency, clientIP)
-		}
-	}
-}
-
-func Recovery() gin.HandlerFunc {
-	return gin.Recovery()
-}
-
-func RateLimit() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Next()
-	}
-}
-
-// RequirePermission creates middleware that checks for a specific permission
-// Usage: protected.GET("/users", RequirePermission("user", "list"), h.List)
+// RequirePermission 创建权限检查中间件 - 检查特定权限
+// 用法: protected.GET("/users", RequirePermission("user", "list"), h.List)
 func RequirePermission(resource, action string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		uc := xinContext.NewUserContext(c)
@@ -258,7 +131,7 @@ func RequirePermission(resource, action string) gin.HandlerFunc {
 	}
 }
 
-// RequireAnyPermission creates middleware that passes if user has ANY of the permissions
+// RequireAnyPermission 创建权限检查中间件 - 用户拥有任意一个权限即可通过
 func RequireAnyPermission(permissions ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		uc := xinContext.NewUserContext(c)
@@ -284,7 +157,7 @@ func RequireAnyPermission(permissions ...string) gin.HandlerFunc {
 	}
 }
 
-// RequireAllPermissions creates middleware that passes only if user has ALL permissions
+// RequireAllPermissions 创建权限检查中间件 - 用户必须拥有所有权限才能通过
 func RequireAllPermissions(permissions ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		uc := xinContext.NewUserContext(c)

@@ -103,19 +103,18 @@ func runServer(cfg *config.Config) {
 	waitForSignal(app.Server, app)
 }
 
-// runFrameworkMigrations 执行框架核心数据库迁移
-func runMigrations() {
-	if err := migrate.Run("migrations"); err != nil {
-		log.Fatalf("migrations failed: %v", err)
-	}
-}
-
 func initModules() {
 	for _, m := range plugin.All() {
 		if err := m.Init(); err != nil {
 			log.Fatalf("module %s init failed: %v", m.Name(), err)
 		}
 		log.Printf("module %s initialized", m.Name())
+	}
+}
+
+func runMigrations() {
+	if err := migrate.Run("migrations"); err != nil {
+		log.Fatalf("migrations failed: %v", err)
 	}
 }
 

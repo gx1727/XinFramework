@@ -42,7 +42,7 @@ saas:
   mode: saas # single | saas | schema | database
 
 storage:
-  provider: cos # local | cos
+  provider: local # local | cos
   local_dir: ./uploads
   local_base_url: /uploads
   cos_url: https://xin-1303413944.cos.ap-shanghai.myqcloud.com
