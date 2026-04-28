@@ -160,8 +160,6 @@ func registerModules(r *gin.Engine, cfg *config.Config, app *boot.App) {
 
 	// 注册外部插件
 	for _, m := range plugin.All() {
-		if cfg.ModuleEnabled(m.Name()) {
-			m.Register(public, protected)
-		}
+		m.Register(public, protected)
 	}
 }

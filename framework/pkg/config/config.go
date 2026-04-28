@@ -317,6 +317,7 @@ func envCSV(key string, target *[]string) {
 
 func validateModules(c *Config) error {
 	core := []string{
+		"system",
 		"menu",
 		"tenant",
 		"user",
