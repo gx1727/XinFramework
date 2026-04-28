@@ -129,6 +129,70 @@ func (h *Handler) ListCategories(c *gin.Context) {
 	resp.Success(c, categories)
 }
 
+func (h *Handler) CreateFrameCategory(c *gin.Context) {
+	uc := xinContext.NewUserContext(c)
+	if uc.TenantID == 0 {
+		resp.Unauthorized(c, "未登录")
+		return
+	}
+
+	var req createFrameCategoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.BadRequest(c, "请求参数格式错误")
+		return
+	}
+
+	category, err := h.svc.CreateFrameCategory(c.Request.Context(), uc.TenantID, req)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+
+	resp.Success(c, category)
+}
+
+func (h *Handler) UpdateFrameCategory(c *gin.Context) {
+	uc := xinContext.NewUserContext(c)
+	if uc.TenantID == 0 {
+		resp.Unauthorized(c, "未登录")
+		return
+	}
+
+	var req updateFrameCategoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.BadRequest(c, "请求参数格式错误")
+		return
+	}
+
+	if err := h.svc.UpdateFrameCategory(c.Request.Context(), uc.TenantID, req); err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+
+	resp.Success(c, gin.H{"ok": true})
+}
+
+func (h *Handler) DeleteFrameCategory(c *gin.Context) {
+	uc := xinContext.NewUserContext(c)
+	if uc.TenantID == 0 {
+		resp.Unauthorized(c, "未登录")
+		return
+	}
+
+	var req deleteFrameCategoryRequest
+	if err := c.ShouldBindUri(&req); err != nil {
+		resp.BadRequest(c, "请求参数格式错误")
+		return
+	}
+
+	if err := h.svc.DeleteFrameCategory(c.Request.Context(), req.ID); err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+
+	resp.Success(c, gin.H{"ok": true})
+}
+
 // ==================== Spaces ====================
 
 func (h *Handler) GetSpaceByCode(c *gin.Context) {

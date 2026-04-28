@@ -11,13 +11,15 @@ import (
 )
 
 type Service struct {
-	storage    storage.Storage
-	frameRepo  *FrameRepository
-	avatarRepo *AvatarRepository
+	storage       storage.Storage
+	frameRepo     *FrameRepository
+	avatarRepo    *AvatarRepository
+	frameCatRepo  *FrameCategoryRepository
+	avatarCatRepo *AvatarCategoryRepository
 }
 
-func NewService(storage storage.Storage, frameRepo *FrameRepository, avatarRepo *AvatarRepository) *Service {
-	return &Service{storage: storage, frameRepo: frameRepo, avatarRepo: avatarRepo}
+func NewService(storage storage.Storage, frameRepo *FrameRepository, avatarRepo *AvatarRepository, frameCatRepo *FrameCategoryRepository, avatarCatRepo *AvatarCategoryRepository) *Service {
+	return &Service{storage: storage, frameRepo: frameRepo, avatarRepo: avatarRepo, frameCatRepo: frameCatRepo, avatarCatRepo: avatarCatRepo}
 }
 
 type FrameCategory struct {
@@ -224,15 +226,42 @@ func (s *Service) DeleteAvatar(ctx context.Context, tenantID, avatarID uint) err
 	return s.avatarRepo.Delete(ctx, avatarID)
 }
 
-// ==================== Categories (mock) ====================
+// ==================== Frame Categories ====================
 
 func (s *Service) ListCategories(ctx context.Context) ([]FrameCategory, error) {
-	return []FrameCategory{
-		{ID: 1, TenantID: 0, Code: "emotion", Name: "情绪类", Type: "emotion", Sort: 1, Status: 1},
-		{ID: 2, TenantID: 0, Code: "school", Name: "学校活动", Type: "custom", Sort: 2, Status: 1},
-		{ID: 3, TenantID: 0, Code: "company", Name: "企业活动", Type: "custom", Sort: 3, Status: 1},
-		{ID: 4, TenantID: 0, Code: "hot", Name: "热点节日", Type: "hot", Sort: 4, Status: 1},
-	}, nil
+	return s.frameCatRepo.List(ctx)
+}
+
+func (s *Service) GetFrameCategory(ctx context.Context, id uint) (*FrameCategory, error) {
+	return s.frameCatRepo.GetByID(ctx, id)
+}
+
+func (s *Service) CreateFrameCategory(ctx context.Context, tenantID uint, req createFrameCategoryRequest) (*FrameCategory, error) {
+	c := &FrameCategory{
+		TenantID: tenantID,
+		Code:     req.Code,
+		Name:     req.Name,
+		Type:     req.Type,
+		Sort:     req.Sort,
+		Status:   1,
+	}
+	return s.frameCatRepo.Create(ctx, c)
+}
+
+func (s *Service) UpdateFrameCategory(ctx context.Context, tenantID uint, req updateFrameCategoryRequest) error {
+	c := &FrameCategory{
+		ID:     req.ID,
+		Code:   req.Code,
+		Name:   req.Name,
+		Type:   req.Type,
+		Sort:   req.Sort,
+		Status: req.Status,
+	}
+	return s.frameCatRepo.Update(ctx, c)
+}
+
+func (s *Service) DeleteFrameCategory(ctx context.Context, id uint) error {
+	return s.frameCatRepo.Delete(ctx, id)
 }
 
 // ==================== Spaces (mock) ====================
@@ -312,16 +341,11 @@ func (s *Service) ListMyAvatars(ctx context.Context, tenantID, userID uint) ([]U
 }
 
 func (s *Service) ListAvatarCategories(ctx context.Context, req listAvatarCategoriesRequest) ([]AvatarCategory, error) {
-	return []AvatarCategory{
-		{ID: 1, TenantID: 0, Code: "selfie", Name: "自拍头像", Icon: "/icons/selfie.png", Type: "public", Sort: 1, Status: 1},
-		{ID: 2, TenantID: 0, Code: "artistic", Name: "艺术风格", Icon: "/icons/artistic.png", Type: "public", Sort: 2, Status: 1},
-		{ID: 3, TenantID: 0, Code: "vintage", Name: "复古风格", Icon: "/icons/vintage.png", Type: "public", Sort: 3, Status: 1},
-	}, nil
+	return s.avatarCatRepo.List(ctx, req.Type)
 }
 
 func (s *Service) CreateAvatarCategory(ctx context.Context, tenantID uint, req createAvatarCategoryRequest) (*AvatarCategory, error) {
-	category := &AvatarCategory{
-		ID:       1,
+	c := &AvatarCategory{
 		TenantID: tenantID,
 		Code:     req.Code,
 		Name:     req.Name,
@@ -330,18 +354,24 @@ func (s *Service) CreateAvatarCategory(ctx context.Context, tenantID uint, req c
 		Sort:     req.Sort,
 		Status:   1,
 	}
-	logger.Infof("created avatar category: %s for tenant: %d", category.Name, tenantID)
-	return category, nil
+	return s.avatarCatRepo.Create(ctx, c)
 }
 
 func (s *Service) UpdateAvatarCategory(ctx context.Context, tenantID uint, req updateAvatarCategoryRequest) error {
-	logger.Infof("updated avatar category: %d for tenant: %d", req.ID, tenantID)
-	return nil
+	c := &AvatarCategory{
+		ID:     req.ID,
+		Code:   req.Code,
+		Name:   req.Name,
+		Icon:   req.Icon,
+		Type:   req.Type,
+		Sort:   req.Sort,
+		Status: req.Status,
+	}
+	return s.avatarCatRepo.Update(ctx, c)
 }
 
 func (s *Service) DeleteAvatarCategory(ctx context.Context, tenantID, categoryID uint) error {
-	logger.Infof("deleted avatar category: %d for tenant: %d", categoryID, tenantID)
-	return nil
+	return s.avatarCatRepo.Delete(ctx, categoryID)
 }
 
 func generateInviteCode() string {

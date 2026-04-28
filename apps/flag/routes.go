@@ -16,6 +16,9 @@ func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
 
 	// Categories
 	public.GET("/flag/categories", h.ListCategories)
+	protected.POST("/flag/categories", h.CreateFrameCategory)
+	protected.PUT("/flag/categories/:id", h.UpdateFrameCategory)
+	protected.DELETE("/flag/categories/:id", h.DeleteFrameCategory)
 
 	// Spaces
 	public.GET("/flag/spaces/:code", h.GetSpaceByCode)
@@ -53,7 +56,9 @@ func (m *module) Shutdown() error { return nil }
 func (m *module) Register(public, protected *gin.RouterGroup) {
 	frameRepo := NewFrameRepository(db.Get())
 	avatarRepo := NewAvatarRepository(db.Get())
-	svc := NewService(nil, frameRepo, avatarRepo)
+	frameCatRepo := NewFrameCategoryRepository(db.Get())
+	avatarCatRepo := NewAvatarCategoryRepository(db.Get())
+	svc := NewService(nil, frameRepo, avatarRepo, frameCatRepo, avatarCatRepo)
 	h := NewHandler(svc)
 	Register(public, protected, h)
 }

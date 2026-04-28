@@ -53,6 +53,30 @@ type getSpaceByCodeRequest struct {
 	Code string `uri:"code" binding:"required"`
 }
 
+// ==================== Frame Categories ====================
+
+type createFrameCategoryRequest struct {
+	Code string `json:"code" binding:"required"`
+	Name string `json:"name" binding:"required"`
+	Type string `json:"type"`
+	Sort int    `json:"sort"`
+}
+
+type updateFrameCategoryRequest struct {
+	ID     uint   `json:"id" binding:"required"`
+	Code   string `json:"code"`
+	Name   string `json:"name"`
+	Type   string `json:"type"`
+	Sort   int    `json:"sort"`
+	Status int8   `json:"status"`
+}
+
+type deleteFrameCategoryRequest struct {
+	ID uint `uri:"id" binding:"required"`
+}
+
+// ==================== Space ====================
+
 type createSpaceRequest struct {
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`

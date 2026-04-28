@@ -246,6 +246,82 @@ Authorization: Bearer <token>
 
 ***
 
+### 创建头像框分类
+
+**POST** `/flag/categories`
+
+**Headers:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Request Body:**
+
+```json
+{
+  "code": "emotion",
+  "name": "情绪类",
+  "type": "emotion",
+  "sort": 1
+}
+```
+
+| 参数   | 类型     | 必填 | 说明                              |
+| ---- | ------ | -- | ------------------------------- |
+| code | string | 是  | 分类编码                            |
+| name | string | 是  | 分类名称                            |
+| type | string | 否  | 类型: public/emotion/tag/hot/custom |
+| sort | int    | 否  | 排序号                             |
+
+***
+
+### 更新头像框分类
+
+**PUT** `/flag/categories/:id`
+
+**Headers:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Request Body:**
+
+```json
+{
+  "id": 1,
+  "code": "emotion",
+  "name": "情绪类更新",
+  "type": "emotion",
+  "sort": 10,
+  "status": 1
+}
+```
+
+| 参数     | 类型     | 必填 | 说明                 |
+| ------ | ------ | -- | ------------------ |
+| id     | uint   | 是  | 分类ID               |
+| code   | string | 否  | 分类编码               |
+| name   | string | 否  | 分类名称               |
+| type   | string | 否  | 类型                 |
+| sort   | int    | 否  | 排序号                |
+| status | int8   | 否  | 状态: 0-禁用, 1-启用 |
+
+***
+
+### 删除头像框分类
+
+**DELETE** `/flag/categories/:id`
+
+**Headers:**
+
+```
+Authorization: Bearer <token>
+```
+
+***
+
 ## 活动空间 (Spaces)
 
 ### 获取活动 Space (通过邀请码)
