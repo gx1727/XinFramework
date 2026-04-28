@@ -17,12 +17,11 @@ func (m *module) Init() error {
 func (m *module) Shutdown() error { return nil }
 
 func (m *module) Register(public, protected *gin.RouterGroup) {
-	frameRepo := NewFrameRepository(db.Get())
-	avatarRepo := NewAvatarRepository(db.Get())
-	frameCatRepo := NewFrameCategoryRepository(db.Get())
-	avatarCatRepo := NewAvatarCategoryRepository(db.Get())
-	svc := NewService(nil, frameRepo, avatarRepo, frameCatRepo, avatarCatRepo)
-	h := NewHandler(svc)
+	// 初始化 Repository
+	InitRepositories(db.Get())
+
+	// 创建 Handler（直接调用 Repository，无 Service 层）
+	h := NewHandler()
 	Register(public, protected, h)
 }
 

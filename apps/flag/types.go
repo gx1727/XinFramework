@@ -1,13 +1,125 @@
 package flag
 
-import "gx1727.com/xin/framework/pkg/resp"
+import "time"
 
-var (
-	ErrFrameNotFound  = resp.NewError(15001, "头像框不存在")
-	ErrSpaceNotFound  = resp.NewError(15002, "活动空间不存在")
-	ErrGenerateFailed = resp.NewError(15003, "头像生成失败")
-	ErrAvatarNotFound = resp.NewError(15004, "头像不存在")
-)
+// ==================== Data Models ====================
+
+type FrameCategory struct {
+	ID       uint   `json:"id"`
+	TenantID uint   `json:"tenant_id"`
+	Code     string `json:"code"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Sort     int    `json:"sort"`
+	Status   int8   `json:"status"`
+}
+
+type Frame struct {
+	ID             uint      `json:"id"`
+	TenantID       uint      `json:"tenant_id"`
+	CategoryID     uint      `json:"category_id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description"`
+	PreviewURL     string    `json:"preview_url"`
+	TemplateURL    string    `json:"template_url"`
+	TemplateConfig string    `json:"template_config,omitempty"`
+	Type           string    `json:"type"`
+	Sort           int       `json:"sort"`
+	Status         int8      `json:"status"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+type FrameTemplateConfig struct {
+	AvatarX      int `json:"avatar_x"`
+	AvatarY      int `json:"avatar_y"`
+	AvatarWidth  int `json:"avatar_width"`
+	AvatarHeight int `json:"avatar_height"`
+	TextX        int `json:"text_x"`
+	TextY        int `json:"text_y"`
+	TextWidth    int `json:"text_width"`
+	FontSize     int `json:"font_size"`
+}
+
+type Space struct {
+	ID          uint         `json:"id"`
+	TenantID    uint         `json:"tenant_id"`
+	Name        string       `json:"name"`
+	Description string       `json:"description"`
+	FrameID     uint         `json:"frame_id"`
+	Frame       *Frame       `json:"frame,omitempty"`
+	SpaceConfig *SpaceConfig `json:"space_config,omitempty"`
+	AccessType  string       `json:"access_type"`
+	InviteCode  string       `json:"invite_code"`
+	MaxUsage    int          `json:"max_usage"`
+	UsageCount  int          `json:"usage_count"`
+	Status      int8         `json:"status"`
+	StartAt     *time.Time   `json:"start_at,omitempty"`
+	EndAt       *time.Time   `json:"end_at,omitempty"`
+}
+
+type SpaceConfig struct {
+	Fields []FieldConfig `json:"fields"`
+}
+
+type FieldConfig struct {
+	Key       string `json:"key"`
+	Label     string `json:"label"`
+	Required  bool   `json:"required"`
+	Show      bool   `json:"show"`
+	MaxLength int    `json:"max_length"`
+}
+
+type UserGenerated struct {
+	ID          uint              `json:"id"`
+	TenantID    uint              `json:"tenant_id"`
+	UserID      uint              `json:"user_id"`
+	SpaceID     uint              `json:"space_id"`
+	FrameID     uint              `json:"frame_id"`
+	SourceImage string            `json:"source_image"`
+	ResultURL   string            `json:"result_url"`
+	ResultKey   string            `json:"result_key"`
+	FieldValues map[string]string `json:"field_values"`
+	ShareText   string            `json:"share_text"`
+	CreatedAt   time.Time         `json:"created_at"`
+}
+
+type GenerateResult struct {
+	ID        uint   `json:"id"`
+	ResultURL string `json:"result_url"`
+	ShareText string `json:"share_text"`
+}
+
+type AvatarCategory struct {
+	ID       uint   `json:"id"`
+	TenantID uint   `json:"tenant_id"`
+	Code     string `json:"code"`
+	Name     string `json:"name"`
+	Icon     string `json:"icon"`
+	Type     string `json:"type"`
+	Sort     int    `json:"sort"`
+	Status   int8   `json:"status"`
+}
+
+type Avatar struct {
+	ID           uint      `json:"id"`
+	TenantID     uint      `json:"tenant_id"`
+	UserID       uint      `json:"user_id"`
+	CategoryID   uint      `json:"category_id"`
+	Name         string    `json:"name"`
+	SourceURL    string    `json:"source_url"`
+	ThumbnailURL string    `json:"thumbnail_url"`
+	FileSize     int64     `json:"file_size"`
+	Width        int       `json:"width"`
+	Height       int       `json:"height"`
+	Type         string    `json:"type"`
+	IsPublic     bool      `json:"is_public"`
+	LikeCount    int       `json:"like_count"`
+	ViewCount    int       `json:"view_count"`
+	Status       int8      `json:"status"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
 
 // ==================== Frame ====================
 
