@@ -140,11 +140,16 @@ func (s *Service) Profile(ctx context.Context, tenantID, userID uint) (*UserInfo
 }
 
 func (s *Service) UploadAvatar(ctx context.Context, tenantID, userID uint, file *multipart.FileHeader) (string, error) {
-	resp, err := s.assetSvc.Upload(ctx, tenantID, userID, file)
+	uploadResp, err := s.assetSvc.Upload(ctx, tenantID, userID, file)
 	if err != nil {
 		return "", err
 	}
-	return resp.URL, nil
+
+	if err := s.userRepo.UpdateAvatar(ctx, userID, uploadResp.URL); err != nil {
+		return "", fmt.Errorf("update avatar: %w", err)
+	}
+
+	return uploadResp.URL, nil
 }
 
 func (s *Service) UpdateProfile(ctx context.Context, tenantID, userID uint, nickname, avatar string) error {

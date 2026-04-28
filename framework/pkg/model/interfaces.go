@@ -33,6 +33,7 @@ type UserRepository interface {
 	UpdateStatus(ctx context.Context, id uint, status int8) error
 	UpdatePhone(ctx context.Context, userID uint, phone string) error
 	UpdateProfile(ctx context.Context, id uint, nickname, avatar string) error
+	UpdateAvatar(ctx context.Context, id uint, avatar string) error
 	Delete(ctx context.Context, id uint) error
 }
 

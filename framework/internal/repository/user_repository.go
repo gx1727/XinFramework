@@ -373,6 +373,29 @@ func (r *PostgresUserRepository) UpdateProfile(ctx context.Context, id uint, nic
 	return nil
 }
 
+func (r *PostgresUserRepository) UpdateAvatar(ctx context.Context, id uint, avatar string) error {
+	conn, err := db.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+
+	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+		_ = conn.SetTenant(ctx, tid)
+	}
+
+	tag, err := conn.Exec(ctx, `
+		UPDATE users SET avatar = $2, updated_at = NOW()
+		WHERE is_deleted = FALSE AND id = $1`, id, avatar)
+	if err != nil {
+		return fmt.Errorf("update user avatar: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return model.ErrUserNotFound
+	}
+	return nil
+}
+
 // PostgresRoleRepository implements model.RoleRepository
 type PostgresRoleRepository struct {
 	db *pgxpool.Pool
