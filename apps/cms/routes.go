@@ -3,7 +3,6 @@ package cms
 import (
 	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/pkg/plugin"
-	"gx1727.com/xin/framework/pkg/repository"
 	"gx1727.com/xin/module/cms/internal/handler"
 	"gx1727.com/xin/module/cms/internal/service"
 )
@@ -16,7 +15,6 @@ func Register(h *Handler, public, protected *gin.RouterGroup) {
 	protected.GET("/cms/users", h.ListUsers)
 	protected.GET("/cms/tenant", h.GetTenant)
 
-	// CMS Posts CRUD
 	protected.GET("/cms/posts", h.ListPosts)
 	protected.GET("/cms/posts/:id", h.GetPost)
 	protected.POST("/cms/posts", h.CreatePost)
@@ -35,16 +33,11 @@ func (m *module) Init() error { return nil }
 func (m *module) Shutdown() error { return nil }
 
 func (m *module) Register(public, protected *gin.RouterGroup) {
-	svc := service.NewService(
-		repository.User(),
-		repository.Tenant(),
-		repository.CmsPost(),
-	)
+	svc := service.NewService()
 	h := handler.NewHandler(svc)
 	Register(h, public, protected)
 }
 
-// Module creates the CMS plugin module
 func Module() plugin.Module {
 	return &module{name: "cms"}
 }

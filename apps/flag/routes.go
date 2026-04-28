@@ -33,8 +33,21 @@ func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
 	protected.DELETE("/flag/avatars/:id", h.DeleteAvatar)
 }
 
-func Module(h *Handler) plugin.Module {
-	return plugin.NewModule("flag", func(public, protected *gin.RouterGroup) {
-		Register(public, protected, h)
-	})
+type module struct {
+	name string
+}
+
+func (m *module) Name() string    { return m.name }
+func (m *module) Init() error     { return nil }
+func (m *module) Shutdown() error { return nil }
+
+func (m *module) Register(public, protected *gin.RouterGroup) {
+	// TODO: Inject storage dependency properly
+	svc := NewService(nil)
+	h := NewHandler(svc)
+	Register(public, protected, h)
+}
+
+func Module() plugin.Module {
+	return &module{name: "flag"}
 }

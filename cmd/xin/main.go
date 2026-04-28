@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 
+	"gx1727.com/xin/apps/flag"
 	"gx1727.com/xin/framework"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/plugin"
@@ -10,7 +11,8 @@ import (
 )
 
 var moduleRegistry = map[string]func() plugin.Module{
-	"cms": cms.Module,
+	"cms":  cms.Module,
+	"flag": flag.Module,
 }
 
 func main() {

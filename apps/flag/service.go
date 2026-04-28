@@ -2,7 +2,6 @@ package flag
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -30,17 +29,17 @@ type FrameCategory struct {
 }
 
 type Frame struct {
-	ID             uint                   `json:"id"`
-	TenantID       uint                   `json:"tenant_id"`
-	CategoryID     uint                   `json:"category_id"`
-	Name           string                 `json:"name"`
-	Description    string                 `json:"description"`
-	PreviewURL     string                 `json:"preview_url"`
-	TemplateURL    string                 `json:"template_url"`
-	TemplateConfig *FrameTemplateConfig  `json:"template_config,omitempty"`
-	Type           string                 `json:"type"`
-	Sort           int                    `json:"sort"`
-	Status         int8                   `json:"status"`
+	ID             uint                 `json:"id"`
+	TenantID       uint                 `json:"tenant_id"`
+	CategoryID     uint                 `json:"category_id"`
+	Name           string               `json:"name"`
+	Description    string               `json:"description"`
+	PreviewURL     string               `json:"preview_url"`
+	TemplateURL    string               `json:"template_url"`
+	TemplateConfig *FrameTemplateConfig `json:"template_config,omitempty"`
+	Type           string               `json:"type"`
+	Sort           int                  `json:"sort"`
+	Status         int8                 `json:"status"`
 }
 
 type FrameTemplateConfig struct {
@@ -55,20 +54,20 @@ type FrameTemplateConfig struct {
 }
 
 type Space struct {
-	ID          uint                   `json:"id"`
-	TenantID    uint                   `json:"tenant_id"`
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	FrameID     uint                   `json:"frame_id"`
-	Frame       *Frame                 `json:"frame,omitempty"`
-	SpaceConfig *SpaceConfig          `json:"space_config,omitempty"`
-	AccessType  string                 `json:"access_type"`
-	InviteCode  string                 `json:"invite_code"`
-	MaxUsage    int                    `json:"max_usage"`
-	UsageCount  int                    `json:"usage_count"`
-	Status      int8                   `json:"status"`
-	StartAt     *time.Time            `json:"start_at,omitempty"`
-	EndAt       *time.Time            `json:"end_at,omitempty"`
+	ID          uint         `json:"id"`
+	TenantID    uint         `json:"tenant_id"`
+	Name        string       `json:"name"`
+	Description string       `json:"description"`
+	FrameID     uint         `json:"frame_id"`
+	Frame       *Frame       `json:"frame,omitempty"`
+	SpaceConfig *SpaceConfig `json:"space_config,omitempty"`
+	AccessType  string       `json:"access_type"`
+	InviteCode  string       `json:"invite_code"`
+	MaxUsage    int          `json:"max_usage"`
+	UsageCount  int          `json:"usage_count"`
+	Status      int8         `json:"status"`
+	StartAt     *time.Time   `json:"start_at,omitempty"`
+	EndAt       *time.Time   `json:"end_at,omitempty"`
 }
 
 type SpaceConfig struct {
@@ -84,17 +83,17 @@ type FieldConfig struct {
 }
 
 type UserGenerated struct {
-	ID          uint                 `json:"id"`
-	TenantID    uint                 `json:"tenant_id"`
-	UserID      uint                 `json:"user_id"`
-	SpaceID     uint                 `json:"space_id"`
-	FrameID     uint                 `json:"frame_id"`
-	SourceImage string               `json:"source_image"`
-	ResultURL   string               `json:"result_url"`
-	ResultKey   string               `json:"result_key"`
-	FieldValues map[string]string    `json:"field_values"`
-	ShareText   string               `json:"share_text"`
-	CreatedAt   time.Time           `json:"created_at"`
+	ID          uint              `json:"id"`
+	TenantID    uint              `json:"tenant_id"`
+	UserID      uint              `json:"user_id"`
+	SpaceID     uint              `json:"space_id"`
+	FrameID     uint              `json:"frame_id"`
+	SourceImage string            `json:"source_image"`
+	ResultURL   string            `json:"result_url"`
+	ResultKey   string            `json:"result_key"`
+	FieldValues map[string]string `json:"field_values"`
+	ShareText   string            `json:"share_text"`
+	CreatedAt   time.Time         `json:"created_at"`
 }
 
 type GenerateResult struct {
@@ -217,7 +216,6 @@ func (s *Service) GetSpaceByCode(ctx context.Context, code string) (*Space, erro
 				{Key: "college", Label: "学院", Required: false, Show: true, MaxLength: 50},
 			},
 		}
-		configJSON, _ := json.Marshal(config)
 		return &Space{
 			ID:          1,
 			TenantID:    1,
@@ -235,16 +233,16 @@ func (s *Service) GetSpaceByCode(ctx context.Context, code string) (*Space, erro
 
 func (s *Service) CreateSpace(ctx context.Context, tenantID uint, req createSpaceRequest) (*Space, error) {
 	inviteCode := generateInviteCode()
-	
+
 	space := &Space{
-		ID:         1,
-		TenantID:   tenantID,
-		Name:       req.Name,
+		ID:          1,
+		TenantID:    tenantID,
+		Name:        req.Name,
 		Description: req.Description,
-		FrameID:    req.FrameID,
-		AccessType: req.AccessType,
-		InviteCode: inviteCode,
-		Status:     1,
+		FrameID:     req.FrameID,
+		AccessType:  req.AccessType,
+		InviteCode:  inviteCode,
+		Status:      1,
 	}
 
 	logger.Infof("created space: %s for tenant: %d", space.Name, tenantID)
@@ -267,7 +265,7 @@ func (s *Service) ListSpaces(ctx context.Context, tenantID uint) ([]Space, error
 
 func (s *Service) GenerateAvatar(ctx context.Context, tenantID, userID uint, req generateRequest) (*GenerateResult, error) {
 	resultKey := fmt.Sprintf("flag/%d/%s.png", tenantID, uuid.New().String())
-	
+
 	resultURL := fmt.Sprintf("https://img.gx1727.com/%s", resultKey)
 
 	result := &GenerateResult{
