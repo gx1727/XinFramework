@@ -129,7 +129,27 @@ func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc PermissionSe
 			DataScope:   ds,
 		}
 
-		c.Request = c.Request.WithContext(xinContext.WithUserContext(c.Request.Context(), uc))
+		ctx := c.Request.Context()
+		ctx = xinContext.WithUserContext(ctx, uc)
+		ctx = xinContext.WithTenantID(ctx, claims.TenantID)
+
+		// Also update XinContext if present
+		if xc, ok := xinContext.XinContextFrom(ctx); ok {
+			xc.SetTenantID(claims.TenantID)
+			xc.SetUserID(claims.UserID)
+			xc.SetSessionID(claims.SessionID)
+			xc.SetRole(claims.Role)
+		} else {
+			xc = &xinContext.XinContext{
+				TenantID:  claims.TenantID,
+				UserID:    claims.UserID,
+				SessionID: claims.SessionID,
+				Role:      claims.Role,
+			}
+			ctx = xinContext.WithXinContext(ctx, xc)
+		}
+
+		c.Request = c.Request.WithContext(ctx)
 		c.Set("user_id", claims.UserID)
 		c.Set("tenant_id", claims.TenantID)
 		c.Set("session_id", claims.SessionID)

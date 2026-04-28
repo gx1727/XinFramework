@@ -191,7 +191,26 @@ var builtinHandlers = map[string]builtinHandlerBuilder{
 		return tenant.NewHandler(tenant.NewService(app.Repository.Tenant()))
 	},
 	"user": func(app *boot.App) interface{} {
-		return user.NewHandler(user.NewService(app.Repository.User(), app.Repository.Role()))
+		var s storage.Storage
+		if app.Config.Storage.Provider == "cos" {
+			var err error
+			s, err = storage_cos.NewCosStorage(storage_cos.Config{
+				URL:       app.Config.Storage.CosURL,
+				SecretID:  app.Config.Storage.CosSecretID,
+				SecretKey: app.Config.Storage.CosSecretKey,
+				BaseURL:   app.Config.Storage.CosBaseURL,
+			})
+			if err != nil {
+				log.Fatalf("failed to init cos storage for user: %v", err)
+			}
+		} else {
+			s = storage_local.NewLocalStorage(
+				app.Config.Storage.LocalDir,
+				app.Config.Storage.LocalBaseURL,
+			)
+		}
+		assetSvc := asset.NewFileService(s, app.Repository.Attachment())
+		return user.NewHandler(user.NewService(app.Repository.User(), app.Repository.Role(), assetSvc))
 	},
 	"menu": func(app *boot.App) interface{} {
 		return menu.NewHandler(menu.NewService(app.Repository.Menu()))

@@ -44,3 +44,8 @@ type updateStatusRequest struct {
 	ID     uint `json:"id" binding:"required"`
 	Status int8 `json:"status" binding:"required,oneof=1 2"`
 }
+
+type updateProfileRequest struct {
+	Nickname string `json:"nickName" binding:"required"`
+	Avatar   string `json:"avatarUrl"`
+}

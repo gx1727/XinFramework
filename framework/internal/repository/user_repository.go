@@ -7,6 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	xincontext "gx1727.com/xin/framework/pkg/context"
+	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/model"
 )
 
@@ -19,13 +21,24 @@ func NewUserRepository(db *pgxpool.Pool) model.UserRepository {
 }
 
 func (r *PostgresUserRepository) GetByID(ctx context.Context, id uint) (*model.User, error) {
+	conn, err := db.Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+
+	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+		_ = conn.SetTenant(ctx, tid)
+	}
+
 	var u model.User
-	err := r.db.QueryRow(ctx, `
+	var nickname, realName, avatar, phone, email *string
+	err = conn.QueryRow(ctx, `
 		SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
 		FROM users
 		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
-		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &u.Nickname, &u.Status,
-		&u.RealName, &u.Avatar, &u.Phone, &u.Email,
+		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &nickname, &u.Status,
+		&realName, &avatar, &phone, &email,
 		&u.CreatedAt, &u.UpdatedAt,
 	)
 	if err != nil {
@@ -33,18 +46,44 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id uint) (*model.U
 			return nil, model.ErrUserNotFound
 		}
 		return nil, err
+	}
+	if nickname != nil {
+		u.Nickname = *nickname
+	}
+	if realName != nil {
+		u.RealName = *realName
+	}
+	if avatar != nil {
+		u.Avatar = *avatar
+	}
+	if phone != nil {
+		u.Phone = *phone
+	}
+	if email != nil {
+		u.Email = *email
 	}
 	return &u, nil
 }
 
 func (r *PostgresUserRepository) GetByAccountID(ctx context.Context, accountID uint) (*model.User, error) {
+	conn, err := db.Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+
+	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+		_ = conn.SetTenant(ctx, tid)
+	}
+
 	var u model.User
-	err := r.db.QueryRow(ctx, `
+	var nickname, realName, avatar, phone, email *string
+	err = conn.QueryRow(ctx, `
 		SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
 		FROM users
 		WHERE is_deleted = FALSE AND account_id = $1`, accountID).Scan(
-		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &u.Nickname, &u.Status,
-		&u.RealName, &u.Avatar, &u.Phone, &u.Email,
+		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &nickname, &u.Status,
+		&realName, &avatar, &phone, &email,
 		&u.CreatedAt, &u.UpdatedAt,
 	)
 	if err != nil {
@@ -52,18 +91,44 @@ func (r *PostgresUserRepository) GetByAccountID(ctx context.Context, accountID u
 			return nil, model.ErrUserNotFound
 		}
 		return nil, err
+	}
+	if nickname != nil {
+		u.Nickname = *nickname
+	}
+	if realName != nil {
+		u.RealName = *realName
+	}
+	if avatar != nil {
+		u.Avatar = *avatar
+	}
+	if phone != nil {
+		u.Phone = *phone
+	}
+	if email != nil {
+		u.Email = *email
 	}
 	return &u, nil
 }
 
 func (r *PostgresUserRepository) GetByCode(ctx context.Context, code string) (*model.User, error) {
+	conn, err := db.Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+
+	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+		_ = conn.SetTenant(ctx, tid)
+	}
+
 	var u model.User
-	err := r.db.QueryRow(ctx, `
+	var nickname, realName, avatar, phone, email *string
+	err = conn.QueryRow(ctx, `
 		SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
 		FROM users
 		WHERE is_deleted = FALSE AND code = $1`, code).Scan(
-		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &u.Nickname, &u.Status,
-		&u.RealName, &u.Avatar, &u.Phone, &u.Email,
+		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &nickname, &u.Status,
+		&realName, &avatar, &phone, &email,
 		&u.CreatedAt, &u.UpdatedAt,
 	)
 	if err != nil {
@@ -72,10 +137,37 @@ func (r *PostgresUserRepository) GetByCode(ctx context.Context, code string) (*m
 		}
 		return nil, err
 	}
+	if nickname != nil {
+		u.Nickname = *nickname
+	}
+	if realName != nil {
+		u.RealName = *realName
+	}
+	if avatar != nil {
+		u.Avatar = *avatar
+	}
+	if phone != nil {
+		u.Phone = *phone
+	}
+	if email != nil {
+		u.Email = *email
+	}
 	return &u, nil
 }
 
 func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keyword string, page, size int) ([]model.User, int64, error) {
+	conn, err := db.Acquire(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer conn.Release()
+
+	if tenantID > 0 {
+		_ = conn.SetTenant(ctx, tenantID)
+	} else if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+		_ = conn.SetTenant(ctx, tid)
+	}
+
 	where := "WHERE is_deleted = FALSE"
 	args := []interface{}{}
 	argIdx := 1
@@ -92,7 +184,7 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keywor
 	}
 
 	var total int64
-	err := r.db.QueryRow(ctx, "SELECT COUNT(*) FROM users "+where, args...).Scan(&total)
+	err = conn.QueryRow(ctx, "SELECT COUNT(*) FROM users "+where, args...).Scan(&total)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -109,7 +201,7 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keywor
 		FROM users %s ORDER BY id DESC LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
 	args = append(args, size, offset)
 
-	rows, err := r.db.Query(ctx, query, args...)
+	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -118,12 +210,28 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keywor
 	var list []model.User
 	for rows.Next() {
 		var u model.User
+		var nickname, realName, avatar, phone, email *string
 		if err := rows.Scan(
-			&u.ID, &u.TenantID, &u.AccountID, &u.Code, &u.Nickname, &u.Status,
-			&u.RealName, &u.Avatar, &u.Phone, &u.Email,
+			&u.ID, &u.TenantID, &u.AccountID, &u.Code, &nickname, &u.Status,
+			&realName, &avatar, &phone, &email,
 			&u.CreatedAt, &u.UpdatedAt,
 		); err != nil {
 			return nil, 0, err
+		}
+		if nickname != nil {
+			u.Nickname = *nickname
+		}
+		if realName != nil {
+			u.RealName = *realName
+		}
+		if avatar != nil {
+			u.Avatar = *avatar
+		}
+		if phone != nil {
+			u.Phone = *phone
+		}
+		if email != nil {
+			u.Email = *email
 		}
 		list = append(list, u)
 	}
@@ -131,24 +239,60 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keywor
 }
 
 func (r *PostgresUserRepository) Create(ctx context.Context, tenantID, accountID uint, code string) (*model.User, error) {
+	conn, err := db.Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+
+	if tenantID > 0 {
+		_ = conn.SetTenant(ctx, tenantID)
+	}
+
 	var u model.User
-	err := r.db.QueryRow(ctx, `
+	var nickname, realName, avatar, phone, email *string
+	err = conn.QueryRow(ctx, `
 		INSERT INTO users (tenant_id, account_id, code, status)
 		VALUES ($1, $2, $3, 1)
 		RETURNING id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at`,
 		tenantID, accountID, code).Scan(
-		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &u.Nickname, &u.Status,
-		&u.RealName, &u.Avatar, &u.Phone, &u.Email,
+		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &nickname, &u.Status,
+		&realName, &avatar, &phone, &email,
 		&u.CreatedAt, &u.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
+	if nickname != nil {
+		u.Nickname = *nickname
+	}
+	if realName != nil {
+		u.RealName = *realName
+	}
+	if avatar != nil {
+		u.Avatar = *avatar
+	}
+	if phone != nil {
+		u.Phone = *phone
+	}
+	if email != nil {
+		u.Email = *email
+	}
 	return &u, nil
 }
 
 func (r *PostgresUserRepository) UpdateStatus(ctx context.Context, id uint, status int8) error {
-	tag, err := r.db.Exec(ctx, `
+	conn, err := db.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+
+	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+		_ = conn.SetTenant(ctx, tid)
+	}
+
+	tag, err := conn.Exec(ctx, `
 		UPDATE users SET status = $2, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id, status)
 	if err != nil {
@@ -161,7 +305,17 @@ func (r *PostgresUserRepository) UpdateStatus(ctx context.Context, id uint, stat
 }
 
 func (r *PostgresUserRepository) Delete(ctx context.Context, id uint) error {
-	tag, err := r.db.Exec(ctx, `
+	conn, err := db.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+
+	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+		_ = conn.SetTenant(ctx, tid)
+	}
+
+	tag, err := conn.Exec(ctx, `
 		UPDATE users SET is_deleted = TRUE, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id)
 	if err != nil {
@@ -174,11 +328,44 @@ func (r *PostgresUserRepository) Delete(ctx context.Context, id uint) error {
 }
 
 func (r *PostgresUserRepository) UpdatePhone(ctx context.Context, userID uint, phone string) error {
-	tag, err := r.db.Exec(ctx, `
+	conn, err := db.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+
+	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+		_ = conn.SetTenant(ctx, tid)
+	}
+
+	tag, err := conn.Exec(ctx, `
 		UPDATE users SET phone = $2, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, userID, phone)
 	if err != nil {
 		return fmt.Errorf("update user phone: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return model.ErrUserNotFound
+	}
+	return nil
+}
+
+func (r *PostgresUserRepository) UpdateProfile(ctx context.Context, id uint, nickname, avatar string) error {
+	conn, err := db.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+
+	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+		_ = conn.SetTenant(ctx, tid)
+	}
+
+	tag, err := conn.Exec(ctx, `
+		UPDATE users SET nickname = $2, avatar = $3, updated_at = NOW()
+		WHERE is_deleted = FALSE AND id = $1`, id, nickname, avatar)
+	if err != nil {
+		return fmt.Errorf("update user profile: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return model.ErrUserNotFound

@@ -4,19 +4,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mime/multipart"
 
+	"gx1727.com/xin/framework/internal/module/asset"
 	"gx1727.com/xin/framework/pkg/model"
 )
 
 type Service struct {
 	userRepo model.UserRepository
 	roleRepo model.RoleRepository
+	assetSvc *asset.FileService
 }
 
-func NewService(userRepo model.UserRepository, roleRepo model.RoleRepository) *Service {
+func NewService(userRepo model.UserRepository, roleRepo model.RoleRepository, assetSvc *asset.FileService) *Service {
 	return &Service{
 		userRepo: userRepo,
 		roleRepo: roleRepo,
+		assetSvc: assetSvc,
 	}
 }
 
@@ -133,4 +137,27 @@ func (s *Service) Profile(ctx context.Context, tenantID, userID uint) (*UserInfo
 	}
 
 	return info, nil
+}
+
+func (s *Service) UploadAvatar(ctx context.Context, tenantID, userID uint, file *multipart.FileHeader) (string, error) {
+	resp, err := s.assetSvc.Upload(ctx, tenantID, userID, file)
+	if err != nil {
+		return "", err
+	}
+	return resp.URL, nil
+}
+
+func (s *Service) UpdateProfile(ctx context.Context, tenantID, userID uint, nickname, avatar string) error {
+	u, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if u.TenantID != tenantID {
+		return ErrUserNotFound
+	}
+
+	if err := s.userRepo.UpdateProfile(ctx, userID, nickname, avatar); err != nil {
+		return fmt.Errorf("update user profile: %w", err)
+	}
+	return nil
 }

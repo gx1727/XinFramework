@@ -74,7 +74,7 @@ func Acquire(ctx context.Context) (*Conn, error) {
 
 func (c *Conn) SetTenant(ctx context.Context, tenantID uint) error {
 	c.tenant = tenantID
-	_, err := c.conn.Exec(ctx, "SET app.tenant_id = $1", tenantID)
+	_, err := c.conn.Exec(ctx, fmt.Sprintf("SET app.tenant_id = '%d'", tenantID))
 	return err
 }
 

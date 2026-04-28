@@ -32,6 +32,7 @@ type UserRepository interface {
 	Create(ctx context.Context, tenantID, accountID uint, code string) (*User, error)
 	UpdateStatus(ctx context.Context, id uint, status int8) error
 	UpdatePhone(ctx context.Context, userID uint, phone string) error
+	UpdateProfile(ctx context.Context, id uint, nickname, avatar string) error
 	Delete(ctx context.Context, id uint) error
 }
 

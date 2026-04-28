@@ -90,3 +90,46 @@ func (h *Handler) Profile(c *gin.Context) {
 
 	resp.Success(c, info)
 }
+
+func (h *Handler) UploadAvatar(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		resp.BadRequest(c, "未发现上传文件")
+		return
+	}
+
+	uc := context.NewUserContext(c)
+	if uc.UserID == 0 {
+		resp.Unauthorized(c, "未登录")
+		return
+	}
+
+	url, err := h.svc.UploadAvatar(c.Request.Context(), uc.TenantID, uc.UserID, file)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+
+	resp.Success(c, gin.H{"url": url})
+}
+
+func (h *Handler) UpdateProfile(c *gin.Context) {
+	var req updateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.BadRequest(c, "请求参数格式错误")
+		return
+	}
+
+	uc := context.NewUserContext(c)
+	if uc.UserID == 0 {
+		resp.Unauthorized(c, "未登录")
+		return
+	}
+
+	if err := h.svc.UpdateProfile(c.Request.Context(), uc.TenantID, uc.UserID, req.Nickname, req.Avatar); err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+
+	resp.Success(c, gin.H{"ok": true})
+}

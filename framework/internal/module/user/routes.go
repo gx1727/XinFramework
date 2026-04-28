@@ -10,6 +10,8 @@ func Register(protected *gin.RouterGroup, h *Handler) {
 	protected.GET("/users/:id", h.Get)
 	protected.PUT("/users/:id/status", h.UpdateStatus)
 	protected.GET("/user/profile", h.Profile)
+	protected.POST("/user/avatar", h.UploadAvatar)
+	protected.PUT("/user/profile", h.UpdateProfile)
 }
 
 func Module(h *Handler) plugin.Module {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/model"
 )
 
@@ -19,6 +20,12 @@ func NewAttachmentRepository(db *pgxpool.Pool) *PostgresAttachmentRepository {
 }
 
 func (r *PostgresAttachmentRepository) GetByID(ctx context.Context, id uint) (*model.Attachment, error) {
+	conn, err := db.Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+
 	query := `
 		SELECT id, tenant_id, user_id, file_name, file_ext, mime_type, file_size, storage, object_key, url, hash, status, created_at, updated_at, is_deleted
 		FROM attachments
@@ -26,7 +33,7 @@ func (r *PostgresAttachmentRepository) GetByID(ctx context.Context, id uint) (*m
 	`
 	var attachment model.Attachment
 	var userID *uint
-	err := r.db.QueryRow(ctx, query, id).Scan(
+	err = conn.QueryRow(ctx, query, id).Scan(
 		&attachment.ID,
 		&attachment.TenantID,
 		&userID,
@@ -56,6 +63,16 @@ func (r *PostgresAttachmentRepository) GetByID(ctx context.Context, id uint) (*m
 }
 
 func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID uint, hash string) (*model.Attachment, error) {
+	conn, err := db.Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+
+	if err := conn.SetTenant(ctx, tenantID); err != nil {
+		return nil, err
+	}
+
 	query := `
 		SELECT id, tenant_id, user_id, file_name, file_ext, mime_type, file_size, storage, object_key, url, hash, status, created_at, updated_at, is_deleted
 		FROM attachments
@@ -64,7 +81,7 @@ func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID u
 	`
 	var attachment model.Attachment
 	var userID *uint
-	err := r.db.QueryRow(ctx, query, tenantID, hash).Scan(
+	err = conn.QueryRow(ctx, query, tenantID, hash).Scan(
 		&attachment.ID,
 		&attachment.TenantID,
 		&userID,
@@ -94,6 +111,16 @@ func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID u
 }
 
 func (r *PostgresAttachmentRepository) Create(ctx context.Context, attachment *model.Attachment) (*model.Attachment, error) {
+	conn, err := db.Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+
+	if err := conn.SetTenant(ctx, attachment.TenantID); err != nil {
+		return nil, err
+	}
+
 	query := `
 		INSERT INTO attachments (tenant_id, user_id, file_name, file_ext, mime_type, file_size, storage, object_key, url, hash, status, created_at, updated_at, is_deleted)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, false)
@@ -115,7 +142,7 @@ func (r *PostgresAttachmentRepository) Create(ctx context.Context, attachment *m
 		userID = &attachment.UserID
 	}
 
-	err := r.db.QueryRow(ctx, query,
+	err = conn.QueryRow(ctx, query,
 		attachment.TenantID,
 		userID,
 		attachment.FileName,
