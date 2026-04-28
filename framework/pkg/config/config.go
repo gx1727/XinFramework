@@ -14,16 +14,16 @@ import (
 
 type StorageConfig struct {
 	Provider string `yaml:"provider"` // local | cos
-	
+
 	// Local storage
 	LocalDir     string `yaml:"local_dir"`
 	LocalBaseURL string `yaml:"local_base_url"`
 
 	// COS storage
-	CosURL       string `yaml:"cos_url"`        // https://<bucket>.cos.<region>.myqcloud.com
+	CosURL       string `yaml:"cos_url"` // https://<bucket>.cos.<region>.myqcloud.com
 	CosSecretID  string `yaml:"cos_secret_id"`
 	CosSecretKey string `yaml:"cos_secret_key"`
-	CosBaseURL   string `yaml:"cos_base_url"`   // https://img.gx1727.com
+	CosBaseURL   string `yaml:"cos_base_url"` // https://img.gx1727.com
 }
 
 type Config struct {
@@ -316,7 +316,17 @@ func envCSV(key string, target *[]string) {
 }
 
 func validateModules(c *Config) error {
-	core := []string{"system", "auth", "user"}
+	core := []string{
+		"menu",
+		"tenant",
+		"user",
+		"role",
+		"resource",
+		"organization",
+		"dict",
+		"permission",
+		"auth",
+		"asset"}
 	seen := map[string]struct{}{}
 	for _, m := range core {
 		seen[m] = struct{}{}

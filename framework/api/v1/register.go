@@ -67,8 +67,6 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, sm session.SessionManager
 	}
 
 	for _, m := range plugin.All() {
-		if cfg.ModuleEnabled(m.Name()) {
-			m.Register(public, protected)
-		}
+		m.Register(public, protected)
 	}
 }
