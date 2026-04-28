@@ -1,4 +1,4 @@
-package dict
+package repository
 
 import (
 	"context"
@@ -6,13 +6,14 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gx1727.com/xin/framework/pkg/dict"
 )
 
 type DictRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewRepository(db *pgxpool.Pool) *DictRepository {
+func NewDictRepository(db *pgxpool.Pool) *DictRepository {
 	return &DictRepository{db: db}
 }
 
@@ -22,9 +23,9 @@ type DictCreate struct {
 	Extend map[string]interface{}
 }
 
-func (r *DictRepository) Create(ctx context.Context, tenantID uint, req DictCreate) (*Dict, error) {
+func (r *DictRepository) Create(ctx context.Context, tenantID uint, req DictCreate) (*dict.Dict, error) {
 	extendJSON, _ := json.Marshal(req.Extend)
-	var d Dict
+	var d dict.Dict
 	err := r.db.QueryRow(ctx, `
 		INSERT INTO dicts (tenant_id, code, name, extend)
 		VALUES ($1, $2, $3, $4)
@@ -36,6 +37,7 @@ func (r *DictRepository) Create(ctx context.Context, tenantID uint, req DictCrea
 	if extendJSON != nil {
 		json.Unmarshal(extendJSON, &d.Extend)
 	}
+	dict.Invalidate(tenantID, "")
 	return &d, nil
 }
 
@@ -48,7 +50,7 @@ func (r *DictRepository) Update(ctx context.Context, tenantID uint, id uint, nam
 	if err != nil {
 		return fmt.Errorf("update dict: %w", err)
 	}
-	Invalidate(tenantID, "")
+	dict.Invalidate(tenantID, "")
 	return nil
 }
 
@@ -60,7 +62,7 @@ func (r *DictRepository) Delete(ctx context.Context, tenantID uint, id uint) err
 	if err != nil {
 		return fmt.Errorf("delete dict: %w", err)
 	}
-	Invalidate(tenantID, "")
+	dict.Invalidate(tenantID, "")
 	return nil
 }
 
@@ -71,9 +73,9 @@ type DictItemCreate struct {
 	Extend map[string]interface{}
 }
 
-func (r *DictRepository) CreateItem(ctx context.Context, tenantID uint, dictID uint, req DictItemCreate) (*DictItem, error) {
+func (r *DictRepository) CreateItem(ctx context.Context, tenantID uint, dictID uint, req DictItemCreate) (*dict.DictItem, error) {
 	extendJSON, _ := json.Marshal(req.Extend)
-	var item DictItem
+	var item dict.DictItem
 	err := r.db.QueryRow(ctx, `
 		INSERT INTO dict_items (tenant_id, dict_id, code, name, sort, extend)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -85,6 +87,7 @@ func (r *DictRepository) CreateItem(ctx context.Context, tenantID uint, dictID u
 	if extendJSON != nil {
 		json.Unmarshal(extendJSON, &item.Extend)
 	}
+	dict.Invalidate(tenantID, "")
 	return &item, nil
 }
 
@@ -97,7 +100,7 @@ func (r *DictRepository) UpdateItem(ctx context.Context, tenantID uint, id uint,
 	if err != nil {
 		return fmt.Errorf("update dict item: %w", err)
 	}
-	Invalidate(tenantID, "")
+	dict.Invalidate(tenantID, "")
 	return nil
 }
 
@@ -109,11 +112,11 @@ func (r *DictRepository) DeleteItem(ctx context.Context, tenantID uint, id uint)
 	if err != nil {
 		return fmt.Errorf("delete dict item: %w", err)
 	}
-	Invalidate(tenantID, "")
+	dict.Invalidate(tenantID, "")
 	return nil
 }
 
-func (r *DictRepository) List(ctx context.Context, tenantID uint) ([]Dict, int64, error) {
+func (r *DictRepository) List(ctx context.Context, tenantID uint) ([]dict.Dict, int64, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, tenant_id, code, name, extend
 		FROM dicts
@@ -125,9 +128,9 @@ func (r *DictRepository) List(ctx context.Context, tenantID uint) ([]Dict, int64
 	}
 	defer rows.Close()
 
-	var list []Dict
+	var list []dict.Dict
 	for rows.Next() {
-		var d Dict
+		var d dict.Dict
 		var extendJSON []byte
 		err := rows.Scan(&d.ID, &d.TenantID, &d.Code, &d.Name, &extendJSON)
 		if err != nil {
@@ -145,8 +148,8 @@ func (r *DictRepository) List(ctx context.Context, tenantID uint) ([]Dict, int64
 	return list, total, nil
 }
 
-func (r *DictRepository) GetByCode(ctx context.Context, tenantID uint, code string) (*Dict, error) {
-	var d Dict
+func (r *DictRepository) GetByCode(ctx context.Context, tenantID uint, code string) (*dict.Dict, error) {
+	var d dict.Dict
 	var extendJSON []byte
 	err := r.db.QueryRow(ctx, `
 		SELECT id, tenant_id, code, name, extend

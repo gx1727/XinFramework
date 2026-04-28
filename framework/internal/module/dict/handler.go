@@ -4,22 +4,23 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"gx1727.com/xin/framework/internal/repository"
 	"gx1727.com/xin/framework/pkg/context"
-	"gx1727.com/xin/framework/pkg/dict"
+	dictpkg "gx1727.com/xin/framework/pkg/dict"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
 type Handler struct {
-	repo *dict.DictRepository
+	repo *repository.DictRepository
 }
 
-func NewHandler(repo *dict.DictRepository) *Handler {
+func NewHandler(repo *repository.DictRepository) *Handler {
 	return &Handler{repo: repo}
 }
 
 type listResponse struct {
-	List  []dict.Dict `json:"list"`
-	Total int64       `json:"total"`
+	List  []dictpkg.Dict `json:"list"`
+	Total int64          `json:"total"`
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -40,7 +41,7 @@ func (h *Handler) Get(c *gin.Context) {
 	tenantID := ctx.GetTenantID()
 	dictCode := c.Param("code")
 
-	d, ok := dict.Get(tenantID, dictCode)
+	d, ok := dictpkg.Get(tenantID, dictCode)
 	if !ok {
 		resp.NotFound(c, "字典不存在")
 		return
@@ -57,7 +58,7 @@ func (h *Handler) Create(c *gin.Context) {
 	ctx := context.New(c)
 	tenantID := ctx.GetTenantID()
 
-	var req dict.DictCreate
+	var req repository.DictCreate
 	if err := c.ShouldBindJSON(&req); err != nil {
 		resp.BadRequest(c, "请求参数格式错误")
 		return
@@ -69,7 +70,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	dict.RefreshDict(c.Request.Context(), tenantID, d.Code)
+	dictpkg.RefreshDict(c.Request.Context(), tenantID, d.Code)
 	resp.Success(c, d)
 }
 
@@ -128,7 +129,7 @@ func (h *Handler) CreateItem(c *gin.Context) {
 		return
 	}
 
-	var req dict.DictItemCreate
+	var req repository.DictItemCreate
 	if err := c.ShouldBindJSON(&req); err != nil {
 		resp.BadRequest(c, "请求参数格式错误")
 		return
