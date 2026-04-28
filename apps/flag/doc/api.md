@@ -4,7 +4,7 @@
 
 ## 基础信息
 
-- **Base URL**: `/api/v1/flag`
+- **Base URL**: `/api/v1`
 - **认证方式**: JWT Bearer Token
 - **返回格式**: JSON
 
@@ -18,13 +18,13 @@
 }
 ```
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| code | int | 状态码，0 表示成功 |
-| msg | string | 消息 |
-| data | object | 数据 |
+| 字段   | 类型     | 说明         |
+| ---- | ------ | ---------- |
+| code | int    | 状态码，0 表示成功 |
+| msg  | string | 消息         |
+| data | object | 数据         |
 
----
+***
 
 ## 头像框 (Frames)
 
@@ -36,11 +36,11 @@
 
 **Query Parameters:**
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| category_id | uint | 否 | 分类ID |
-| page | int | 否 | 页码，默认 1 |
-| size | int | 否 | 每页数量，默认 20 |
+| 参数           | 类型   | 必填 | 说明         |
+| ------------ | ---- | -- | ---------- |
+| category\_id | uint | 否  | 分类ID       |
+| page         | int  | 否  | 页码，默认 1    |
+| size         | int  | 否  | 每页数量，默认 20 |
 
 **响应示例:**
 
@@ -48,30 +48,37 @@
 {
   "code": 0,
   "msg": "ok",
-  "data": [
-    {
-      "id": 1,
-      "tenant_id": 0,
-      "category_id": 1,
-      "name": "程序员专属",
-      "description": "适合程序员的简约头像框",
-      "preview_url": "/frames/preview/programmer.png",
-      "template_url": "/frames/template/programmer.png",
-      "template_config": {
-        "avatar_x": 100,
-        "avatar_y": 100,
-        "avatar_width": 300,
-        "avatar_height": 300
-      },
-      "type": "public",
-      "sort": 1,
-      "status": 1
-    }
-  ]
+  "data": {
+    "list": [
+      {
+        "id": 1,
+        "tenant_id": 0,
+        "category_id": 1,
+        "name": "程序员专属",
+        "description": "适合程序员的简约头像框",
+        "preview_url": "/frames/preview/programmer.png",
+        "template_url": "/frames/template/programmer.png",
+        "template_config": {
+          "avatar_x": 100,
+          "avatar_y": 100,
+          "avatar_width": 300,
+          "avatar_height": 300
+        },
+        "type": "public",
+        "sort": 1,
+        "status": 1,
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "size": 20
+  }
 }
 ```
 
----
+***
 
 ### 获取单个头像框
 
@@ -79,9 +86,9 @@
 
 **Path Parameters:**
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| id | uint | 是 | 头像框ID |
+| 参数 | 类型   | 必填 | 说明    |
+| -- | ---- | -- | ----- |
+| id | uint | 是  | 头像框ID |
 
 **响应示例:**
 
@@ -97,7 +104,110 @@
 }
 ```
 
----
+***
+
+### 创建头像框
+
+**POST** `/flag/frames`
+
+**Headers:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Request Body:**
+
+```json
+{
+  "category_id": 1,
+  "name": "程序员专属",
+  "description": "适合程序员的简约头像框",
+  "preview_url": "/frames/preview/programmer.png",
+  "template_url": "/frames/template/programmer.png",
+  "type": "public",
+  "sort": 1
+}
+```
+
+| 参数           | 类型     | 必填 | 说明                          |
+| ------------ | ------ | -- | --------------------------- |
+| name         | string | 是  | 模板名称                        |
+| category\_id | uint   | 否  | 分类ID                        |
+| description  | string | 否  | 模板描述                        |
+| preview\_url | string | 否  | 预览图URL                      |
+| template\_url | string | 否  | 模板底图URL                     |
+| type         | string | 否  | 类型: public/private/space    |
+| sort         | int    | 否  | 排序号                         |
+
+**响应示例:**
+
+```json
+{
+  "code": 0,
+  "msg": "ok",
+  "data": {
+    "id": 1,
+    "name": "程序员专属",
+    "category_id": 1,
+    "type": "public",
+    "sort": 1,
+    "status": 1
+  }
+}
+```
+
+***
+
+### 更新头像框
+
+**PUT** `/flag/frames/:id`
+
+**Headers:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Request Body:**
+
+```json
+{
+  "id": 1,
+  "name": "更新后的名称",
+  "description": "更新后的描述",
+  "category_id": 2,
+  "type": "public",
+  "sort": 10,
+  "status": 1
+}
+```
+
+| 参数           | 类型     | 必填 | 说明                          |
+| ------------ | ------ | -- | --------------------------- |
+| id           | uint   | 是  | 头像框ID                       |
+| name         | string | 否  | 模板名称                        |
+| description  | string | 否  | 模板描述                        |
+| category\_id | uint   | 否  | 分类ID                        |
+| preview\_url | string | 否  | 预览图URL                      |
+| template\_url | string | 否  | 模板底图URL                     |
+| type         | string | 否  | 类型: public/private/space    |
+| sort         | int    | 否  | 排序号                         |
+| status       | int8   | 否  | 状态: 0-禁用, 1-启用              |
+
+***
+
+### 删除头像框
+
+**DELETE** `/flag/frames/:id`
+
+**Headers:**
+
+```
+Authorization: Bearer <token>
+```
+
+***
 
 ## 头像框分类 (Categories)
 
@@ -134,7 +244,7 @@
 }
 ```
 
----
+***
 
 ## 活动空间 (Spaces)
 
@@ -144,9 +254,9 @@
 
 **Path Parameters:**
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| code | string | 是 | 邀请码 |
+| 参数   | 类型     | 必填 | 说明  |
+| ---- | ------ | -- | --- |
+| code | string | 是  | 邀请码 |
 
 **响应示例:**
 
@@ -174,13 +284,14 @@
 }
 ```
 
----
+***
 
 ### 创建活动 Space
 
 **POST** `/flag/spaces`
 
 **Headers:**
+
 ```
 Authorization: Bearer <token>
 ```
@@ -198,14 +309,14 @@ Authorization: Bearer <token>
 }
 ```
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| name | string | 是 | 活动名称 |
-| description | string | 否 | 活动描述 |
-| frame_id | uint | 否 | 绑定的头像框ID |
-| access_type | string | 否 | 访问类型: public/invite/limit |
-| start_at | string | 否 | 开始时间 |
-| end_at | string | 否 | 结束时间 |
+| 参数           | 类型     | 必填 | 说明                        |
+| ------------ | ------ | -- | ------------------------- |
+| name         | string | 是  | 活动名称                      |
+| description  | string | 否  | 活动描述                      |
+| frame\_id    | uint   | 否  | 绑定的头像框ID                  |
+| access\_type | string | 否  | 访问类型: public/invite/limit |
+| start\_at    | string | 否  | 开始时间                      |
+| end\_at      | string | 否  | 结束时间                      |
 
 **响应示例:**
 
@@ -221,13 +332,14 @@ Authorization: Bearer <token>
 }
 ```
 
----
+***
 
 ### 更新活动 Space
 
 **PUT** `/flag/spaces/:id`
 
 **Headers:**
+
 ```
 Authorization: Bearer <token>
 ```
@@ -244,29 +356,31 @@ Authorization: Bearer <token>
 }
 ```
 
----
+***
 
 ### 删除活动 Space
 
 **DELETE** `/flag/spaces/:id`
 
 **Headers:**
+
 ```
 Authorization: Bearer <token>
 ```
 
----
+***
 
 ### 获取我的活动 Space 列表
 
 **GET** `/flag/spaces`
 
 **Headers:**
+
 ```
 Authorization: Bearer <token>
 ```
 
----
+***
 
 ## 头像生成
 
@@ -275,6 +389,7 @@ Authorization: Bearer <token>
 **POST** `/flag/generate`
 
 **Headers:**
+
 ```
 Authorization: Bearer <token>
 ```
@@ -293,12 +408,12 @@ Authorization: Bearer <token>
 }
 ```
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| frame_id | uint | 是 | 头像框ID |
-| space_id | uint | 否 | 关联的Space ID |
-| source_image | string | 是 | 用户上传的原图URL |
-| field_values | object | 否 | 动态字段值 |
+| 参数            | 类型     | 必填 | 说明          |
+| ------------- | ------ | -- | ----------- |
+| frame\_id     | uint   | 是  | 头像框ID       |
+| space\_id     | uint   | 否  | 关联的Space ID |
+| source\_image | string | 是  | 用户上传的原图URL  |
+| field\_values | object | 否  | 动态字段值       |
 
 **响应示例:**
 
@@ -314,18 +429,19 @@ Authorization: Bearer <token>
 }
 ```
 
----
+***
 
 ### 获取我生成的头像列表
 
 **GET** `/flag/my-avatars`
 
 **Headers:**
+
 ```
 Authorization: Bearer <token>
 ```
 
----
+***
 
 ## 头像分类 (Avatar Categories)
 
@@ -337,9 +453,9 @@ Authorization: Bearer <token>
 
 **Query Parameters:**
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| type | string | 否 | 类型: public/custom |
+| 参数   | 类型     | 必填 | 说明                |
+| ---- | ------ | -- | ----------------- |
+| type | string | 否  | 类型: public/custom |
 
 **响应示例:**
 
@@ -362,13 +478,14 @@ Authorization: Bearer <token>
 }
 ```
 
----
+***
 
 ### 创建头像分类
 
 **POST** `/flag/avatar-categories`
 
 **Headers:**
+
 ```
 Authorization: Bearer <token>
 ```
@@ -385,37 +502,39 @@ Authorization: Bearer <token>
 }
 ```
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| code | string | 是 | 分类编码 |
-| name | string | 是 | 分类名称 |
-| icon | string | 否 | 分类图标 |
-| type | string | 否 | 类型: public/custom |
-| sort | int | 否 | 排序号 |
+| 参数   | 类型     | 必填 | 说明                |
+| ---- | ------ | -- | ----------------- |
+| code | string | 是  | 分类编码              |
+| name | string | 是  | 分类名称              |
+| icon | string | 否  | 分类图标              |
+| type | string | 否  | 类型: public/custom |
+| sort | int    | 否  | 排序号               |
 
----
+***
 
 ### 更新头像分类
 
 **PUT** `/flag/avatar-categories/:id`
 
 **Headers:**
+
 ```
 Authorization: Bearer <token>
 ```
 
----
+***
 
 ### 删除头像分类
 
 **DELETE** `/flag/avatar-categories/:id`
 
 **Headers:**
+
 ```
 Authorization: Bearer <token>
 ```
 
----
+***
 
 ## 头像管理 (Avatars)
 
@@ -425,13 +544,13 @@ Authorization: Bearer <token>
 
 **Query Parameters:**
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| category_id | uint | 否 | 分类ID |
-| user_id | uint | 否 | 用户ID |
-| type | string | 否 | 类型: custom/system |
-| page | int | 否 | 页码，默认 1 |
-| size | int | 否 | 每页数量，默认 20 |
+| 参数           | 类型     | 必填 | 说明                |
+| ------------ | ------ | -- | ----------------- |
+| category\_id | uint   | 否  | 分类ID              |
+| user\_id     | uint   | 否  | 用户ID              |
+| type         | string | 否  | 类型: custom/system |
+| page         | int    | 否  | 页码，默认 1           |
+| size         | int    | 否  | 每页数量，默认 20        |
 
 **响应示例:**
 
@@ -439,41 +558,49 @@ Authorization: Bearer <token>
 {
   "code": 0,
   "msg": "ok",
-  "data": [
-    {
-      "id": 1,
-      "tenant_id": 1,
-      "user_id": 1,
-      "category_id": 1,
-      "name": "我的头像1",
-      "source_url": "/avatars/source/1.png",
-      "thumbnail_url": "/avatars/thumb/1.png",
-      "file_size": 102400,
-      "width": 500,
-      "height": 500,
-      "type": "custom",
-      "is_public": true,
-      "like_count": 10,
-      "view_count": 100,
-      "status": 1
-    }
-  ]
+  "data": {
+    "list": [
+      {
+        "id": 1,
+        "tenant_id": 1,
+        "user_id": 1,
+        "category_id": 1,
+        "name": "我的头像1",
+        "source_url": "/avatars/source/1.png",
+        "thumbnail_url": "/avatars/thumb/1.png",
+        "file_size": 102400,
+        "width": 500,
+        "height": 500,
+        "type": "custom",
+        "is_public": true,
+        "like_count": 10,
+        "view_count": 100,
+        "status": 1,
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "size": 20
+  }
 }
 ```
 
----
+***
 
 ### 获取单个头像
 
 **GET** `/flag/avatars/:id`
 
----
+***
 
 ### 上传头像
 
 **POST** `/flag/avatars`
 
 **Headers:**
+
 ```
 Authorization: Bearer <token>
 ```
@@ -493,46 +620,49 @@ Authorization: Bearer <token>
 }
 ```
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| source_url | string | 是 | 原图URL |
-| category_id | uint | 否 | 分类ID |
-| name | string | 否 | 头像名称 |
-| thumbnail_url | string | 否 | 缩略图URL |
-| file_size | int64 | 否 | 文件大小(字节) |
-| width | int | 否 | 图片宽度 |
-| height | int | 否 | 图片高度 |
-| is_public | bool | 否 | 是否公开 |
+| 参数             | 类型     | 必填 | 说明       |
+| -------------- | ------ | -- | -------- |
+| source\_url    | string | 是  | 原图URL    |
+| category\_id   | uint   | 否  | 分类ID     |
+| name           | string | 否  | 头像名称     |
+| thumbnail\_url | string | 否  | 缩略图URL   |
+| file\_size     | int64  | 否  | 文件大小(字节) |
+| width          | int    | 否  | 图片宽度     |
+| height         | int    | 否  | 图片高度     |
+| is\_public     | bool   | 否  | 是否公开     |
 
----
+***
 
 ### 更新头像
 
 **PUT** `/flag/avatars/:id`
 
 **Headers:**
+
 ```
 Authorization: Bearer <token>
 ```
 
----
+***
 
 ### 删除头像
 
 **DELETE** `/flag/avatars/:id`
 
 **Headers:**
+
 ```
 Authorization: Bearer <token>
 ```
 
----
+***
 
 ## 错误码
 
-| 错误码 | 说明 |
-|--------|------|
-| 15001 | 头像框不存在 |
+| 错误码   | 说明      |
+| ----- | ------- |
+| 15001 | 头像框不存在  |
 | 15002 | 活动空间不存在 |
-| 15003 | 头像生成失败 |
-| 15004 | 头像不存在 |
+| 15003 | 头像生成失败  |
+| 15004 | 头像不存在   |
+

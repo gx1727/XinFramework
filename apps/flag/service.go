@@ -11,11 +11,13 @@ import (
 )
 
 type Service struct {
-	storage storage.Storage
+	storage    storage.Storage
+	frameRepo  *FrameRepository
+	avatarRepo *AvatarRepository
 }
 
-func NewService(storage storage.Storage) *Service {
-	return &Service{storage: storage}
+func NewService(storage storage.Storage, frameRepo *FrameRepository, avatarRepo *AvatarRepository) *Service {
+	return &Service{storage: storage, frameRepo: frameRepo, avatarRepo: avatarRepo}
 }
 
 type FrameCategory struct {
@@ -29,17 +31,19 @@ type FrameCategory struct {
 }
 
 type Frame struct {
-	ID             uint                 `json:"id"`
-	TenantID       uint                 `json:"tenant_id"`
-	CategoryID     uint                 `json:"category_id"`
-	Name           string               `json:"name"`
-	Description    string               `json:"description"`
-	PreviewURL     string               `json:"preview_url"`
-	TemplateURL    string               `json:"template_url"`
-	TemplateConfig *FrameTemplateConfig `json:"template_config,omitempty"`
-	Type           string               `json:"type"`
-	Sort           int                  `json:"sort"`
-	Status         int8                 `json:"status"`
+	ID             uint      `json:"id"`
+	TenantID       uint      `json:"tenant_id"`
+	CategoryID     uint      `json:"category_id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description"`
+	PreviewURL     string    `json:"preview_url"`
+	TemplateURL    string    `json:"template_url"`
+	TemplateConfig string    `json:"template_config,omitempty"`
+	Type           string    `json:"type"`
+	Sort           int       `json:"sort"`
+	Status         int8      `json:"status"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type FrameTemplateConfig struct {
@@ -102,8 +106,6 @@ type GenerateResult struct {
 	ShareText string `json:"share_text"`
 }
 
-// ==================== Avatar Category ====================
-
 type AvatarCategory struct {
 	ID       uint   `json:"id"`
 	TenantID uint   `json:"tenant_id"`
@@ -114,8 +116,6 @@ type AvatarCategory struct {
 	Sort     int    `json:"sort"`
 	Status   int8   `json:"status"`
 }
-
-// ==================== Avatar ====================
 
 type Avatar struct {
 	ID           uint      `json:"id"`
@@ -134,70 +134,97 @@ type Avatar struct {
 	ViewCount    int       `json:"view_count"`
 	Status       int8      `json:"status"`
 	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-func (s *Service) ListFrames(ctx context.Context, req listFramesRequest) ([]Frame, error) {
-	frames := []Frame{
-		{
-			ID:          1,
-			TenantID:    0,
-			CategoryID:  1,
-			Name:        "程序员专属",
-			Description: "适合程序员的简约头像框",
-			PreviewURL:  "/frames/preview/programmer.png",
-			TemplateURL: "/frames/template/programmer.png",
-			Type:        "public",
-			Sort:        1,
-			Status:      1,
-		},
-		{
-			ID:          2,
-			TenantID:    0,
-			CategoryID:  1,
-			Name:        "打工人",
-			Description: "打工人的精神状态",
-			PreviewURL:  "/frames/preview/worker.png",
-			TemplateURL: "/frames/template/worker.png",
-			Type:        "public",
-			Sort:        2,
-			Status:      1,
-		},
-		{
-			ID:          3,
-			TenantID:    0,
-			CategoryID:  2,
-			Name:        "校庆100周年",
-			Description: "校庆活动专属头像框",
-			PreviewURL:  "/frames/preview/school100.png",
-			TemplateURL: "/frames/template/school100.png",
-			Type:        "public",
-			Sort:        1,
-			Status:      1,
-		},
-	}
+// ==================== Frame CRUD ====================
 
-	if req.CategoryID > 0 {
-		var filtered []Frame
-		for _, f := range frames {
-			if f.CategoryID == req.CategoryID {
-				filtered = append(filtered, f)
-			}
-		}
-		return filtered, nil
-	}
-
-	return frames, nil
+func (s *Service) ListFrames(ctx context.Context, req listFramesRequest) ([]Frame, int64, error) {
+	return s.frameRepo.List(ctx, req.CategoryID, req.Page, req.Size)
 }
 
 func (s *Service) GetFrame(ctx context.Context, id uint) (*Frame, error) {
-	frames, _ := s.ListFrames(ctx, listFramesRequest{})
-	for _, f := range frames {
-		if f.ID == id {
-			return &f, nil
-		}
-	}
-	return nil, ErrFrameNotFound
+	return s.frameRepo.GetByID(ctx, id)
 }
+
+func (s *Service) CreateFrame(ctx context.Context, tenantID uint, req createFrameRequest) (*Frame, error) {
+	frame := &Frame{
+		TenantID:    tenantID,
+		CategoryID:  req.CategoryID,
+		Name:        req.Name,
+		Description: req.Description,
+		PreviewURL:  req.PreviewURL,
+		TemplateURL: req.TemplateURL,
+		Type:        req.Type,
+		Sort:        req.Sort,
+		Status:      1,
+	}
+	return s.frameRepo.Create(ctx, frame)
+}
+
+func (s *Service) UpdateFrame(ctx context.Context, tenantID uint, req updateFrameRequest) error {
+	frame := &Frame{
+		ID:          req.ID,
+		CategoryID:  req.CategoryID,
+		Name:        req.Name,
+		Description: req.Description,
+		PreviewURL:  req.PreviewURL,
+		TemplateURL: req.TemplateURL,
+		Type:        req.Type,
+		Sort:        req.Sort,
+		Status:      req.Status,
+	}
+	return s.frameRepo.Update(ctx, frame)
+}
+
+func (s *Service) DeleteFrame(ctx context.Context, id uint) error {
+	return s.frameRepo.Delete(ctx, id)
+}
+
+// ==================== Avatar CRUD ====================
+
+func (s *Service) ListAvatars(ctx context.Context, req listAvatarsRequest) ([]Avatar, int64, error) {
+	return s.avatarRepo.List(ctx, req.CategoryID, req.UserID, req.Type, req.Page, req.Size)
+}
+
+func (s *Service) GetAvatar(ctx context.Context, id uint) (*Avatar, error) {
+	return s.avatarRepo.GetByID(ctx, id)
+}
+
+func (s *Service) CreateAvatar(ctx context.Context, tenantID, userID uint, req createAvatarRequest) (*Avatar, error) {
+	avatar := &Avatar{
+		TenantID:     tenantID,
+		UserID:       userID,
+		CategoryID:   req.CategoryID,
+		Name:         req.Name,
+		SourceURL:    req.SourceURL,
+		ThumbnailURL: req.ThumbnailURL,
+		FileSize:     req.FileSize,
+		Width:        req.Width,
+		Height:       req.Height,
+		Type:         "custom",
+		IsPublic:     req.IsPublic,
+		Status:       1,
+	}
+	return s.avatarRepo.Create(ctx, avatar)
+}
+
+func (s *Service) UpdateAvatar(ctx context.Context, tenantID uint, req updateAvatarRequest) error {
+	avatar := &Avatar{
+		ID:         req.ID,
+		Name:       req.Name,
+		CategoryID: req.CategoryID,
+		IsPublic:   req.IsPublic,
+		Status:     req.Status,
+	}
+	return s.avatarRepo.Update(ctx, avatar)
+}
+
+func (s *Service) DeleteAvatar(ctx context.Context, tenantID, avatarID uint) error {
+	return s.avatarRepo.Delete(ctx, avatarID)
+}
+
+// ==================== Categories (mock) ====================
 
 func (s *Service) ListCategories(ctx context.Context) ([]FrameCategory, error) {
 	return []FrameCategory{
@@ -207,6 +234,8 @@ func (s *Service) ListCategories(ctx context.Context) ([]FrameCategory, error) {
 		{ID: 4, TenantID: 0, Code: "hot", Name: "热点节日", Type: "hot", Sort: 4, Status: 1},
 	}, nil
 }
+
+// ==================== Spaces (mock) ====================
 
 func (s *Service) GetSpaceByCode(ctx context.Context, code string) (*Space, error) {
 	if code == "test" {
@@ -312,74 +341,6 @@ func (s *Service) UpdateAvatarCategory(ctx context.Context, tenantID uint, req u
 
 func (s *Service) DeleteAvatarCategory(ctx context.Context, tenantID, categoryID uint) error {
 	logger.Infof("deleted avatar category: %d for tenant: %d", categoryID, tenantID)
-	return nil
-}
-
-func (s *Service) ListAvatars(ctx context.Context, req listAvatarsRequest) ([]Avatar, error) {
-	avatars := []Avatar{
-		{
-			ID:           1,
-			TenantID:     0,
-			UserID:       1,
-			CategoryID:   1,
-			Name:         "我的头像1",
-			SourceURL:    "/avatars/source/1.png",
-			ThumbnailURL: "/avatars/thumb/1.png",
-			FileSize:     102400,
-			Width:        500,
-			Height:       500,
-			Type:         "custom",
-			IsPublic:     true,
-			LikeCount:    10,
-			ViewCount:    100,
-			Status:       1,
-		},
-	}
-	return avatars, nil
-}
-
-func (s *Service) GetAvatar(ctx context.Context, id uint) (*Avatar, error) {
-	return &Avatar{
-		ID:           id,
-		TenantID:     0,
-		UserID:       1,
-		CategoryID:   1,
-		Name:         "我的头像",
-		SourceURL:    "/avatars/source/1.png",
-		ThumbnailURL: "/avatars/thumb/1.png",
-		Type:         "custom",
-		IsPublic:     true,
-		Status:       1,
-	}, nil
-}
-
-func (s *Service) CreateAvatar(ctx context.Context, tenantID, userID uint, req createAvatarRequest) (*Avatar, error) {
-	avatar := &Avatar{
-		ID:           1,
-		TenantID:     tenantID,
-		UserID:       userID,
-		CategoryID:   req.CategoryID,
-		Name:         req.Name,
-		SourceURL:    req.SourceURL,
-		ThumbnailURL: req.ThumbnailURL,
-		FileSize:     req.FileSize,
-		Width:        req.Width,
-		Height:       req.Height,
-		Type:         "custom",
-		IsPublic:     req.IsPublic,
-		Status:       1,
-	}
-	logger.Infof("created avatar for user: %d, source: %s", userID, avatar.SourceURL)
-	return avatar, nil
-}
-
-func (s *Service) UpdateAvatar(ctx context.Context, tenantID uint, req updateAvatarRequest) error {
-	logger.Infof("updated avatar: %d for tenant: %d", req.ID, tenantID)
-	return nil
-}
-
-func (s *Service) DeleteAvatar(ctx context.Context, tenantID, avatarID uint) error {
-	logger.Infof("deleted avatar: %d for tenant: %d", avatarID, tenantID)
 	return nil
 }
 

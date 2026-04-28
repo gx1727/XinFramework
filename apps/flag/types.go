@@ -9,6 +9,8 @@ var (
 	ErrAvatarNotFound = resp.NewError(15004, "头像不存在")
 )
 
+// ==================== Frame ====================
+
 type listFramesRequest struct {
 	CategoryID uint `form:"category_id"`
 	Page       int  `form:"page,default=1"`
@@ -19,6 +21,34 @@ type getFrameRequest struct {
 	ID uint `uri:"id" binding:"required"`
 }
 
+type createFrameRequest struct {
+	CategoryID  uint   `json:"category_id"`
+	Name        string `json:"name" binding:"required"`
+	Description string `json:"description"`
+	PreviewURL  string `json:"preview_url"`
+	TemplateURL string `json:"template_url"`
+	Type        string `json:"type"`
+	Sort        int    `json:"sort"`
+}
+
+type updateFrameRequest struct {
+	ID          uint   `json:"id" binding:"required"`
+	CategoryID  uint   `json:"category_id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	PreviewURL  string `json:"preview_url"`
+	TemplateURL string `json:"template_url"`
+	Type        string `json:"type"`
+	Sort        int    `json:"sort"`
+	Status      int8   `json:"status"`
+}
+
+type deleteFrameRequest struct {
+	ID uint `uri:"id" binding:"required"`
+}
+
+// ==================== Space ====================
+
 type getSpaceByCodeRequest struct {
 	Code string `uri:"code" binding:"required"`
 }
@@ -27,7 +57,7 @@ type createSpaceRequest struct {
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
 	FrameID     uint   `json:"frame_id"`
-	AccessType string `json:"access_type"`
+	AccessType  string `json:"access_type"`
 	StartAt     string `json:"start_at"`
 	EndAt       string `json:"end_at"`
 }
@@ -66,13 +96,13 @@ type createAvatarCategoryRequest struct {
 }
 
 type updateAvatarCategoryRequest struct {
-	ID   uint   `json:"id" binding:"required"`
-	Code string `json:"code"`
-	Name string `json:"name"`
-	Icon string `json:"icon"`
-	Type string `json:"type"`
-	Sort int    `json:"sort"`
-	Status int8 `json:"status"`
+	ID     uint   `json:"id" binding:"required"`
+	Code   string `json:"code"`
+	Name   string `json:"name"`
+	Icon   string `json:"icon"`
+	Type   string `json:"type"`
+	Sort   int    `json:"sort"`
+	Status int8   `json:"status"`
 }
 
 type deleteAvatarCategoryRequest struct {
@@ -82,8 +112,8 @@ type deleteAvatarCategoryRequest struct {
 // ==================== Avatars ====================
 
 type listAvatarsRequest struct {
-	CategoryID uint `form:"category_id"`
-	UserID     uint `form:"user_id"`
+	CategoryID uint   `form:"category_id"`
+	UserID     uint   `form:"user_id"`
 	Type       string `form:"type"`
 	Page       int    `form:"page,default=1"`
 	Size       int    `form:"size,default=20"`

@@ -2,20 +2,29 @@ package flag
 
 import (
 	"github.com/gin-gonic/gin"
+	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/plugin"
 )
 
 func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
+	// Frames
 	public.GET("/flag/frames", h.ListFrames)
 	public.GET("/flag/frames/:id", h.GetFrame)
-	public.GET("/flag/categories", h.ListCategories)
-	public.GET("/flag/spaces/:code", h.GetSpaceByCode)
+	protected.POST("/flag/frames", h.CreateFrame)
+	protected.PUT("/flag/frames/:id", h.UpdateFrame)
+	protected.DELETE("/flag/frames/:id", h.DeleteFrame)
 
+	// Categories
+	public.GET("/flag/categories", h.ListCategories)
+
+	// Spaces
+	public.GET("/flag/spaces/:code", h.GetSpaceByCode)
 	protected.POST("/flag/spaces", h.CreateSpace)
 	protected.PUT("/flag/spaces/:id", h.UpdateSpace)
 	protected.DELETE("/flag/spaces/:id", h.DeleteSpace)
 	protected.GET("/flag/spaces", h.ListSpaces)
 
+	// Generate
 	protected.POST("/flag/generate", h.GenerateAvatar)
 	protected.GET("/flag/my-avatars", h.ListMyAvatars)
 
@@ -42,8 +51,9 @@ func (m *module) Init() error     { return nil }
 func (m *module) Shutdown() error { return nil }
 
 func (m *module) Register(public, protected *gin.RouterGroup) {
-	// TODO: Inject storage dependency properly
-	svc := NewService(nil)
+	frameRepo := NewFrameRepository(db.Get())
+	avatarRepo := NewAvatarRepository(db.Get())
+	svc := NewService(nil, frameRepo, avatarRepo)
 	h := NewHandler(svc)
 	Register(public, protected, h)
 }

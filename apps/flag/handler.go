@@ -14,6 +14,8 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
+// ==================== Frame CRUD ====================
+
 func (h *Handler) ListFrames(c *gin.Context) {
 	var req listFramesRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -21,13 +23,18 @@ func (h *Handler) ListFrames(c *gin.Context) {
 		return
 	}
 
-	frames, err := h.svc.ListFrames(c.Request.Context(), req)
+	frames, total, err := h.svc.ListFrames(c.Request.Context(), req)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
 	}
 
-	resp.Success(c, frames)
+	resp.Success(c, gin.H{
+		"list":  frames,
+		"total": total,
+		"page":  req.Page,
+		"size":  req.Size,
+	})
 }
 
 func (h *Handler) GetFrame(c *gin.Context) {
@@ -46,6 +53,72 @@ func (h *Handler) GetFrame(c *gin.Context) {
 	resp.Success(c, frame)
 }
 
+func (h *Handler) CreateFrame(c *gin.Context) {
+	uc := xinContext.NewUserContext(c)
+	if uc.TenantID == 0 {
+		resp.Unauthorized(c, "未登录")
+		return
+	}
+
+	var req createFrameRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.BadRequest(c, "请求参数格式错误")
+		return
+	}
+
+	frame, err := h.svc.CreateFrame(c.Request.Context(), uc.TenantID, req)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+
+	resp.Success(c, frame)
+}
+
+func (h *Handler) UpdateFrame(c *gin.Context) {
+	uc := xinContext.NewUserContext(c)
+	if uc.TenantID == 0 {
+		resp.Unauthorized(c, "未登录")
+		return
+	}
+
+	var req updateFrameRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.BadRequest(c, "请求参数格式错误")
+		return
+	}
+
+	if err := h.svc.UpdateFrame(c.Request.Context(), uc.TenantID, req); err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+
+	resp.Success(c, gin.H{"ok": true})
+}
+
+func (h *Handler) DeleteFrame(c *gin.Context) {
+	uc := xinContext.NewUserContext(c)
+	if uc.TenantID == 0 {
+		resp.Unauthorized(c, "未登录")
+		return
+	}
+
+	var req deleteFrameRequest
+	if err := c.ShouldBindUri(&req); err != nil {
+		resp.BadRequest(c, "请求参数格式错误")
+		return
+	}
+
+	if err := h.svc.DeleteFrame(c.Request.Context(), req.ID); err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+
+	resp.Success(c, gin.H{"ok": true})
+}
+
+// ==================== Categories ====================
+
 func (h *Handler) ListCategories(c *gin.Context) {
 	categories, err := h.svc.ListCategories(c.Request.Context())
 	if err != nil {
@@ -55,6 +128,8 @@ func (h *Handler) ListCategories(c *gin.Context) {
 
 	resp.Success(c, categories)
 }
+
+// ==================== Spaces ====================
 
 func (h *Handler) GetSpaceByCode(c *gin.Context) {
 	var req getSpaceByCodeRequest
@@ -281,13 +356,18 @@ func (h *Handler) ListAvatars(c *gin.Context) {
 		return
 	}
 
-	avatars, err := h.svc.ListAvatars(c.Request.Context(), req)
+	avatars, total, err := h.svc.ListAvatars(c.Request.Context(), req)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
 	}
 
-	resp.Success(c, avatars)
+	resp.Success(c, gin.H{
+		"list":  avatars,
+		"total": total,
+		"page":  req.Page,
+		"size":  req.Size,
+	})
 }
 
 func (h *Handler) GetAvatar(c *gin.Context) {
