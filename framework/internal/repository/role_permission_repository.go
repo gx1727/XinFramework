@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"gx1727.com/xin/framework/internal/module/permission"
+	"gx1727.com/xin/framework/pkg/permission"
 )
 
 type PostgresRolePermissionRepository struct {

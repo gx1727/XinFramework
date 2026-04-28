@@ -9,13 +9,13 @@ import (
 
 // PermissionService handles permission loading and checking
 type PermissionService struct {
-	permRepo permission.PermissionRepository
+	permRepo permission.UserPermissionRepository
 	dsRepo   permission.DataScopeRepository
 	cache    permission.PermissionCache
 }
 
 func NewPermissionService(
-	permRepo permission.PermissionRepository,
+	permRepo permission.UserPermissionRepository,
 	dsRepo permission.DataScopeRepository,
 	cache permission.PermissionCache,
 ) *PermissionService {

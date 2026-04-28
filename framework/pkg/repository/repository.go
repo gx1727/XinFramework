@@ -87,7 +87,7 @@ func (p *Provider) Attachment() model.AttachmentRepository {
 	return p.attachmentRepo
 }
 
-func (p *Provider) Permission() permission.PermissionRepository {
+func (p *Provider) Permission() permission.UserPermissionRepository {
 	return p.permRepo
 }
 
@@ -165,7 +165,7 @@ func Attachment() model.AttachmentRepository {
 	return defaultProvider.Attachment()
 }
 
-func Permission() permission.PermissionRepository {
+func Permission() permission.UserPermissionRepository {
 	if defaultProvider == nil {
 		return nil
 	}

@@ -6,32 +6,17 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/model"
+	permPkg "gx1727.com/xin/framework/pkg/permission"
 )
 
 type Service struct {
 	db           *pgxpool.Pool
-	permRepo     PermissionRepository
+	permRepo     permPkg.PermissionRepository
 	menuRepo     model.MenuRepository
 	resourceRepo model.ResourceRepository
 }
 
-type PermissionRepository interface {
-	GetByRoleID(ctx context.Context, roleID uint) ([]Permission, error)
-	DeleteByRoleID(ctx context.Context, roleID uint) error
-	Create(ctx context.Context, tenantID, roleID uint, p Permission) error
-}
-
-type Permission struct {
-	ID           uint
-	TenantID     uint
-	RoleID       uint
-	ResourceType string
-	ResourceID   uint
-	ResourceCode string
-	Effect       int8
-}
-
-func NewService(db *pgxpool.Pool, permRepo PermissionRepository, menuRepo model.MenuRepository, resourceRepo model.ResourceRepository) *Service {
+func NewService(db *pgxpool.Pool, permRepo permPkg.PermissionRepository, menuRepo model.MenuRepository, resourceRepo model.ResourceRepository) *Service {
 	return &Service{
 		db:           db,
 		permRepo:     permRepo,
@@ -89,7 +74,7 @@ func (s *Service) AssignPermissions(ctx context.Context, tenantID, roleID uint, 
 
 	// Insert new permissions
 	for _, p := range req.Permissions {
-		perm := Permission{
+		perm := permPkg.Permission{
 			TenantID:     tenantID,
 			RoleID:       roleID,
 			ResourceType: p.ResourceType,

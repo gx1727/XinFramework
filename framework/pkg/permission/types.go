@@ -17,6 +17,17 @@ type DataScope struct {
 	OrgIDs []int64       `json:"org_ids,omitempty"` // for type=2 (custom)
 }
 
+// Permission represents a role permission record
+type Permission struct {
+	ID           uint
+	TenantID     uint
+	RoleID       uint
+	ResourceType string
+	ResourceID   uint
+	ResourceCode string
+	Effect       int8
+}
+
 // HasPermission checks if a permission map contains the given permission
 // Supports wildcard matching: "user:*" grants all actions on user resource,
 // "*:*" grants all permissions (super admin)

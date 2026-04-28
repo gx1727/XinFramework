@@ -4,8 +4,20 @@ import (
 	"context"
 )
 
-// PermissionRepository loads permissions from database
+// PermissionRepository loads and manages role permissions
 type PermissionRepository interface {
+	// GetByRoleID returns all permissions for a role
+	GetByRoleID(ctx context.Context, roleID uint) ([]Permission, error)
+
+	// DeleteByRoleID soft deletes all permissions for a role
+	DeleteByRoleID(ctx context.Context, roleID uint) error
+
+	// Create creates a new permission record
+	Create(ctx context.Context, tenantID, roleID uint, p Permission) error
+}
+
+// PermissionRepository loads permissions from database
+type UserPermissionRepository interface {
 	// GetUserPermissions returns a map of "resource:action" -> true
 	GetUserPermissions(ctx context.Context, userID uint) (map[string]bool, error)
 
