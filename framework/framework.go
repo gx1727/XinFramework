@@ -136,17 +136,14 @@ func setupRouter(app *boot.App) {
 // 设计原则：
 // - Framework 已有的功能（User, Tenant, Role 等）→ 通过依赖注入
 // - Apps 自己的表数据 → 使用全局 db.Get()
+//
+// 注意：由于 framework 和 apps 是独立的 Go modules，
+// 无法在这里直接导入 apps 包。
+// 如果需要为外部模块注入依赖，请在 apps 模块内部使用 db.Get() 自行管理。
 func initExternalModuleDeps(app *boot.App) {
-	// 为 CMS 模块注入 Framework 的 Repository
-	if app.Config.AppEnabled("cms") {
-		// cms.InitService(
-		//     app.Repository.User(),      // Framework 的 User → 依赖注入
-		//     app.Repository.Tenant(),    // Framework 的 Tenant → 依赖注入
-		//     // CmsPost 不需要注入，CMS 内部直接使用 db.Get()
-		// )
-	}
-
-	// Flag 模块完全自己管理，使用 db.Get() 创建自己的 Repository
+	// 外部模块（如 CMS、Flag）应该自己管理依赖
+	// 它们可以通过 db.Get() 访问数据库
+	// 或者通过 pkg/model 的接口 + 全局 Repository Provider（如果实现的话）
 }
 
 // registerModules 注册内置模块和外部插件
