@@ -5,17 +5,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 	xincontext "gx1727.com/xin/framework/pkg/context"
+	"gx1727.com/xin/framework/pkg/repository"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
 // Handler HTTP 处理器
 type Handler struct {
-	repo *Repository
+	// 直接依赖框架的 Provider，取代自己手写的 Repository
+	provider repository.Provider
 }
 
 // NewHandler 创建 Handler 实例
-func NewHandler(repo *Repository) *Handler {
-	return &Handler{repo: repo}
+func NewHandler() *Handler {
+	// 启动时从全局获取已注入的核心能力 Provider
+	return &Handler{provider: repository.Get()}
 }
 
 // ============ Ping ============
@@ -40,7 +43,7 @@ func (h *Handler) GetCurrentUser(c *gin.Context) {
 		return
 	}
 
-	user, err := h.repo.GetUserByID(c.Request.Context(), userID)
+	user, err := h.provider.User().GetByID(c.Request.Context(), userID)
 	if err != nil {
 		resp.Error(c, 500, err.Error())
 		return
@@ -71,7 +74,7 @@ func (h *Handler) ListUsers(c *gin.Context) {
 	page := 1
 	pageSize := 20
 
-	users, total, err := h.repo.ListUsers(c.Request.Context(), tenantID, keyword, page, pageSize)
+	users, total, err := h.provider.User().List(c.Request.Context(), tenantID, keyword, page, pageSize)
 	if err != nil {
 		resp.Error(c, 500, err.Error())
 		return
@@ -93,7 +96,7 @@ func (h *Handler) GetTenant(c *gin.Context) {
 		return
 	}
 
-	tenant, err := h.repo.GetTenantByID(c.Request.Context(), tenantID)
+	tenant, err := h.provider.Tenant().GetByID(c.Request.Context(), tenantID)
 	if err != nil {
 		resp.Error(c, 500, err.Error())
 		return
@@ -126,7 +129,7 @@ func (h *Handler) ListPosts(c *gin.Context) {
 	page := 1
 	size := 20
 
-	posts, total, err := h.repo.ListPosts(c.Request.Context(), tenantID, keyword, status, page, size)
+	posts, total, err := h.provider.CmsPost().List(c.Request.Context(), tenantID, keyword, status, page, size)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -148,7 +151,7 @@ func (h *Handler) GetPost(c *gin.Context) {
 		return
 	}
 
-	post, err := h.repo.GetPostByID(c.Request.Context(), uint(id))
+	post, err := h.provider.CmsPost().GetByID(c.Request.Context(), uint(id))
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -175,7 +178,7 @@ func (h *Handler) CreatePost(c *gin.Context) {
 		return
 	}
 
-	post, err := h.repo.CreatePost(c.Request.Context(), tenantID, req.Title, req.Content, req.Status)
+	post, err := h.provider.CmsPost().Create(c.Request.Context(), tenantID, req.Title, req.Content, req.Status)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -202,7 +205,7 @@ func (h *Handler) UpdatePost(c *gin.Context) {
 		return
 	}
 
-	if err := h.repo.UpdatePost(c.Request.Context(), uint(id), req.Title, req.Content, req.Status); err != nil {
+	if err := h.provider.CmsPost().Update(c.Request.Context(), uint(id), req.Title, req.Content, req.Status); err != nil {
 		resp.HandleError(c, err)
 		return
 	}
@@ -218,7 +221,7 @@ func (h *Handler) DeletePost(c *gin.Context) {
 		return
 	}
 
-	if err := h.repo.DeletePost(c.Request.Context(), uint(id)); err != nil {
+	if err := h.provider.CmsPost().Delete(c.Request.Context(), uint(id)); err != nil {
 		resp.HandleError(c, err)
 		return
 	}

@@ -4,7 +4,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/model"
 	"gx1727.com/xin/framework/pkg/permission"
+	pkg_repository "gx1727.com/xin/framework/pkg/repository"
 )
+
+// 确保 Provider 实现 pkg/repository.Provider
+var _ pkg_repository.Provider = (*Provider)(nil)
 
 type Provider struct {
 	db              *pgxpool.Pool
@@ -44,6 +48,7 @@ func NewProvider(pool *pgxpool.Pool) *Provider {
 
 func Init(provider *Provider) {
 	defaultProvider = provider
+	pkg_repository.SetProvider(provider)
 }
 
 func (p *Provider) User() model.UserRepository {
