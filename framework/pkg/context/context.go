@@ -15,12 +15,20 @@ type XinContext struct {
 	Role      string
 }
 
+// Clone returns a copy of XinContext
+func (x *XinContext) Clone() *XinContext {
+	return &XinContext{
+		TenantID:  x.TenantID,
+		UserID:    x.UserID,
+		SessionID: x.SessionID,
+		Role:      x.Role,
+	}
+}
+
 // UserContext extends XinContext with RBAC + DataScope
 type UserContext struct {
-	TenantID    uint
-	UserID      uint
+	*XinContext
 	OrgID       int64
-	SessionID   string
 	Roles       []string
 	Permissions map[string]bool
 	DataScope   permission.DataScope
@@ -67,14 +75,24 @@ func NewUserContext(c *gin.Context) *UserContext {
 	if uc, ok := UserContextFrom(c.Request.Context()); ok {
 		return uc
 	}
-	return &UserContext{}
+	return &UserContext{XinContext: &XinContext{}}
+}
+
+// MustNewUserContext returns the UserContext or panics if it's not present or invalid.
+// This is useful for catching missing middleware configuration.
+func MustNewUserContext(c *gin.Context) *UserContext {
+	uc, ok := UserContextFrom(c.Request.Context())
+	if !ok || uc.UserID == 0 {
+		panic("UserContext not found or UserID is 0. Did you forget to add the Auth middleware?")
+	}
+	return uc
 }
 
 func UserContextFromRequest(req *http.Request) *UserContext {
 	if uc, ok := UserContextFrom(req.Context()); ok {
 		return uc
 	}
-	return &UserContext{}
+	return &UserContext{XinContext: &XinContext{}}
 }
 
 // HasPermission checks if user has the specified permission
@@ -121,37 +139,33 @@ func (u *UserContext) GetDataScopeFilter() (string, []any, error) {
 	}
 }
 
-// XinContext setters/getters (unchanged)
-
-func (x *XinContext) SetTenantID(id uint) {
-	x.TenantID = id
-}
-
-func (x *XinContext) SetUserID(id uint) {
-	x.UserID = id
-}
-
-func (x *XinContext) SetSessionID(id string) {
-	x.SessionID = id
-}
-
-func (x *XinContext) SetRole(role string) {
-	x.Role = role
-}
+// XinContext getters
 
 func (x *XinContext) GetTenantID() uint {
+	if x == nil {
+		return 0
+	}
 	return x.TenantID
 }
 
 func (x *XinContext) GetUserID() uint {
+	if x == nil {
+		return 0
+	}
 	return x.UserID
 }
 
 func (x *XinContext) GetSessionID() string {
+	if x == nil {
+		return ""
+	}
 	return x.SessionID
 }
 
 func (x *XinContext) GetRole() string {
+	if x == nil {
+		return ""
+	}
 	return x.Role
 }
 

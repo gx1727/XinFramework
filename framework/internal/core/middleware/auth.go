@@ -16,10 +16,7 @@ import (
 
 // PermissionServiceInterface defines the permission service methods needed by Auth middleware
 type PermissionServiceInterface interface {
-	LoadPermissions(ctx context.Context, userID uint) (map[string]bool, error)
-	LoadDataScope(ctx context.Context, userID uint) (*permission.DataScope, error)
-	LoadRoles(ctx context.Context, userID uint) ([]string, error)
-	GetUserOrgID(ctx context.Context, userID uint) (int64, error)
+	LoadUserSecurityContext(ctx context.Context, userID uint) (map[string]bool, []string, *permission.DataScope, int64, error)
 }
 
 // Auth 认证中间件 - 验证 JWT Token 和 Session
@@ -59,36 +56,23 @@ func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc PermissionSe
 
 		if permSvc != nil {
 			ctx := c.Request.Context()
-			perms, _ = permSvc.LoadPermissions(ctx, claims.UserID)
-			roles, _ = permSvc.LoadRoles(ctx, claims.UserID)
-			dsPtr, _ := permSvc.LoadDataScope(ctx, claims.UserID)
+			var dsPtr *permission.DataScope
+			perms, roles, dsPtr, orgID, _ = permSvc.LoadUserSecurityContext(ctx, claims.UserID)
 			if dsPtr != nil {
 				ds = *dsPtr
 			}
-			orgID, _ = permSvc.GetUserOrgID(ctx, claims.UserID)
-		}
-
-		// Create UserContext
-		uc := &xinContext.UserContext{
-			TenantID:    claims.TenantID,
-			UserID:      claims.UserID,
-			OrgID:       orgID,
-			SessionID:   claims.SessionID,
-			Roles:       roles,
-			Permissions: perms,
-			DataScope:   ds,
 		}
 
 		ctx := c.Request.Context()
-		ctx = xinContext.WithUserContext(ctx, uc)
-		ctx = xinContext.WithTenantID(ctx, claims.TenantID)
 
-		// Also update XinContext if present
-		if xc, ok := xinContext.XinContextFrom(ctx); ok {
-			xc.SetTenantID(claims.TenantID)
-			xc.SetUserID(claims.UserID)
-			xc.SetSessionID(claims.SessionID)
-			xc.SetRole(claims.Role)
+		// Update XinContext
+		var xc *xinContext.XinContext
+		if existingXc, ok := xinContext.XinContextFrom(ctx); ok {
+			xc = existingXc.Clone()
+			xc.TenantID = claims.TenantID
+			xc.UserID = claims.UserID
+			xc.SessionID = claims.SessionID
+			xc.Role = claims.Role
 		} else {
 			xc = &xinContext.XinContext{
 				TenantID:  claims.TenantID,
@@ -96,8 +80,20 @@ func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc PermissionSe
 				SessionID: claims.SessionID,
 				Role:      claims.Role,
 			}
-			ctx = xinContext.WithXinContext(ctx, xc)
 		}
+		ctx = xinContext.WithXinContext(ctx, xc)
+
+		// Create UserContext
+		uc := &xinContext.UserContext{
+			XinContext:  xc,
+			OrgID:       orgID,
+			Roles:       roles,
+			Permissions: perms,
+			DataScope:   ds,
+		}
+
+		ctx = xinContext.WithUserContext(ctx, uc)
+		ctx = xinContext.WithTenantID(ctx, claims.TenantID)
 
 		c.Request = c.Request.WithContext(ctx)
 		c.Set("user_id", claims.UserID)
@@ -114,12 +110,7 @@ func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc PermissionSe
 // 用法: protected.GET("/users", RequirePermission("user", "list"), h.List)
 func RequirePermission(resource, action string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		uc := xinContext.NewUserContext(c)
-		if uc.UserID == 0 {
-			resp.Unauthorized(c, "unauthorized")
-			c.Abort()
-			return
-		}
+		uc := xinContext.MustNewUserContext(c)
 
 		if !uc.HasPermission(resource, action) {
 			resp.Forbidden(c, "permission denied: "+resource+":"+action)
@@ -134,12 +125,7 @@ func RequirePermission(resource, action string) gin.HandlerFunc {
 // RequireAnyPermission 创建权限检查中间件 - 用户拥有任意一个权限即可通过
 func RequireAnyPermission(permissions ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		uc := xinContext.NewUserContext(c)
-		if uc.UserID == 0 {
-			resp.Unauthorized(c, "unauthorized")
-			c.Abort()
-			return
-		}
+		uc := xinContext.MustNewUserContext(c)
 
 		for _, perm := range permissions {
 			parts := strings.SplitN(perm, ":", 2)
@@ -160,12 +146,7 @@ func RequireAnyPermission(permissions ...string) gin.HandlerFunc {
 // RequireAllPermissions 创建权限检查中间件 - 用户必须拥有所有权限才能通过
 func RequireAllPermissions(permissions ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		uc := xinContext.NewUserContext(c)
-		if uc.UserID == 0 {
-			resp.Unauthorized(c, "unauthorized")
-			c.Abort()
-			return
-		}
+		uc := xinContext.MustNewUserContext(c)
 
 		for _, perm := range permissions {
 			parts := strings.SplitN(perm, ":", 2)

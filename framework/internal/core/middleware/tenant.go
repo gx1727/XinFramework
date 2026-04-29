@@ -18,9 +18,16 @@ func Tenant(mode string) gin.HandlerFunc {
 		if tenantIDStr := c.GetHeader("X-Tenant-ID"); tenantIDStr != "" {
 			if tenantID, err := strconv.ParseUint(tenantIDStr, 10, 64); err == nil {
 				tid := uint(tenantID)
-				ctx := xinContext.New(c)
-				ctx.SetTenantID(tid)
-				c.Request = c.Request.WithContext(xinContext.WithTenantID(xinContext.WithXinContext(c.Request.Context(), ctx), tid))
+
+				var xc *xinContext.XinContext
+				if existingXc, ok := xinContext.XinContextFrom(c.Request.Context()); ok {
+					xc = existingXc.Clone()
+					xc.TenantID = tid
+				} else {
+					xc = &xinContext.XinContext{TenantID: tid}
+				}
+
+				c.Request = c.Request.WithContext(xinContext.WithTenantID(xinContext.WithXinContext(c.Request.Context(), xc), tid))
 				c.Set("tenant_id", tid)
 			}
 		}

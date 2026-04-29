@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"gx1727.com/xin/framework/pkg/permission"
 )
@@ -156,4 +157,49 @@ func (s *PermissionService) BuildDataScopeSQL(ctx context.Context, userID uint) 
 // GetUserOrgID returns the user's organization ID
 func (s *PermissionService) GetUserOrgID(ctx context.Context, userID uint) (int64, error) {
 	return s.dsRepo.GetUserOrgID(ctx, userID)
+}
+
+// LoadUserSecurityContext loads all permission related data concurrently
+func (s *PermissionService) LoadUserSecurityContext(ctx context.Context, userID uint) (perms map[string]bool, roles []string, dsPtr *permission.DataScope, orgID int64, err error) {
+	var wg sync.WaitGroup
+	var err1, err2, err3, err4 error
+
+	wg.Add(4)
+	go func() {
+		defer wg.Done()
+		perms, err1 = s.LoadPermissions(ctx, userID)
+	}()
+	go func() {
+		defer wg.Done()
+		roles, err2 = s.LoadRoles(ctx, userID)
+	}()
+	go func() {
+		defer wg.Done()
+		dsPtr, err3 = s.LoadDataScope(ctx, userID)
+	}()
+	go func() {
+		defer wg.Done()
+		orgID, err4 = s.GetUserOrgID(ctx, userID)
+	}()
+
+	wg.Wait()
+
+	if err1 != nil {
+		err = err1
+		return
+	}
+	if err2 != nil {
+		err = err2
+		return
+	}
+	if err3 != nil {
+		err = err3
+		return
+	}
+	if err4 != nil {
+		err = err4
+		return
+	}
+
+	return
 }
