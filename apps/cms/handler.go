@@ -1,21 +1,24 @@
-package handler
+package cms
 
 import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/framework/pkg/context"
+	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/resp"
-	"gx1727.com/xin/module/cms/internal/service"
 )
 
+// Handler HTTP 处理器
 type Handler struct {
-	svc *service.Service
+	repo *Repository
 }
 
-func NewHandler(svc *service.Service) *Handler {
-	return &Handler{svc: svc}
+// NewHandler 创建 Handler 实例
+func NewHandler(repo *Repository) *Handler {
+	return &Handler{repo: repo}
 }
+
+// ============ Ping ============
 
 func (h *Handler) Ping(c *gin.Context) {
 	resp.Success(c, gin.H{
@@ -24,18 +27,20 @@ func (h *Handler) Ping(c *gin.Context) {
 	})
 }
 
+// ============ User ============
+
 func (h *Handler) GetCurrentUser(c *gin.Context) {
-	ctx := context.New(c)
-	userID := ctx.GetUserID()
-	tenantID := ctx.GetTenantID()
-	role := ctx.GetRole()
+	xc := xincontext.New(c)
+	userID := xc.GetUserID()
+	tenantID := xc.GetTenantID()
+	role := xc.GetRole()
 
 	if userID == 0 {
 		resp.Error(c, 401, "unauthorized")
 		return
 	}
 
-	user, err := h.svc.GetUser(c.Request.Context(), userID)
+	user, err := h.repo.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
 		resp.Error(c, 500, err.Error())
 		return
@@ -55,8 +60,8 @@ func (h *Handler) GetCurrentUser(c *gin.Context) {
 }
 
 func (h *Handler) ListUsers(c *gin.Context) {
-	ctx := context.New(c)
-	tenantID := ctx.GetTenantID()
+	xc := xincontext.New(c)
+	tenantID := xc.GetTenantID()
 	if tenantID == 0 {
 		resp.Error(c, 400, "tenant_id is required")
 		return
@@ -66,7 +71,7 @@ func (h *Handler) ListUsers(c *gin.Context) {
 	page := 1
 	pageSize := 20
 
-	users, total, err := h.svc.ListUsers(c.Request.Context(), tenantID, keyword, page, pageSize)
+	users, total, err := h.repo.ListUsers(c.Request.Context(), tenantID, keyword, page, pageSize)
 	if err != nil {
 		resp.Error(c, 500, err.Error())
 		return
@@ -78,15 +83,17 @@ func (h *Handler) ListUsers(c *gin.Context) {
 	})
 }
 
+// ============ Tenant ============
+
 func (h *Handler) GetTenant(c *gin.Context) {
-	ctx := context.New(c)
-	tenantID := ctx.GetTenantID()
+	xc := xincontext.New(c)
+	tenantID := xc.GetTenantID()
 	if tenantID == 0 {
 		resp.Error(c, 400, "tenant_id is required")
 		return
 	}
 
-	tenant, err := h.svc.GetTenant(c.Request.Context(), tenantID)
+	tenant, err := h.repo.GetTenantByID(c.Request.Context(), tenantID)
 	if err != nil {
 		resp.Error(c, 500, err.Error())
 		return
@@ -98,8 +105,8 @@ func (h *Handler) GetTenant(c *gin.Context) {
 // ============ CMS Posts ============
 
 func (h *Handler) ListPosts(c *gin.Context) {
-	ctx := context.New(c)
-	tenantID := ctx.GetTenantID()
+	xc := xincontext.New(c)
+	tenantID := xc.GetTenantID()
 	if tenantID == 0 {
 		resp.BadRequest(c, "tenant_id is required")
 		return
@@ -119,7 +126,7 @@ func (h *Handler) ListPosts(c *gin.Context) {
 	page := 1
 	size := 20
 
-	posts, total, err := h.svc.ListPosts(c.Request.Context(), tenantID, keyword, status, page, size)
+	posts, total, err := h.repo.ListPosts(c.Request.Context(), tenantID, keyword, status, page, size)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -141,7 +148,7 @@ func (h *Handler) GetPost(c *gin.Context) {
 		return
 	}
 
-	post, err := h.svc.GetPost(c.Request.Context(), uint(id))
+	post, err := h.repo.GetPostByID(c.Request.Context(), uint(id))
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -151,8 +158,8 @@ func (h *Handler) GetPost(c *gin.Context) {
 }
 
 func (h *Handler) CreatePost(c *gin.Context) {
-	ctx := context.New(c)
-	tenantID := ctx.GetTenantID()
+	xc := xincontext.New(c)
+	tenantID := xc.GetTenantID()
 	if tenantID == 0 {
 		resp.BadRequest(c, "tenant_id is required")
 		return
@@ -168,7 +175,7 @@ func (h *Handler) CreatePost(c *gin.Context) {
 		return
 	}
 
-	post, err := h.svc.CreatePost(c.Request.Context(), tenantID, req.Title, req.Content, req.Status)
+	post, err := h.repo.CreatePost(c.Request.Context(), tenantID, req.Title, req.Content, req.Status)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -195,7 +202,7 @@ func (h *Handler) UpdatePost(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.UpdatePost(c.Request.Context(), uint(id), req.Title, req.Content, req.Status); err != nil {
+	if err := h.repo.UpdatePost(c.Request.Context(), uint(id), req.Title, req.Content, req.Status); err != nil {
 		resp.HandleError(c, err)
 		return
 	}
@@ -211,7 +218,7 @@ func (h *Handler) DeletePost(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.DeletePost(c.Request.Context(), uint(id)); err != nil {
+	if err := h.repo.DeletePost(c.Request.Context(), uint(id)); err != nil {
 		resp.HandleError(c, err)
 		return
 	}

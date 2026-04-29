@@ -2,25 +2,27 @@ package cms
 
 import (
 	"github.com/gin-gonic/gin"
+	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/plugin"
-	"gx1727.com/xin/module/cms/internal/handler"
-	"gx1727.com/xin/module/cms/internal/service"
 )
 
-var (
-	cmsService *service.Service
-	cmsHandler *handler.Handler
-)
-
-func init() {
-	// 模块加载时初始化 Service 和 Handler
-	cmsService = service.NewService()
-	cmsHandler = handler.NewHandler(cmsService)
+type module struct {
+	name string
 }
 
-// Module 返回 CMS 插件模块
+func (m *module) Name() string    { return m.name }
+func (m *module) Init() error     { return nil }
+func (m *module) Shutdown() error { return nil }
+
+func (m *module) Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
+	// 初始化 Repository
+	repo := NewRepository(db.Get())
+
+	// 创建 Handler（直接调用 Repository，无 Service 层）
+	h := NewHandler(repo)
+	Register(h, public, protected)
+}
+
 func Module() plugin.Module {
-	return plugin.NewModule("cms", func(public, protected *gin.RouterGroup) {
-		Register(cmsHandler, public, protected)
-	})
+	return &module{name: "cms"}
 }

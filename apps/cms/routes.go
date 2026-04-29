@@ -2,10 +2,7 @@ package cms
 
 import (
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/module/cms/internal/handler"
 )
-
-type Handler = handler.Handler
 
 func Register(h *Handler, public *gin.RouterGroup, protected *gin.RouterGroup) {
 	public.GET("/cms/ping", h.Ping)
