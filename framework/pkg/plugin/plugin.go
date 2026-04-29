@@ -18,15 +18,11 @@ type SimpleModule struct {
 	shutdownFn func() error
 }
 
-func NewModule(name string, register ModuleFunc) *SimpleModule {
-	return &SimpleModule{name: name, register: register}
-}
-
 func (m *SimpleModule) Name() string {
 	return m.name
 }
 
-func (m *SimpleModule) Register(public, protected *gin.RouterGroup) {
+func (m *SimpleModule) Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
 	m.register(public, protected)
 }
 
@@ -52,6 +48,10 @@ func WithInit(fn func() error) ModuleOption {
 
 func WithShutdown(fn func() error) ModuleOption {
 	return func(m *SimpleModule) { m.shutdownFn = fn }
+}
+
+func NewModule(name string, register ModuleFunc) *SimpleModule {
+	return &SimpleModule{name: name, register: register}
 }
 
 func NewModuleWithOpts(name string, register ModuleFunc, opts ...ModuleOption) *SimpleModule {

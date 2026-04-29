@@ -14,7 +14,7 @@ import (
 
 // Module 返回 user 模块的完整定义
 func Module(app *boot.App) plugin.Module {
-	return plugin.NewModule("user", func(public, protected *gin.RouterGroup) {
+	return plugin.NewModule("user", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
 		// 创建 storage
 		var s storage.Storage
 		if app.Config.Storage.Provider == "cos" {

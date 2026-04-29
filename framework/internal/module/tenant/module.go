@@ -8,7 +8,7 @@ import (
 
 // Module 返回 tenant 模块的完整定义
 func Module(app *boot.App) plugin.Module {
-	return plugin.NewModule("tenant", func(public, protected *gin.RouterGroup) {
+	return plugin.NewModule("tenant", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
 		h := NewHandler(NewService(app.Repository.Tenant()))
 		Register(protected, h)
 	})

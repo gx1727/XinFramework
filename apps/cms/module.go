@@ -23,7 +23,7 @@ func (m *module) Init() error { return nil }
 
 func (m *module) Shutdown() error { return nil }
 
-func (m *module) Register(public, protected *gin.RouterGroup) {
+func (m *module) Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
 	if cmsHandler != nil {
 		Register(cmsHandler, public, protected)
 	}

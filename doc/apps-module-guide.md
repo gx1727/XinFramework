@@ -41,7 +41,7 @@ import (
     "gx1727.com/xin/framework/pkg/plugin"
 )
 
-func (m *module) Register(public, protected *gin.RouterGroup) {
+func (m *module) Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
     // 直接使用全局 db 连接创建自己的 Repository
     pool := db.Get()
     frameRepo = NewFrameRepository(pool)
@@ -192,7 +192,7 @@ func (m *module) Name() string     { return m.name }
 func (m *module) Init() error      { return nil }
 func (m *module) Shutdown() error  { return nil }
 
-func (m *module) Register(public, protected *gin.RouterGroup) {
+func (m *module) Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
     if cmsHandler != nil {
         Register(cmsHandler, public, protected)
     }

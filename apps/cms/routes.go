@@ -7,7 +7,7 @@ import (
 
 type Handler = handler.Handler
 
-func Register(h *Handler, public, protected *gin.RouterGroup) {
+func Register(h *Handler, public *gin.RouterGroup, protected *gin.RouterGroup) {
 	public.GET("/cms/ping", h.Ping)
 	protected.GET("/cms/me", h.GetCurrentUser)
 	protected.GET("/cms/users", h.ListUsers)

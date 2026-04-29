@@ -225,7 +225,7 @@ type Module struct{}
 
 func (m *Module) Name() string           { return "myplugin" }
 func (m *Module) Init() error            { return nil }
-func (m *Module) Register(public, protected *gin.RouterGroup) {
+func (m *Module) Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
     protected.GET("/data", func(c *gin.Context) {
         c.JSON(200, gin.H{"message": "myplugin"})
     })

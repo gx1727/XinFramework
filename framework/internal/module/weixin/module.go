@@ -9,7 +9,7 @@ import (
 // Module 返回 weixin 模块的完整定义
 func Module(app *boot.App) plugin.Module {
 	return plugin.NewModuleWithOpts("weixin",
-		func(public, protected *gin.RouterGroup) {
+		func(public *gin.RouterGroup, protected *gin.RouterGroup) {
 			svc := NewService(
 				app.DB,
 				app.SessionMgr,

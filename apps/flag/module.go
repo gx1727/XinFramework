@@ -16,7 +16,7 @@ func (m *module) Init() error {
 }
 func (m *module) Shutdown() error { return nil }
 
-func (m *module) Register(public, protected *gin.RouterGroup) {
+func (m *module) Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
 	// 初始化 Repository
 	InitRepositories(db.Get())
 

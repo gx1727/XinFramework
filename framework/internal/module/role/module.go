@@ -8,7 +8,7 @@ import (
 
 // Module 返回 role 模块的完整定义
 func Module(app *boot.App) plugin.Module {
-	return plugin.NewModule("role", func(public, protected *gin.RouterGroup) {
+	return plugin.NewModule("role", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
 		h := NewHandler(NewService(app.Repository.Role(), app.Repository.DataScope()))
 		Register(protected, h)
 	})

@@ -136,10 +136,6 @@ func setupRouter(app *boot.App) {
 // 设计原则：
 // - Framework 已有的功能（User, Tenant, Role 等）→ 通过依赖注入
 // - Apps 自己的表数据 → 使用全局 db.Get()
-//
-// 注意：由于 framework 和 apps 是独立的 Go modules，
-// 无法在这里直接导入 apps 包。
-// 如果需要为外部模块注入依赖，请在 apps 模块内部使用 db.Get() 自行管理。
 func initExternalModuleDeps(app *boot.App) {
 	// 外部模块（如 CMS、Flag）应该自己管理依赖
 	// 它们可以通过 db.Get() 访问数据库

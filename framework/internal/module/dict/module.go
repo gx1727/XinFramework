@@ -9,7 +9,7 @@ import (
 
 // Module 返回 dict 模块的完整定义
 func Module(app *boot.App) plugin.Module {
-	return plugin.NewModule("dict", func(public, protected *gin.RouterGroup) {
+	return plugin.NewModule("dict", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
 		h := NewHandler(repository.NewDictRepository(app.DB))
 		Register(protected, h)
 	})

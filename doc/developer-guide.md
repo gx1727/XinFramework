@@ -264,7 +264,7 @@ func Cfg() *MyConfig {
     return moduleCfg
 }
 
-func Register(public, protected *gin.RouterGroup) {
+func Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
     protected.GET("/mymodule/ping", func(c *gin.Context) {
         // handler logic
     })
@@ -322,7 +322,7 @@ import (
     "gx1727.com/xin/framework/pkg/plugin"
 )
 
-func Register(public, protected *gin.RouterGroup) {
+func Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
     protected.GET("/mymodule/ping", func(c *gin.Context) {
         // ...
     })
@@ -930,7 +930,7 @@ type Dependencies struct {
 
 ```go
 func Module(h *Handler) plugin.Module {
-    return plugin.NewModule("order", func(public, protected *gin.RouterGroup) {
+    return plugin.NewModule("order", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
         Register(public, protected, h)
     })
 }

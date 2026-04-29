@@ -65,7 +65,7 @@ XinFramework/
 type Module interface {
     Name() string
     Init() error
-    Register(public, protected *gin.RouterGroup)
+    Register(public *gin.RouterGroup, protected *gin.RouterGroup)
     Shutdown() error
 }
 
