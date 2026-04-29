@@ -1,19 +1,16 @@
-# Apps 模块调用 Framework 功能指南
+# Apps 模块开发指南
 
 ## 概述
 
-本文档说明如何在 `apps/` 目录下的外部插件模块中调用 `framework/` 提供的功能。
+本文档说明如何在 `apps/` 目录下创建外部插件模块。
 
 ## 🎯 核心设计原则
 
-**混合模式（推荐）**：
-- ✅ **Framework 已有的功能** → 通过依赖注入
-  - User, Tenant, Role, Menu, Resource, Organization 等
-  - 使用 `app.Repository.Xxx()` 获取
-  
-- ✅ **Apps 自己的表数据** → 使用全局 `db.Get()`
-  - CmsPost, Flag, Avatar 等自定义表
-  - 直接使用 SQL 查询或创建自己的 Repository
+**简化模式（推荐）**：
+- ✅ **所有数据访问** → 使用全局 `db.Get()`
+  - Framework 的表（users, tenants, roles 等）
+  - Apps 自己的表（cms_posts, flags 等）
+  - 直接使用 SQL 查询
 
 ---
 

@@ -126,20 +126,10 @@ func setupRouter(app *boot.App) {
 	srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode)) // 5. 租户上下文
 
 	// 初始化外部插件的依赖（在注册路由之前）
-	initExternalModuleDeps(app)
+	// 注意：外部模块现在都使用 db.Get() 自行管理依赖
 
 	// 注册内置模块和外部插件
 	registerModules(srv.Engine, cfg, app)
-}
-
-// initExternalModuleDeps 为外部插件注入依赖
-// 设计原则：
-// - Framework 已有的功能（User, Tenant, Role 等）→ 通过依赖注入
-// - Apps 自己的表数据 → 使用全局 db.Get()
-func initExternalModuleDeps(app *boot.App) {
-	// 外部模块（如 CMS、Flag）应该自己管理依赖
-	// 它们可以通过 db.Get() 访问数据库
-	// 或者通过 pkg/model 的接口 + 全局 Repository Provider（如果实现的话）
 }
 
 // registerModules 注册内置模块和外部插件
