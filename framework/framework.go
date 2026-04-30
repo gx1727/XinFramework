@@ -159,6 +159,9 @@ func registerModules(r *gin.Engine, cfg *config.Config, app *boot.App) {
 
 	for _, m := range builtinModules {
 		if cfg.ModuleEnabled(m.Name()) {
+			if err := m.Init(); err != nil {
+				log.Fatalf("builtin module %s init failed: %v", m.Name(), err)
+			}
 			m.Register(public, protected)
 		}
 	}
