@@ -23,6 +23,8 @@ func New(cfg *config.Config) *XinServer {
 
 	engine := gin.Default()
 
+	engine.Static(cfg.Storage.LocalBaseURL, cfg.Storage.LocalDir)
+
 	return &XinServer{Engine: engine}
 }
 
