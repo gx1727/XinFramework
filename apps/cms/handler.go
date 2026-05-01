@@ -5,20 +5,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 	xincontext "gx1727.com/xin/framework/pkg/context"
-	"gx1727.com/xin/framework/pkg/repository"
+	"gx1727.com/xin/framework/pkg/extapi"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
 // Handler HTTP 处理器
 type Handler struct {
 	// 直接依赖框架的 Provider，取代自己手写的 Repository
-	provider repository.Provider
+	provider extapi.Provider
 }
 
 // NewHandler 创建 Handler 实例
 func NewHandler() *Handler {
 	// 启动时从全局获取已注入的核心能力 Provider
-	return &Handler{provider: repository.Get()}
+	return &Handler{provider: extapi.Get()}
 }
 
 // ============ Ping ============

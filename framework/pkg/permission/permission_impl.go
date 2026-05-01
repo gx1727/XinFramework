@@ -1,14 +1,13 @@
-package repository
+package permission
 
 import (
 	"context"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"gx1727.com/xin/framework/pkg/permission"
 )
 
-// PostgresPermissionRepository implements permission.PermissionRepository
+// PostgresPermissionRepository implements PermissionRepository
 type PostgresPermissionRepository struct {
 	db *pgxpool.Pool
 }
@@ -82,7 +81,7 @@ func (r *PostgresPermissionRepository) GetUserRoles(ctx context.Context, userID 
 	return roles, nil
 }
 
-// PostgresDataScopeRepository implements permission.DataScopeRepository
+// PostgresDataScopeRepository implements DataScopeRepository
 type PostgresDataScopeRepository struct {
 	db *pgxpool.Pool
 }
@@ -93,7 +92,7 @@ func NewDataScopeRepository(db *pgxpool.Pool) *PostgresDataScopeRepository {
 
 // GetDataScope returns the data scope for a user based on their roles
 // Takes the most permissive scope if user has multiple roles
-func (r *PostgresDataScopeRepository) GetDataScope(ctx context.Context, userID uint) (*permission.DataScope, error) {
+func (r *PostgresDataScopeRepository) GetDataScope(ctx context.Context, userID uint) (*DataScope, error) {
 	// Get the most permissive data_scope from user's roles
 	// data_scope: 1=全部 > 4=本部门及以下 > 3=本部门 > 2=自定义 > 5=本人
 	var dataScope int
@@ -110,12 +109,12 @@ func (r *PostgresDataScopeRepository) GetDataScope(ctx context.Context, userID u
 		return nil, fmt.Errorf("get user data scope: %w", err)
 	}
 
-	ds := &permission.DataScope{
-		Type: permission.DataScopeType(dataScope),
+	ds := &DataScope{
+		Type: DataScopeType(dataScope),
 	}
 
 	// For custom data scope (type=2), load the allowed org_ids
-	if ds.Type == permission.DataScopeCustom {
+	if ds.Type == DataScopeCustom {
 		rows, err := r.db.Query(ctx, `
 			SELECT rds.org_id
 			FROM user_roles ur

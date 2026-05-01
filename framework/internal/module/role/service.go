@@ -3,16 +3,15 @@ package role
 import (
 	"context"
 
-	"gx1727.com/xin/framework/pkg/model"
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
 type Service struct {
-	roleRepo model.RoleRepository
+	roleRepo RoleRepository
 	dsRepo   permission.DataScopeRepository
 }
 
-func NewService(roleRepo model.RoleRepository, dsRepo permission.DataScopeRepository) *Service {
+func NewService(roleRepo RoleRepository, dsRepo permission.DataScopeRepository) *Service {
 	return &Service{roleRepo: roleRepo, dsRepo: dsRepo}
 }
 
@@ -47,7 +46,7 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Ro
 	if req.Status == 0 {
 		req.Status = 1
 	}
-	role, err := s.roleRepo.Create(ctx, tenantID, model.CreateRoleRepoReq{
+	role, err := s.roleRepo.Create(ctx, tenantID, CreateRoleRepoReq{
 		Code:        req.Code,
 		Name:        req.Name,
 		Description: req.Description,
@@ -64,7 +63,7 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Ro
 }
 
 func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*RoleResp, error) {
-	role, err := s.roleRepo.Update(ctx, id, model.UpdateRoleRepoReq{
+	role, err := s.roleRepo.Update(ctx, id, UpdateRoleRepoReq{
 		Name:        req.Name,
 		Description: req.Description,
 		DataScope:   req.DataScope,
@@ -102,7 +101,7 @@ func (s *Service) UpdateDataScopes(ctx context.Context, roleID uint, req UpdateD
 	return s.dsRepo.SetForRole(ctx, roleID, req.OrgIDs)
 }
 
-func toResp(r model.Role) RoleResp {
+func toResp(r Role) RoleResp {
 	return RoleResp{
 		ID:          r.ID,
 		TenantID:    r.TenantID,

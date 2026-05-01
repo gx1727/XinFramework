@@ -1,4 +1,4 @@
-package repository
+package tenant
 
 import (
 	"context"
@@ -8,20 +8,19 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"gx1727.com/xin/framework/pkg/model"
 )
 
-// PostgresTenantRepository implements model.TenantRepository
+// PostgresTenantRepository implements TenantRepository
 type PostgresTenantRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewTenantRepository(db *pgxpool.Pool) model.TenantRepository {
+func NewTenantRepository(db *pgxpool.Pool) TenantRepository {
 	return &PostgresTenantRepository{db: db}
 }
 
-func (r *PostgresTenantRepository) GetByID(ctx context.Context, id uint) (*model.Tenant, error) {
-	var t model.Tenant
+func (r *PostgresTenantRepository) GetByID(ctx context.Context, id uint) (*Tenant, error) {
+	var t Tenant
 	err := r.db.QueryRow(ctx, `
 		SELECT id, code, name, status, contact, phone, email,
 		       province, city, area, address, config, dashboard,
@@ -38,15 +37,15 @@ func (r *PostgresTenantRepository) GetByID(ctx context.Context, id uint) (*model
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, model.ErrTenantNotFound
+			return nil, ErrTenantNotFound
 		}
 		return nil, err
 	}
 	return &t, nil
 }
 
-func (r *PostgresTenantRepository) GetByCode(ctx context.Context, code string) (*model.Tenant, error) {
-	var t model.Tenant
+func (r *PostgresTenantRepository) GetByCode(ctx context.Context, code string) (*Tenant, error) {
+	var t Tenant
 	err := r.db.QueryRow(ctx, `
 		SELECT id, code, name, status, contact, phone, email,
 		       province, city, area, address, config, dashboard,
@@ -63,14 +62,14 @@ func (r *PostgresTenantRepository) GetByCode(ctx context.Context, code string) (
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, model.ErrTenantNotFound
+			return nil, ErrTenantNotFound
 		}
 		return nil, err
 	}
 	return &t, nil
 }
 
-func (r *PostgresTenantRepository) List(ctx context.Context, keyword string, status *int16, page, size int) ([]model.Tenant, int64, error) {
+func (r *PostgresTenantRepository) List(ctx context.Context, keyword string, status *int16, page, size int) ([]Tenant, int64, error) {
 	where := "WHERE is_deleted = FALSE"
 	args := []interface{}{}
 	argIdx := 1
@@ -112,9 +111,9 @@ func (r *PostgresTenantRepository) List(ctx context.Context, keyword string, sta
 	}
 	defer rows.Close()
 
-	var list []model.Tenant
+	var list []Tenant
 	for rows.Next() {
-		var t model.Tenant
+		var t Tenant
 		if err := rows.Scan(
 			&t.ID, &t.Code, &t.Name, &t.Status,
 			&t.Contact, &t.Phone, &t.Email,
@@ -131,8 +130,8 @@ func (r *PostgresTenantRepository) List(ctx context.Context, keyword string, sta
 	return list, total, nil
 }
 
-func (r *PostgresTenantRepository) Create(ctx context.Context, code, name, contact, phone, email string) (*model.Tenant, error) {
-	var t model.Tenant
+func (r *PostgresTenantRepository) Create(ctx context.Context, code, name, contact, phone, email string) (*Tenant, error) {
+	var t Tenant
 	err := r.db.QueryRow(ctx, `
 		INSERT INTO tenants (code, name, contact, phone, email)
 		VALUES ($1, $2, $3, $4, $5)
@@ -151,15 +150,15 @@ func (r *PostgresTenantRepository) Create(ctx context.Context, code, name, conta
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "uk_tenants_code") {
-			return nil, model.ErrTenantCodeExists
+			return nil, ErrTenantCodeExists
 		}
 		return nil, fmt.Errorf("create tenant: %w", err)
 	}
 	return &t, nil
 }
 
-func (r *PostgresTenantRepository) Update(ctx context.Context, id uint, name, contact, phone, email, province, city, area, address string) (*model.Tenant, error) {
-	var t model.Tenant
+func (r *PostgresTenantRepository) Update(ctx context.Context, id uint, name, contact, phone, email, province, city, area, address string) (*Tenant, error) {
+	var t Tenant
 	err := r.db.QueryRow(ctx, `
 		UPDATE tenants SET
 			name = $2, contact = $3, phone = $4, email = $5,
@@ -182,7 +181,7 @@ func (r *PostgresTenantRepository) Update(ctx context.Context, id uint, name, co
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, model.ErrTenantNotFound
+			return nil, ErrTenantNotFound
 		}
 		return nil, fmt.Errorf("update tenant: %w", err)
 	}
@@ -197,7 +196,7 @@ func (r *PostgresTenantRepository) Delete(ctx context.Context, id uint) error {
 		return fmt.Errorf("delete tenant: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return model.ErrTenantNotFound
+		return ErrTenantNotFound
 	}
 	return nil
 }

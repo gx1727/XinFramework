@@ -1,6 +1,12 @@
 package auth
 
 import (
+	"gx1727.com/xin/framework/internal/module/tenant"
+
+	"gx1727.com/xin/framework/internal/module/role"
+
+	"gx1727.com/xin/framework/internal/module/user"
+
 	"context"
 	"errors"
 	"fmt"
@@ -12,7 +18,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/config"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
-	"gx1727.com/xin/framework/pkg/model"
 )
 
 type LoginIdentity struct {
@@ -121,10 +126,10 @@ type Service struct {
 	db          *pgxpool.Pool
 	config      *config.Config
 	session     SessionManager
-	accountRepo model.AccountRepository
-	tenantRepo  model.TenantRepository
-	roleRepo    model.RoleRepository
-	userRepo    model.UserRepository
+	accountRepo AccountRepository
+	tenantRepo  tenant.TenantRepository
+	roleRepo    role.RoleRepository
+	userRepo    user.UserRepository
 }
 
 func NewService(deps Dependencies) *Service {
@@ -261,14 +266,14 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 		return nil, ErrAccountAlreadyExists
 	}
 
-	tenant, err := s.tenantRepo.GetByID(ctx, req.TenantID)
+	t, err := s.tenantRepo.GetByID(ctx, req.TenantID)
 	if err != nil {
-		if errors.Is(err, model.ErrTenantNotFound) {
+		if errors.Is(err, tenant.ErrTenantNotFoundDB) {
 			return nil, ErrTenantNotFound
 		}
 		return nil, ErrRegisterFailed
 	}
-	if tenant.Status != 1 {
+	if t.Status != 1 {
 		return nil, ErrTenantNotFound
 	}
 

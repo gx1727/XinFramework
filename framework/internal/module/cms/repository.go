@@ -1,23 +1,22 @@
-package repository
+package cms
 
 import (
 	"context"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"gx1727.com/xin/framework/pkg/model"
 )
 
-type CmsPostRepository struct {
+type postgresCmsPostRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewCmsPostRepository(db *pgxpool.Pool) model.CmsPostRepository {
-	return &CmsPostRepository{db: db}
+func NewCmsPostRepository(db *pgxpool.Pool) CmsPostRepository {
+	return &postgresCmsPostRepository{db: db}
 }
 
-func (r *CmsPostRepository) GetByID(ctx context.Context, id uint) (*model.CmsPost, error) {
-	var p model.CmsPost
+func (r *postgresCmsPostRepository) GetByID(ctx context.Context, id uint) (*CmsPost, error) {
+	var p CmsPost
 	err := r.db.QueryRow(ctx, `
 		SELECT id, tenant_id, title, content, status, created_at, updated_at, is_deleted
 		FROM cms_posts
@@ -29,7 +28,7 @@ func (r *CmsPostRepository) GetByID(ctx context.Context, id uint) (*model.CmsPos
 	return &p, nil
 }
 
-func (r *CmsPostRepository) List(ctx context.Context, tenantID uint, keyword string, status *int16, page, size int) ([]model.CmsPost, int64, error) {
+func (r *postgresCmsPostRepository) List(ctx context.Context, tenantID uint, keyword string, status *int16, page, size int) ([]CmsPost, int64, error) {
 	where := "WHERE tenant_id = $1 AND is_deleted = FALSE"
 	args := []interface{}{tenantID}
 	argIdx := 2
@@ -72,9 +71,9 @@ func (r *CmsPostRepository) List(ctx context.Context, tenantID uint, keyword str
 	}
 	defer rows.Close()
 
-	var list []model.CmsPost
+	var list []CmsPost
 	for rows.Next() {
-		var p model.CmsPost
+		var p CmsPost
 		err := rows.Scan(&p.ID, &p.TenantID, &p.Title, &p.Content, &p.Status, &p.CreatedAt, &p.UpdatedAt, &p.IsDeleted)
 		if err != nil {
 			return nil, 0, fmt.Errorf("scan cms post: %w", err)
@@ -85,8 +84,8 @@ func (r *CmsPostRepository) List(ctx context.Context, tenantID uint, keyword str
 	return list, total, nil
 }
 
-func (r *CmsPostRepository) Create(ctx context.Context, tenantID uint, title, content string, status int16) (*model.CmsPost, error) {
-	var p model.CmsPost
+func (r *postgresCmsPostRepository) Create(ctx context.Context, tenantID uint, title, content string, status int16) (*CmsPost, error) {
+	var p CmsPost
 	err := r.db.QueryRow(ctx, `
 		INSERT INTO cms_posts (tenant_id, title, content, status)
 		VALUES ($1, $2, $3, $4)
@@ -98,7 +97,7 @@ func (r *CmsPostRepository) Create(ctx context.Context, tenantID uint, title, co
 	return &p, nil
 }
 
-func (r *CmsPostRepository) Update(ctx context.Context, id uint, title, content string, status int16) error {
+func (r *postgresCmsPostRepository) Update(ctx context.Context, id uint, title, content string, status int16) error {
 	_, err := r.db.Exec(ctx, `
 		UPDATE cms_posts
 		SET title = $2, content = $3, status = $4, updated_at = NOW()
@@ -110,7 +109,7 @@ func (r *CmsPostRepository) Update(ctx context.Context, id uint, title, content 
 	return nil
 }
 
-func (r *CmsPostRepository) Delete(ctx context.Context, id uint) error {
+func (r *postgresCmsPostRepository) Delete(ctx context.Context, id uint) error {
 	_, err := r.db.Exec(ctx, `
 		UPDATE cms_posts SET is_deleted = TRUE, updated_at = NOW()
 		WHERE id = $1

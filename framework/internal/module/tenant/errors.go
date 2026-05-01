@@ -3,7 +3,6 @@ package tenant
 import (
 	"errors"
 
-	"gx1727.com/xin/framework/pkg/model"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
@@ -23,9 +22,9 @@ func mapRepoError(err error) error {
 		return nil
 	}
 	switch {
-	case errors.Is(err, model.ErrTenantNotFound):
+	case errors.Is(err, ErrTenantNotFoundDB):
 		return ErrTenantNotFound
-	case errors.Is(err, model.ErrTenantCodeExists):
+	case errors.Is(err, ErrTenantCodeExistsDB):
 		return ErrTenantCodeExists
 	default:
 		return err

@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/pkg/context"
-	"gx1727.com/xin/framework/pkg/model"
+
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
@@ -152,7 +152,7 @@ func (h *Handler) UpdateDataScopes(c *gin.Context) {
 
 func handleError(c *gin.Context, err error) {
 	switch err {
-	case model.ErrRoleNotFound:
+	case ErrRoleNotFoundDB:
 		resp.NotFound(c, "role not found")
 	case ErrRoleCodeExists:
 		resp.Error(c, 400, "role code already exists")

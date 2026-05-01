@@ -1,4 +1,4 @@
-package repository
+package auth
 
 import (
 	"context"
@@ -7,20 +7,19 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"gx1727.com/xin/framework/pkg/model"
 )
 
-// PostgresAccountAuthRepository implements model.AccountAuthRepository
+// PostgresAccountAuthRepository implements AccountAuthRepository
 type PostgresAccountAuthRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewAccountAuthRepository(db *pgxpool.Pool) model.AccountAuthRepository {
+func NewAccountAuthRepository(db *pgxpool.Pool) AccountAuthRepository {
 	return &PostgresAccountAuthRepository{db: db}
 }
 
-func (r *PostgresAccountAuthRepository) GetByOpenID(ctx context.Context, tenantID uint, authType, openID string) (*model.AccountAuth, error) {
-	var a model.AccountAuth
+func (r *PostgresAccountAuthRepository) GetByOpenID(ctx context.Context, tenantID uint, authType, openID string) (*AccountAuth, error) {
+	var a AccountAuth
 	err := r.db.QueryRow(ctx, `
 		SELECT id, tenant_id, account_id, type, openid, unionid, nickname, avatar, session_key, created_at, updated_at
 		FROM account_auths
@@ -30,14 +29,14 @@ func (r *PostgresAccountAuthRepository) GetByOpenID(ctx context.Context, tenantI
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, model.ErrAccountAuthNotFound
+			return nil, ErrAccountAuthNotFoundDB
 		}
 		return nil, err
 	}
 	return &a, nil
 }
 
-func (r *PostgresAccountAuthRepository) GetByAccountID(ctx context.Context, accountID uint) ([]model.AccountAuth, error) {
+func (r *PostgresAccountAuthRepository) GetByAccountID(ctx context.Context, accountID uint) ([]AccountAuth, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, tenant_id, account_id, type, openid, unionid, nickname, avatar, session_key, created_at, updated_at
 		FROM account_auths
@@ -47,9 +46,9 @@ func (r *PostgresAccountAuthRepository) GetByAccountID(ctx context.Context, acco
 	}
 	defer rows.Close()
 
-	var list []model.AccountAuth
+	var list []AccountAuth
 	for rows.Next() {
-		var a model.AccountAuth
+		var a AccountAuth
 		if err := rows.Scan(
 			&a.ID, &a.TenantID, &a.AccountID, &a.Type, &a.OpenID, &a.UnionID,
 			&a.Nickname, &a.Avatar, &a.SessionKey, &a.CreatedAt, &a.UpdatedAt,
@@ -61,8 +60,8 @@ func (r *PostgresAccountAuthRepository) GetByAccountID(ctx context.Context, acco
 	return list, nil
 }
 
-func (r *PostgresAccountAuthRepository) Create(ctx context.Context, tenantID, accountID uint, authType, openID, unionID, sessionKey string) (*model.AccountAuth, error) {
-	var a model.AccountAuth
+func (r *PostgresAccountAuthRepository) Create(ctx context.Context, tenantID, accountID uint, authType, openID, unionID, sessionKey string) (*AccountAuth, error) {
+	var a AccountAuth
 	err := r.db.QueryRow(ctx, `
 		INSERT INTO account_auths (tenant_id, account_id, type, openid, unionid, session_key)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -85,7 +84,7 @@ func (r *PostgresAccountAuthRepository) UpdateSessionKey(ctx context.Context, id
 		return fmt.Errorf("update session key: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return model.ErrAccountAuthNotFound
+		return ErrAccountAuthNotFoundDB
 	}
 	return nil
 }
@@ -98,7 +97,7 @@ func (r *PostgresAccountAuthRepository) Delete(ctx context.Context, id uint) err
 		return fmt.Errorf("delete account auth: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return model.ErrAccountAuthNotFound
+		return ErrAccountAuthNotFoundDB
 	}
 	return nil
 }

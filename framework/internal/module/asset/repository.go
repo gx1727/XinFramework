@@ -1,4 +1,4 @@
-package repository
+package asset
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/db"
-	"gx1727.com/xin/framework/pkg/model"
 )
 
 type PostgresAttachmentRepository struct {
@@ -19,7 +18,7 @@ func NewAttachmentRepository(db *pgxpool.Pool) *PostgresAttachmentRepository {
 	return &PostgresAttachmentRepository{db: db}
 }
 
-func (r *PostgresAttachmentRepository) GetByID(ctx context.Context, id uint) (*model.Attachment, error) {
+func (r *PostgresAttachmentRepository) GetByID(ctx context.Context, id uint) (*Attachment, error) {
 	conn, err := db.Acquire(ctx)
 	if err != nil {
 		return nil, err
@@ -31,7 +30,7 @@ func (r *PostgresAttachmentRepository) GetByID(ctx context.Context, id uint) (*m
 		FROM attachments
 		WHERE id = $1 AND is_deleted = false
 	`
-	var attachment model.Attachment
+	var attachment Attachment
 	var userID *uint
 	err = conn.QueryRow(ctx, query, id).Scan(
 		&attachment.ID,
@@ -62,7 +61,7 @@ func (r *PostgresAttachmentRepository) GetByID(ctx context.Context, id uint) (*m
 	return &attachment, nil
 }
 
-func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID uint, hash string) (*model.Attachment, error) {
+func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID uint, hash string) (*Attachment, error) {
 	conn, err := db.Acquire(ctx)
 	if err != nil {
 		return nil, err
@@ -79,7 +78,7 @@ func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID u
 		WHERE tenant_id = $1 AND hash = $2 AND status = 1 AND is_deleted = false
 		LIMIT 1
 	`
-	var attachment model.Attachment
+	var attachment Attachment
 	var userID *uint
 	err = conn.QueryRow(ctx, query, tenantID, hash).Scan(
 		&attachment.ID,
@@ -110,7 +109,7 @@ func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID u
 	return &attachment, nil
 }
 
-func (r *PostgresAttachmentRepository) Create(ctx context.Context, attachment *model.Attachment) (*model.Attachment, error) {
+func (r *PostgresAttachmentRepository) Create(ctx context.Context, attachment *Attachment) (*Attachment, error) {
 	conn, err := db.Acquire(ctx)
 	if err != nil {
 		return nil, err

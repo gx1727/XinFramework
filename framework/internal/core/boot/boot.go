@@ -5,8 +5,8 @@ import (
 	"log"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gx1727.com/xin/framework/internal/core/ext_impl"
 	"gx1727.com/xin/framework/internal/core/server"
-	"gx1727.com/xin/framework/internal/repository"
 	"gx1727.com/xin/framework/internal/service"
 	"gx1727.com/xin/framework/pkg/cache"
 	"gx1727.com/xin/framework/pkg/config"
@@ -21,7 +21,6 @@ import (
 type App struct {
 	Config      *config.Config
 	DB          *pgxpool.Pool
-	Repository  *repository.Provider
 	SessionMgr  session.SessionManager
 	Server      *server.XinServer
 	PermService *service.PermissionService
@@ -35,10 +34,6 @@ func Init(cfg *config.Config) (*App, error) {
 
 	// 初始化 dict 缓存
 	dict.Init(db.Get())
-
-	// 初始化 repository
-	repoProvider := repository.NewProvider(db.Get())
-	repository.Init(repoProvider)
 
 	if err := cache.Init(&cfg.Redis); err != nil {
 		return nil, fmt.Errorf("cache init failed: %w", err)
@@ -56,19 +51,21 @@ func Init(cfg *config.Config) (*App, error) {
 	// 初始化 permission service
 	var permCache permission.PermissionCache
 	if cache.Get() != nil {
-		permCache = repository.NewRedisPermissionCache()
+		permCache = permission.NewRedisPermissionCache()
 	}
 
+	ext_impl.InitExtApi()
+
+	// 初始化本地 repo 用于 PermService
 	permService := service.NewPermissionService(
-		repoProvider.Permission(),
-		repoProvider.DataScope(),
+		permission.NewPermissionRepository(db.Get()),
+		permission.NewDataScopeRepository(db.Get()),
 		permCache,
 	)
 
 	return &App{
 		Config:      cfg,
 		DB:          db.Get(),
-		Repository:  repoProvider,
 		SessionMgr:  sm,
 		Server:      server.New(cfg),
 		PermService: permService,

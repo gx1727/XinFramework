@@ -4,17 +4,16 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/framework/internal/repository"
 	"gx1727.com/xin/framework/pkg/context"
 	dictpkg "gx1727.com/xin/framework/pkg/dict"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
 type Handler struct {
-	repo *repository.DictRepository
+	repo *DictRepository
 }
 
-func NewHandler(repo *repository.DictRepository) *Handler {
+func NewHandler(repo *DictRepository) *Handler {
 	return &Handler{repo: repo}
 }
 
@@ -58,7 +57,7 @@ func (h *Handler) Create(c *gin.Context) {
 	ctx := context.New(c)
 	tenantID := ctx.GetTenantID()
 
-	var req repository.DictCreate
+	var req DictCreate
 	if err := c.ShouldBindJSON(&req); err != nil {
 		resp.BadRequest(c, "请求参数格式错误")
 		return
@@ -129,7 +128,7 @@ func (h *Handler) CreateItem(c *gin.Context) {
 		return
 	}
 
-	var req repository.DictItemCreate
+	var req DictItemCreate
 	if err := c.ShouldBindJSON(&req); err != nil {
 		resp.BadRequest(c, "请求参数格式错误")
 		return

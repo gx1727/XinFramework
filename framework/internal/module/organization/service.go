@@ -4,20 +4,18 @@ import (
 	"context"
 	"fmt"
 	"strings"
-
-	"gx1727.com/xin/framework/pkg/model"
 )
 
 type Service struct {
-	orgRepo model.OrganizationRepository
+	orgRepo OrganizationRepository
 }
 
-func NewService(orgRepo model.OrganizationRepository) *Service {
+func NewService(orgRepo OrganizationRepository) *Service {
 	return &Service{orgRepo: orgRepo}
 }
 
 func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]OrgResp, int64, error) {
-	var orgs []model.Organization
+	var orgs []Organization
 	var err error
 
 	if req.ParentID > 0 {
@@ -66,7 +64,7 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Or
 		}
 	}
 
-	org, err := s.orgRepo.Create(ctx, tenantID, model.CreateOrgRepoReq{
+	org, err := s.orgRepo.Create(ctx, tenantID, CreateOrgRepoReq{
 		Code:        req.Code,
 		Name:        req.Name,
 		Type:        req.Type,
@@ -85,7 +83,7 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Or
 }
 
 func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*OrgResp, error) {
-	org, err := s.orgRepo.Update(ctx, id, model.UpdateOrgRepoReq{
+	org, err := s.orgRepo.Update(ctx, id, UpdateOrgRepoReq{
 		Name:        req.Name,
 		Type:        req.Type,
 		Description: req.Description,
@@ -119,7 +117,7 @@ func (s *Service) GetTree(ctx context.Context, tenantID uint) ([]OrgResp, error)
 	return buildTree(orgs), nil
 }
 
-func buildTree(orgs []model.Organization) []OrgResp {
+func buildTree(orgs []Organization) []OrgResp {
 	orgMap := make(map[uint]*OrgResp)
 	var roots []OrgResp
 
@@ -151,7 +149,7 @@ func buildTree(orgs []model.Organization) []OrgResp {
 	return result
 }
 
-func toResp(m model.Organization) OrgResp {
+func toResp(m Organization) OrgResp {
 	return OrgResp{
 		ID:          m.ID,
 		TenantID:    m.TenantID,

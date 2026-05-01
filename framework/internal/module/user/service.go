@@ -1,22 +1,23 @@
 package user
 
 import (
+	"gx1727.com/xin/framework/internal/module/role"
+
 	"context"
 	"errors"
 	"fmt"
 	"mime/multipart"
 
 	"gx1727.com/xin/framework/internal/module/asset"
-	"gx1727.com/xin/framework/pkg/model"
 )
 
 type Service struct {
-	userRepo model.UserRepository
-	roleRepo model.RoleRepository
+	userRepo UserRepository
+	roleRepo role.RoleRepository
 	assetSvc *asset.FileService
 }
 
-func NewService(userRepo model.UserRepository, roleRepo model.RoleRepository, assetSvc *asset.FileService) *Service {
+func NewService(userRepo UserRepository, roleRepo role.RoleRepository, assetSvc *asset.FileService) *Service {
 	return &Service{
 		userRepo: userRepo,
 		roleRepo: roleRepo,
@@ -62,7 +63,7 @@ func (s *Service) List(ctx context.Context, tenantID uint, req listRequest) ([]U
 func (s *Service) Get(ctx context.Context, tenantID, userID uint) (*UserInfo, error) {
 	u, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		if errors.Is(err, model.ErrUserNotFound) {
+		if errors.Is(err, ErrUserNotFoundDB) {
 			return nil, ErrUserNotFound
 		}
 		return nil, err
@@ -109,7 +110,7 @@ func (s *Service) UpdateStatus(ctx context.Context, tenantID, userID uint, statu
 func (s *Service) Profile(ctx context.Context, tenantID, userID uint) (*UserInfo, error) {
 	u, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		if errors.Is(err, model.ErrUserNotFound) {
+		if errors.Is(err, ErrUserNotFoundDB) {
 			return nil, ErrUserNotFound
 		}
 		return nil, err

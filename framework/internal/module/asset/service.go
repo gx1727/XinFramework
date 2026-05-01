@@ -14,16 +14,16 @@ import (
 
 	"github.com/google/uuid"
 	"gx1727.com/xin/framework/pkg/logger"
-	"gx1727.com/xin/framework/pkg/model"
+
 	"gx1727.com/xin/framework/pkg/storage"
 )
 
 type FileService struct {
 	storage storage.Storage
-	repo    model.AttachmentRepository
+	repo    AttachmentRepository
 }
 
-func NewFileService(storage storage.Storage, repo model.AttachmentRepository) *FileService {
+func NewFileService(storage storage.Storage, repo AttachmentRepository) *FileService {
 	return &FileService{
 		storage: storage,
 		repo:    repo,
@@ -68,7 +68,7 @@ func (s *FileService) Upload(ctx context.Context, tenantID uint, userID uint, fi
 
 	if existing != nil {
 		// File already exists, reuse the existing record's storage object
-		attachment := &model.Attachment{
+		attachment := &Attachment{
 			TenantID:  tenantID,
 			UserID:    userID,
 			FileName:  file.Filename,
@@ -106,7 +106,7 @@ func (s *FileService) Upload(ctx context.Context, tenantID uint, userID uint, fi
 	}
 
 	// 5. 写 DB
-	attachment := &model.Attachment{
+	attachment := &Attachment{
 		TenantID:  tenantID,
 		UserID:    userID,
 		FileName:  file.Filename,

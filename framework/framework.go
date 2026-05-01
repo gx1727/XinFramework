@@ -143,18 +143,18 @@ func registerModules(r *gin.Engine, cfg *config.Config, app *boot.App) {
 
 	// 注册内置模块
 	builtinModules := []plugin.Module{
-		assetModule.Module(app),
-		authModule.Module(app),
-		tenantModule.Module(app),
-		userModule.Module(app),
-		menuModule.Module(app),
-		dictModule.Module(app),
-		roleModule.Module(app),
-		resourceModule.Module(app),
-		orgModule.Module(app),
-		permModule.Module(app),
+		assetModule.Module(),
+		authModule.Module(),
+		tenantModule.Module(),
+		userModule.Module(),
+		menuModule.Module(),
+		dictModule.Module(),
+		roleModule.Module(),
+		resourceModule.Module(),
+		orgModule.Module(),
+		permModule.Module(),
 		systemModule.Module(), // system 模块不需要 app 参数
-		weixinModule.Module(app),
+		weixinModule.Module(),
 	}
 
 	for _, m := range builtinModules {

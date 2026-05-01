@@ -3,15 +3,13 @@ package menu
 import (
 	"context"
 	"errors"
-
-	"gx1727.com/xin/framework/pkg/model"
 )
 
 type Service struct {
-	menuRepo model.MenuRepository
+	menuRepo MenuRepository
 }
 
-func NewService(repo model.MenuRepository) *Service {
+func NewService(repo MenuRepository) *Service {
 	return &Service{menuRepo: repo}
 }
 
@@ -21,7 +19,7 @@ func (s *Service) GetByID(ctx context.Context, id uint) (*MenuResp, error) {
 	}
 	m, err := s.menuRepo.GetByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, model.ErrMenuNotFound) {
+		if errors.Is(err, ErrMenuNotFoundDB) {
 			return nil, ErrMenuNotFound
 		}
 		return nil, err
@@ -43,7 +41,7 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateMenuReq) 
 		enabled = *req.Enabled
 	}
 
-	repoReq := model.CreateMenuRepoReq{
+	repoReq := CreateMenuRepoReq{
 		Code:      req.Code,
 		Name:      req.Name,
 		Subtitle:  req.Subtitle,
@@ -72,7 +70,7 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateMenuReq) (*Menu
 		return nil, ErrBackendUnavailable
 	}
 
-	repoReq := model.UpdateMenuRepoReq{
+	repoReq := UpdateMenuRepoReq{
 		Code:     req.Code,
 		Name:     req.Name,
 		Subtitle: req.Subtitle,
@@ -92,7 +90,7 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateMenuReq) (*Menu
 
 	m, err := s.menuRepo.Update(ctx, id, repoReq)
 	if err != nil {
-		if errors.Is(err, model.ErrMenuNotFound) {
+		if errors.Is(err, ErrMenuNotFoundDB) {
 			return nil, ErrMenuNotFound
 		}
 		if err.Error() == "menu code already exists" {
@@ -108,7 +106,7 @@ func (s *Service) Delete(ctx context.Context, id uint) error {
 		return ErrBackendUnavailable
 	}
 	err := s.menuRepo.Delete(ctx, id)
-	if errors.Is(err, model.ErrMenuNotFound) {
+	if errors.Is(err, ErrMenuNotFoundDB) {
 		return ErrMenuNotFound
 	}
 	return err
@@ -126,7 +124,7 @@ func (s *Service) List(ctx context.Context, tenantID uint, req ListMenuReq) ([]M
 
 	// Filter root menus if requested
 	if req.Root {
-		var filtered []model.Menu
+		var filtered []Menu
 		for _, m := range menus {
 			if m.ParentID == 0 {
 				filtered = append(filtered, m)
@@ -157,7 +155,7 @@ func (s *Service) Tree(ctx context.Context, tenantID uint) ([]*MenuResp, error) 
 }
 
 // buildTree builds a tree structure from flat menu list
-func buildTree(menus []model.Menu) []*MenuResp {
+func buildTree(menus []Menu) []*MenuResp {
 	// Create map for quick lookup
 	nodeMap := make(map[uint]*MenuResp)
 	for _, m := range menus {
@@ -183,7 +181,7 @@ func buildTree(menus []model.Menu) []*MenuResp {
 	return roots
 }
 
-func toResp(m *model.Menu) *MenuResp {
+func toResp(m *Menu) *MenuResp {
 	if m == nil {
 		return nil
 	}
@@ -210,7 +208,7 @@ func mapRepoError(err error) error {
 	if err == nil {
 		return nil
 	}
-	if errors.Is(err, model.ErrMenuNotFound) {
+	if errors.Is(err, ErrMenuNotFoundDB) {
 		return ErrMenuNotFound
 	}
 	if err.Error() == "menu code already exists" {

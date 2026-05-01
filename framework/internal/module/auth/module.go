@@ -1,21 +1,26 @@
 package auth
 
 import (
+	"gx1727.com/xin/framework/pkg/config"
+
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/framework/internal/core/boot"
+	"gx1727.com/xin/framework/internal/module/role"
+	"gx1727.com/xin/framework/internal/module/tenant"
+	"gx1727.com/xin/framework/internal/module/user"
+	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/plugin"
 )
 
 // Module 返回 auth 模块的完整定义
-func Module(app *boot.App) plugin.Module {
+func Module() plugin.Module {
 	return plugin.NewModule("auth", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
 		repos := Repositories{
-			Account: app.Repository.Account(),
-			Tenant:  app.Repository.Tenant(),
-			Role:    app.Repository.Role(),
-			User:    app.Repository.User(),
+			Account: NewAccountRepository(db.Get()),
+			Tenant:  tenant.NewTenantRepository(db.Get()),
+			Role:    role.NewRoleRepository(db.Get()),
+			User:    user.NewUserRepository(db.Get()),
 		}
-		deps := DefaultDependencies(app.Config, app.DB, repos)
+		deps := DefaultDependencies(config.Get(), db.Get(), repos)
 		h := NewHandler(NewService(deps))
 		Register(public, protected, h)
 	})

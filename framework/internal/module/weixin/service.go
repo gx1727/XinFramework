@@ -1,6 +1,14 @@
 package weixin
 
 import (
+	"gx1727.com/xin/framework/internal/module/tenant"
+
+	"gx1727.com/xin/framework/internal/module/auth"
+
+	"gx1727.com/xin/framework/internal/module/role"
+
+	"gx1727.com/xin/framework/internal/module/user"
+
 	"context"
 	"encoding/json"
 	"errors"
@@ -16,7 +24,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/config"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
-	"gx1727.com/xin/framework/pkg/model"
 )
 
 const (
@@ -26,11 +33,11 @@ const (
 type Service struct {
 	db              *pgxpool.Pool
 	session         SessionManager
-	accountAuthRepo model.AccountAuthRepository
-	accountRepo     model.AccountRepository
-	tenantRepo      model.TenantRepository
-	roleRepo        model.RoleRepository
-	userRepo        model.UserRepository
+	accountAuthRepo auth.AccountAuthRepository
+	accountRepo     auth.AccountRepository
+	tenantRepo      tenant.TenantRepository
+	roleRepo        role.RoleRepository
+	userRepo        user.UserRepository
 }
 
 type SessionManager interface {
@@ -42,11 +49,11 @@ type SessionManager interface {
 func NewService(
 	db *pgxpool.Pool,
 	session SessionManager,
-	accountAuthRepo model.AccountAuthRepository,
-	accountRepo model.AccountRepository,
-	tenantRepo model.TenantRepository,
-	roleRepo model.RoleRepository,
-	userRepo model.UserRepository,
+	accountAuthRepo auth.AccountAuthRepository,
+	accountRepo auth.AccountRepository,
+	tenantRepo tenant.TenantRepository,
+	roleRepo role.RoleRepository,
+	userRepo user.UserRepository,
 ) *Service {
 	return &Service{
 		db:              db,
@@ -336,8 +343,8 @@ func (s *Service) LoginByWeChat(ctx context.Context, code string) (*LoginResult,
 	}, nil
 }
 
-func (s *Service) getOrCreateDefaultTenant(ctx context.Context) (*model.Tenant, error) {
-	var tenant model.Tenant
+func (s *Service) getOrCreateDefaultTenant(ctx context.Context) (*tenant.Tenant, error) {
+	var tenant tenant.Tenant
 	err := s.db.QueryRow(ctx, `
 		SELECT id, code, name, status
 		FROM tenants

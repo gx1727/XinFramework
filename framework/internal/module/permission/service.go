@@ -1,22 +1,26 @@
 package permission
 
 import (
+	"gx1727.com/xin/framework/internal/module/resource"
+
+	"gx1727.com/xin/framework/internal/module/menu"
+
 	"context"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"gx1727.com/xin/framework/pkg/model"
+
 	permPkg "gx1727.com/xin/framework/pkg/permission"
 )
 
 type Service struct {
 	db           *pgxpool.Pool
 	permRepo     permPkg.PermissionRepository
-	menuRepo     model.MenuRepository
-	resourceRepo model.ResourceRepository
+	menuRepo     menu.MenuRepository
+	resourceRepo resource.ResourceRepository
 }
 
-func NewService(db *pgxpool.Pool, permRepo permPkg.PermissionRepository, menuRepo model.MenuRepository, resourceRepo model.ResourceRepository) *Service {
+func NewService(db *pgxpool.Pool, permRepo permPkg.PermissionRepository, menuRepo menu.MenuRepository, resourceRepo resource.ResourceRepository) *Service {
 	return &Service{
 		db:           db,
 		permRepo:     permRepo,

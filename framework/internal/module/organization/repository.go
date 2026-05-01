@@ -1,4 +1,4 @@
-package repository
+package organization
 
 import (
 	"context"
@@ -7,19 +7,18 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"gx1727.com/xin/framework/pkg/model"
 )
 
 type PostgresOrganizationRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewOrganizationRepository(db *pgxpool.Pool) model.OrganizationRepository {
+func NewOrganizationRepository(db *pgxpool.Pool) OrganizationRepository {
 	return &PostgresOrganizationRepository{db: db}
 }
 
-func (r *PostgresOrganizationRepository) GetByID(ctx context.Context, id uint) (*model.Organization, error) {
-	var org model.Organization
+func (r *PostgresOrganizationRepository) GetByID(ctx context.Context, id uint) (*Organization, error) {
+	var org Organization
 	err := r.db.QueryRow(ctx, `
 		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
 		FROM organizations
@@ -36,8 +35,8 @@ func (r *PostgresOrganizationRepository) GetByID(ctx context.Context, id uint) (
 	return &org, nil
 }
 
-func (r *PostgresOrganizationRepository) GetByCode(ctx context.Context, tenantID uint, code string) (*model.Organization, error) {
-	var org model.Organization
+func (r *PostgresOrganizationRepository) GetByCode(ctx context.Context, tenantID uint, code string) (*Organization, error) {
+	var org Organization
 	err := r.db.QueryRow(ctx, `
 		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
 		FROM organizations
@@ -54,7 +53,7 @@ func (r *PostgresOrganizationRepository) GetByCode(ctx context.Context, tenantID
 	return &org, nil
 }
 
-func (r *PostgresOrganizationRepository) GetByTenant(ctx context.Context, tenantID uint) ([]model.Organization, error) {
+func (r *PostgresOrganizationRepository) GetByTenant(ctx context.Context, tenantID uint) ([]Organization, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
 		FROM organizations
@@ -65,9 +64,9 @@ func (r *PostgresOrganizationRepository) GetByTenant(ctx context.Context, tenant
 	}
 	defer rows.Close()
 
-	var orgs []model.Organization
+	var orgs []Organization
 	for rows.Next() {
-		var org model.Organization
+		var org Organization
 		if err := rows.Scan(
 			&org.ID, &org.TenantID, &org.Code, &org.Name, &org.Type, &org.Description,
 			&org.AdminCode, &org.ParentID, &org.Ancestors, &org.Sort, &org.Status, &org.CreatedAt, &org.UpdatedAt,
@@ -79,7 +78,7 @@ func (r *PostgresOrganizationRepository) GetByTenant(ctx context.Context, tenant
 	return orgs, nil
 }
 
-func (r *PostgresOrganizationRepository) GetChildren(ctx context.Context, parentID uint) ([]model.Organization, error) {
+func (r *PostgresOrganizationRepository) GetChildren(ctx context.Context, parentID uint) ([]Organization, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
 		FROM organizations
@@ -90,9 +89,9 @@ func (r *PostgresOrganizationRepository) GetChildren(ctx context.Context, parent
 	}
 	defer rows.Close()
 
-	var orgs []model.Organization
+	var orgs []Organization
 	for rows.Next() {
-		var org model.Organization
+		var org Organization
 		if err := rows.Scan(
 			&org.ID, &org.TenantID, &org.Code, &org.Name, &org.Type, &org.Description,
 			&org.AdminCode, &org.ParentID, &org.Ancestors, &org.Sort, &org.Status, &org.CreatedAt, &org.UpdatedAt,
@@ -104,7 +103,7 @@ func (r *PostgresOrganizationRepository) GetChildren(ctx context.Context, parent
 	return orgs, nil
 }
 
-func (r *PostgresOrganizationRepository) GetTree(ctx context.Context, tenantID uint) ([]model.Organization, error) {
+func (r *PostgresOrganizationRepository) GetTree(ctx context.Context, tenantID uint) ([]Organization, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
 		FROM organizations
@@ -115,9 +114,9 @@ func (r *PostgresOrganizationRepository) GetTree(ctx context.Context, tenantID u
 	}
 	defer rows.Close()
 
-	var orgs []model.Organization
+	var orgs []Organization
 	for rows.Next() {
-		var org model.Organization
+		var org Organization
 		if err := rows.Scan(
 			&org.ID, &org.TenantID, &org.Code, &org.Name, &org.Type, &org.Description,
 			&org.AdminCode, &org.ParentID, &org.Ancestors, &org.Sort, &org.Status, &org.CreatedAt, &org.UpdatedAt,
@@ -129,8 +128,8 @@ func (r *PostgresOrganizationRepository) GetTree(ctx context.Context, tenantID u
 	return orgs, nil
 }
 
-func (r *PostgresOrganizationRepository) Create(ctx context.Context, tenantID uint, req model.CreateOrgRepoReq) (*model.Organization, error) {
-	var org model.Organization
+func (r *PostgresOrganizationRepository) Create(ctx context.Context, tenantID uint, req CreateOrgRepoReq) (*Organization, error) {
+	var org Organization
 	err := r.db.QueryRow(ctx, `
 		INSERT INTO organizations (tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -145,8 +144,8 @@ func (r *PostgresOrganizationRepository) Create(ctx context.Context, tenantID ui
 	return &org, nil
 }
 
-func (r *PostgresOrganizationRepository) Update(ctx context.Context, id uint, req model.UpdateOrgRepoReq) (*model.Organization, error) {
-	var org model.Organization
+func (r *PostgresOrganizationRepository) Update(ctx context.Context, id uint, req UpdateOrgRepoReq) (*Organization, error) {
+	var org Organization
 	err := r.db.QueryRow(ctx, `
 		UPDATE organizations SET name = $2, type = $3, description = $4, admin_code = $5, sort = $6, status = $7, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1

@@ -1,4 +1,4 @@
-package repository
+package permission
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"gx1727.com/xin/framework/pkg/cache"
-	"gx1727.com/xin/framework/pkg/permission"
 )
 
 const (
@@ -18,7 +17,7 @@ const (
 	dsCacheTTL         = 30 * time.Minute
 )
 
-// RedisPermissionCache implements permission.PermissionCache using Redis
+// RedisPermissionCache implements PermissionCache using Redis
 type RedisPermissionCache struct{}
 
 func NewRedisPermissionCache() *RedisPermissionCache {
@@ -75,7 +74,7 @@ func (c *RedisPermissionCache) InvalidatePermissions(ctx context.Context, userID
 }
 
 // GetDataScope retrieves cached data scope for a user
-func (c *RedisPermissionCache) GetDataScope(ctx context.Context, userID uint) (*permission.DataScope, error) {
+func (c *RedisPermissionCache) GetDataScope(ctx context.Context, userID uint) (*DataScope, error) {
 	rdb := cache.Get()
 	if rdb == nil {
 		return nil, nil
@@ -90,7 +89,7 @@ func (c *RedisPermissionCache) GetDataScope(ctx context.Context, userID uint) (*
 		return nil, err
 	}
 
-	var ds permission.DataScope
+	var ds DataScope
 	if err := json.Unmarshal(data, &ds); err != nil {
 		return nil, err
 	}
@@ -98,7 +97,7 @@ func (c *RedisPermissionCache) GetDataScope(ctx context.Context, userID uint) (*
 }
 
 // SetDataScope caches data scope for a user
-func (c *RedisPermissionCache) SetDataScope(ctx context.Context, userID uint, ds *permission.DataScope) error {
+func (c *RedisPermissionCache) SetDataScope(ctx context.Context, userID uint, ds *DataScope) error {
 	rdb := cache.Get()
 	if rdb == nil {
 		return nil

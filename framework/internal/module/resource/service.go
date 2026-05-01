@@ -1,17 +1,17 @@
 package resource
 
 import (
-	"context"
+	"gx1727.com/xin/framework/internal/module/menu"
 
-	"gx1727.com/xin/framework/pkg/model"
+	"context"
 )
 
 type Service struct {
-	resourceRepo model.ResourceRepository
-	menuRepo     model.MenuRepository
+	resourceRepo ResourceRepository
+	menuRepo     menu.MenuRepository
 }
 
-func NewService(resourceRepo model.ResourceRepository, menuRepo model.MenuRepository) *Service {
+func NewService(resourceRepo ResourceRepository, menuRepo menu.MenuRepository) *Service {
 	return &Service{resourceRepo: resourceRepo, menuRepo: menuRepo}
 }
 
@@ -23,7 +23,7 @@ func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]Resou
 		req.Size = 20
 	}
 
-	var resources []model.Resource
+	var resources []Resource
 	var total int64
 	var err error
 
@@ -62,7 +62,7 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Re
 	if req.Status == 0 {
 		req.Status = 1
 	}
-	r, err := s.resourceRepo.Create(ctx, tenantID, model.CreateResourceRepoReq{
+	r, err := s.resourceRepo.Create(ctx, tenantID, CreateResourceRepoReq{
 		MenuID:      req.MenuID,
 		Code:        req.Code,
 		Name:        req.Name,
@@ -79,7 +79,7 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Re
 }
 
 func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*ResourceResp, error) {
-	r, err := s.resourceRepo.Update(ctx, id, model.UpdateResourceRepoReq{
+	r, err := s.resourceRepo.Update(ctx, id, UpdateResourceRepoReq{
 		Name:        req.Name,
 		Action:      req.Action,
 		Description: req.Description,
@@ -109,7 +109,7 @@ func (s *Service) GetByMenu(ctx context.Context, menuID uint) ([]ResourceResp, e
 	return result, nil
 }
 
-func toResp(r model.Resource) ResourceResp {
+func toResp(r Resource) ResourceResp {
 	return ResourceResp{
 		ID:          r.ID,
 		TenantID:    r.TenantID,

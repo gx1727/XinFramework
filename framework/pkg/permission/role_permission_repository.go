@@ -1,22 +1,21 @@
-package repository
+package permission
 
 import (
 	"context"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"gx1727.com/xin/framework/pkg/permission"
 )
 
 type PostgresRolePermissionRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewRolePermissionRepository(db *pgxpool.Pool) permission.PermissionRepository {
+func NewRolePermissionRepository(db *pgxpool.Pool) PermissionRepository {
 	return &PostgresRolePermissionRepository{db: db}
 }
 
-func (r *PostgresRolePermissionRepository) GetByRoleID(ctx context.Context, roleID uint) ([]permission.Permission, error) {
+func (r *PostgresRolePermissionRepository) GetByRoleID(ctx context.Context, roleID uint) ([]Permission, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, tenant_id, role_id, resource_type, resource_id, resource_code, effect
 		FROM permissions
@@ -27,9 +26,9 @@ func (r *PostgresRolePermissionRepository) GetByRoleID(ctx context.Context, role
 	}
 	defer rows.Close()
 
-	var perms []permission.Permission
+	var perms []Permission
 	for rows.Next() {
-		var p permission.Permission
+		var p Permission
 		if err := rows.Scan(&p.ID, &p.TenantID, &p.RoleID, &p.ResourceType, &p.ResourceID, &p.ResourceCode, &p.Effect); err != nil {
 			return nil, err
 		}
@@ -46,7 +45,7 @@ func (r *PostgresRolePermissionRepository) DeleteByRoleID(ctx context.Context, r
 	return nil
 }
 
-func (r *PostgresRolePermissionRepository) Create(ctx context.Context, tenantID, roleID uint, p permission.Permission) error {
+func (r *PostgresRolePermissionRepository) Create(ctx context.Context, tenantID, roleID uint, p Permission) error {
 	_, err := r.db.Exec(ctx, `
 		INSERT INTO permissions (tenant_id, role_id, resource_type, resource_id, resource_code, effect)
 		VALUES ($1, $2, $3, $4, $5, $6)

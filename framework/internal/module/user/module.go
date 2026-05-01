@@ -1,11 +1,14 @@
 package user
 
 import (
+	"gx1727.com/xin/framework/pkg/config"
+
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/framework/internal/core/boot"
 	"gx1727.com/xin/framework/internal/module/asset"
+	"gx1727.com/xin/framework/internal/module/role"
+	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/plugin"
 	"gx1727.com/xin/framework/pkg/storage"
 	storage_cos "gx1727.com/xin/framework/pkg/storage/cos"
@@ -13,16 +16,16 @@ import (
 )
 
 // Module 返回 user 模块的完整定义
-func Module(app *boot.App) plugin.Module {
+func Module() plugin.Module {
 	return plugin.NewModule("user", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
 		// 创建 storage
 		var s storage.Storage
-		if app.Config.Storage.Provider == "cos" {
+		if config.Get().Storage.Provider == "cos" {
 			cosStorage, err := storage_cos.NewCosStorage(storage_cos.Config{
-				URL:       app.Config.Storage.CosURL,
-				SecretID:  app.Config.Storage.CosSecretID,
-				SecretKey: app.Config.Storage.CosSecretKey,
-				BaseURL:   app.Config.Storage.CosBaseURL,
+				URL:       config.Get().Storage.CosURL,
+				SecretID:  config.Get().Storage.CosSecretID,
+				SecretKey: config.Get().Storage.CosSecretKey,
+				BaseURL:   config.Get().Storage.CosBaseURL,
 			})
 			if err != nil {
 				log.Fatalf("failed to init cos storage for user: %v", err)
@@ -30,13 +33,13 @@ func Module(app *boot.App) plugin.Module {
 			s = cosStorage
 		} else {
 			s = storage_local.NewLocalStorage(
-				app.Config.Storage.LocalDir,
-				app.Config.Storage.LocalBaseURL,
+				config.Get().Storage.LocalDir,
+				config.Get().Storage.LocalBaseURL,
 			)
 		}
 
-		assetSvc := asset.NewFileService(s, app.Repository.Attachment())
-		h := NewHandler(NewService(app.Repository.User(), app.Repository.Role(), assetSvc))
+		assetSvc := asset.NewFileService(s, asset.NewAttachmentRepository(db.Get()))
+		h := NewHandler(NewService(NewUserRepository(db.Get()), role.NewRoleRepository(db.Get()), assetSvc))
 		Register(protected, h)
 	})
 }

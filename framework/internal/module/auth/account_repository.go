@@ -1,4 +1,4 @@
-package repository
+package auth
 
 import (
 	"context"
@@ -7,20 +7,19 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"gx1727.com/xin/framework/pkg/model"
 )
 
-// PostgresAccountRepository implements model.AccountRepository
+// PostgresAccountRepository implements AccountRepository
 type PostgresAccountRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewAccountRepository(db *pgxpool.Pool) model.AccountRepository {
+func NewAccountRepository(db *pgxpool.Pool) AccountRepository {
 	return &PostgresAccountRepository{db: db}
 }
 
-func (r *PostgresAccountRepository) GetByID(ctx context.Context, id uint) (*model.Account, error) {
-	var a model.Account
+func (r *PostgresAccountRepository) GetByID(ctx context.Context, id uint) (*Account, error) {
+	var a Account
 	err := r.db.QueryRow(ctx, `
 		SELECT id, username, phone, email, real_name, status, created_at, updated_at
 		FROM accounts
@@ -30,15 +29,15 @@ func (r *PostgresAccountRepository) GetByID(ctx context.Context, id uint) (*mode
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, model.ErrAccountNotFound
+			return nil, ErrAccountNotFound
 		}
 		return nil, err
 	}
 	return &a, nil
 }
 
-func (r *PostgresAccountRepository) GetByUsername(ctx context.Context, username string) (*model.Account, error) {
-	var a model.Account
+func (r *PostgresAccountRepository) GetByUsername(ctx context.Context, username string) (*Account, error) {
+	var a Account
 	err := r.db.QueryRow(ctx, `
 		SELECT id, username, phone, email, real_name, status, created_at, updated_at
 		FROM accounts
@@ -48,15 +47,15 @@ func (r *PostgresAccountRepository) GetByUsername(ctx context.Context, username 
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, model.ErrAccountNotFound
+			return nil, ErrAccountNotFound
 		}
 		return nil, err
 	}
 	return &a, nil
 }
 
-func (r *PostgresAccountRepository) GetByPhone(ctx context.Context, phone string) (*model.Account, error) {
-	var a model.Account
+func (r *PostgresAccountRepository) GetByPhone(ctx context.Context, phone string) (*Account, error) {
+	var a Account
 	err := r.db.QueryRow(ctx, `
 		SELECT id, username, phone, email, real_name, status, created_at, updated_at
 		FROM accounts
@@ -66,15 +65,15 @@ func (r *PostgresAccountRepository) GetByPhone(ctx context.Context, phone string
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, model.ErrAccountNotFound
+			return nil, ErrAccountNotFound
 		}
 		return nil, err
 	}
 	return &a, nil
 }
 
-func (r *PostgresAccountRepository) GetByEmail(ctx context.Context, email string) (*model.Account, error) {
-	var a model.Account
+func (r *PostgresAccountRepository) GetByEmail(ctx context.Context, email string) (*Account, error) {
+	var a Account
 	err := r.db.QueryRow(ctx, `
 		SELECT id, username, phone, email, real_name, status, created_at, updated_at
 		FROM accounts
@@ -84,15 +83,15 @@ func (r *PostgresAccountRepository) GetByEmail(ctx context.Context, email string
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, model.ErrAccountNotFound
+			return nil, ErrAccountNotFound
 		}
 		return nil, err
 	}
 	return &a, nil
 }
 
-func (r *PostgresAccountRepository) Create(ctx context.Context, username, phone, email, realName, passwordHash string) (*model.Account, error) {
-	var a model.Account
+func (r *PostgresAccountRepository) Create(ctx context.Context, username, phone, email, realName, passwordHash string) (*Account, error) {
+	var a Account
 	err := r.db.QueryRow(ctx, `
 		INSERT INTO accounts (username, phone, email, real_name, password)
 		VALUES ($1, $2, $3, $4, $5)

@@ -2,15 +2,13 @@ package tenant
 
 import (
 	"context"
-
-	"gx1727.com/xin/framework/pkg/model"
 )
 
 type Service struct {
-	tenantRepo model.TenantRepository
+	tenantRepo TenantRepository
 }
 
-func NewService(repo model.TenantRepository) *Service {
+func NewService(repo TenantRepository) *Service {
 	return &Service{tenantRepo: repo}
 }
 
