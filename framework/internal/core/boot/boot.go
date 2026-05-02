@@ -73,7 +73,7 @@ func Init(cfg *config.Config) (*App, error) {
 }
 
 func Shutdown(app *App) {
-	for _, m := range plugin.All() {
+	for _, m := range plugin.Apps() {
 		if err := m.Shutdown(); err != nil {
 			log.Printf("module %s shutdown failed: %v", m.Name(), err)
 		}
