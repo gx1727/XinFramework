@@ -10,7 +10,7 @@ import (
 	"gx1727.com/xin/module/cms"
 )
 
-var moduleRegistry = map[string]func() plugin.Module{
+var appsRegistry = map[string]func() plugin.Module{
 	"cms":  cms.Module,
 	"flag": flag.Module,
 }
@@ -22,7 +22,7 @@ func main() {
 	}
 
 	for _, app := range cfg.Apps {
-		if factory, ok := moduleRegistry[app]; ok {
+		if factory, ok := appsRegistry[app]; ok {
 			framework.RegisterModule(factory())
 		}
 	}

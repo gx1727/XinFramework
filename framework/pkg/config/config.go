@@ -329,20 +329,25 @@ func validateModules(c *Config) error {
 		"auth",
 		"asset"}
 	seen := map[string]struct{}{}
+	var merged []string
+
 	for _, m := range core {
 		seen[m] = struct{}{}
+		merged = append(merged, m)
 	}
+
 	for i := range c.Module {
 		d := strings.ToLower(strings.TrimSpace(c.Module[i]))
 		if d == "" {
 			continue
 		}
-		seen[d] = struct{}{}
+		if _, ok := seen[d]; !ok {
+			seen[d] = struct{}{}
+			merged = append(merged, d)
+		}
 	}
-	c.Module = make([]string, 0, len(seen))
-	for m := range seen {
-		c.Module = append(c.Module, m)
-	}
+
+	c.Module = merged
 	return nil
 }
 

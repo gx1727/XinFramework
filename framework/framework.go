@@ -30,6 +30,21 @@ const (
 	logFile = "./xin.log" // 日志文件路径
 )
 
+var builtinMap = map[string]plugin.Module{
+	"asset":        assetModule.Module(),
+	"auth":         authModule.Module(),
+	"tenant":       tenantModule.Module(),
+	"user":         userModule.Module(),
+	"menu":         menuModule.Module(),
+	"dict":         dictModule.Module(),
+	"role":         roleModule.Module(),
+	"resource":     resourceModule.Module(),
+	"organization": orgModule.Module(),
+	"permission":   permModule.Module(),
+	"system":       systemModule.Module(),
+	"weixin":       weixinModule.Module(),
+}
+
 // RegisterModule 注册插件模块到框架
 func RegisterModule(m plugin.Module) {
 	plugin.Register(m)
@@ -100,28 +115,14 @@ func runServer(cfg *config.Config) {
 }
 
 func initModules(cfg *config.Config) {
-	// 初始化内置模块
-	builtinModules := []plugin.Module{
-		assetModule.Module(),
-		authModule.Module(),
-		tenantModule.Module(),
-		userModule.Module(),
-		menuModule.Module(),
-		dictModule.Module(),
-		roleModule.Module(),
-		resourceModule.Module(),
-		orgModule.Module(),
-		permModule.Module(),
-		systemModule.Module(),
-		weixinModule.Module(),
-	}
-
-	for _, m := range builtinModules {
-		if cfg.ModuleEnabled(m.Name()) {
+	for _, name := range cfg.Module {
+		if m, ok := builtinMap[name]; ok {
 			if err := m.Init(); err != nil {
-				log.Fatalf("builtin module %s init failed: %v", m.Name(), err)
+				log.Fatalf("builtin module %s init failed: %v", name, err)
 			}
-			log.Printf("builtin module %s initialized", m.Name())
+			log.Printf("builtin module %s initialized", name)
+		} else {
+			log.Fatalf("configured builtin module %s not found", name)
 		}
 	}
 
@@ -165,23 +166,8 @@ func registerModules(r *gin.Engine, cfg *config.Config, app *boot.App) {
 	protected.Use(middleware.Auth(&cfg.JWT, app.SessionMgr, app.PermService))
 
 	// 注册内置模块路由
-	builtinModules := []plugin.Module{
-		assetModule.Module(),
-		authModule.Module(),
-		tenantModule.Module(),
-		userModule.Module(),
-		menuModule.Module(),
-		dictModule.Module(),
-		roleModule.Module(),
-		resourceModule.Module(),
-		orgModule.Module(),
-		permModule.Module(),
-		systemModule.Module(),
-		weixinModule.Module(),
-	}
-
-	for _, m := range builtinModules {
-		if cfg.ModuleEnabled(m.Name()) {
+	for _, name := range cfg.Module {
+		if m, ok := builtinMap[name]; ok {
 			m.Register(public, protected)
 		}
 	}
