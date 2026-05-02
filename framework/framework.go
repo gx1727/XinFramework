@@ -70,8 +70,8 @@ func runServer(cfg *config.Config) {
 		log.Fatalf("boot init failed: %v", err)
 	}
 
-	// 初始化所有插件模块
-	initModules()
+	// 初始化所有模块（内置 + 外部）
+	initModules(cfg)
 
 	// 执行数据迁移
 	runMigrations()
@@ -99,8 +99,34 @@ func runServer(cfg *config.Config) {
 	waitForSignal(app.Server, app)
 }
 
-func initModules() {
-	for _, m := range plugin.All() {
+func initModules(cfg *config.Config) {
+	// 初始化内置模块
+	builtinModules := []plugin.Module{
+		assetModule.Module(),
+		authModule.Module(),
+		tenantModule.Module(),
+		userModule.Module(),
+		menuModule.Module(),
+		dictModule.Module(),
+		roleModule.Module(),
+		resourceModule.Module(),
+		orgModule.Module(),
+		permModule.Module(),
+		systemModule.Module(),
+		weixinModule.Module(),
+	}
+
+	for _, m := range builtinModules {
+		if cfg.ModuleEnabled(m.Name()) {
+			if err := m.Init(); err != nil {
+				log.Fatalf("builtin module %s init failed: %v", m.Name(), err)
+			}
+			log.Printf("builtin module %s initialized", m.Name())
+		}
+	}
+
+	// 初始化外部插件模块
+	for _, m := range plugin.Apps() {
 		if err := m.Init(); err != nil {
 			log.Fatalf("module %s init failed: %v", m.Name(), err)
 		}
@@ -125,14 +151,11 @@ func setupRouter(app *boot.App) {
 	srv.Engine.Use(middleware.Logger())              // 4. 日志（依赖 RequestID）
 	srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode)) // 5. 租户上下文
 
-	// 初始化外部插件的依赖（在注册路由之前）
-	// 注意：外部模块现在都使用 db.Get() 自行管理依赖
-
 	// 注册内置模块和外部插件
 	registerModules(srv.Engine, cfg, app)
 }
 
-// registerModules 注册内置模块和外部插件
+// registerModules 注册内置模块和外部插件的路由
 func registerModules(r *gin.Engine, cfg *config.Config, app *boot.App) {
 	v1 := r.Group("/api/v1")
 	public := v1.Group("")
@@ -141,7 +164,7 @@ func registerModules(r *gin.Engine, cfg *config.Config, app *boot.App) {
 	protected := v1.Group("")
 	protected.Use(middleware.Auth(&cfg.JWT, app.SessionMgr, app.PermService))
 
-	// 注册内置模块
+	// 注册内置模块路由
 	builtinModules := []plugin.Module{
 		assetModule.Module(),
 		authModule.Module(),
@@ -153,21 +176,18 @@ func registerModules(r *gin.Engine, cfg *config.Config, app *boot.App) {
 		resourceModule.Module(),
 		orgModule.Module(),
 		permModule.Module(),
-		systemModule.Module(), // system 模块不需要 app 参数
+		systemModule.Module(),
 		weixinModule.Module(),
 	}
 
 	for _, m := range builtinModules {
 		if cfg.ModuleEnabled(m.Name()) {
-			if err := m.Init(); err != nil {
-				log.Fatalf("builtin module %s init failed: %v", m.Name(), err)
-			}
 			m.Register(public, protected)
 		}
 	}
 
-	// 注册外部插件
-	for _, m := range plugin.All() {
+	// 注册外部插件路由
+	for _, m := range plugin.Apps() {
 		m.Register(public, protected)
 	}
 }

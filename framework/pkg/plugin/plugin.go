@@ -65,12 +65,16 @@ func NewModuleWithOpts(name string, register ModuleFunc, opts ...ModuleOption) M
 	return m
 }
 
-var modules []Module
+// apps 存储通过 plugin.Register() 注册的外部应用模块
+// 不包含框架内置模块(如 auth、user、menu 等)
+var apps []Module
 
+// Register 将外部应用模块注册到全局列表
 func Register(m Module) {
-	modules = append(modules, m)
+	apps = append(apps, m)
 }
 
-func All() []Module {
-	return modules
+// Apps 返回所有已注册的外部应用模块
+func Apps() []Module {
+	return apps
 }
