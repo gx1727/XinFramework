@@ -76,13 +76,13 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 }
 
 func (h *Handler) Profile(c *gin.Context) {
-	uc := context.NewUserContext(c)
-	if uc.UserID == 0 {
+	xc := context.New(c)
+	if xc.UserID == 0 {
 		resp.Unauthorized(c, "未登录")
 		return
 	}
 
-	info, err := h.svc.Profile(c.Request.Context(), uc.TenantID, uc.UserID)
+	info, err := h.svc.Profile(c.Request.Context(), xc.TenantID, xc.UserID)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
