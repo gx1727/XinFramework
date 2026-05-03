@@ -150,7 +150,6 @@ func setupRouter(app *boot.App) {
 	srv.Engine.Use(middleware.RequestID())     // 2. 请求ID，尽早标记每次请求
 	srv.Engine.Use(middleware.CORS(&cfg.CORS)) // 3. CORS 预检请求处理
 	srv.Engine.Use(middleware.Logger())        // 4. 日志（依赖 RequestID）
-	//srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode)) // 5. 租户上下文
 
 	// 注册内置模块和外部插件
 	registerModules(srv.Engine, cfg, app)
