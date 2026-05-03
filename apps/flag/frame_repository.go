@@ -21,14 +21,16 @@ func NewFrameRepository(pool *pgxpool.Pool) *FrameRepository {
 }
 
 func (r *FrameRepository) List(ctx context.Context, categoryID uint, page, size int) ([]Frame, int64, error) {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
 	where := "WHERE is_deleted = FALSE"
@@ -42,7 +44,7 @@ func (r *FrameRepository) List(ctx context.Context, categoryID uint, page, size 
 	}
 
 	var total int64
-	if err := conn.QueryRow(ctx, "SELECT COUNT(*) FROM flag_frames "+where, args...).Scan(&total); err != nil {
+	if err := q.QueryRow(ctx, "SELECT COUNT(*) FROM flag_frames "+where, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
@@ -51,7 +53,7 @@ func (r *FrameRepository) List(ctx context.Context, categoryID uint, page, size 
 		FROM flag_frames %s ORDER BY sort ASC, id DESC LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
 	args = append(args, size, offset)
 
-	rows, err := conn.Query(ctx, querySQL, args...)
+	rows, err := q.Query(ctx, querySQL, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -86,19 +88,21 @@ func (r *FrameRepository) List(ctx context.Context, categoryID uint, page, size 
 }
 
 func (r *FrameRepository) GetByID(ctx context.Context, id uint) (*Frame, error) {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
 	var f Frame
 	var description, previewURL, templateURL, templateConfig *string
-	err = conn.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, category_id, name, description, preview_url, template_url, template_config, type, sort, status, created_at, updated_at
 		FROM flag_frames
 		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
@@ -128,19 +132,21 @@ func (r *FrameRepository) GetByID(ctx context.Context, id uint) (*Frame, error) 
 }
 
 func (r *FrameRepository) Create(ctx context.Context, frame *Frame) (*Frame, error) {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
 	var f Frame
 	var description, previewURL, templateURL, templateConfig *string
-	err = conn.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		INSERT INTO flag_frames (tenant_id, category_id, name, description, preview_url, template_url, template_config, type, sort, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id, tenant_id, category_id, name, description, preview_url, template_url, template_config, type, sort, status, created_at, updated_at`,
@@ -170,17 +176,19 @@ func (r *FrameRepository) Create(ctx context.Context, frame *Frame) (*Frame, err
 }
 
 func (r *FrameRepository) Update(ctx context.Context, frame *Frame) error {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
-	tag, err := conn.Exec(ctx, `
+	tag, err := q.Exec(ctx, `
 		UPDATE flag_frames SET
 			category_id = $2, name = $3, description = $4, preview_url = $5,
 			template_url = $6, template_config = $7, type = $8, sort = $9, status = $10, updated_at = NOW()
@@ -198,17 +206,19 @@ func (r *FrameRepository) Update(ctx context.Context, frame *Frame) error {
 }
 
 func (r *FrameRepository) Delete(ctx context.Context, id uint) error {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
-	tag, err := conn.Exec(ctx, `
+	tag, err := q.Exec(ctx, `
 		UPDATE flag_frames SET is_deleted = TRUE, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id)
 	if err != nil {

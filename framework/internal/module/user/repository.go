@@ -20,19 +20,21 @@ func NewUserRepository(db *pgxpool.Pool) UserRepository {
 }
 
 func (r *PostgresUserRepository) GetByID(ctx context.Context, id uint) (*User, error) {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
 	var u User
 	var nickname, realName, avatar, phone, email *string
-	err = conn.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
 		FROM users
 		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
@@ -65,19 +67,21 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id uint) (*User, e
 }
 
 func (r *PostgresUserRepository) GetByAccountID(ctx context.Context, accountID uint) (*User, error) {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
 	var u User
 	var nickname, realName, avatar, phone, email *string
-	err = conn.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
 		FROM users
 		WHERE is_deleted = FALSE AND account_id = $1`, accountID).Scan(
@@ -110,19 +114,21 @@ func (r *PostgresUserRepository) GetByAccountID(ctx context.Context, accountID u
 }
 
 func (r *PostgresUserRepository) GetByCode(ctx context.Context, code string) (*User, error) {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
 	var u User
 	var nickname, realName, avatar, phone, email *string
-	err = conn.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
 		FROM users
 		WHERE is_deleted = FALSE AND code = $1`, code).Scan(
@@ -155,16 +161,18 @@ func (r *PostgresUserRepository) GetByCode(ctx context.Context, code string) (*U
 }
 
 func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keyword string, page, size int) ([]User, int64, error) {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tenantID > 0 {
-		_ = conn.SetTenant(ctx, tenantID)
-	} else if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tenantID > 0 {
+			_ = conn.SetTenant(ctx, tenantID)
+		} else if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
 	where := "WHERE is_deleted = FALSE"
@@ -183,7 +191,7 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keywor
 	}
 
 	var total int64
-	err = conn.QueryRow(ctx, "SELECT COUNT(*) FROM users "+where, args...).Scan(&total)
+	err = q.QueryRow(ctx, "SELECT COUNT(*) FROM users "+where, args...).Scan(&total)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -200,7 +208,7 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keywor
 		FROM users %s ORDER BY id DESC LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
 	args = append(args, size, offset)
 
-	rows, err := conn.Query(ctx, query, args...)
+	rows, err := q.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -238,19 +246,21 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keywor
 }
 
 func (r *PostgresUserRepository) Create(ctx context.Context, tenantID, accountID uint, code string) (*User, error) {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tenantID > 0 {
-		_ = conn.SetTenant(ctx, tenantID)
+	if conn, ok := q.(*db.Conn); ok {
+		if tenantID > 0 {
+			_ = conn.SetTenant(ctx, tenantID)
+		}
 	}
 
 	var u User
 	var nickname, realName, avatar, phone, email *string
-	err = conn.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		INSERT INTO users (tenant_id, account_id, code, status)
 		VALUES ($1, $2, $3, 1)
 		RETURNING id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at`,
@@ -281,17 +291,19 @@ func (r *PostgresUserRepository) Create(ctx context.Context, tenantID, accountID
 }
 
 func (r *PostgresUserRepository) UpdateStatus(ctx context.Context, id uint, status int8) error {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
-	tag, err := conn.Exec(ctx, `
+	tag, err := q.Exec(ctx, `
 		UPDATE users SET status = $2, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id, status)
 	if err != nil {
@@ -304,17 +316,19 @@ func (r *PostgresUserRepository) UpdateStatus(ctx context.Context, id uint, stat
 }
 
 func (r *PostgresUserRepository) Delete(ctx context.Context, id uint) error {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
-	tag, err := conn.Exec(ctx, `
+	tag, err := q.Exec(ctx, `
 		UPDATE users SET is_deleted = TRUE, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id)
 	if err != nil {
@@ -327,17 +341,19 @@ func (r *PostgresUserRepository) Delete(ctx context.Context, id uint) error {
 }
 
 func (r *PostgresUserRepository) UpdatePhone(ctx context.Context, userID uint, phone string) error {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
-	tag, err := conn.Exec(ctx, `
+	tag, err := q.Exec(ctx, `
 		UPDATE users SET phone = $2, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, userID, phone)
 	if err != nil {
@@ -350,17 +366,19 @@ func (r *PostgresUserRepository) UpdatePhone(ctx context.Context, userID uint, p
 }
 
 func (r *PostgresUserRepository) UpdateProfile(ctx context.Context, id uint, nickname, avatar string) error {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
-	tag, err := conn.Exec(ctx, `
+	tag, err := q.Exec(ctx, `
 		UPDATE users SET nickname = $2, avatar = $3, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id, nickname, avatar)
 	if err != nil {
@@ -373,17 +391,19 @@ func (r *PostgresUserRepository) UpdateProfile(ctx context.Context, id uint, nic
 }
 
 func (r *PostgresUserRepository) UpdateAvatar(ctx context.Context, id uint, avatar string) error {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
-	tag, err := conn.Exec(ctx, `
+	tag, err := q.Exec(ctx, `
 		UPDATE users SET avatar = $2, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id, avatar)
 	if err != nil {

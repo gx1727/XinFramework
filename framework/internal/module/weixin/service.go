@@ -23,6 +23,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/config"
+	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 )
 
@@ -246,6 +247,8 @@ func (s *Service) LoginByWeChat(ctx context.Context, code string) (*LoginResult,
 	}
 	defer tx.Rollback(ctx)
 
+	ctx = db.WithTx(ctx, tx)
+
 	_, err = tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(tenantID)))
 	if err != nil {
 		return nil, err
@@ -381,6 +384,8 @@ func (s *Service) createWeChatUser(ctx context.Context, tenantID uint, openID, u
 		return 0, 0, "", err
 	}
 	defer tx.Rollback(ctx)
+
+	ctx = db.WithTx(ctx, tx)
 
 	_, err = tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(tenantID)))
 	if err != nil {

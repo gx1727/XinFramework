@@ -21,17 +21,19 @@ func NewFrameCategoryRepository(pool *pgxpool.Pool) *FrameCategoryRepository {
 }
 
 func (r *FrameCategoryRepository) List(ctx context.Context) ([]FrameCategory, error) {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
-	rows, err := conn.Query(ctx, `
+	rows, err := q.Query(ctx, `
 		SELECT id, tenant_id, code, name, type, sort, status
 		FROM flag_frame_categories
 		WHERE is_deleted = FALSE
@@ -53,18 +55,20 @@ func (r *FrameCategoryRepository) List(ctx context.Context) ([]FrameCategory, er
 }
 
 func (r *FrameCategoryRepository) GetByID(ctx context.Context, id uint) (*FrameCategory, error) {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
 	var c FrameCategory
-	err = conn.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, code, name, type, sort, status
 		FROM flag_frame_categories
 		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
@@ -80,18 +84,20 @@ func (r *FrameCategoryRepository) GetByID(ctx context.Context, id uint) (*FrameC
 }
 
 func (r *FrameCategoryRepository) Create(ctx context.Context, c *FrameCategory) (*FrameCategory, error) {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
 	var result FrameCategory
-	err = conn.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		INSERT INTO flag_frame_categories (tenant_id, code, name, type, sort, status)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, tenant_id, code, name, type, sort, status`,
@@ -105,17 +111,19 @@ func (r *FrameCategoryRepository) Create(ctx context.Context, c *FrameCategory) 
 }
 
 func (r *FrameCategoryRepository) Update(ctx context.Context, c *FrameCategory) error {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
-	tag, err := conn.Exec(ctx, `
+	tag, err := q.Exec(ctx, `
 		UPDATE flag_frame_categories SET code = $2, name = $3, type = $4, sort = $5, status = $6, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`,
 		c.ID, c.Code, c.Name, c.Type, c.Sort, c.Status)
@@ -129,17 +137,19 @@ func (r *FrameCategoryRepository) Update(ctx context.Context, c *FrameCategory) 
 }
 
 func (r *FrameCategoryRepository) Delete(ctx context.Context, id uint) error {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
-	tag, err := conn.Exec(ctx, `
+	tag, err := q.Exec(ctx, `
 		UPDATE flag_frame_categories SET is_deleted = TRUE, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id)
 	if err != nil {

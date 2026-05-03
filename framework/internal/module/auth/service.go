@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/config"
+	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 )
 
@@ -39,6 +40,8 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 		return nil, ErrRegisterFailed
 	}
 	defer tx.Rollback(ctx)
+
+	ctx = db.WithTx(ctx, tx)
 
 	if tenantID > 0 {
 		_, err = tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(tenantID)))
@@ -291,6 +294,8 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 		return nil, ErrRegisterFailed
 	}
 	defer tx.Rollback(ctx)
+
+	ctx = db.WithTx(ctx, tx)
 
 	_, err = tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(req.TenantID)))
 	if err != nil {

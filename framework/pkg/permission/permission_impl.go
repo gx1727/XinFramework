@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gx1727.com/xin/framework/pkg/db"
 )
 
 // PostgresPermissionRepository implements PermissionRepository
@@ -180,6 +181,8 @@ func (r *PostgresDataScopeRepository) SetForRole(ctx context.Context, roleID uin
 		return fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback(ctx)
+
+	ctx = db.WithTx(ctx, tx)
 
 	// Delete existing
 	_, err = tx.Exec(ctx, `DELETE FROM role_data_scopes WHERE role_id = $1`, roleID)

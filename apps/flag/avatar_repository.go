@@ -21,14 +21,16 @@ func NewAvatarRepository(pool *pgxpool.Pool) *AvatarRepository {
 }
 
 func (r *AvatarRepository) List(ctx context.Context, categoryID, userID uint, avatarType string, page, size int) ([]Avatar, int64, error) {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
 	where := "WHERE is_deleted = FALSE"
@@ -52,7 +54,7 @@ func (r *AvatarRepository) List(ctx context.Context, categoryID, userID uint, av
 	}
 
 	var total int64
-	if err := conn.QueryRow(ctx, "SELECT COUNT(*) FROM flag_avatars "+where, args...).Scan(&total); err != nil {
+	if err := q.QueryRow(ctx, "SELECT COUNT(*) FROM flag_avatars "+where, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
@@ -61,7 +63,7 @@ func (r *AvatarRepository) List(ctx context.Context, categoryID, userID uint, av
 		FROM flag_avatars %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
 	args = append(args, size, offset)
 
-	rows, err := conn.Query(ctx, querySQL, args...)
+	rows, err := q.Query(ctx, querySQL, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -104,21 +106,23 @@ func (r *AvatarRepository) List(ctx context.Context, categoryID, userID uint, av
 }
 
 func (r *AvatarRepository) GetByID(ctx context.Context, id uint) (*Avatar, error) {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
 	var a Avatar
 	var name, sourceURL, thumbnailURL *string
 	var fileSize *int64
 	var width, height *int
-	err = conn.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, user_id, category_id, name, source_url, thumbnail_url, file_size, width, height, type, is_public, like_count, view_count, status, created_at, updated_at
 		FROM flag_avatars
 		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
@@ -154,21 +158,23 @@ func (r *AvatarRepository) GetByID(ctx context.Context, id uint) (*Avatar, error
 }
 
 func (r *AvatarRepository) Create(ctx context.Context, avatar *Avatar) (*Avatar, error) {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
 	var a Avatar
 	var name, sourceURL, thumbnailURL *string
 	var fileSize *int64
 	var width, height *int
-	err = conn.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		INSERT INTO flag_avatars (tenant_id, user_id, category_id, name, source_url, thumbnail_url, file_size, width, height, type, is_public, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING id, tenant_id, user_id, category_id, name, source_url, thumbnail_url, file_size, width, height, type, is_public, like_count, view_count, status, created_at, updated_at`,
@@ -204,17 +210,19 @@ func (r *AvatarRepository) Create(ctx context.Context, avatar *Avatar) (*Avatar,
 }
 
 func (r *AvatarRepository) Update(ctx context.Context, avatar *Avatar) error {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
-	tag, err := conn.Exec(ctx, `
+	tag, err := q.Exec(ctx, `
 		UPDATE flag_avatars SET
 			name = $2, category_id = $3, is_public = $4, status = $5, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`,
@@ -229,17 +237,19 @@ func (r *AvatarRepository) Update(ctx context.Context, avatar *Avatar) error {
 }
 
 func (r *AvatarRepository) Delete(ctx context.Context, id uint) error {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer conn.Release()
+	defer release()
 
-	if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-		_ = conn.SetTenant(ctx, tid)
+	if conn, ok := q.(*db.Conn); ok {
+		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
+			_ = conn.SetTenant(ctx, tid)
+		}
 	}
 
-	tag, err := conn.Exec(ctx, `
+	tag, err := q.Exec(ctx, `
 		UPDATE flag_avatars SET is_deleted = TRUE, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id)
 	if err != nil {

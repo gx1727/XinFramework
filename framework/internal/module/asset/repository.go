@@ -19,11 +19,11 @@ func NewAttachmentRepository(db *pgxpool.Pool) *PostgresAttachmentRepository {
 }
 
 func (r *PostgresAttachmentRepository) GetByID(ctx context.Context, id uint) (*Attachment, error) {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Release()
+	defer release()
 
 	query := `
 		SELECT id, tenant_id, user_id, file_name, file_ext, mime_type, file_size, storage, object_key, url, hash, status, created_at, updated_at, is_deleted
@@ -32,7 +32,7 @@ func (r *PostgresAttachmentRepository) GetByID(ctx context.Context, id uint) (*A
 	`
 	var attachment Attachment
 	var userID *uint
-	err = conn.QueryRow(ctx, query, id).Scan(
+	err = q.QueryRow(ctx, query, id).Scan(
 		&attachment.ID,
 		&attachment.TenantID,
 		&userID,
@@ -62,14 +62,16 @@ func (r *PostgresAttachmentRepository) GetByID(ctx context.Context, id uint) (*A
 }
 
 func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID uint, hash string) (*Attachment, error) {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Release()
+	defer release()
 
-	if err := conn.SetTenant(ctx, tenantID); err != nil {
-		return nil, err
+	if conn, ok := q.(*db.Conn); ok {
+		if err := conn.SetTenant(ctx, tenantID); err != nil {
+			return nil, err
+		}
 	}
 
 	query := `
@@ -80,7 +82,7 @@ func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID u
 	`
 	var attachment Attachment
 	var userID *uint
-	err = conn.QueryRow(ctx, query, tenantID, hash).Scan(
+	err = q.QueryRow(ctx, query, tenantID, hash).Scan(
 		&attachment.ID,
 		&attachment.TenantID,
 		&userID,
@@ -110,14 +112,16 @@ func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID u
 }
 
 func (r *PostgresAttachmentRepository) Create(ctx context.Context, attachment *Attachment) (*Attachment, error) {
-	conn, err := db.Acquire(ctx)
+	q, release, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Release()
+	defer release()
 
-	if err := conn.SetTenant(ctx, attachment.TenantID); err != nil {
-		return nil, err
+	if conn, ok := q.(*db.Conn); ok {
+		if err := conn.SetTenant(ctx, attachment.TenantID); err != nil {
+			return nil, err
+		}
 	}
 
 	query := `
@@ -141,7 +145,7 @@ func (r *PostgresAttachmentRepository) Create(ctx context.Context, attachment *A
 		userID = &attachment.UserID
 	}
 
-	err = conn.QueryRow(ctx, query,
+	err = q.QueryRow(ctx, query,
 		attachment.TenantID,
 		userID,
 		attachment.FileName,

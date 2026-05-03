@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gx1727.com/xin/framework/pkg/db"
 )
 
 // PostgresAccountRepository implements AccountRepository
@@ -19,8 +20,14 @@ func NewAccountRepository(db *pgxpool.Pool) AccountRepository {
 }
 
 func (r *PostgresAccountRepository) GetByID(ctx context.Context, id uint) (*Account, error) {
+	q, release, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+
 	var a Account
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT id, username, phone, email, real_name, status, created_at, updated_at
 		FROM accounts
 		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
@@ -37,8 +44,14 @@ func (r *PostgresAccountRepository) GetByID(ctx context.Context, id uint) (*Acco
 }
 
 func (r *PostgresAccountRepository) GetByUsername(ctx context.Context, username string) (*Account, error) {
+	q, release, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+
 	var a Account
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT id, username, phone, email, real_name, status, created_at, updated_at
 		FROM accounts
 		WHERE is_deleted = FALSE AND username = $1`, username).Scan(
@@ -55,8 +68,14 @@ func (r *PostgresAccountRepository) GetByUsername(ctx context.Context, username 
 }
 
 func (r *PostgresAccountRepository) GetByPhone(ctx context.Context, phone string) (*Account, error) {
+	q, release, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+
 	var a Account
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT id, username, phone, email, real_name, status, created_at, updated_at
 		FROM accounts
 		WHERE is_deleted = FALSE AND phone = $1`, phone).Scan(
@@ -73,8 +92,14 @@ func (r *PostgresAccountRepository) GetByPhone(ctx context.Context, phone string
 }
 
 func (r *PostgresAccountRepository) GetByEmail(ctx context.Context, email string) (*Account, error) {
+	q, release, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+
 	var a Account
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT id, username, phone, email, real_name, status, created_at, updated_at
 		FROM accounts
 		WHERE is_deleted = FALSE AND email = $1`, email).Scan(
@@ -91,8 +116,14 @@ func (r *PostgresAccountRepository) GetByEmail(ctx context.Context, email string
 }
 
 func (r *PostgresAccountRepository) Create(ctx context.Context, username, phone, email, realName, passwordHash string) (*Account, error) {
+	q, release, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+
 	var a Account
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		INSERT INTO accounts (username, phone, email, real_name, password)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, username, phone, email, real_name, status, created_at, updated_at`,
@@ -107,8 +138,14 @@ func (r *PostgresAccountRepository) Create(ctx context.Context, username, phone,
 }
 
 func (r *PostgresAccountRepository) Exists(ctx context.Context, account string) (bool, error) {
+	q, release, err := db.GetQuerier(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer release()
+
 	var exists bool
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT EXISTS(
 			SELECT 1 FROM accounts
 			WHERE is_deleted = FALSE

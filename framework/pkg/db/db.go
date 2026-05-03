@@ -111,3 +111,37 @@ func Close() {
 		Pool.Close()
 	}
 }
+
+// Querier interface allows the repository layer to execute SQL seamlessly
+// whether using a single connection or participating in a transaction.
+type Querier interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, optionsAndArgs ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, optionsAndArgs ...any) pgx.Row
+}
+
+type txKey struct{}
+
+// WithTx injects a pgx.Tx into the context so that underlying repositories
+// can join the same transaction automatically.
+func WithTx(ctx context.Context, tx pgx.Tx) context.Context {
+	return context.WithValue(ctx, txKey{}, tx)
+}
+
+// GetQuerier intelligently returns a Querier (either an existing Tx from context or a new Conn).
+// It also returns a release function that the caller MUST defer.
+func GetQuerier(ctx context.Context) (Querier, func(), error) {
+	if tx, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
+		// Existing transaction found in context. Release is a no-op because
+		// the transaction is managed by the outer caller (e.g., Service layer).
+		return tx, func() {}, nil
+	}
+
+	conn, err := Acquire(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Single connection. Must be released when done.
+	return conn, func() { conn.Release() }, nil
+}
