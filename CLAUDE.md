@@ -48,8 +48,7 @@ XinFramework/
 │   │   │   ├── boot/              # App initialization (boot.Init, Shutdown)
 │   │   │   ├── server/            # XinServer with graceful shutdown
 │   │   │   └── middleware/        # CORS, RequestID, Logger, Recovery, Tenant, Auth
-│   │   ├── module/                # Built-in modules (11 total)
-│   │   ├── repository/            # Repository implementations
+│   │   ├── module/                # Built-in modules (12 total)
 │   │   └── service/               # PermissionService
 ├── apps/                          # External business plugins
 │   └── cms/                       # CMS plugin template
@@ -69,10 +68,16 @@ type Module interface {
     Shutdown() error
 }
 
-type SimpleModule struct { Name_, Init_, Register_, Shutdown_ func(...) }
-func NewModule(name string, fn func(*gin.RouterGroup, *gin.RouterGroup)) *SimpleModule
-func Register(m Module)
-func All() []Module
+// module is the standard implementation
+type module struct {
+    name       string
+    register   ModuleFunc
+    initFn     func() error
+    shutdownFn func() error
+}
+
+// NewModule / NewModuleWithOpts creates a module
+// WithInit(fn) / WithShutdown(fn) for lifecycle hooks
 ```
 
 ### SessionManager (`pkg/session/session.go`)
@@ -111,13 +116,14 @@ type DataScopeRepository interface {
 }
 ```
 
-## Built-in Modules (11 total)
+## Built-in Modules (12 total)
 
 | Module | Path | Purpose | Key Routes |
 |--------|------|---------|------------|
+| asset | internal/module/asset | File storage (local/cos) | GET/POST /assets/* |
 | auth | internal/module/auth | Login/Logout/Register/Refresh | POST /login, /register, /refresh |
 | tenant | internal/module/tenant | Tenant CRUD | GET/POST/PUT/DELETE /tenants |
-| user | internal/module/user | User queries | GET /users, /users/:id, PUT /users/:id/status |
+| user | internal/module/user | User queries + storage config | GET /users, /users/:id, PUT /users/:id/status |
 | menu | internal/module/menu | Menu hierarchy (ltree) | GET /menus, /menus/tree |
 | dict | internal/module/dict | Dictionary data | GET/POST/PUT/DELETE /dicts |
 | role | internal/module/role | Role CRUD + data scopes | CRUD /roles, GET/PUT /roles/:id/data-scopes |
@@ -136,12 +142,16 @@ main() [cmd/xin/main.go]
   → framework.Run(cfg)
 
 framework.Run(cfg)
-  → boot.Init(cfg)                  # logger → db → repository → cache → session
-  → initModules()                   # plugin.All() → each m.Init()
+  → boot.Init(cfg)                  # logger → db → cache → session → PermService
+  → initModules(cfg)                 # builtinMap[name].Init() + plugin.Apps()[].Init()
   → runMigrations()                 # migrate.Run("migrations")
   → setupRouter(app)               # middleware chain + route registration
   → srv.Start(addr)                # HTTP server start
   → waitForSignal(srv, app)        # signal.Notify → srv.Shutdown() → boot.Shutdown(app)
+
+initModules(cfg):
+  → for _, name := range cfg.Module { builtinMap[name].Init(); builtinMap[name].Register() }
+  → for _, m := range plugin.Apps() { m.Init(); m.Register() }
 ```
 
 ## Dependency Injection
@@ -149,38 +159,52 @@ framework.Run(cfg)
 ### boot.App (`internal/core/boot/boot.go`)
 ```go
 type App struct {
-    Config       *config.Config
-    DB           *pgxpool.Pool
-    Repository   *repository.Provider
-    SessionMgr   session.SessionManager
-    Server       *server.XinServer
-    PermService  *service.PermissionService
+    Config      *config.Config
+    DB          *pgxpool.Pool
+    SessionMgr  session.SessionManager
+    Server      *server.XinServer
+    PermService *service.PermissionService
 }
 ```
 
-### Repository Provider (`pkg/repository/repository.go`)
-- `User() / Tenant() / Account() / Role() / Menu() / Resource() / Organization()`
-- `Permission() / DataScope()`
-- Created via `NewProvider(pool)` in `boot.Init()`
+### Module Pattern (current)
 
-### Builtin Module Handlers (`framework/framework.go`)
+Each module defines a `Module()` function returning `plugin.Module`. Dependencies are wired in the closure:
+
 ```go
-var builtinHandlers = map[string]builtinHandlerBuilder{
-    "auth": func(app *boot.App) interface{} {
-        repos := auth.Repositories{Account: ..., Tenant: ..., Role: ..., User: ...}
-        deps := auth.DefaultDependencies(app.Config, app.DB, repos)
-        return auth.NewHandler(auth.NewService(deps))
-    },
-    "role": func(app *boot.App) interface{} {
-        return role.NewHandler(role.NewService(app.Repository.Role(), app.Repository.DataScope()))
-    },
-    "permission": func(app *boot.App) interface{} {
-        permRepo := repository.NewRolePermissionRepository(app.DB)
-        return permission.NewHandler(permission.NewService(app.DB, permRepo, app.Repository.Menu(), app.Repository.Resource()))
-    },
-    // dict, menu, organization, resource, tenant, user
+// internal/module/xxx/module.go
+func Module() plugin.Module {
+    return plugin.NewModule("xxx", func(public, protected *gin.RouterGroup) {
+        repos := xxx.NewXxxRepository(db.Get())
+        svc := xxx.NewService(repos)
+        h := xxx.NewHandler(svc)
+        Register(protected, h)
+    })
 }
 ```
+
+### Builtin Module Registration (`framework/framework.go`)
+```go
+var builtinMap = map[string]plugin.Module{
+    "asset":        assetModule.Module(),
+    "auth":         authModule.Module(),
+    "tenant":       tenantModule.Module(),
+    "user":         userModule.Module(),
+    "menu":         menuModule.Module(),
+    "dict":         dictModule.Module(),
+    "role":         roleModule.Module(),
+    "resource":     resourceModule.Module(),
+    "organization": orgModule.Module(),
+    "permission":   permModule.Module(),
+    "system":       systemModule.Module(),
+    "weixin":       weixinModule.Module(),
+}
+```
+
+Modules are initialized and registered via `cfg.Module` list.
+
+### External Plugins
+Apps in `apps/*` call `plugin.Register(xxx.Module())` in their init, registered via `plugin.Apps()`.
 
 ## Middleware Chain (order matters)
 
@@ -189,8 +213,8 @@ var builtinHandlers = map[string]builtinHandlerBuilder{
 2. RequestID()    — X-Request-ID generation/propagation
 3. CORS()        — Cross-origin resource sharing + OPTIONS preflight
 4. Logger()      — Request logging (after RequestID set)
-5. Tenant()      — Tenant isolation via SET app.tenant_id = ?
-6. [protected routes] → Auth(cfg, sm) — JWT validation + session check
+5. Tenant(cfg.Saas.Mode)
+6. [protected routes] → Auth(&cfg.JWT, sm, permService)
 ```
 
 ## Permission System
@@ -270,17 +294,21 @@ Unified response: `{"code": 0, "msg": "ok", "data": {...}}`
 
 **Two types of modules:**
 
-1. **Built-in modules** (`framework/internal/module/*`) - Always loaded unless disabled via `module:` config
-2. **External apps** (`apps/*`) - Registered in `main.go` moduleRegistry, enabled via `apps:` config
+1. **Built-in modules** (`framework/internal/module/*`) - Loaded via `cfg.Module` list, each has `Module()` returning `plugin.Module`
+2. **External apps** (`apps/*`) - Call `plugin.Register(xxx.Module())` in init, enabled via `apps:` config
 
 **CMS app structure** (`apps/cms/`):
 ```
-config.go       → LoadConfig() + Config struct
-routes.go       → Module() returns plugin.Module, Register() wires routes
-internal/
-  handler/      → thin HTTP handlers, delegates to service
-  service/      → business logic, uses repository.User()/Tenant()
-migrations/     → app-specific SQL
+module.go      → plugin.Register(xxx.Module())
+routes.go     → Register() wires routes
+handler.go    → thin HTTP handlers
+```
+
+**Flag app structure** (`apps/flag/`):
+```
+module.go      → plugin.Register(xxx.Module())
+routes.go      → Register() wires routes
+handler.go     → HTTP handlers
 ```
 
 ## Tables (21 in 001_framework_init.sql)

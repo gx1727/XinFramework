@@ -94,11 +94,6 @@ func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc Permission
 	ctx = xinContext.WithTenantID(ctx, claims.TenantID)
 
 	c.Request = c.Request.WithContext(ctx)
-	c.Set("user_id", claims.UserID)
-	c.Set("tenant_id", claims.TenantID)
-	c.Set("session_id", claims.SessionID)
-	c.Set("role", claims.Role)
-	c.Set("roles", roles)
 }
 
 // Auth 认证中间件 - 验证 JWT Token 和 Session
@@ -142,7 +137,6 @@ func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc Perm
 						xc = &xinContext.XinContext{TenantID: tid}
 					}
 					c.Request = c.Request.WithContext(xinContext.WithTenantID(xinContext.WithXinContext(c.Request.Context(), xc), tid))
-					c.Set("tenant_id", tid)
 				}
 			}
 		}

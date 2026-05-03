@@ -28,7 +28,6 @@ func Tenant(mode string) gin.HandlerFunc {
 				}
 
 				c.Request = c.Request.WithContext(xinContext.WithTenantID(xinContext.WithXinContext(c.Request.Context(), xc), tid))
-				c.Set("tenant_id", tid)
 			}
 		}
 
