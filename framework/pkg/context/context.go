@@ -36,6 +36,7 @@ type UserContext struct {
 
 type xinContextKey struct{}
 type userContextKey struct{}
+type userContextLoaderKey struct{}
 
 func WithXinContext(parent context.Context, xc *XinContext) context.Context {
 	return context.WithValue(parent, xinContextKey{}, xc)
@@ -60,15 +61,26 @@ func FromRequest(req *http.Request) *XinContext {
 	return &XinContext{}
 }
 
-// UserContext methods
-
 func WithUserContext(parent context.Context, uc *UserContext) context.Context {
 	return context.WithValue(parent, userContextKey{}, uc)
 }
 
+func WithUserContextLoader(parent context.Context, loader func() *UserContext) context.Context {
+	return context.WithValue(parent, userContextLoaderKey{}, loader)
+}
+
 func UserContextFrom(parent context.Context) (*UserContext, bool) {
-	v, ok := parent.Value(userContextKey{}).(*UserContext)
-	return v, ok
+	// 先看上下文里是不是已经有了生成好的实体
+	if v, ok := parent.Value(userContextKey{}).(*UserContext); ok {
+		return v, true
+	}
+
+	// 如果没有实体，看看有没有注册懒加载生成器
+	if loader, ok := parent.Value(userContextLoaderKey{}).(func() *UserContext); ok {
+		return loader(), true
+	}
+
+	return nil, false
 }
 
 func NewUserContext(c *gin.Context) *UserContext {

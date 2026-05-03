@@ -47,23 +47,9 @@ func processAuthToken(c *gin.Context, cfg *config.JWTConfig, sm session.SessionM
 
 // injectAuthContext loads permissions and injects UserContext and XinContext into the request
 func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc PermissionServiceInterface) {
-	var roles []string
-	var perms map[string]bool
-	var ds permission.DataScope
-	var orgID int64
-
-	if permSvc != nil {
-		ctx := c.Request.Context()
-		var dsPtr *permission.DataScope
-		perms, roles, dsPtr, orgID, _ = permSvc.LoadUserSecurityContext(ctx, claims.UserID)
-		if dsPtr != nil {
-			ds = *dsPtr
-		}
-	}
-
 	ctx := c.Request.Context()
 
-	// Update XinContext
+	// 始终优先装配轻量的 XinContext（包含了身份的基本标识）
 	var xc *xinContext.XinContext
 	if existingXc, ok := xinContext.XinContextFrom(ctx); ok {
 		xc = existingXc.Clone()
@@ -80,18 +66,32 @@ func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc Permission
 		}
 	}
 	ctx = xinContext.WithXinContext(ctx, xc)
-
-	// Create UserContext
-	uc := &xinContext.UserContext{
-		XinContext:  xc,
-		OrgID:       orgID,
-		Roles:       roles,
-		Permissions: perms,
-		DataScope:   ds,
-	}
-
-	ctx = xinContext.WithUserContext(ctx, uc)
 	ctx = xinContext.WithTenantID(ctx, claims.TenantID)
+
+	// 注册懒加载生成器到 Context 的某个钩子里，
+	// 当实际业务中有人调用 MustNewUserContext 时才去查 DB 构建 UserContext
+	ctx = xinContext.WithUserContextLoader(ctx, func() *xinContext.UserContext {
+		var roles []string
+		var perms map[string]bool
+		var ds permission.DataScope
+		var orgID int64
+
+		if permSvc != nil {
+			var dsPtr *permission.DataScope
+			perms, roles, dsPtr, orgID, _ = permSvc.LoadUserSecurityContext(ctx, claims.UserID)
+			if dsPtr != nil {
+				ds = *dsPtr
+			}
+		}
+
+		return &xinContext.UserContext{
+			XinContext:  xc,
+			OrgID:       orgID,
+			Roles:       roles,
+			Permissions: perms,
+			DataScope:   ds,
+		}
+	})
 
 	c.Request = c.Request.WithContext(ctx)
 }
