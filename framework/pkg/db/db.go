@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -58,50 +59,6 @@ func Init(cfg *config.DatabaseConfig, saasMode string) error {
 	return nil
 }
 
-type Conn struct {
-	pool   *pgxpool.Pool
-	conn   *pgxpool.Conn
-	tenant uint
-}
-
-func Acquire(ctx context.Context) (*Conn, error) {
-	conn, err := Pool.Acquire(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return &Conn{pool: Pool, conn: conn}, nil
-}
-
-func (c *Conn) SetTenant(ctx context.Context, tenantID uint) error {
-	c.tenant = tenantID
-	_, err := c.conn.Exec(ctx, fmt.Sprintf("SET app.tenant_id = '%d'", tenantID))
-	return err
-}
-
-func (c *Conn) ShowDeleted(ctx context.Context) error {
-	_, err := c.conn.Exec(ctx, "SET app.show_deleted = true")
-	return err
-}
-
-func (c *Conn) Exec(ctx context.Context, sql string, args ...interface{}) (pgconn.CommandTag, error) {
-	return c.conn.Exec(ctx, sql, args...)
-}
-
-func (c *Conn) Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error) {
-	return c.conn.Query(ctx, sql, args...)
-}
-
-func (c *Conn) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
-	return c.conn.QueryRow(ctx, sql, args...)
-}
-
-func (c *Conn) Release() {
-	if c.tenant > 0 {
-		_, _ = c.conn.Exec(context.Background(), "RESET app.tenant_id")
-	}
-	c.conn.Release()
-}
-
 func Get() *pgxpool.Pool {
 	return Pool
 }
@@ -112,8 +69,6 @@ func Close() {
 	}
 }
 
-// Querier interface allows the repository layer to execute SQL seamlessly
-// whether using a single connection or participating in a transaction.
 type Querier interface {
 	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
 	Query(ctx context.Context, sql string, optionsAndArgs ...any) (pgx.Rows, error)
@@ -128,20 +83,66 @@ func WithTx(ctx context.Context, tx pgx.Tx) context.Context {
 	return context.WithValue(ctx, txKey{}, tx)
 }
 
-// GetQuerier intelligently returns a Querier (either an existing Tx from context or a new Conn).
-// It also returns a release function that the caller MUST defer.
+func BeginTenantTx(ctx context.Context, pool *pgxpool.Pool, tenantID uint) (pgx.Tx, error) {
+	if pool == nil {
+		return nil, fmt.Errorf("db pool is not initialized")
+	}
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if tenantID > 0 {
+		if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(tenantID))); err != nil {
+			_ = tx.Rollback(ctx)
+			return nil, err
+		}
+	}
+
+	return tx, nil
+}
+
+func GetTenantQuerier(ctx context.Context, pool *pgxpool.Pool, tenantID uint) (context.Context, Querier, pgx.Tx, error) {
+	if tx, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
+		return ctx, tx, nil, nil
+	}
+
+	if tenantID > 0 {
+		tx, err := BeginTenantTx(ctx, pool, tenantID)
+		if err != nil {
+			return ctx, nil, nil, err
+		}
+		ctx = WithTx(ctx, tx)
+		return ctx, tx, tx, nil
+	}
+
+	if pool == nil {
+		return ctx, nil, nil, fmt.Errorf("db pool is not initialized")
+	}
+
+	return ctx, pool, nil, nil
+}
+
+func FinishTx(ctx context.Context, tx pgx.Tx, opErr error) error {
+	if tx == nil {
+		return opErr
+	}
+	if opErr != nil {
+		_ = tx.Rollback(ctx)
+		return opErr
+	}
+	return tx.Commit(ctx)
+}
+
 func GetQuerier(ctx context.Context) (Querier, func(), error) {
 	if tx, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
-		// Existing transaction found in context. Release is a no-op because
-		// the transaction is managed by the outer caller (e.g., Service layer).
 		return tx, func() {}, nil
 	}
 
-	conn, err := Acquire(ctx)
-	if err != nil {
-		return nil, nil, err
+	if Pool == nil {
+		return nil, nil, fmt.Errorf("db pool is not initialized")
 	}
 
-	// Single connection. Must be released when done.
-	return conn, func() { conn.Release() }, nil
+	return Pool, func() {}, nil
 }

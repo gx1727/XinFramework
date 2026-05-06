@@ -18,18 +18,13 @@ func NewAvatarCategoryRepository(pool *pgxpool.Pool) *AvatarCategoryRepository {
 	return &AvatarCategoryRepository{db: pool}
 }
 
-func (r *AvatarCategoryRepository) List(ctx context.Context, catType string) ([]AvatarCategory, error) {
-	q, release, err := db.GetQuerier(ctx)
+func (r *AvatarCategoryRepository) List(ctx context.Context, catType string) (_ []AvatarCategory, err error) {
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
 	if err != nil {
 		return nil, err
 	}
-	defer release()
-
-	if conn, ok := q.(*db.Conn); ok {
-		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-			_ = conn.SetTenant(ctx, tid)
-		}
-	}
+	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	where := "WHERE is_deleted = FALSE"
 	args := []interface{}{}
@@ -64,18 +59,16 @@ func (r *AvatarCategoryRepository) List(ctx context.Context, catType string) ([]
 	return list, nil
 }
 
-func (r *AvatarCategoryRepository) Create(ctx context.Context, c *AvatarCategory) (*AvatarCategory, error) {
-	q, release, err := db.GetQuerier(ctx)
+func (r *AvatarCategoryRepository) Create(ctx context.Context, c *AvatarCategory) (_ *AvatarCategory, err error) {
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	if c.TenantID > 0 {
+		tenantID = c.TenantID
+	}
+	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
 	if err != nil {
 		return nil, err
 	}
-	defer release()
-
-	if conn, ok := q.(*db.Conn); ok {
-		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-			_ = conn.SetTenant(ctx, tid)
-		}
-	}
+	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	var result AvatarCategory
 	var icon *string
@@ -95,18 +88,16 @@ func (r *AvatarCategoryRepository) Create(ctx context.Context, c *AvatarCategory
 	return &result, nil
 }
 
-func (r *AvatarCategoryRepository) Update(ctx context.Context, c *AvatarCategory) error {
-	q, release, err := db.GetQuerier(ctx)
+func (r *AvatarCategoryRepository) Update(ctx context.Context, c *AvatarCategory) (err error) {
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	if c.TenantID > 0 {
+		tenantID = c.TenantID
+	}
+	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
 	if err != nil {
 		return err
 	}
-	defer release()
-
-	if conn, ok := q.(*db.Conn); ok {
-		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-			_ = conn.SetTenant(ctx, tid)
-		}
-	}
+	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	tag, err := q.Exec(ctx, `
 		UPDATE flag_avatar_categories SET code = $2, name = $3, icon = $4, type = $5, sort = $6, status = $7, updated_at = NOW()
@@ -121,18 +112,13 @@ func (r *AvatarCategoryRepository) Update(ctx context.Context, c *AvatarCategory
 	return nil
 }
 
-func (r *AvatarCategoryRepository) Delete(ctx context.Context, id uint) error {
-	q, release, err := db.GetQuerier(ctx)
+func (r *AvatarCategoryRepository) Delete(ctx context.Context, id uint) (err error) {
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
 	if err != nil {
 		return err
 	}
-	defer release()
-
-	if conn, ok := q.(*db.Conn); ok {
-		if tid, ok := xincontext.TenantIDFrom(ctx); ok {
-			_ = conn.SetTenant(ctx, tid)
-		}
-	}
+	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	tag, err := q.Exec(ctx, `
 		UPDATE flag_avatar_categories SET is_deleted = TRUE, updated_at = NOW()

@@ -61,18 +61,12 @@ func (r *PostgresAttachmentRepository) GetByID(ctx context.Context, id uint) (*A
 	return &attachment, nil
 }
 
-func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID uint, hash string) (*Attachment, error) {
-	q, release, err := db.GetQuerier(ctx)
+func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID uint, hash string) (_ *Attachment, err error) {
+	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
 	if err != nil {
 		return nil, err
 	}
-	defer release()
-
-	if conn, ok := q.(*db.Conn); ok {
-		if err := conn.SetTenant(ctx, tenantID); err != nil {
-			return nil, err
-		}
-	}
+	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	query := `
 		SELECT id, tenant_id, user_id, file_name, file_ext, mime_type, file_size, storage, object_key, url, hash, status, created_at, updated_at, is_deleted
@@ -111,18 +105,12 @@ func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID u
 	return &attachment, nil
 }
 
-func (r *PostgresAttachmentRepository) Create(ctx context.Context, attachment *Attachment) (*Attachment, error) {
-	q, release, err := db.GetQuerier(ctx)
+func (r *PostgresAttachmentRepository) Create(ctx context.Context, attachment *Attachment) (_ *Attachment, err error) {
+	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, attachment.TenantID)
 	if err != nil {
 		return nil, err
 	}
-	defer release()
-
-	if conn, ok := q.(*db.Conn); ok {
-		if err := conn.SetTenant(ctx, attachment.TenantID); err != nil {
-			return nil, err
-		}
-	}
+	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	query := `
 		INSERT INTO attachments (tenant_id, user_id, file_name, file_ext, mime_type, file_size, storage, object_key, url, hash, status, created_at, updated_at, is_deleted)
