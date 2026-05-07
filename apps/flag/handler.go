@@ -145,7 +145,7 @@ func (h *Handler) DeleteFrame(c *gin.Context) {
 
 // ==================== Categories ====================
 
-func (h *Handler) ListCategories(c *gin.Context) {
+func (h *Handler) ListFrameCategories(c *gin.Context) {
 	categories, err := frameCatRepo.List(c.Request.Context())
 	if err != nil {
 		resp.HandleError(c, err)

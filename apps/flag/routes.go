@@ -13,10 +13,10 @@ func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
 	protected.DELETE("/flag/frames/:id", h.DeleteFrame)
 
 	// Categories
-	public.GET("/flag/categories", h.ListCategories)
-	protected.POST("/flag/categories", h.CreateFrameCategory)
-	protected.PUT("/flag/categories/:id", h.UpdateFrameCategory)
-	protected.DELETE("/flag/categories/:id", h.DeleteFrameCategory)
+	public.GET("/flag/frames-categories", h.ListFrameCategories)
+	protected.POST("/flag/frames-categories", h.CreateFrameCategory)
+	protected.PUT("/flag/frames-categories/:id", h.UpdateFrameCategory)
+	protected.DELETE("/flag/frames-categories/:id", h.DeleteFrameCategory)
 
 	// Spaces
 	public.GET("/flag/spaces/:code", h.GetSpaceByCode)
