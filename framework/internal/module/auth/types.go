@@ -3,7 +3,7 @@ package auth
 type loginRequest struct {
 	Account  string `json:"account" binding:"required"`
 	Password string `json:"password" binding:"required"`
-	TenantID uint   `json:"tenant_id"`
+	TenantID uint   `json:"tenant_id" binding:"required"`
 }
 
 type LoginResult struct {

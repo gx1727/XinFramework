@@ -34,6 +34,9 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 	if d == nil {
 		return nil, ErrBackendUnavailable
 	}
+	if tenantID == 0 {
+		return nil, ErrTenantRequired
+	}
 
 	tx, err := d.Begin(ctx)
 	if err != nil {
@@ -43,16 +46,9 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 
 	ctx = db.WithTx(ctx, tx)
 
-	if tenantID > 0 {
-		_, err = tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(tenantID)))
-		if err != nil {
-			return nil, fmt.Errorf("set tenant_id: %w", err)
-		}
-	} else {
-		_, err = tx.Exec(ctx, "SELECT set_config('app.mode', $1, true)", "single")
-		if err != nil {
-			return nil, fmt.Errorf("set mode: %w", err)
-		}
+	_, err = tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(tenantID)))
+	if err != nil {
+		return nil, fmt.Errorf("set tenant_id: %w", err)
 	}
 
 	var accID uint
@@ -69,36 +65,20 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 		return nil, err
 	}
 
-	query := `
-		SELECT id, tenant_id, code, status
-		FROM users
-		WHERE  account_id = $1`
-	args := []interface{}{accID}
-
-	query += " ORDER BY id ASC LIMIT 1"
-
 	var uID uint
 	var uTenantID uint
 	var uCode string
 	var uStatus int16
-	err = tx.QueryRow(ctx, query, args...).Scan(&uID, &uTenantID, &uCode, &uStatus)
+	err = tx.QueryRow(ctx, `
+		SELECT id, tenant_id, code, status
+		FROM users
+		WHERE account_id = $1
+		ORDER BY id ASC LIMIT 1`, accID).Scan(&uID, &uTenantID, &uCode, &uStatus)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errTenantBindingNotFound
 		}
 		return nil, err
-	}
-
-	if tenantID == 0 {
-		_, err = tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(uTenantID)))
-		if err != nil {
-			return nil, fmt.Errorf("set tenant_id: %w", err)
-		}
-
-		_, err = tx.Exec(ctx, "SELECT set_config('app.mode', $1, true)", "saas")
-		if err != nil {
-			return nil, fmt.Errorf("set mode: %w", err)
-		}
 	}
 
 	roleCode := "user"

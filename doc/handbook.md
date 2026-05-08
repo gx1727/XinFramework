@@ -138,14 +138,13 @@ auth.Use(middleware.Auth(&cfg.JWT))
 
 ### 3.1 租户模式
 
-`config.yaml` 中 `saas.mode` 配置：
+多租户默认采用严格的 `tenant_id` 行级隔离：
 
-| 模式 | 说明 |
+| 约束 | 说明 |
 |:----|:-----|
-| `single` | 单租户模式，不做租户隔离 |
-| `saas` | 共享数据库，通过 `tenant_id` 字段隔离（默认） |
-| `schema` | PostgreSQL Schema 隔离 |
-| `database` | 独立数据库隔离 |
+| 请求头 / Token | 必须提供租户标识 |
+| 应用层 | 通过 `app.tenant_id` 注入事务上下文 |
+| 数据库层 | RLS 仅允许访问当前租户的数据 |
 
 ### 3.2 租户上下文传播
 
@@ -193,7 +192,6 @@ defer db.ClearTenantID()
 | `app.port` | `APP_PORT` |
 | `database.host` | `DB_HOST` |
 | `jwt.secret` | `JWT_SECRET` |
-| `saas.mode` | `SAAS_MODE` |
 
 ---
 
@@ -206,7 +204,7 @@ srv.Engine.Use(middleware.CORS(&cfg.CORS))            // 1. CORS 跨域
 srv.Engine.Use(middleware.RequestID())                // 2. 请求ID
 srv.Engine.Use(middleware.Logger())                   // 3. 请求日志
 srv.Engine.Use(middleware.Recovery())                 // 4. 异常恢复
-srv.Engine.Use(middleware.Tenant(cfg.Saas.Mode))      // 5. 租户隔离
+srv.Engine.Use(middleware.Tenant())                    // 5. 租户隔离
 // ... 路由处理 ...
 srv.Engine.Group("/api/v1").Use(middleware.Auth(&cfg.JWT)) // 认证
 ```

@@ -307,7 +307,7 @@ func TestAuthMiddleware(t *testing.T) {
 ### 功能描述
 - 从 `X-Tenant-ID` header 读取租户 ID
 - 调用 `db.SetTenantID()` 设置会话变量
-- 支持多种 SaaS 模式（shared/schema/database）
+- 所有租户表都严格依赖 `tenant_id`
 
 ### 验证步骤
 
@@ -334,7 +334,7 @@ curl -H "X-Tenant-ID: invalid" http://localhost:8080/api/v1/health
 // Test: Tenant 中间件正常提取
 func TestTenantMiddleware(t *testing.T) {
     router := gin.New()
-    router.Use(middleware.Tenant("shared"))
+    router.Use(middleware.Tenant())
     router.GET("/test", func(c *gin.Context) {
         ctx := context.New(c)
         assert.Equal(t, uint(123), ctx.TenantID)
@@ -348,7 +348,7 @@ func TestTenantMiddleware(t *testing.T) {
 // Test: 无租户 ID
 func TestTenantMiddlewareEmpty(t *testing.T) {
     router := gin.New()
-    router.Use(middleware.Tenant("shared"))
+    router.Use(middleware.Tenant())
     router.GET("/test", func(c *gin.Context) {
         ctx := context.New(c)
         assert.Equal(t, uint(0), ctx.TenantID)

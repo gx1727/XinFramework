@@ -31,7 +31,6 @@ type Config struct {
 	Database DatabaseConfig `yaml:"database"`
 	Redis    RedisConfig    `yaml:"redis"`
 	JWT      JWTConfig      `yaml:"jwt"`
-	Saas     SaasConfig     `yaml:"saas"`
 	Storage  StorageConfig  `yaml:"storage"`
 	Log      LogConfig      `yaml:"log"`
 	Module   []string       `yaml:"module"`
@@ -77,10 +76,6 @@ type JWTConfig struct {
 	Secret        string `yaml:"secret"`
 	Expire        int    `yaml:"expire"`
 	RefreshExpire int    `yaml:"refresh_expire"`
-}
-
-type SaasConfig struct {
-	Mode string `yaml:"mode"` // single | saas | schema | database
 }
 
 type CORSConfig struct {
@@ -144,9 +139,6 @@ func defaults() *Config {
 			Secret:        "",
 			Expire:        3600,
 			RefreshExpire: 86400,
-		},
-		Saas: SaasConfig{
-			Mode: "shared",
 		},
 		Storage: StorageConfig{
 			Provider:     "local",
@@ -254,8 +246,6 @@ func overrideWithEnv(c *Config) {
 	envStr("XIN_JWT_SECRET", &c.JWT.Secret)
 	envInt("XIN_JWT_EXPIRE", &c.JWT.Expire)
 	envInt("XIN_JWT_REFRESH_EXPIRE", &c.JWT.RefreshExpire)
-
-	envStr("XIN_SAAS_MODE", &c.Saas.Mode)
 
 	envStr("XIN_STORAGE_PROVIDER", &c.Storage.Provider)
 	envStr("XIN_STORAGE_LOCAL_DIR", &c.Storage.LocalDir)

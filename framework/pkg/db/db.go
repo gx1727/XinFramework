@@ -14,7 +14,7 @@ import (
 
 var Pool *pgxpool.Pool
 
-func Init(cfg *config.DatabaseConfig, saasMode string) error {
+func Init(cfg *config.DatabaseConfig) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -34,17 +34,6 @@ func Init(cfg *config.DatabaseConfig, saasMode string) error {
 	}
 	if cfg.ConnMaxIdleTimeSec > 0 {
 		poolConfig.MaxConnIdleTime = time.Duration(cfg.ConnMaxIdleTimeSec) * time.Second
-	}
-
-	if saasMode != "" {
-		mode := saasMode
-		poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-			_, err := conn.Exec(ctx, "SELECT set_config('app.mode', $1, false)", mode)
-			if err != nil {
-				return fmt.Errorf("set app.mode: %w", err) // ✅ 包装错误，提供上下文
-			}
-			return nil // ✅ 明确返回 nil
-		}
 	}
 
 	Pool, err = pgxpool.NewWithConfig(ctx, poolConfig)

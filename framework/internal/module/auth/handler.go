@@ -20,6 +20,10 @@ func (h *Handler) Login(c *gin.Context) {
 		resp.BadRequest(c, "请求参数格式错误")
 		return
 	}
+	if req.TenantID == 0 {
+		resp.HandleError(c, ErrTenantRequired)
+		return
+	}
 	result, err := h.svc.Login(c.Request.Context(), req)
 	if err != nil {
 		resp.HandleError(c, err)

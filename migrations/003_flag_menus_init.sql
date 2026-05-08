@@ -4,7 +4,7 @@
 -- ============================================
 
 SET client_encoding = 'UTF8';
-SET app.mode = 'single';
+SET app.tenant_id = '0';
 
 -- 一级菜单
 INSERT INTO menus (id, tenant_id, code, name, path, icon, sort, parent_id, ancestors, visible, enabled)

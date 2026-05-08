@@ -38,9 +38,6 @@ jwt:
   expire: 3600
   refresh_expire: 86400
 
-saas:
-  mode: saas # single | saas | schema | database
-
 storage:
   provider: local # local | cos
   local_dir: ./uploads

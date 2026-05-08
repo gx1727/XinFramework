@@ -32,9 +32,6 @@ jwt:
   expire: 3600
   refresh_expire: 86400
 
-saas:
-  mode: shared
-
 log:
   dir: logs
   level: info
@@ -61,7 +58,6 @@ type Config struct {
     Database DatabaseConfig `yaml:"database"`
     Redis    RedisConfig    `yaml:"redis"`
     JWT      JWTConfig      `yaml:"jwt"`
-    Saas     SaasConfig     `yaml:"saas"`
     Log      LogConfig      `yaml:"log"`
     Modules  []string       `yaml:"module"`
     Apps     []string       `yaml:"apps"`
@@ -630,14 +626,13 @@ func (s *Service) CreateWithRole(ctx context.Context, user *User, roleID uint) e
 
 ### 5.3 租户隔离
 
-框架支持四种租户隔离模式，由 `saas.mode` 配置：
+框架默认采用基于 `tenant_id` 的严格行级隔离：
 
-| 模式 | 隔离层级 | 说明 |
-|------|---------|------|
-| `single` | 无隔离 | 所有租户数据均可访问（单租户模式） |
-| `saas` | 行级（tenant_id） | 按 tenant_id 隔离数据行（需要应用层 SET） |
-| `schema` | Schema 级 | 每个租户独立 schema，由连接层隔离 |
-| `database` | Database 级 | 每个租户独立数据库，由连接层隔离 |
+| 约束 | 说明 |
+|------|------|
+| 请求上下文 | 必须显式提供 `tenant_id` |
+| 应用层 | 仓储层在事务中 `SET app.tenant_id` |
+| 数据库层 | PostgreSQL RLS 要求 `tenant_id = current_setting('app.tenant_id')` |
 
 **Tenant 中间件行为**（`middleware.Tenant()`）：
 - 解析 `X-Tenant-ID` 请求头
@@ -659,10 +654,10 @@ ctx := xincontext.New(c)
 tid := ctx.TenantID
 ```
 
-**RLS 作为纵深防御**（`saas` 模式）：
+**RLS 作为纵深防御**：
 - PostgreSQL RLS 策略自动生效，防止应用层漏 SET 时的数据泄漏
-- `app.mode = 'saas'` 时，未设置 `tenant_id` 的查询会被拒绝（安全默认值）
-- `app.mode = 'single'/'schema'/'database'` 时，RLS 不约束 tenant_id
+- 未设置 `app.tenant_id` 时，租户表查询会被拒绝（安全默认值）
+- 租户表仅允许访问 `tenant_id` 与当前上下文一致的数据
 
 ***
 

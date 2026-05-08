@@ -800,11 +800,9 @@ COMMENT ON COLUMN attachments.is_deleted IS '软删除标记';
 -- 本 RLS 策略已降级为"纵深防御"，主要依赖应用层 SET app.tenant_id。
 -- 本层作用：防止应用层漏 SET 时的数据泄漏，或运维直接操作 DB 时的越权。
 --
--- ⚠️ app.mode 配置：
---   single：不约束 tenant_id，所有租户数据均可访问（单租户模式）
---   saas：必须约束 tenant_id，未设置 tenant_id 时拒绝所有操作（SaaS 多租户模式，按 tenant_id 隔离行）
---   schema：每个租户独立 schema，RLS 不约束 tenant_id（由连接层 schema 隔离）
---   database：每个租户独立数据库，RLS 不约束 tenant_id（由连接层 database 隔离）
+-- ⚠️ tenant_id 约束：
+--   所有租户表都必须匹配 app.tenant_id，未设置时拒绝访问（安全默认值）
+--   tenants / accounts 为平台级元数据表，不依赖 tenant_id 做隔离
 --
 -- ⚠️ 注意：accounts 表为平台级，不在 RLS 覆盖范围内（同一账号可跨租户存在）。
 --
@@ -830,11 +828,9 @@ ALTER TABLE attachments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tenant_user_seq ENABLE ROW LEVEL SECURITY;
 
 -- 2. 创建租户隔离策略 (读取 & 写入)
--- app.mode = single：不约束 tenant_id（放行所有行）
--- app.mode = saas：必须约束 tenant_id（tenant_id 必须匹配）
+-- tenant_id 必须匹配 app.tenant_id
 -- is_deleted = TRUE 的行默认不可见，除非 SET app.show_deleted = true
--- 未设置 app.mode：默认 single（向后兼容）
--- 未设置 app.tenant_id：saas 模式下拒绝所有行（安全默认值）
+-- 未设置 app.tenant_id：拒绝所有行（安全默认值）
 
 CREATE POLICY tenant_isolation_policy ON tenants
     USING (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
@@ -842,147 +838,147 @@ CREATE POLICY tenant_isolation_policy ON tenants
 
 CREATE POLICY tenant_isolation_policy ON account_auths
     USING (
-        (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
     )
     WITH CHECK (
-        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON organizations
     USING (
-        (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
     )
     WITH CHECK (
-        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON users
     USING (
-        (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
     )
     WITH CHECK (
-        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON roles
     USING (
-        (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
     )
     WITH CHECK (
-        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON role_data_scopes
     USING (
-        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON user_roles
     USING (
-        (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
     )
     WITH CHECK (
-        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON menus
     USING (
-        (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
     )
     WITH CHECK (
-        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON resources
     USING (
-        (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
     )
     WITH CHECK (
-        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON routes
     USING (
-        (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
     )
     WITH CHECK (
-        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON permissions
     USING (
-        (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
     )
     WITH CHECK (
-        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON dicts
     USING (
-        (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
     )
     WITH CHECK (
-        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON dict_items
     USING (
-        (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
     )
     WITH CHECK (
-        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON subscriptions
     USING (
-        (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
     )
     WITH CHECK (
-        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON usage_records
     USING (
-        (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
     )
     WITH CHECK (
-        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON ai_documents
     USING (
-        (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
     )
     WITH CHECK (
-        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON attachments
     USING (
-        (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
     )
     WITH CHECK (
-        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON tenant_user_seq
     USING (
-        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 

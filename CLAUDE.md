@@ -213,7 +213,7 @@ Apps in `apps/*` call `plugin.Register(xxx.Module())` in their init, registered 
 2. RequestID()    — X-Request-ID generation/propagation
 3. CORS()        — Cross-origin resource sharing + OPTIONS preflight
 4. Logger()      — Request logging (after RequestID set)
-5. Tenant(cfg.Saas.Mode)
+5. Tenant()
 6. [protected routes] → Auth(&cfg.JWT, sm, permService)
 ```
 
@@ -246,12 +246,9 @@ c.Request = c.Request.WithContext(context.WithXinContext(c.Request.Context(), xc
 
 | Mode | Behavior |
 |------|----------|
-| `single` | No tenant_id constraint (single-tenant) |
-| `saas` | RLS enforces tenant_id = current_setting('app.tenant_id') |
-| `schema` | Each tenant has own schema, RLS not needed |
-| `database` | Each tenant has own DB, RLS not needed |
+| `strict` | RLS enforces tenant_id = current_setting('app.tenant_id') |
 
-**RLS policies** use `current_setting('app.tenant_id')` and `current_setting('app.mode')`.
+**RLS policies** use `current_setting('app.tenant_id')`.
 
 ## Configuration System
 
@@ -263,7 +260,6 @@ Config loads from `config/config.yaml`, overrides with `XIN_*` env vars.
 | Database | `XIN_DB_*` | `XIN_DB_HOST=localhost` |
 | Redis | `XIN_REDIS_*` | `XIN_REDIS_HOST=127.0.0.1` |
 | JWT | `XIN_JWT_*` | `XIN_JWT_SECRET=xxx` |
-| SaaS | `XIN_SAAS_*` | `XIN_SAAS_MODE=saas` |
 | Module Config | `XIN_<NAME>_*` | `XIN_CMS_POST_PER_PAGE=20` |
 
 ## API Response Format

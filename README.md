@@ -171,14 +171,7 @@ go build -o xin ./cmd/xin
 
 ## 🏢 多租户
 
-配置项：
-
-```yaml
-saas:
-  mode: shared  # shared | schema | database
-```
-
-请求时传递租户 ID：
+请求时必须传递租户 ID：
 
 ```bash
 curl -H "X-Tenant-ID: tenant_001" http://localhost:8080/api/v1/users
