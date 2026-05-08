@@ -834,42 +834,30 @@ ALTER TABLE tenant_user_seq ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_policy ON tenants
     USING (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    WITH CHECK (TRUE);
+    ;
 
 CREATE POLICY tenant_isolation_policy ON account_auths
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON organizations
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON users
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON roles
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON role_data_scopes
@@ -881,99 +869,66 @@ CREATE POLICY tenant_isolation_policy ON user_roles
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON menus
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON resources
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON routes
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON permissions
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON dicts
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON dict_items
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON subscriptions
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON usage_records
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON ai_documents
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON attachments
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON tenant_user_seq

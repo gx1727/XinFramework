@@ -68,6 +68,9 @@ func (h *Handler) CreateFrame(c *gin.Context) {
 		return
 	}
 
+	resp.BadRequest(c, "请求参数格式错误")
+	return
+
 	frame := &Frame{
 		TenantID:    uc.TenantID,
 		CategoryID:  req.CategoryID,

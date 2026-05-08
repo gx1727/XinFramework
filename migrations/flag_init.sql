@@ -235,52 +235,34 @@ CREATE POLICY tenant_isolation_policy ON flag_frame_categories
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON flag_frames
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON flag_spaces
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON flag_user_generated
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON flag_avatar_categories
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
 CREATE POLICY tenant_isolation_policy ON flag_avatars
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
-    )
-    WITH CHECK (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );

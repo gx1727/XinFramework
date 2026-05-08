@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -138,6 +137,11 @@ func (r *FrameCategoryRepository) Delete(ctx context.Context, id uint) (err erro
 		return err
 	}
 	defer func() { err = db.FinishTx(ctx, tx, err) }()
+
+	_, err = tx.Exec(ctx, "SELECT set_config('app.show_deleted', $1, true)", "true")
+	if err != nil {
+		return err
+	}
 
 	tag, err := q.Exec(ctx, `
 		UPDATE flag_frame_categories SET is_deleted = TRUE, updated_at = NOW()
