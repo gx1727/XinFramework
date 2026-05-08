@@ -210,9 +210,9 @@ func (r *AvatarRepository) Update(ctx context.Context, avatar *Avatar) (err erro
 
 	tag, err := q.Exec(ctx, `
 		UPDATE flag_avatars SET
-			name = $2, category_id = $3, is_public = $4, status = $5, updated_at = NOW()
+			name = $2, source_url = $3, thumbnail_url = $4, category_id = $5, is_public = $6, status = $7, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`,
-		avatar.ID, nullStr(avatar.Name), nilIfZero(avatar.CategoryID), avatar.IsPublic, avatar.Status)
+		avatar.ID, nullStr(avatar.Name), nullStr(avatar.SourceURL), nullStr(avatar.ThumbnailURL), nilIfZero(avatar.CategoryID), avatar.IsPublic, avatar.Status)
 	if err != nil {
 		return fmt.Errorf("update flag avatar: %w", err)
 	}

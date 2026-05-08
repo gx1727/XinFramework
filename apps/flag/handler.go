@@ -381,13 +381,7 @@ func (h *Handler) ListMyAvatars(c *gin.Context) {
 // ==================== Avatar Categories ====================
 
 func (h *Handler) ListAvatarCategories(c *gin.Context) {
-	var req listAvatarCategoriesRequest
-	if err := c.ShouldBindQuery(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
-		return
-	}
-
-	categories, err := avatarCatRepo.List(c.Request.Context(), req.Type)
+	categories, err := avatarCatRepo.List(c.Request.Context())
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -570,11 +564,13 @@ func (h *Handler) UpdateAvatar(c *gin.Context) {
 	}
 
 	avatar := &Avatar{
-		ID:         req.ID,
-		Name:       req.Name,
-		CategoryID: req.CategoryID,
-		IsPublic:   req.IsPublic,
-		Status:     req.Status,
+		ID:           req.ID,
+		Name:         req.Name,
+		CategoryID:   req.CategoryID,
+		SourceURL:    req.SourceURL,
+		ThumbnailURL: req.ThumbnailURL,
+		IsPublic:     req.IsPublic,
+		Status:       req.Status,
 	}
 
 	if err := avatarRepo.Update(c.Request.Context(), avatar); err != nil {

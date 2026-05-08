@@ -219,10 +219,6 @@ type generateRequest struct {
 
 // ==================== Avatar Categories ====================
 
-type listAvatarCategoriesRequest struct {
-	Type string `form:"type"`
-}
-
 type createAvatarCategoryRequest struct {
 	Code string `json:"code" binding:"required"`
 	Name string `json:"name" binding:"required"`
@@ -271,11 +267,13 @@ type createAvatarRequest struct {
 }
 
 type updateAvatarRequest struct {
-	ID         uint   `json:"id" binding:"required"`
-	Name       string `json:"name"`
-	CategoryID uint   `json:"category_id"`
-	IsPublic   bool   `json:"is_public"`
-	Status     int8   `json:"status"`
+	ID           uint   `json:"id" binding:"required"`
+	Name         string `json:"name"`
+	CategoryID   uint   `json:"category_id"`
+	SourceURL    string `json:"source_url"`
+	ThumbnailURL string `json:"thumbnail_url"`
+	IsPublic     bool   `json:"is_public"`
+	Status       int8   `json:"status"`
 }
 
 type deleteAvatarRequest struct {
