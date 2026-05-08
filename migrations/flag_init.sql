@@ -235,34 +235,52 @@ CREATE POLICY tenant_isolation_policy ON flag_frame_categories
     USING (
         (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
+    )
+    WITH CHECK (
+        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
     );
 
 CREATE POLICY tenant_isolation_policy ON flag_frames
     USING (
         (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
+    )
+    WITH CHECK (
+        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
     );
 
 CREATE POLICY tenant_isolation_policy ON flag_spaces
     USING (
         (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
+    )
+    WITH CHECK (
+        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
     );
 
 CREATE POLICY tenant_isolation_policy ON flag_user_generated
     USING (
         (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
+    )
+    WITH CHECK (
+        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
     );
 
 CREATE POLICY tenant_isolation_policy ON flag_avatar_categories
     USING (
         (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
+    )
+    WITH CHECK (
+        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
     );
 
 CREATE POLICY tenant_isolation_policy ON flag_avatars
     USING (
         (current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT))
         AND (is_deleted = FALSE OR COALESCE(current_setting('app.show_deleted', true)::boolean, false))
+    )
+    WITH CHECK (
+        current_setting('app.mode') = 'single' OR (current_setting('app.mode') = 'saas' AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT)
     );

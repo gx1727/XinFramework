@@ -52,4 +52,11 @@ CREATE POLICY tenant_isolation_policy ON cms_posts
         is_deleted = FALSE
         OR COALESCE(current_setting('app.show_deleted', true)::boolean, false)
     )
+)
+    WITH CHECK (
+    current_setting('app.mode') = 'single'
+    OR (
+        current_setting('app.mode') = 'saas'
+        AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
+    )
 );

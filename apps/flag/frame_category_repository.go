@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
@@ -93,7 +94,11 @@ func (r *FrameCategoryRepository) Create(ctx context.Context, c *FrameCategory) 
 		&result.ID, &result.TenantID, &result.Code, &result.Name, &result.Type, &result.Sort, &result.Status,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("create frame category: %w", err)
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, ErrCategoryCodeExists.WithMsg(fmt.Sprintf("相框分类编码已存在: %v", err))
+		}
+		return nil, ErrCreateCategoryFailed.WithMsg(fmt.Sprintf("创建相框分类失败: %v", err))
 	}
 	return &result, nil
 }
@@ -114,7 +119,11 @@ func (r *FrameCategoryRepository) Update(ctx context.Context, c *FrameCategory) 
 		WHERE is_deleted = FALSE AND id = $1`,
 		c.ID, c.Code, c.Name, c.Type, c.Sort, c.Status)
 	if err != nil {
-		return fmt.Errorf("update frame category: %w", err)
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return ErrCategoryCodeExists.WithMsg(fmt.Sprintf("相框分类编码已存在: %v", err))
+		}
+		return ErrUpdateCategoryFailed.WithMsg(fmt.Sprintf("更新相框分类失败: %v", err))
 	}
 	if tag.RowsAffected() == 0 {
 		return ErrFrameNotFound
