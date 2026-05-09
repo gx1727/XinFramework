@@ -28,6 +28,9 @@ if [ $? -eq 0 ]; then
 
     echo "Copying migration files..."
     if [ -d "./migrations" ]; then
+        if [ -d "$OutDir/migrations" ]; then
+            rm -rf "$OutDir/migrations"
+        fi
         cp -r ./migrations "$OutDir/migrations"
         echo "Migration files copied to $OutDir/migrations/"
     fi
