@@ -32,6 +32,11 @@ if [ $? -eq 0 ]; then
         echo "Migration files copied to $OutDir/migrations/"
     fi
 
+    if [ -f "./framework/.env.example" ]; then
+        cp "./framework/.env.example" "$OutDir/.env.example"
+        echo "Env example copied to $OutDir/.env.example"
+    fi
+
     echo ""
     echo "Release package ready in '$OutDir' directory!"
 else
