@@ -25,10 +25,6 @@ func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
 	protected.DELETE("/flag/spaces/:id", h.DeleteSpace)
 	protected.GET("/flag/spaces", h.ListSpaces)
 
-	// Generate
-	protected.POST("/flag/generate", h.GenerateAvatar)
-	protected.GET("/flag/my-avatars", h.ListMyAvatars)
-
 	// Avatar Categories
 	public.GET("/flag/avatar-categories", h.ListAvatarCategories)
 	protected.POST("/flag/avatar-categories", h.CreateAvatarCategory)
@@ -41,4 +37,8 @@ func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
 	protected.POST("/flag/avatars", h.CreateAvatar)
 	protected.PUT("/flag/avatars/:id", h.UpdateAvatar)
 	protected.DELETE("/flag/avatars/:id", h.DeleteAvatar)
+
+	// Generate
+	protected.POST("/flag/generate", h.GenerateAvatar)
+	protected.GET("/flag/my-avatars", h.ListMyAvatars)
 }

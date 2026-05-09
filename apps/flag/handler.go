@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gx1727.com/xin/framework/pkg/config"
 	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/logger"
 	"gx1727.com/xin/framework/pkg/resp"
@@ -356,7 +357,14 @@ func (h *Handler) GenerateAvatar(c *gin.Context) {
 	}
 
 	resultKey := fmt.Sprintf("flag/%d/%s.png", uc.TenantID, uuid.New().String())
-	resultURL := fmt.Sprintf("https://img.gx1727.com/%s", resultKey)
+
+	// 从配置中获取基础URL，而不是硬编码
+	baseURL := config.Get().Storage.CosBaseURL
+	if baseURL == "" {
+		// 如果配置中没有设置，使用默认值
+		baseURL = "https://img.gx1727.com"
+	}
+	resultURL := fmt.Sprintf("%s/%s", baseURL, resultKey)
 
 	result := &GenerateResult{
 		ID:        1,
