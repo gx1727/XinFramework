@@ -539,13 +539,350 @@ func MyMiddleware() gin.HandlerFunc {
 
 ### 5.1 获取数据库连接
 
+框架提供两种获取数据库连接的方式：
+
+**方式一：通过 `db.GetQuerier`（推荐）**
+
 ```go
 import "gx1727.com/xin/framework/pkg/db"
 
+func (r *Repository) GetByID(ctx context.Context, id uint) (*Model, error) {
+    q, release, err := db.GetQuerier(ctx)
+    if err != nil {
+        return nil, err
+    }
+    defer release()
+
+    var m Model
+    err = q.QueryRow(ctx, `SELECT ... FROM table WHERE id = $1`, id).Scan(...)
+    // ...
+}
+```
+
+**方式二：直接使用全局 Pool（仅限外部插件）**
+
+```go
 pool := db.Get() // 获取全局 *pgxpool.Pool 实例
 ```
 
-### 5.2 Repository 模式
+### 5.2 为什么使用 `GetQuerier`？
+
+框架提供两种获取数据库连接的方式：
+
+#### 方式一：`db.GetQuerier(ctx)` - 通用场景
+
+适用于**非多租户表**或**不需要自动设置租户上下文**的场景。
+
+```go
+q, release, err := db.GetQuerier(ctx)
+if err != nil {
+    return nil, err
+}
+defer release()
+```
+
+**特点**：
+- ✅ 检查 context 中是否有事务
+- ✅ 如果有事务则使用该事务，否则使用全局 Pool
+- ❌ **不会**自动设置 `app.tenant_id`
+- ❌ **不会**触发 PostgreSQL RLS（行级安全）
+
+**适用场景**：
+- 系统配置表、字典表等非租户隔离表
+- auth.accounts 等跨租户的全局表
+
+#### 方式二：`db.GetTenantQuerier(ctx, pool, tenantID)` - 多租户场景（推荐）
+
+适用于**启用了 RLS 的多租户表**。
+
+```go
+import xincontext "gx1727.com/xin/framework/pkg/context"
+
+func (r *Repository) GetByID(ctx context.Context, id uint) (_ *Model, err error) {
+    // 从 context 中获取 tenantID
+    tenantID, _ := xincontext.TenantIDFrom(ctx)
+    
+    // 获取 Querier（会自动设置 app.tenant_id）
+    ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+    if err != nil {
+        return nil, err
+    }
+    defer func() { err = db.FinishTx(ctx, tx, err) }()
+    
+    // 执行查询
+    var m Model
+    err = q.QueryRow(ctx, `SELECT ...`, ...).Scan(...)
+    // ...
+}
+```
+
+**特点**：
+- ✅ 检查 context 中是否有事务
+- ✅ 如果 `tenantID > 0`，自动开启事务并设置 `app.tenant_id`
+- ✅ **触发 PostgreSQL RLS**，确保数据隔离
+- ✅ 通过 `FinishTx` 自动管理事务提交/回滚
+- ✅ 支持命名返回值和 defer 错误处理模式
+
+**实现原理**：
+
+```go
+// pkg/db/db.go
+func GetTenantQuerier(ctx context.Context, pool *pgxpool.Pool, tenantID uint) (context.Context, Querier, pgx.Tx, error) {
+    // 1. 检查是否有事务在 context 中
+    if tx, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
+        return ctx, tx, nil, nil  // 返回现有事务
+    }
+    
+    // 2. 如果 tenantID > 0，开启事务并设置 app.tenant_id
+    if tenantID > 0 {
+        tx, err := BeginTenantTx(ctx, pool, tenantID)
+        if err != nil {
+            return ctx, nil, nil, err
+        }
+        ctx = WithTx(ctx, tx)
+        return ctx, tx, tx, nil
+    }
+    
+    // 3. 没有租户 ID，返回全局 Pool
+    if pool == nil {
+        return ctx, nil, nil, fmt.Errorf("db pool is not initialized")
+    }
+    return ctx, pool, nil, nil
+}
+
+// BeginTenantTx 开启事务并设置 app.tenant_id
+func BeginTenantTx(ctx context.Context, pool *pgxpool.Pool, tenantID uint) (pgx.Tx, error) {
+    tx, err := pool.Begin(ctx)
+    if err != nil {
+        return nil, err
+    }
+    
+    // 设置 PostgreSQL 会话变量
+    if tenantID > 0 {
+        _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(tenantID)))
+        if err != nil {
+            _ = tx.Rollback(ctx)
+            return nil, err
+        }
+    }
+    
+    return tx, nil
+}
+
+// FinishTx 自动提交或回滚事务
+func FinishTx(ctx context.Context, tx pgx.Tx, opErr error) error {
+    if tx == nil {
+        return opErr
+    }
+    if opErr != nil {
+        _ = tx.Rollback(ctx)
+        return opErr
+    }
+    return tx.Commit(ctx)
+}
+```
+
+**标准写法（带命名返回值）**：
+
+```go
+func (r *PostgresMenuRepository) GetByID(ctx context.Context, id uint) (_ *Menu, err error) {
+    // 1. 从 context 获取 tenantID
+    tenantID, _ := xincontext.TenantIDFrom(ctx)
+    
+    // 2. 获取 TenantQuerier
+    ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+    if err != nil {
+        return nil, err
+    }
+    defer func() { err = db.FinishTx(ctx, tx, err) }()
+    
+    // 3. 执行查询
+    var m Menu
+    err = q.QueryRow(ctx, `
+        SELECT id, tenant_id, name
+        FROM menus
+        WHERE is_deleted = FALSE AND id = $1`, id).Scan(
+        &m.ID, &m.TenantID, &m.Name,
+    )
+    if err != nil {
+        if errors.Is(err, pgx.ErrNoRows) {
+            return nil, ErrMenuNotFound
+        }
+        return nil, err
+    }
+    return &m, nil
+}
+```
+
+**关键点**：
+- 使用命名返回值 `(_ *Menu, err error)`
+- defer 中使用闭包捕获最终错误：`defer func() { err = db.FinishTx(ctx, tx, err) }()`
+- 如果函数执行成功（err == nil），FinishTx 会提交事务
+- 如果函数执行失败（err != nil），FinishTx 会回滚事务
+
+### 5.3 Repository 模式标准写法
+
+#### 5.3.1 单条查询（QueryRow）
+
+```go
+func (r *PostgresMenuRepository) GetByID(ctx context.Context, id uint) (*Menu, error) {
+    // 1. 获取 Querier
+    q, release, err := db.GetQuerier(ctx)
+    if err != nil {
+        return nil, err
+    }
+    defer release()
+
+    // 2. 执行查询
+    var m Menu
+    err = q.QueryRow(ctx, `
+        SELECT id, name, created_at
+        FROM menus
+        WHERE is_deleted = FALSE AND id = $1`, id).Scan(
+        &m.ID, &m.Name, &m.CreatedAt,
+    )
+    if err != nil {
+        if errors.Is(err, pgx.ErrNoRows) {
+            return nil, ErrMenuNotFound
+        }
+        return nil, err
+    }
+    return &m, nil
+}
+```
+
+#### 5.3.2 多条查询（Query）
+
+```go
+func (r *PostgresMenuRepository) GetByTenant(ctx context.Context, tenantID uint) ([]Menu, error) {
+    // 1. 获取 Querier
+    q, release, err := db.GetQuerier(ctx)
+    if err != nil {
+        return nil, err
+    }
+    defer release()
+
+    // 2. 执行查询
+    rows, err := q.Query(ctx, `
+        SELECT id, name, created_at
+        FROM menus
+        WHERE is_deleted = FALSE AND tenant_id = $1
+        ORDER BY sort ASC`, tenantID)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    // 3. 遍历结果
+    var menus []Menu
+    for rows.Next() {
+        var m Menu
+        if err := rows.Scan(&m.ID, &m.Name, &m.CreatedAt); err != nil {
+            return nil, err
+        }
+        menus = append(menus, m)
+    }
+
+    // 4. 检查遍历过程中是否有错误（重要！）
+    if err = rows.Err(); err != nil {
+        return nil, err
+    }
+
+    return menus, nil
+}
+```
+
+#### 5.3.3 插入/更新/删除（Exec）
+
+```go
+func (r *PostgresMenuRepository) Create(ctx context.Context, req CreateMenuReq) (*Menu, error) {
+    // 1. 获取 Querier
+    q, release, err := db.GetQuerier(ctx)
+    if err != nil {
+        return nil, err
+    }
+    defer release()
+
+    // 2. 执行插入并返回新记录
+    var m Menu
+    err = q.QueryRow(ctx, `
+        INSERT INTO menus (name, tenant_id)
+        VALUES ($1, $2)
+        RETURNING id, name, created_at`,
+        req.Name, req.TenantID,
+    ).Scan(&m.ID, &m.Name, &m.CreatedAt)
+    
+    if err != nil {
+        return nil, fmt.Errorf("create menu: %w", err)
+    }
+    return &m, nil
+}
+
+func (r *PostgresMenuRepository) Delete(ctx context.Context, id uint) error {
+    // 1. 获取 Querier
+    q, release, err := db.GetQuerier(ctx)
+    if err != nil {
+        return err
+    }
+    defer release()
+
+    // 2. 执行删除
+    tag, err := q.Exec(ctx, `
+        UPDATE menus SET is_deleted = TRUE, updated_at = NOW()
+        WHERE is_deleted = FALSE AND id = $1`, id)
+    if err != nil {
+        return fmt.Errorf("delete menu: %w", err)
+    }
+    if tag.RowsAffected() == 0 {
+        return ErrMenuNotFound
+    }
+    return nil
+}
+```
+
+### 5.4 常见错误写法
+
+❌ **错误示例 1：直接使用 `r.db.Query`**
+
+```go
+// 错误！不支持事务，无法与其他操作在同一事务中执行
+rows, err := r.db.Query(ctx, `SELECT ...`)
+```
+
+✅ **正确写法：使用 `db.GetQuerier`**
+
+```go
+q, release, err := db.GetQuerier(ctx)
+if err != nil {
+    return nil, err
+}
+defer release()
+
+rows, err := q.Query(ctx, `SELECT ...`)
+```
+
+❌ **错误示例 2：忘记检查 `rows.Err()`**
+
+```go
+for rows.Next() {
+    // scan...
+}
+return menus, nil  // 缺少 rows.Err() 检查
+```
+
+✅ **正确写法：检查遍历错误**
+
+```go
+for rows.Next() {
+    // scan...
+}
+if err = rows.Err(); err != nil {
+    return nil, err
+}
+return menus, nil
+```
+
+### 5.5 Service 层事务示例
 
 框架采用 **Provider 模式**管理 Repository，通过接口解耦数据访问：
 
@@ -604,25 +941,45 @@ userDeps := user.Dependencies{
 | **Service** | 定义事务边界 | 直接写 SQL |
 | **Repo** | 接受 `*pgxpool.Pool` 执行操作 | 自己开事务 |
 
-**Service 层事务示例**（使用注入的 `pool`）：
+### 5.5 Service 层事务示例
+
+| 层 | 职责 | 禁止 |
+|---|---|---|
+| **Handler** | 不感知事务 | 调用 Begin/Commit/Rollback |
+| **Service** | 定义事务边界 | 直接写 SQL |
+| **Repo** | 接受 Querier 执行操作 | 自己开事务 |
+
+**Service 层事务示例**：
 
 ```go
 func (s *Service) CreateWithRole(ctx context.Context, user *User, roleID uint) error {
+    // 开启事务
     tx, err := s.pool.Begin(ctx)
     if err != nil {
         return err
     }
     defer tx.Rollback(ctx)
 
-    if err := s.repo.Create(tx, user); err != nil {
+    // 将事务注入 context
+    ctx = db.WithTx(ctx, tx)
+
+    // Repository 会自动从 context 中获取事务
+    if err := s.userRepo.Create(ctx, user); err != nil {
         return err
     }
-    if err := s.repo.AssignRole(tx, user.ID, roleID); err != nil {
+    if err := s.roleRepo.AssignRole(ctx, user.ID, roleID); err != nil {
         return err
     }
+    
+    // 提交事务
     return tx.Commit(ctx)
 }
 ```
+
+**关键点**：
+- Service 层通过 `db.WithTx(ctx, tx)` 将事务注入 context
+- Repository 通过 `db.GetQuerier(ctx)` 自动获取事务或 Pool
+- 所有在同一个 context 中的 Repository 操作都会使用同一个事务
 
 ### 5.3 租户隔离
 

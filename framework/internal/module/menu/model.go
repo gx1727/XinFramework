@@ -12,13 +12,13 @@ type Menu struct {
 	TenantID  uint      `json:"tenant_id"`
 	Code      string    `json:"code"`
 	Name      string    `json:"name"`
-	Subtitle  string    `json:"subtitle"`
-	URL       string    `json:"url"`
-	Path      string    `json:"path"`
-	Icon      string    `json:"icon"`
+	Subtitle  *string   `json:"subtitle"`
+	URL       *string   `json:"url"`
+	Path      *string   `json:"path"`
+	Icon      *string   `json:"icon"`
 	Sort      int       `json:"sort"`
-	ParentID  uint      `json:"parent_id"`
-	Ancestors string    `json:"ancestors"`
+	ParentID  *uint     `json:"parent_id"`
+	Ancestors *string   `json:"ancestors"`
 	Visible   bool      `json:"visible"`
 	Enabled   bool      `json:"enabled"`
 	CreatedAt time.Time `json:"created_at"`
@@ -40,13 +40,13 @@ type MenuRepository interface {
 type CreateMenuRepoReq struct {
 	Code      string
 	Name      string
-	Subtitle  string
-	URL       string
-	Path      string
-	Icon      string
+	Subtitle  *string
+	URL       *string
+	Path      *string
+	Icon      *string
 	Sort      int
-	ParentID  uint
-	Ancestors string
+	ParentID  *uint
+	Ancestors *string
 	Visible   bool
 	Enabled   bool
 }
@@ -55,10 +55,10 @@ type CreateMenuRepoReq struct {
 type UpdateMenuRepoReq struct {
 	Code     string
 	Name     string
-	Subtitle string
-	URL      string
-	Path     string
-	Icon     string
+	Subtitle *string
+	URL      *string
+	Path     *string
+	Icon     *string
 	Sort     int
 	Visible  bool
 	Enabled  bool

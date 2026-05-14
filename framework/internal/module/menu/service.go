@@ -126,7 +126,7 @@ func (s *Service) List(ctx context.Context, tenantID uint, req ListMenuReq) ([]M
 	if req.Root {
 		var filtered []Menu
 		for _, m := range menus {
-			if m.ParentID == 0 {
+			if m.ParentID == nil || *m.ParentID == 0 {
 				filtered = append(filtered, m)
 			}
 		}
@@ -166,10 +166,10 @@ func buildTree(menus []Menu) []*MenuResp {
 	var roots []*MenuResp
 	for _, m := range menus {
 		node := nodeMap[m.ID]
-		if m.ParentID == 0 {
+		if m.ParentID == nil || *m.ParentID == 0 {
 			roots = append(roots, node)
 		} else {
-			if parent, ok := nodeMap[m.ParentID]; ok {
+			if parent, ok := nodeMap[*m.ParentID]; ok {
 				parent.Children = append(parent.Children, node)
 			} else {
 				// Parent not found, treat as root
