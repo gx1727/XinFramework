@@ -358,12 +358,13 @@ func (h *Handler) GenerateAvatar(c *gin.Context) {
 
 	resultKey := fmt.Sprintf("flag/%d/%s.png", uc.TenantID, uuid.New().String())
 
-	// 从配置中获取基础URL，而不是硬编码
-	baseURL := config.Get().Storage.CosBaseURL
-	if baseURL == "" {
-		// 如果配置中没有设置，使用默认值
-		baseURL = "https://img.gx1727.com"
-	}
+	baseURL := func() string {
+		if config.Get().Storage.Provider == "cos" {
+			return config.Get().Storage.CosBaseURL
+		}
+		return config.Get().Storage.LocalBaseURL
+	}()
+
 	resultURL := fmt.Sprintf("%s/%s", baseURL, resultKey)
 
 	result := &GenerateResult{
