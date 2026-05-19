@@ -2,6 +2,7 @@ package asset
 
 import (
 	"github.com/gin-gonic/gin"
+	"gx1727.com/xin/framework/internal/core/middleware"
 )
 
 func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *FileHandler) {
@@ -10,9 +11,9 @@ func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *FileHandle
 
 	{
 		// Upload endpoint
-		assetGroup.POST("/upload", h.Upload)
+		assetGroup.POST("/upload", middleware.RequirePermission("asset", "create"), h.Upload)
 
 		// Delete endpoint
-		assetGroup.DELETE("/:id", h.Delete)
+		assetGroup.DELETE("/:id", middleware.RequirePermission("asset", "delete"), h.Delete)
 	}
 }

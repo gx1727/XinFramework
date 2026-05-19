@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
 )
 
@@ -155,14 +156,28 @@ func (r *PostgresAttachmentRepository) Create(ctx context.Context, attachment *A
 	return attachment, nil
 }
 
-func (r *PostgresAttachmentRepository) UpdateStatus(ctx context.Context, id uint, status int8) error {
+func (r *PostgresAttachmentRepository) UpdateStatus(ctx context.Context, id uint, status int8) (err error) {
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	if err != nil {
+		return err
+	}
+	defer func() { err = db.FinishTx(ctx, tx, err) }()
+
 	query := `UPDATE attachments SET status = $1, updated_at = NOW() WHERE id = $2 AND is_deleted = false`
-	_, err := r.db.Exec(ctx, query, status, id)
+	_, err = q.Exec(ctx, query, status, id)
 	return err
 }
 
-func (r *PostgresAttachmentRepository) Delete(ctx context.Context, id uint) error {
+func (r *PostgresAttachmentRepository) Delete(ctx context.Context, id uint) (err error) {
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	if err != nil {
+		return err
+	}
+	defer func() { err = db.FinishTx(ctx, tx, err) }()
+
 	query := `UPDATE attachments SET is_deleted = true, updated_at = NOW() WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+	_, err = q.Exec(ctx, query, id)
 	return err
 }

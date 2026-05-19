@@ -34,7 +34,8 @@ INSERT INTO menus (id, tenant_id, code, name, path, icon, sort, parent_id, ances
 OVERRIDING SYSTEM VALUE VALUES
 (51, 1, 'users', '用户管理', '/users', 'FileIcon',    1, 5, '5.51',  TRUE, TRUE),
 (52, 1, 'roles', '角色管理', '/roles', 'ShieldIcon',  2, 5, '5.52',  TRUE, TRUE),
-(53, 1, 'menus', '菜单管理', '/menus', 'MenuIcon',    3, 5, '5.53',  TRUE, TRUE);
+(53, 1, 'menus', '菜单管理', '/menus', 'MenuIcon',    3, 5, '5.53',  TRUE, TRUE),
+(54, 1, 'resources', '资源管理', '/resources', 'ResourceIcon', 4, 5, '5.54', TRUE, TRUE);
 
 -- 重置序列，确保后续自增ID不冲突
-SELECT setval('menus_id_seq', 200, true);
+SELECT setval('menus_id_seq', 300, true);
