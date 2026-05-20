@@ -145,7 +145,7 @@ func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc Perm
 }
 
 // RequirePermission 创建权限检查中间件 - 检查特定权限
-// 用法: protected.GET("/users", RequirePermission("user", "list"), h.List)
+// 用法: protected.GET("/users", RequirePermission(permission.ResUser, permission.ActList), h.List)
 func RequirePermission(resource, action string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		uc := xinContext.MustNewUserContext(c)

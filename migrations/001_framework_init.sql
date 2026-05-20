@@ -960,3 +960,22 @@ INSERT INTO tenant_user_seq (tenant_id, seq, user_code_format) VALUES (1, 0, 'se
 
 -- 初始化超级管理员角色
 INSERT INTO account_roles (account_id, role_code) VALUES (1, 'super_admin');
+
+
+-- ============================================
+-- 初始化超级权限
+-- ============================================
+
+DO $$
+DECLARE
+    new_res_id BIGINT;
+BEGIN
+    -- 1. 创建代表“所有权限”的超级资源，code和action都设为 *
+    INSERT INTO resources (tenant_id, code, name, action, description, status)
+    VALUES (1, '*', '超级管理员通配权限', '*', '拥有系统所有权限', 1)
+    RETURNING id INTO new_res_id;
+
+    -- 2. 将这个超级资源绑定给 admin 角色 (租户默认是1，admin的role_id也是1)
+    INSERT INTO permissions (tenant_id, role_id, resource_type, resource_id, resource_code)
+    VALUES (1, 1, 'resource', new_res_id, '*');
+END $$;
