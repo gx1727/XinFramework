@@ -3,6 +3,7 @@ package context
 import (
 	"context"
 	"net/http"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/pkg/permission"
@@ -38,6 +39,13 @@ type xinContextKey struct{}
 type userContextKey struct{}
 type userContextLoaderKey struct{}
 
+// userContextWrapper 用于实现懒加载且只执行一次
+type userContextWrapper struct {
+	once   sync.Once
+	uc     *UserContext
+	loader func() *UserContext
+}
+
 func WithXinContext(parent context.Context, xc *XinContext) context.Context {
 	return context.WithValue(parent, xinContextKey{}, xc)
 }
@@ -66,7 +74,8 @@ func WithUserContext(parent context.Context, uc *UserContext) context.Context {
 }
 
 func WithUserContextLoader(parent context.Context, loader func() *UserContext) context.Context {
-	return context.WithValue(parent, userContextLoaderKey{}, loader)
+	wrapper := &userContextWrapper{loader: loader}
+	return context.WithValue(parent, userContextLoaderKey{}, wrapper)
 }
 
 func UserContextFrom(parent context.Context) (*UserContext, bool) {
@@ -76,8 +85,12 @@ func UserContextFrom(parent context.Context) (*UserContext, bool) {
 	}
 
 	// 如果没有实体，看看有没有注册懒加载生成器
-	if loader, ok := parent.Value(userContextLoaderKey{}).(func() *UserContext); ok {
-		return loader(), true
+	if wrapper, ok := parent.Value(userContextLoaderKey{}).(*userContextWrapper); ok {
+		// 使用 sync.Once 确保 loader 只执行一次
+		wrapper.once.Do(func() {
+			wrapper.uc = wrapper.loader()
+		})
+		return wrapper.uc, true
 	}
 
 	return nil, false
@@ -114,41 +127,7 @@ func (u *UserContext) HasPermission(resource, action string) bool {
 
 // GetDataScopeFilter returns SQL WHERE clause and args for data filtering
 func (u *UserContext) GetDataScopeFilter() (string, []any, error) {
-	switch u.DataScope.Type {
-	case permission.DataScopeAll:
-		return "", nil, nil
-	case permission.DataScopeSelf:
-		return "creator_id = $1", []any{u.UserID}, nil
-	case permission.DataScopeCustom:
-		if len(u.DataScope.OrgIDs) == 0 {
-			return "creator_id = $1", []any{u.UserID}, nil
-		}
-		return "org_id = ANY($1)", []any{u.DataScope.OrgIDs}, nil
-	case permission.DataScopeDept:
-		if u.OrgID == 0 {
-			return "creator_id = $1", []any{u.UserID}, nil
-		}
-		return "org_id = $1", []any{u.OrgID}, nil
-	case permission.DataScopeDeptAndBelow:
-		if u.OrgID == 0 {
-			return "creator_id = $1", []any{u.UserID}, nil
-		}
-		// Use CTE to find all descendant org IDs
-		return `
-			org_id = $1
-			OR org_id IN (
-				WITH RECURSIVE org_tree AS (
-					SELECT id FROM organizations WHERE id = $1
-					UNION ALL
-					SELECT o.id FROM organizations o
-					JOIN org_tree ot ON o.parent_id = ot.id
-				)
-				SELECT id FROM org_tree
-			)
-		`, []any{u.OrgID}, nil
-	default:
-		return "creator_id = $1", []any{u.UserID}, nil
-	}
+	return permission.BuildDataScopeSQL(u.DataScope, u.UserID, u.OrgID)
 }
 
 // XinContext getters

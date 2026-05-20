@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
-	"sync"
 
+	"golang.org/x/sync/errgroup"
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
@@ -111,47 +111,7 @@ func (s *PermissionService) BuildDataScopeSQL(ctx context.Context, userID uint) 
 		return "", nil, err
 	}
 
-	switch ds.Type {
-	case permission.DataScopeAll:
-		// No filtering - can see all data
-		return "", nil, nil
-
-	case permission.DataScopeSelf:
-		return "creator_id = $1", []any{userID}, nil
-
-	case permission.DataScopeCustom:
-		if len(ds.OrgIDs) == 0 {
-			return "creator_id = $1", []any{userID}, nil
-		}
-		return "org_id = ANY($1)", []any{ds.OrgIDs}, nil
-
-	case permission.DataScopeDept:
-		if orgID == 0 {
-			return "creator_id = $1", []any{userID}, nil
-		}
-		return "org_id = $1", []any{orgID}, nil
-
-	case permission.DataScopeDeptAndBelow:
-		if orgID == 0 {
-			return "creator_id = $1", []any{userID}, nil
-		}
-		// Use CTE to find all descendant org IDs
-		return `
-			org_id = $1
-			OR org_id IN (
-				WITH RECURSIVE org_tree AS (
-					SELECT id FROM organizations WHERE id = $1
-					UNION ALL
-					SELECT o.id FROM organizations o
-					JOIN org_tree ot ON o.parent_id = ot.id
-				)
-				SELECT id FROM org_tree
-			)
-		`, []any{orgID}, nil
-
-	default:
-		return "creator_id = $1", []any{userID}, nil
-	}
+	return permission.BuildDataScopeSQL(*ds, userID, orgID)
 }
 
 // GetUserOrgID returns the user's organization ID
@@ -161,45 +121,42 @@ func (s *PermissionService) GetUserOrgID(ctx context.Context, userID uint) (int6
 
 // LoadUserSecurityContext loads all permission related data concurrently
 func (s *PermissionService) LoadUserSecurityContext(ctx context.Context, userID uint) (perms map[string]bool, roles []string, dsPtr *permission.DataScope, orgID int64, err error) {
-	var wg sync.WaitGroup
-	var err1, err2, err3, err4 error
+	g, ctx := errgroup.WithContext(ctx)
 
-	wg.Add(4)
-	go func() {
-		defer wg.Done()
-		perms, err1 = s.LoadPermissions(ctx, userID)
-	}()
-	go func() {
-		defer wg.Done()
-		roles, err2 = s.LoadRoles(ctx, userID)
-	}()
-	go func() {
-		defer wg.Done()
-		dsPtr, err3 = s.LoadDataScope(ctx, userID)
-	}()
-	go func() {
-		defer wg.Done()
-		orgID, err4 = s.GetUserOrgID(ctx, userID)
-	}()
+	var (
+		permResult map[string]bool
+		roleResult []string
+		dsResult   *permission.DataScope
+		orgResult  int64
+	)
 
-	wg.Wait()
+	g.Go(func() error {
+		var err error
+		permResult, err = s.LoadPermissions(ctx, userID)
+		return err
+	})
 
-	if err1 != nil {
-		err = err1
-		return
-	}
-	if err2 != nil {
-		err = err2
-		return
-	}
-	if err3 != nil {
-		err = err3
-		return
-	}
-	if err4 != nil {
-		err = err4
-		return
+	g.Go(func() error {
+		var err error
+		roleResult, err = s.LoadRoles(ctx, userID)
+		return err
+	})
+
+	g.Go(func() error {
+		var err error
+		dsResult, err = s.LoadDataScope(ctx, userID)
+		return err
+	})
+
+	g.Go(func() error {
+		var err error
+		orgResult, err = s.GetUserOrgID(ctx, userID)
+		return err
+	})
+
+	if err := g.Wait(); err != nil {
+		return nil, nil, nil, 0, err
 	}
 
-	return
+	return permResult, roleResult, dsResult, orgResult, nil
 }

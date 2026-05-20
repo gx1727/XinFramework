@@ -117,6 +117,54 @@ func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc PermissionSe
 	}
 }
 
+// AuthLite 轻量级认证中间件 - 只验证 Token 和注入 XinContext，不加载权限数据
+// 适用于只需要知道用户身份但不需要权限检查的场景（如公开接口的个性化内容）
+//
+// 注意：虽然 UserContext 采用懒加载且只会加载一次，但 AuthLite 有以下优势：
+// 1. 明确表达“此路由不需要权限”的意图
+// 2. 防止误调用 MustNewUserContext 导致意外加载权限
+// 3. 减少内存占用（不注册 UserContextLoader）
+// 4. 更安全（从根源上杜绝权限数据被访问的可能）
+func AuthLite(cfg *config.JWTConfig, sm session.SessionManager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		claims, err := processAuthToken(c, cfg, sm)
+		if err != nil {
+			if err == jwt.ErrTokenUnverifiable {
+				resp.Unauthorized(c, "unauthorized")
+			} else if err == jwt.ErrTokenExpired {
+				resp.Unauthorized(c, "session expired or revoked")
+			} else {
+				resp.Unauthorized(c, "invalid token")
+			}
+			c.Abort()
+			return
+		}
+
+		// 只注入 XinContext，不注册 UserContextLoader
+		ctx := c.Request.Context()
+		var xc *xinContext.XinContext
+		if existingXc, ok := xinContext.XinContextFrom(ctx); ok {
+			xc = existingXc.Clone()
+			xc.TenantID = claims.TenantID
+			xc.UserID = claims.UserID
+			xc.SessionID = claims.SessionID
+			xc.Role = claims.Role
+		} else {
+			xc = &xinContext.XinContext{
+				TenantID:  claims.TenantID,
+				UserID:    claims.UserID,
+				SessionID: claims.SessionID,
+				Role:      claims.Role,
+			}
+		}
+		ctx = xinContext.WithXinContext(ctx, xc)
+		ctx = xinContext.WithTenantID(ctx, claims.TenantID)
+		c.Request = c.Request.WithContext(ctx)
+
+		c.Next()
+	}
+}
+
 // OptionalAuth 可选认证中间件 - 如果有 Token 则解析并注入上下文，没有或无效也继续执行
 func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc PermissionServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
