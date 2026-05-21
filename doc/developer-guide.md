@@ -603,11 +603,11 @@ func (r *Repository) GetByID(ctx context.Context, id uint) (_ *Model, err error)
     tenantID, _ := xincontext.TenantIDFrom(ctx)
     
     // 获取 Querier（会自动设置 app.tenant_id）
-    ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+    ctx, q, release, err := db.GetTenantQuerier(ctx, r.db, tenantID)
     if err != nil {
         return nil, err
     }
-    defer func() { err = db.FinishTx(ctx, tx, err) }()
+    defer release(&err)
     
     // 执行查询
     var m Model
@@ -620,17 +620,17 @@ func (r *Repository) GetByID(ctx context.Context, id uint) (_ *Model, err error)
 - ✅ 检查 context 中是否有事务
 - ✅ 如果 `tenantID > 0`，自动开启事务并设置 `app.tenant_id`
 - ✅ **触发 PostgreSQL RLS**，确保数据隔离
-- ✅ 通过 `FinishTx` 自动管理事务提交/回滚
+- ✅ 通过 `release` 自动管理事务提交/回滚
 - ✅ 支持命名返回值和 defer 错误处理模式
 
 **实现原理**：
 
 ```go
 // pkg/db/db.go
-func GetTenantQuerier(ctx context.Context, pool *pgxpool.Pool, tenantID uint) (context.Context, Querier, pgx.Tx, error) {
+func GetTenantQuerier(ctx context.Context, pool *pgxpool.Pool, tenantID uint) (context.Context, Querier, func(*error), error) {
     // 1. 检查是否有事务在 context 中
     if tx, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
-        return ctx, tx, nil, nil  // 返回现有事务
+        return ctx, tx, func(*error) {}, nil  // 返回现有事务
     }
     
     // 2. 如果 tenantID > 0，开启事务并设置 app.tenant_id
@@ -640,14 +640,29 @@ func GetTenantQuerier(ctx context.Context, pool *pgxpool.Pool, tenantID uint) (c
             return ctx, nil, nil, err
         }
         ctx = WithTx(ctx, tx)
-        return ctx, tx, tx, nil
+        
+        release := func(opErr *error) {
+            if tx == nil {
+                return
+            }
+            if opErr != nil && *opErr != nil {
+                _ = tx.Rollback(ctx)
+                return
+            }
+            if commitErr := tx.Commit(ctx); commitErr != nil {
+                if opErr != nil {
+                    *opErr = commitErr
+                }
+            }
+        }
+        return ctx, tx, release, nil
     }
     
     // 3. 没有租户 ID，返回全局 Pool
     if pool == nil {
         return ctx, nil, nil, fmt.Errorf("db pool is not initialized")
     }
-    return ctx, pool, nil, nil
+    return ctx, pool, func(*error) {}, nil
 }
 
 // BeginTenantTx 开启事务并设置 app.tenant_id
@@ -668,18 +683,6 @@ func BeginTenantTx(ctx context.Context, pool *pgxpool.Pool, tenantID uint) (pgx.
     
     return tx, nil
 }
-
-// FinishTx 自动提交或回滚事务
-func FinishTx(ctx context.Context, tx pgx.Tx, opErr error) error {
-    if tx == nil {
-        return opErr
-    }
-    if opErr != nil {
-        _ = tx.Rollback(ctx)
-        return opErr
-    }
-    return tx.Commit(ctx)
-}
 ```
 
 **标准写法（带命名返回值）**：
@@ -689,12 +692,12 @@ func (r *PostgresMenuRepository) GetByID(ctx context.Context, id uint) (_ *Menu,
     // 1. 从 context 获取 tenantID
     tenantID, _ := xincontext.TenantIDFrom(ctx)
     
-    // 2. 获取 TenantQuerier
-    ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+    // 获取 TenantQuerier
+    ctx, q, release, err := db.GetTenantQuerier(ctx, r.db, tenantID)
     if err != nil {
         return nil, err
     }
-    defer func() { err = db.FinishTx(ctx, tx, err) }()
+    defer release(&err)
     
     // 3. 执行查询
     var m Menu
@@ -716,9 +719,9 @@ func (r *PostgresMenuRepository) GetByID(ctx context.Context, id uint) (_ *Menu,
 
 **关键点**：
 - 使用命名返回值 `(_ *Menu, err error)`
-- defer 中使用闭包捕获最终错误：`defer func() { err = db.FinishTx(ctx, tx, err) }()`
-- 如果函数执行成功（err == nil），FinishTx 会提交事务
-- 如果函数执行失败（err != nil），FinishTx 会回滚事务
+- defer 中将 `err` 的指针传递给 `release` 函数：`defer release(&err)`
+- 如果函数执行成功（err == nil），release 会提交事务
+- 如果函数执行失败（err != nil），release 会回滚事务
 
 ### 5.3 Repository 模式标准写法
 

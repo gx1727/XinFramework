@@ -3,6 +3,8 @@ package role
 import (
 	"context"
 
+	xincontext "gx1727.com/xin/framework/pkg/context"
+	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
@@ -22,7 +24,13 @@ func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]RoleR
 	if req.Size < 1 {
 		req.Size = 20
 	}
-	roles, total, err := s.roleRepo.List(ctx, tenantID, req.Keyword, req.Page, req.Size)
+	var roles []Role
+	var total int64
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		var err error
+		roles, total, err = s.roleRepo.List(ctx, tenantID, req.Keyword, req.Page, req.Size)
+		return err
+	})
 	if err != nil {
 		return nil, 0, err
 	}
@@ -34,7 +42,13 @@ func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]RoleR
 }
 
 func (s *Service) Get(ctx context.Context, id uint) (*RoleResp, error) {
-	role, err := s.roleRepo.GetByID(ctx, id)
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	var role *Role
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		var err error
+		role, err = s.roleRepo.GetByID(ctx, id)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -46,14 +60,19 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Ro
 	if req.Status == 0 {
 		req.Status = 1
 	}
-	role, err := s.roleRepo.Create(ctx, tenantID, CreateRoleRepoReq{
-		Code:        req.Code,
-		Name:        req.Name,
-		Description: req.Description,
-		DataScope:   req.DataScope,
-		IsDefault:   req.IsDefault,
-		Sort:        req.Sort,
-		Status:      req.Status,
+	var role *Role
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		var err error
+		role, err = s.roleRepo.Create(ctx, tenantID, CreateRoleRepoReq{
+			Code:        req.Code,
+			Name:        req.Name,
+			Description: req.Description,
+			DataScope:   req.DataScope,
+			IsDefault:   req.IsDefault,
+			Sort:        req.Sort,
+			Status:      req.Status,
+		})
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -63,13 +82,19 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Ro
 }
 
 func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*RoleResp, error) {
-	role, err := s.roleRepo.Update(ctx, id, UpdateRoleRepoReq{
-		Name:        req.Name,
-		Description: req.Description,
-		DataScope:   req.DataScope,
-		IsDefault:   req.IsDefault,
-		Sort:        req.Sort,
-		Status:      req.Status,
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	var role *Role
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		var err error
+		role, err = s.roleRepo.Update(ctx, id, UpdateRoleRepoReq{
+			Name:        req.Name,
+			Description: req.Description,
+			DataScope:   req.DataScope,
+			IsDefault:   req.IsDefault,
+			Sort:        req.Sort,
+			Status:      req.Status,
+		})
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -79,18 +104,27 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*RoleResp
 }
 
 func (s *Service) Delete(ctx context.Context, id uint) error {
-	role, err := s.roleRepo.GetByID(ctx, id)
-	if err != nil {
-		return err
-	}
-	if role.Code == "admin" {
-		return ErrCannotDeleteAdmin
-	}
-	return s.roleRepo.Delete(ctx, id)
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		role, err := s.roleRepo.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if role.Code == "admin" {
+			return ErrCannotDeleteAdmin
+		}
+		return s.roleRepo.Delete(ctx, id)
+	})
 }
 
 func (s *Service) GetDataScopes(ctx context.Context, roleID uint) (*DataScopeResp, error) {
-	orgIDs, err := s.dsRepo.GetByRoleID(ctx, roleID)
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	var orgIDs []uint
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		var err error
+		orgIDs, err = s.dsRepo.GetByRoleID(ctx, roleID)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +132,10 @@ func (s *Service) GetDataScopes(ctx context.Context, roleID uint) (*DataScopeRes
 }
 
 func (s *Service) UpdateDataScopes(ctx context.Context, roleID uint, req UpdateDataScopesReq) error {
-	return s.dsRepo.SetForRole(ctx, roleID, req.OrgIDs)
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		return s.dsRepo.SetForRole(ctx, roleID, req.OrgIDs)
+	})
 }
 
 func toResp(r Role) RoleResp {

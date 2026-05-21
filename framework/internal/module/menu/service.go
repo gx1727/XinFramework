@@ -3,6 +3,9 @@ package menu
 import (
 	"context"
 	"errors"
+
+	xincontext "gx1727.com/xin/framework/pkg/context"
+	"gx1727.com/xin/framework/pkg/db"
 )
 
 type Service struct {
@@ -17,7 +20,13 @@ func (s *Service) GetByID(ctx context.Context, id uint) (*MenuResp, error) {
 	if s.menuRepo == nil {
 		return nil, ErrBackendUnavailable
 	}
-	m, err := s.menuRepo.GetByID(ctx, id)
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	var m *Menu
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		var err error
+		m, err = s.menuRepo.GetByID(ctx, id)
+		return err
+	})
 	if err != nil {
 		if errors.Is(err, ErrMenuNotFoundDB) {
 			return nil, ErrMenuNotFound
@@ -55,7 +64,12 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateMenuReq) 
 		Enabled:   enabled,
 	}
 
-	m, err := s.menuRepo.Create(ctx, tenantID, repoReq)
+	var m *Menu
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		var err error
+		m, err = s.menuRepo.Create(ctx, tenantID, repoReq)
+		return err
+	})
 	if err != nil {
 		if err.Error() == "menu code already exists" {
 			return nil, ErrMenuCodeExists
@@ -88,7 +102,13 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateMenuReq) (*Menu
 		repoReq.Enabled = *req.Enabled
 	}
 
-	m, err := s.menuRepo.Update(ctx, id, repoReq)
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	var m *Menu
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		var err error
+		m, err = s.menuRepo.Update(ctx, id, repoReq)
+		return err
+	})
 	if err != nil {
 		if errors.Is(err, ErrMenuNotFoundDB) {
 			return nil, ErrMenuNotFound
@@ -105,7 +125,10 @@ func (s *Service) Delete(ctx context.Context, id uint) error {
 	if s.menuRepo == nil {
 		return ErrBackendUnavailable
 	}
-	err := s.menuRepo.Delete(ctx, id)
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		return s.menuRepo.Delete(ctx, id)
+	})
 	if errors.Is(err, ErrMenuNotFoundDB) {
 		return ErrMenuNotFound
 	}
@@ -117,7 +140,12 @@ func (s *Service) List(ctx context.Context, tenantID uint, req ListMenuReq) ([]M
 		return nil, 0, ErrBackendUnavailable
 	}
 
-	menus, err := s.menuRepo.GetByTenant(ctx, tenantID)
+	var menus []Menu
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		var err error
+		menus, err = s.menuRepo.GetByTenant(ctx, tenantID)
+		return err
+	})
 	if err != nil {
 		return nil, 0, err
 	}
@@ -146,7 +174,12 @@ func (s *Service) Tree(ctx context.Context, tenantID uint) ([]*MenuResp, error) 
 		return nil, ErrBackendUnavailable
 	}
 
-	menus, err := s.menuRepo.GetByTenant(ctx, tenantID)
+	var menus []Menu
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		var err error
+		menus, err = s.menuRepo.GetByTenant(ctx, tenantID)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}

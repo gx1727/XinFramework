@@ -1,14 +1,14 @@
 package user
 
 import (
-	"gx1727.com/xin/framework/internal/module/role"
-
 	"context"
 	"errors"
 	"fmt"
 	"mime/multipart"
 
 	"gx1727.com/xin/framework/internal/module/asset"
+	"gx1727.com/xin/framework/internal/module/role"
+	"gx1727.com/xin/framework/pkg/db"
 )
 
 type Service struct {
@@ -33,14 +33,60 @@ func (s *Service) List(ctx context.Context, tenantID uint, req listRequest) ([]U
 		req.Size = 20
 	}
 
-	users, total, err := s.userRepo.List(ctx, tenantID, req.Keyword, req.Page, req.Size)
+	var result []UserInfo
+	var total int64
+
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		users, t, err := s.userRepo.List(ctx, tenantID, req.Keyword, req.Page, req.Size)
+		if err != nil {
+			return err
+		}
+		total = t
+
+		result = make([]UserInfo, len(users))
+		for i, u := range users {
+			result[i] = UserInfo{
+				ID:       u.ID,
+				TenantID: u.TenantID,
+				Code:     u.Code,
+				Nickname: u.Nickname,
+				RealName: u.RealName,
+				Avatar:   u.Avatar,
+				Phone:    u.Phone,
+				Email:    u.Email,
+			}
+
+			roles, err := s.roleRepo.GetUserRoles(ctx, u.ID)
+			if err == nil && len(roles) > 0 {
+				result[i].Role = roles[0].Code
+			}
+		}
+		return nil
+	})
+
 	if err != nil {
 		return nil, 0, err
 	}
 
-	result := make([]UserInfo, len(users))
-	for i, u := range users {
-		result[i] = UserInfo{
+	return result, total, nil
+}
+
+func (s *Service) Get(ctx context.Context, tenantID, userID uint) (*UserInfo, error) {
+	var info *UserInfo
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		u, err := s.userRepo.GetByID(ctx, userID)
+		if err != nil {
+			if errors.Is(err, ErrUserNotFoundDB) {
+				return ErrUserNotFound
+			}
+			return err
+		}
+
+		if u.TenantID != tenantID {
+			return ErrUserNotFound
+		}
+
+		info = &UserInfo{
 			ID:       u.ID,
 			TenantID: u.TenantID,
 			Code:     u.Code,
@@ -53,117 +99,111 @@ func (s *Service) List(ctx context.Context, tenantID uint, req listRequest) ([]U
 
 		roles, err := s.roleRepo.GetUserRoles(ctx, u.ID)
 		if err == nil && len(roles) > 0 {
-			result[i].Role = roles[0].Code
+			info.Role = roles[0].Code
 		}
-	}
+		return nil
+	})
 
-	return result, total, nil
-}
-
-func (s *Service) Get(ctx context.Context, tenantID, userID uint) (*UserInfo, error) {
-	u, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		if errors.Is(err, ErrUserNotFoundDB) {
-			return nil, ErrUserNotFound
-		}
 		return nil, err
-	}
-
-	if u.TenantID != tenantID {
-		return nil, ErrUserNotFound
-	}
-
-	info := &UserInfo{
-		ID:       u.ID,
-		TenantID: u.TenantID,
-		Code:     u.Code,
-		Nickname: u.Nickname,
-		RealName: u.RealName,
-		Avatar:   u.Avatar,
-		Phone:    u.Phone,
-		Email:    u.Email,
-	}
-
-	roles, err := s.roleRepo.GetUserRoles(ctx, u.ID)
-	if err == nil && len(roles) > 0 {
-		info.Role = roles[0].Code
 	}
 
 	return info, nil
 }
 
 func (s *Service) UpdateStatus(ctx context.Context, tenantID, userID uint, status int8) error {
-	u, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil {
-		return err
-	}
-	if u.TenantID != tenantID {
-		return ErrUserNotFound
-	}
+	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		u, err := s.userRepo.GetByID(ctx, userID)
+		if err != nil {
+			return err
+		}
+		if u.TenantID != tenantID {
+			return ErrUserNotFound
+		}
 
-	if err := s.userRepo.UpdateStatus(ctx, userID, status); err != nil {
-		return fmt.Errorf("update user status: %w", err)
-	}
-	return nil
+		if err := s.userRepo.UpdateStatus(ctx, userID, status); err != nil {
+			return fmt.Errorf("update user status: %w", err)
+		}
+		return nil
+	})
 }
 
 func (s *Service) Profile(ctx context.Context, tenantID, userID uint) (*UserInfo, error) {
-	u, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil {
-		if errors.Is(err, ErrUserNotFoundDB) {
-			return nil, ErrUserNotFound
+	var info *UserInfo
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		u, err := s.userRepo.GetByID(ctx, userID)
+		if err != nil {
+			if errors.Is(err, ErrUserNotFoundDB) {
+				return ErrUserNotFound
+			}
+			return err
 		}
+
+		if u.TenantID != tenantID {
+			return ErrUserNotFound
+		}
+
+		info = &UserInfo{
+			ID:        u.ID,
+			TenantID:  u.TenantID,
+			AccountID: u.AccountID,
+			Code:      u.Code,
+			Nickname:  u.Nickname,
+			RealName:  u.RealName,
+			Avatar:    u.Avatar,
+			Phone:     u.Phone,
+			Email:     u.Email,
+		}
+
+		roles, err := s.roleRepo.GetUserRoles(ctx, u.ID)
+		if err == nil && len(roles) > 0 {
+			info.Role = roles[0].Code
+		}
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
-	}
-
-	if u.TenantID != tenantID {
-		return nil, ErrUserNotFound
-	}
-
-	info := &UserInfo{
-		ID:        u.ID,
-		TenantID:  u.TenantID,
-		AccountID: u.AccountID,
-		Code:      u.Code,
-		Nickname:  u.Nickname,
-		RealName:  u.RealName,
-		Avatar:    u.Avatar,
-		Phone:     u.Phone,
-		Email:     u.Email,
-	}
-
-	roles, err := s.roleRepo.GetUserRoles(ctx, u.ID)
-	if err == nil && len(roles) > 0 {
-		info.Role = roles[0].Code
 	}
 
 	return info, nil
 }
 
 func (s *Service) UploadAvatar(ctx context.Context, tenantID, userID uint, file *multipart.FileHeader) (string, error) {
-	uploadResp, err := s.assetSvc.Upload(ctx, tenantID, userID, file)
+	var url string
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		uploadResp, err := s.assetSvc.Upload(ctx, tenantID, userID, file)
+		if err != nil {
+			return err
+		}
+		url = uploadResp.URL
+
+		if err := s.userRepo.UpdateAvatar(ctx, userID, url); err != nil {
+			return fmt.Errorf("update avatar: %w", err)
+		}
+		return nil
+	})
+
 	if err != nil {
 		return "", err
 	}
 
-	if err := s.userRepo.UpdateAvatar(ctx, userID, uploadResp.URL); err != nil {
-		return "", fmt.Errorf("update avatar: %w", err)
-	}
-
-	return uploadResp.URL, nil
+	return url, nil
 }
 
 func (s *Service) UpdateProfile(ctx context.Context, tenantID, userID uint, nickname, avatar string) error {
-	u, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil {
-		return err
-	}
-	if u.TenantID != tenantID {
-		return ErrUserNotFound
-	}
+	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		u, err := s.userRepo.GetByID(ctx, userID)
+		if err != nil {
+			return err
+		}
+		if u.TenantID != tenantID {
+			return ErrUserNotFound
+		}
 
-	if err := s.userRepo.UpdateProfile(ctx, userID, nickname, avatar); err != nil {
-		return fmt.Errorf("update user profile: %w", err)
-	}
-	return nil
+		if err := s.userRepo.UpdateProfile(ctx, userID, nickname, avatar); err != nil {
+			return fmt.Errorf("update user profile: %w", err)
+		}
+		return nil
+	})
 }

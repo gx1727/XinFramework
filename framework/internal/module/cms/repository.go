@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gx1727.com/xin/framework/pkg/db"
 )
 
 type postgresCmsPostRepository struct {
@@ -16,8 +17,12 @@ func NewCmsPostRepository(db *pgxpool.Pool) CmsPostRepository {
 }
 
 func (r *postgresCmsPostRepository) GetByID(ctx context.Context, id uint) (*CmsPost, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var p CmsPost
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, title, content, status, created_at, updated_at, is_deleted
 		FROM cms_posts
 		WHERE id = $1 AND is_deleted = FALSE
@@ -45,7 +50,11 @@ func (r *postgresCmsPostRepository) List(ctx context.Context, tenantID uint, key
 	}
 
 	var total int64
-	err := r.db.QueryRow(ctx, "SELECT COUNT(*) FROM cms_posts "+where, args...).Scan(&total)
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	err = q.QueryRow(ctx, "SELECT COUNT(*) FROM cms_posts "+where, args...).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("count cms posts: %w", err)
 	}
@@ -65,7 +74,7 @@ func (r *postgresCmsPostRepository) List(ctx context.Context, tenantID uint, key
 	`, where, argIdx, argIdx+1)
 	args = append(args, size, offset)
 
-	rows, err := r.db.Query(ctx, query, args...)
+	rows, err := q.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list cms posts: %w", err)
 	}
@@ -85,8 +94,12 @@ func (r *postgresCmsPostRepository) List(ctx context.Context, tenantID uint, key
 }
 
 func (r *postgresCmsPostRepository) Create(ctx context.Context, tenantID uint, title, content string, status int16) (*CmsPost, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var p CmsPost
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		INSERT INTO cms_posts (tenant_id, title, content, status)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id, tenant_id, title, content, status, created_at, updated_at, is_deleted
@@ -98,7 +111,11 @@ func (r *postgresCmsPostRepository) Create(ctx context.Context, tenantID uint, t
 }
 
 func (r *postgresCmsPostRepository) Update(ctx context.Context, id uint, title, content string, status int16) error {
-	_, err := r.db.Exec(ctx, `
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = q.Exec(ctx, `
 		UPDATE cms_posts
 		SET title = $2, content = $3, status = $4, updated_at = NOW()
 		WHERE id = $1 AND is_deleted = FALSE
@@ -110,7 +127,11 @@ func (r *postgresCmsPostRepository) Update(ctx context.Context, id uint, title, 
 }
 
 func (r *postgresCmsPostRepository) Delete(ctx context.Context, id uint) error {
-	_, err := r.db.Exec(ctx, `
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = q.Exec(ctx, `
 		UPDATE cms_posts SET is_deleted = TRUE, updated_at = NOW()
 		WHERE id = $1
 	`, id)

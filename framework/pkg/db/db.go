@@ -72,66 +72,51 @@ func WithTx(ctx context.Context, tx pgx.Tx) context.Context {
 	return context.WithValue(ctx, txKey{}, tx)
 }
 
-func BeginTenantTx(ctx context.Context, pool *pgxpool.Pool, tenantID uint) (pgx.Tx, error) {
+func RunInTx(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context) error) error {
+	if _, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
+		return fn(ctx)
+	}
+
 	if pool == nil {
-		return nil, fmt.Errorf("db pool is not initialized")
+		return fmt.Errorf("db pool is not initialized")
 	}
 
 	tx, err := pool.Begin(ctx)
 	if err != nil {
-		return nil, err
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	ctx = WithTx(ctx, tx)
+	if err := fn(ctx); err != nil {
+		return err
 	}
 
-	if tenantID > 0 {
-		if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(tenantID))); err != nil {
-			_ = tx.Rollback(ctx)
-			return nil, err
-		}
-	}
-
-	return tx, nil
-}
-
-func GetTenantQuerier(ctx context.Context, pool *pgxpool.Pool, tenantID uint) (context.Context, Querier, pgx.Tx, error) {
-	if tx, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
-		return ctx, tx, nil, nil
-	}
-
-	if tenantID > 0 {
-		tx, err := BeginTenantTx(ctx, pool, tenantID)
-		if err != nil {
-			return ctx, nil, nil, err
-		}
-		ctx = WithTx(ctx, tx)
-		return ctx, tx, tx, nil
-	}
-
-	if pool == nil {
-		return ctx, nil, nil, fmt.Errorf("db pool is not initialized")
-	}
-
-	return ctx, pool, nil, nil
-}
-
-func FinishTx(ctx context.Context, tx pgx.Tx, opErr error) error {
-	if tx == nil {
-		return opErr
-	}
-	if opErr != nil {
-		_ = tx.Rollback(ctx)
-		return opErr
-	}
 	return tx.Commit(ctx)
 }
 
-func GetQuerier(ctx context.Context) (Querier, func(), error) {
+func RunInTenantTx(ctx context.Context, pool *pgxpool.Pool, tenantID uint, fn func(ctx context.Context) error) error {
+	if tenantID == 0 {
+		return fn(ctx)
+	}
+
+	return RunInTx(ctx, pool, func(ctx context.Context) error {
+		tx := ctx.Value(txKey{}).(pgx.Tx)
+		if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(tenantID))); err != nil {
+			return err
+		}
+		return fn(ctx)
+	})
+}
+
+func GetQuerier(ctx context.Context) (Querier, error) {
 	if tx, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
-		return tx, func() {}, nil
+		return tx, nil
 	}
 
 	if Pool == nil {
-		return nil, nil, fmt.Errorf("db pool is not initialized")
+		return nil, fmt.Errorf("db pool is not initialized")
 	}
 
-	return Pool, func() {}, nil
+	return Pool, nil
 }

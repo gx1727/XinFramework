@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gx1727.com/xin/framework/pkg/db"
 )
 
 // PostgresRoleRepository implements RoleRepository
@@ -20,9 +21,13 @@ func NewRoleRepository(db *pgxpool.Pool) RoleRepository {
 }
 
 func (r *PostgresRoleRepository) GetByID(ctx context.Context, id uint) (*Role, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var role Role
 	var extend []byte
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, org_id, code, name, description, data_scope, extend, is_default, sort, status, created_at, updated_at
 		FROM roles
 		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
@@ -42,9 +47,13 @@ func (r *PostgresRoleRepository) GetByID(ctx context.Context, id uint) (*Role, e
 }
 
 func (r *PostgresRoleRepository) GetByCode(ctx context.Context, tenantID uint, code string) (*Role, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var role Role
 	var extend []byte
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, org_id, code, name, description, data_scope, extend, is_default, sort, status, created_at, updated_at
 		FROM roles
 		WHERE is_deleted = FALSE AND tenant_id = $1 AND code = $2`, tenantID, code).Scan(
@@ -64,7 +73,11 @@ func (r *PostgresRoleRepository) GetByCode(ctx context.Context, tenantID uint, c
 }
 
 func (r *PostgresRoleRepository) GetUserRoles(ctx context.Context, userID uint) ([]Role, error) {
-	rows, err := r.db.Query(ctx, `
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := q.Query(ctx, `
 		SELECT r.id, r.tenant_id, r.org_id, r.code, r.name, r.description, r.data_scope, r.extend, r.is_default, r.sort, r.status, r.created_at, r.updated_at
 		FROM roles r
 		JOIN user_roles ur ON ur.role_id = r.id
@@ -93,8 +106,12 @@ func (r *PostgresRoleRepository) GetUserRoles(ctx context.Context, userID uint) 
 }
 
 func (r *PostgresRoleRepository) List(ctx context.Context, tenantID uint, keyword string, page, size int) ([]Role, int64, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
 	offset := (page - 1) * size
-	rows, err := r.db.Query(ctx, `
+	rows, err := q.Query(ctx, `
 		SELECT id, tenant_id, org_id, code, name, description, data_scope, extend, is_default, sort, status, created_at, updated_at
 		FROM roles
 		WHERE is_deleted = FALSE AND tenant_id = $1
@@ -123,7 +140,7 @@ func (r *PostgresRoleRepository) List(ctx context.Context, tenantID uint, keywor
 	}
 
 	var total int64
-	r.db.QueryRow(ctx, `
+	q.QueryRow(ctx, `
 		SELECT COUNT(*) FROM roles
 		WHERE is_deleted = FALSE AND tenant_id = $1
 		AND ($2 = '' OR (code ILIKE '%' || $2 || '%' OR name ILIKE '%' || $2 || '%'))`,
@@ -133,9 +150,13 @@ func (r *PostgresRoleRepository) List(ctx context.Context, tenantID uint, keywor
 }
 
 func (r *PostgresRoleRepository) Create(ctx context.Context, tenantID uint, req CreateRoleRepoReq) (*Role, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var role Role
 	var extend []byte
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		INSERT INTO roles (tenant_id, code, name, description, data_scope, is_default, sort, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, tenant_id, org_id, code, name, description, data_scope, extend, is_default, sort, status, created_at, updated_at
@@ -153,9 +174,13 @@ func (r *PostgresRoleRepository) Create(ctx context.Context, tenantID uint, req 
 }
 
 func (r *PostgresRoleRepository) Update(ctx context.Context, id uint, req UpdateRoleRepoReq) (*Role, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var role Role
 	var extend []byte
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		UPDATE roles SET name = $1, description = $2, data_scope = $3, is_default = $4, sort = $5, status = $6, updated_at = NOW()
 		WHERE id = $7 AND is_deleted = FALSE
 		RETURNING id, tenant_id, org_id, code, name, description, data_scope, extend, is_default, sort, status, created_at, updated_at
@@ -176,7 +201,11 @@ func (r *PostgresRoleRepository) Update(ctx context.Context, id uint, req Update
 }
 
 func (r *PostgresRoleRepository) Delete(ctx context.Context, id uint) error {
-	_, err := r.db.Exec(ctx, `UPDATE roles SET is_deleted = TRUE, updated_at = NOW() WHERE id = $1`, id)
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = q.Exec(ctx, `UPDATE roles SET is_deleted = TRUE, updated_at = NOW() WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete role: %w", err)
 	}

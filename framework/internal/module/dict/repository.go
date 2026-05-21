@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gx1727.com/xin/framework/pkg/db"
 	dictpkg "gx1727.com/xin/framework/pkg/dict"
 )
 
@@ -24,9 +25,13 @@ type DictCreate struct {
 }
 
 func (r *DictRepository) Create(ctx context.Context, tenantID uint, req DictCreate) (*dictpkg.Dict, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
 	extendJSON, _ := json.Marshal(req.Extend)
 	var d dictpkg.Dict
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		INSERT INTO dicts (tenant_id, code, name, extend)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id, tenant_id, code, name, extend
@@ -42,8 +47,12 @@ func (r *DictRepository) Create(ctx context.Context, tenantID uint, req DictCrea
 }
 
 func (r *DictRepository) Update(ctx context.Context, tenantID uint, id uint, name string, extend map[string]interface{}) error {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return err
+	}
 	extendJSON, _ := json.Marshal(extend)
-	_, err := r.db.Exec(ctx, `
+	_, err = q.Exec(ctx, `
 		UPDATE dicts SET name = $1, extend = $2, updated_at = NOW()
 		WHERE id = $3 AND tenant_id = $4 AND is_deleted = FALSE
 	`, name, extendJSON, id, tenantID)
@@ -55,7 +64,11 @@ func (r *DictRepository) Update(ctx context.Context, tenantID uint, id uint, nam
 }
 
 func (r *DictRepository) Delete(ctx context.Context, tenantID uint, id uint) error {
-	_, err := r.db.Exec(ctx, `
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = q.Exec(ctx, `
 		UPDATE dicts SET is_deleted = TRUE, updated_at = NOW()
 		WHERE id = $1 AND tenant_id = $2
 	`, id, tenantID)
@@ -74,9 +87,13 @@ type DictItemCreate struct {
 }
 
 func (r *DictRepository) CreateItem(ctx context.Context, tenantID uint, dictID uint, req DictItemCreate) (*dictpkg.DictItem, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
 	extendJSON, _ := json.Marshal(req.Extend)
 	var item dictpkg.DictItem
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		INSERT INTO dict_items (tenant_id, dict_id, code, name, sort, extend)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, code, name, sort, extend
@@ -92,8 +109,12 @@ func (r *DictRepository) CreateItem(ctx context.Context, tenantID uint, dictID u
 }
 
 func (r *DictRepository) UpdateItem(ctx context.Context, tenantID uint, id uint, name string, sort int, extend map[string]interface{}) error {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return err
+	}
 	extendJSON, _ := json.Marshal(extend)
-	_, err := r.db.Exec(ctx, `
+	_, err = q.Exec(ctx, `
 		UPDATE dict_items SET name = $1, sort = $2, extend = $3, updated_at = NOW()
 		WHERE id = $4 AND tenant_id = $5 AND is_deleted = FALSE
 	`, name, sort, extendJSON, id, tenantID)
@@ -105,7 +126,11 @@ func (r *DictRepository) UpdateItem(ctx context.Context, tenantID uint, id uint,
 }
 
 func (r *DictRepository) DeleteItem(ctx context.Context, tenantID uint, id uint) error {
-	_, err := r.db.Exec(ctx, `
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = q.Exec(ctx, `
 		UPDATE dict_items SET is_deleted = TRUE, updated_at = NOW()
 		WHERE id = $1 AND tenant_id = $2
 	`, id, tenantID)
@@ -117,7 +142,11 @@ func (r *DictRepository) DeleteItem(ctx context.Context, tenantID uint, id uint)
 }
 
 func (r *DictRepository) List(ctx context.Context, tenantID uint) ([]dictpkg.Dict, int64, error) {
-	rows, err := r.db.Query(ctx, `
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	rows, err := q.Query(ctx, `
 		SELECT id, tenant_id, code, name, extend
 		FROM dicts
 		WHERE tenant_id = $1 AND is_deleted = FALSE
@@ -143,15 +172,19 @@ func (r *DictRepository) List(ctx context.Context, tenantID uint) ([]dictpkg.Dic
 	}
 
 	var total int64
-	r.db.QueryRow(ctx, "SELECT COUNT(*) FROM dicts WHERE tenant_id = $1 AND is_deleted = FALSE", tenantID).Scan(&total)
+	q.QueryRow(ctx, "SELECT COUNT(*) FROM dicts WHERE tenant_id = $1 AND is_deleted = FALSE", tenantID).Scan(&total)
 
 	return list, total, nil
 }
 
 func (r *DictRepository) GetByCode(ctx context.Context, tenantID uint, code string) (*dictpkg.Dict, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var d dictpkg.Dict
 	var extendJSON []byte
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, code, name, extend
 		FROM dicts
 		WHERE tenant_id = $1 AND code = $2 AND is_deleted = FALSE

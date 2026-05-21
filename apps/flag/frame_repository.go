@@ -7,7 +7,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
 )
 
@@ -21,12 +20,10 @@ func NewFrameRepository(pool *pgxpool.Pool) *FrameRepository {
 }
 
 func (r *FrameRepository) List(ctx context.Context, categoryID uint, page, size int) (_ []Frame, _ int64, err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	where := "WHERE is_deleted = FALSE"
 	args := []interface{}{}
@@ -83,12 +80,10 @@ func (r *FrameRepository) List(ctx context.Context, categoryID uint, page, size 
 }
 
 func (r *FrameRepository) GetByID(ctx context.Context, id uint) (_ *Frame, err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	var f Frame
 	var description, previewURL, templateURL, templateConfig *string
@@ -122,15 +117,10 @@ func (r *FrameRepository) GetByID(ctx context.Context, id uint) (_ *Frame, err e
 }
 
 func (r *FrameRepository) Create(ctx context.Context, frame *Frame) (_ *Frame, err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	if frame.TenantID > 0 {
-		tenantID = frame.TenantID
-	}
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	var f Frame
 	var description, previewURL, templateURL, templateConfig *string
@@ -164,15 +154,10 @@ func (r *FrameRepository) Create(ctx context.Context, frame *Frame) (_ *Frame, e
 }
 
 func (r *FrameRepository) Update(ctx context.Context, frame *Frame) (err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	if frame.TenantID > 0 {
-		tenantID = frame.TenantID
-	}
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	tag, err := q.Exec(ctx, `
 		UPDATE flag_frames SET
@@ -192,12 +177,10 @@ func (r *FrameRepository) Update(ctx context.Context, frame *Frame) (err error) 
 }
 
 func (r *FrameRepository) Delete(ctx context.Context, id uint) (err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	tag, err := q.Exec(ctx, `
 		UPDATE flag_frames SET is_deleted = TRUE, updated_at = NOW()

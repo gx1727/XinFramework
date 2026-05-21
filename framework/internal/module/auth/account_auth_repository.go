@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gx1727.com/xin/framework/pkg/db"
 )
 
 // PostgresAccountAuthRepository implements AccountAuthRepository
@@ -19,8 +20,13 @@ func NewAccountAuthRepository(db *pgxpool.Pool) AccountAuthRepository {
 }
 
 func (r *PostgresAccountAuthRepository) GetByOpenID(ctx context.Context, tenantID uint, authType, openID string) (*AccountAuth, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var a AccountAuth
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, account_id, type, openid, unionid, nickname, avatar, session_key, created_at, updated_at
 		FROM account_auths
 		WHERE is_deleted = FALSE AND tenant_id = $1 AND type = $2 AND openid = $3`, tenantID, authType, openID).Scan(
@@ -37,7 +43,12 @@ func (r *PostgresAccountAuthRepository) GetByOpenID(ctx context.Context, tenantI
 }
 
 func (r *PostgresAccountAuthRepository) GetByAccountID(ctx context.Context, accountID uint) ([]AccountAuth, error) {
-	rows, err := r.db.Query(ctx, `
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := q.Query(ctx, `
 		SELECT id, tenant_id, account_id, type, openid, unionid, nickname, avatar, session_key, created_at, updated_at
 		FROM account_auths
 		WHERE is_deleted = FALSE AND account_id = $1`, accountID)
@@ -61,8 +72,13 @@ func (r *PostgresAccountAuthRepository) GetByAccountID(ctx context.Context, acco
 }
 
 func (r *PostgresAccountAuthRepository) Create(ctx context.Context, tenantID, accountID uint, authType, openID, unionID, sessionKey string) (*AccountAuth, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var a AccountAuth
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		INSERT INTO account_auths (tenant_id, account_id, type, openid, unionid, session_key)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, tenant_id, account_id, type, openid, unionid, nickname, avatar, session_key, created_at, updated_at`,
@@ -77,7 +93,12 @@ func (r *PostgresAccountAuthRepository) Create(ctx context.Context, tenantID, ac
 }
 
 func (r *PostgresAccountAuthRepository) UpdateSessionKey(ctx context.Context, id uint, sessionKey string) error {
-	tag, err := r.db.Exec(ctx, `
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return err
+	}
+
+	tag, err := q.Exec(ctx, `
 		UPDATE account_auths SET session_key = $2, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id, sessionKey)
 	if err != nil {
@@ -90,7 +111,12 @@ func (r *PostgresAccountAuthRepository) UpdateSessionKey(ctx context.Context, id
 }
 
 func (r *PostgresAccountAuthRepository) Delete(ctx context.Context, id uint) error {
-	tag, err := r.db.Exec(ctx, `
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return err
+	}
+
+	tag, err := q.Exec(ctx, `
 		UPDATE account_auths SET is_deleted = TRUE, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id)
 	if err != nil {

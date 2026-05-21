@@ -7,7 +7,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
 )
 
@@ -21,12 +20,10 @@ func NewAvatarCategoryRepository(pool *pgxpool.Pool) *AvatarCategoryRepository {
 }
 
 func (r *AvatarCategoryRepository) List(ctx context.Context) (_ []AvatarCategory, err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	rows, err := q.Query(ctx, `
 		SELECT id, tenant_id, code, name, icon, type, sort, status
@@ -54,15 +51,10 @@ func (r *AvatarCategoryRepository) List(ctx context.Context) (_ []AvatarCategory
 }
 
 func (r *AvatarCategoryRepository) Create(ctx context.Context, c *AvatarCategory) (_ *AvatarCategory, err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	if c.TenantID > 0 {
-		tenantID = c.TenantID
-	}
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	var result AvatarCategory
 	var icon *string
@@ -87,15 +79,10 @@ func (r *AvatarCategoryRepository) Create(ctx context.Context, c *AvatarCategory
 }
 
 func (r *AvatarCategoryRepository) Update(ctx context.Context, c *AvatarCategory) (err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	if c.TenantID > 0 {
-		tenantID = c.TenantID
-	}
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	tag, err := q.Exec(ctx, `
 		UPDATE flag_avatar_categories SET code = $2, name = $3, icon = $4, type = $5, sort = $6, status = $7, updated_at = NOW()
@@ -115,14 +102,12 @@ func (r *AvatarCategoryRepository) Update(ctx context.Context, c *AvatarCategory
 }
 
 func (r *AvatarCategoryRepository) Delete(ctx context.Context, id uint) (err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
-	_, err = tx.Exec(ctx, "SELECT set_config('app.show_deleted', $1, true)", "true")
+	_, err = q.Exec(ctx, "SELECT set_config('app.show_deleted', $1, true)", "true")
 	if err != nil {
 		return err
 	}

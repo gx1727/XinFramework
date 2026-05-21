@@ -7,7 +7,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
 )
 
@@ -20,11 +19,10 @@ func NewAttachmentRepository(db *pgxpool.Pool) *PostgresAttachmentRepository {
 }
 
 func (r *PostgresAttachmentRepository) GetByID(ctx context.Context, id uint) (*Attachment, error) {
-	q, release, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer release()
 
 	query := `
 		SELECT id, tenant_id, user_id, file_name, file_ext, mime_type, file_size, storage, object_key, url, hash, status, created_at, updated_at, is_deleted
@@ -62,12 +60,11 @@ func (r *PostgresAttachmentRepository) GetByID(ctx context.Context, id uint) (*A
 	return &attachment, nil
 }
 
-func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID uint, hash string) (_ *Attachment, err error) {
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID uint, hash string) (*Attachment, error) {
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	query := `
 		SELECT id, tenant_id, user_id, file_name, file_ext, mime_type, file_size, storage, object_key, url, hash, status, created_at, updated_at, is_deleted
@@ -106,12 +103,11 @@ func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID u
 	return &attachment, nil
 }
 
-func (r *PostgresAttachmentRepository) Create(ctx context.Context, attachment *Attachment) (_ *Attachment, err error) {
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, attachment.TenantID)
+func (r *PostgresAttachmentRepository) Create(ctx context.Context, attachment *Attachment) (*Attachment, error) {
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	query := `
 		INSERT INTO attachments (tenant_id, user_id, file_name, file_ext, mime_type, file_size, storage, object_key, url, hash, status, created_at, updated_at, is_deleted)
@@ -156,26 +152,22 @@ func (r *PostgresAttachmentRepository) Create(ctx context.Context, attachment *A
 	return attachment, nil
 }
 
-func (r *PostgresAttachmentRepository) UpdateStatus(ctx context.Context, id uint, status int8) (err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+func (r *PostgresAttachmentRepository) UpdateStatus(ctx context.Context, id uint, status int8) error {
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	query := `UPDATE attachments SET status = $1, updated_at = NOW() WHERE id = $2 AND is_deleted = false`
 	_, err = q.Exec(ctx, query, status, id)
 	return err
 }
 
-func (r *PostgresAttachmentRepository) Delete(ctx context.Context, id uint) (err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+func (r *PostgresAttachmentRepository) Delete(ctx context.Context, id uint) error {
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	query := `UPDATE attachments SET is_deleted = true, updated_at = NOW() WHERE id = $1`
 	_, err = q.Exec(ctx, query, id)

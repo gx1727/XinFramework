@@ -1,16 +1,12 @@
 package auth
 
 import (
-	"gx1727.com/xin/framework/internal/module/tenant"
-
 	"gx1727.com/xin/framework/internal/module/role"
-
+	"gx1727.com/xin/framework/internal/module/tenant"
 	"gx1727.com/xin/framework/internal/module/user"
 
 	"context"
 	"errors"
-	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -38,71 +34,71 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 		return nil, ErrTenantRequired
 	}
 
-	tx, err := d.Begin(ctx)
-	if err != nil {
-		return nil, ErrRegisterFailed
-	}
-	defer tx.Rollback(ctx)
+	var identity LoginIdentity
 
-	ctx = db.WithTx(ctx, tx)
-
-	_, err = tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(tenantID)))
-	if err != nil {
-		return nil, fmt.Errorf("set tenant_id: %w", err)
-	}
-
-	var accID uint
-	var password string
-	err = tx.QueryRow(ctx, `
-		SELECT id, password
-		FROM accounts
-		WHERE username = $1 OR phone = $1 OR email = $1
-		LIMIT 1`, account).Scan(&accID, &password)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errAccountNotFound
+	err := db.RunInTenantTx(ctx, d, tenantID, func(ctx context.Context) error {
+		querier, err := db.GetQuerier(ctx)
+		if err != nil {
+			return err
 		}
+
+		var accID uint
+		var password string
+		err = querier.QueryRow(ctx, `
+			SELECT id, password
+			FROM accounts
+			WHERE username = $1 OR phone = $1 OR email = $1
+			LIMIT 1`, account).Scan(&accID, &password)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return errAccountNotFound
+			}
+			return err
+		}
+
+		var uID uint
+		var uTenantID uint
+		var uCode string
+		var uStatus int16
+		err = querier.QueryRow(ctx, `
+			SELECT id, tenant_id, code, status
+			FROM users
+			WHERE account_id = $1
+			ORDER BY id ASC LIMIT 1`, accID).Scan(&uID, &uTenantID, &uCode, &uStatus)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return errTenantBindingNotFound
+			}
+			return err
+		}
+
+		roleCode := "user"
+		err = querier.QueryRow(ctx, `
+			SELECT r.code
+			FROM user_roles ur
+			JOIN roles r ON r.id = ur.role_id
+			WHERE ur.user_id = $1
+			ORDER BY ur.id ASC LIMIT 1`, uID).Scan(&roleCode)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			// ignore role not found
+		}
+
+		identity = LoginIdentity{
+			UserID:       uID,
+			TenantID:     uTenantID,
+			UserCode:     uCode,
+			UserStatus:   uStatus,
+			RoleCode:     roleCode,
+			PasswordHash: password,
+		}
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
 	}
 
-	var uID uint
-	var uTenantID uint
-	var uCode string
-	var uStatus int16
-	err = tx.QueryRow(ctx, `
-		SELECT id, tenant_id, code, status
-		FROM users
-		WHERE account_id = $1
-		ORDER BY id ASC LIMIT 1`, accID).Scan(&uID, &uTenantID, &uCode, &uStatus)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errTenantBindingNotFound
-		}
-		return nil, err
-	}
-
-	roleCode := "user"
-	err = tx.QueryRow(ctx, `
-		SELECT r.code
-		FROM user_roles ur
-		JOIN roles r ON r.id = ur.role_id
-		WHERE ur.user_id = $1
-		ORDER BY ur.id ASC LIMIT 1`, uID).Scan(&roleCode)
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return nil, ErrRegisterFailed
-	}
-
-	return &LoginIdentity{
-		UserID:       uID,
-		TenantID:     uTenantID,
-		UserCode:     uCode,
-		UserStatus:   uStatus,
-		RoleCode:     roleCode,
-		PasswordHash: password,
-	}, nil
+	return &identity, nil
 }
 
 type Service struct {
@@ -241,84 +237,83 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 		return nil, ErrBackendUnavailable
 	}
 
-	exists, err := s.accountRepo.Exists(ctx, req.Account)
-	if err != nil {
-		return nil, ErrRegisterFailed
-	}
-	if exists {
-		return nil, ErrAccountAlreadyExists
-	}
-
-	t, err := s.tenantRepo.GetByID(ctx, req.TenantID)
-	if err != nil {
-		if errors.Is(err, tenant.ErrTenantNotFoundDB) {
-			return nil, ErrTenantNotFound
-		}
-		return nil, ErrRegisterFailed
-	}
-	if t.Status != 1 {
-		return nil, ErrTenantNotFound
-	}
-
-	passwordHash, err := HashPassword(req.Password)
-	if err != nil {
-		return nil, ErrRegisterFailed
-	}
-
-	var newAccountID uint
 	var newUserID uint
 	var newUserCode string
 
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		return nil, ErrRegisterFailed
-	}
-	defer tx.Rollback(ctx)
+	err := db.RunInTenantTx(ctx, s.db, req.TenantID, func(ctx context.Context) error {
+		exists, err := s.accountRepo.Exists(ctx, req.Account)
+		if err != nil {
+			return ErrRegisterFailed
+		}
+		if exists {
+			return ErrAccountAlreadyExists
+		}
 
-	ctx = db.WithTx(ctx, tx)
+		t, err := s.tenantRepo.GetByID(ctx, req.TenantID)
+		if err != nil {
+			if errors.Is(err, tenant.ErrTenantNotFoundDB) {
+				return ErrTenantNotFound
+			}
+			return ErrRegisterFailed
+		}
+		if t.Status != 1 {
+			return ErrTenantNotFound
+		}
 
-	_, err = tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(req.TenantID)))
-	if err != nil {
-		return nil, fmt.Errorf("set tenant_id: %w", err)
-	}
+		passwordHash, err := HashPassword(req.Password)
+		if err != nil {
+			return ErrRegisterFailed
+		}
 
-	newAccount, err := s.accountRepo.Create(ctx, req.Account, req.Account, req.Account, req.RealName, passwordHash)
-	if err != nil {
-		return nil, ErrRegisterFailed
-	}
-	newAccountID = newAccount.ID
+		newAccount, err := s.accountRepo.Create(ctx, req.Account, req.Account, req.Account, req.RealName, passwordHash)
+		if err != nil {
+			return ErrRegisterFailed
+		}
 
-	newUserCode, err = generateUserCode(ctx, tx, req.TenantID, UserCodeFormatSequential)
-	if err != nil {
-		return nil, ErrRegisterFailed
-	}
-	err = tx.QueryRow(ctx, `
-		INSERT INTO users (tenant_id, account_id, code, status)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id`, req.TenantID, newAccountID, newUserCode, 1).Scan(&newUserID)
-	if err != nil {
-		return nil, ErrRegisterFailed
-	}
+		querier, err := db.GetQuerier(ctx)
+		if err != nil {
+			return ErrRegisterFailed
+		}
+		tx, ok := querier.(pgx.Tx)
+		if !ok {
+			return ErrRegisterFailed
+		}
 
-	var roleID uint
-	err = tx.QueryRow(ctx, `
-		SELECT id FROM roles
-		WHERE is_deleted = FALSE AND tenant_id = $1 AND is_default = TRUE
-		LIMIT 1
-	`, req.TenantID).Scan(&roleID)
-	if err != nil {
-		return nil, ErrDefaultRoleNotFound
-	}
+		newUserCode, err = generateUserCode(ctx, tx, req.TenantID, UserCodeFormatSequential)
+		if err != nil {
+			return ErrRegisterFailed
+		}
 
-	_, err = tx.Exec(ctx, `
-		INSERT INTO user_roles (tenant_id, user_id, role_id)
-		VALUES ($1, $2, $3)`, req.TenantID, newUserID, roleID)
-	if err != nil {
-		return nil, ErrRegisterFailed
-	}
+		err = querier.QueryRow(ctx, `
+			INSERT INTO users (tenant_id, account_id, code, status)
+			VALUES ($1, $2, $3, $4)
+			RETURNING id`, req.TenantID, newAccount.ID, newUserCode, 1).Scan(&newUserID)
+		if err != nil {
+			return ErrRegisterFailed
+		}
 
-	if err := tx.Commit(ctx); err != nil {
-		return nil, ErrRegisterFailed
+		var roleID uint
+		err = querier.QueryRow(ctx, `
+			SELECT id FROM roles
+			WHERE is_deleted = FALSE AND tenant_id = $1 AND is_default = TRUE
+			LIMIT 1
+		`, req.TenantID).Scan(&roleID)
+		if err != nil {
+			return ErrDefaultRoleNotFound
+		}
+
+		_, err = querier.Exec(ctx, `
+			INSERT INTO user_roles (tenant_id, user_id, role_id)
+			VALUES ($1, $2, $3)`, req.TenantID, newUserID, roleID)
+		if err != nil {
+			return ErrRegisterFailed
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
 	tokens, err := s.generateTokens(ctx, newUserID, req.TenantID, "user")

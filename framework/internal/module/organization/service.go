@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	xincontext "gx1727.com/xin/framework/pkg/context"
+	"gx1727.com/xin/framework/pkg/db"
 )
 
 type Service struct {
@@ -16,13 +19,17 @@ func NewService(orgRepo OrganizationRepository) *Service {
 
 func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]OrgResp, int64, error) {
 	var orgs []Organization
-	var err error
 
-	if req.ParentID > 0 {
-		orgs, err = s.orgRepo.GetChildren(ctx, req.ParentID)
-	} else {
-		orgs, err = s.orgRepo.GetByTenant(ctx, tenantID)
-	}
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		var err error
+		if req.ParentID > 0 {
+			orgs, err = s.orgRepo.GetChildren(ctx, req.ParentID)
+		} else {
+			orgs, err = s.orgRepo.GetByTenant(ctx, tenantID)
+		}
+		return err
+	})
+
 	if err != nil {
 		return nil, 0, err
 	}
@@ -42,7 +49,13 @@ func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]OrgRe
 }
 
 func (s *Service) Get(ctx context.Context, id uint) (*OrgResp, error) {
-	org, err := s.orgRepo.GetByID(ctx, id)
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	var org *Organization
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		var err error
+		org, err = s.orgRepo.GetByID(ctx, id)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -55,26 +68,32 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Or
 		req.Status = 1
 	}
 
-	// Build ancestors path
-	ancestors := fmt.Sprintf("%d", req.ParentID)
-	if req.ParentID > 0 {
-		parent, err := s.orgRepo.GetByID(ctx, req.ParentID)
-		if err == nil && parent.Ancestors != "" {
-			ancestors = parent.Ancestors + "." + ancestors
+	var org *Organization
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		// Build ancestors path
+		ancestors := fmt.Sprintf("%d", req.ParentID)
+		if req.ParentID > 0 {
+			parent, err := s.orgRepo.GetByID(ctx, req.ParentID)
+			if err == nil && parent.Ancestors != "" {
+				ancestors = parent.Ancestors + "." + ancestors
+			}
 		}
-	}
 
-	org, err := s.orgRepo.Create(ctx, tenantID, CreateOrgRepoReq{
-		Code:        req.Code,
-		Name:        req.Name,
-		Type:        req.Type,
-		Description: req.Description,
-		AdminCode:   req.AdminCode,
-		ParentID:    req.ParentID,
-		Ancestors:   ancestors,
-		Sort:        req.Sort,
-		Status:      req.Status,
+		var err error
+		org, err = s.orgRepo.Create(ctx, tenantID, CreateOrgRepoReq{
+			Code:        req.Code,
+			Name:        req.Name,
+			Type:        req.Type,
+			Description: req.Description,
+			AdminCode:   req.AdminCode,
+			ParentID:    req.ParentID,
+			Ancestors:   ancestors,
+			Sort:        req.Sort,
+			Status:      req.Status,
+		})
+		return err
 	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -83,13 +102,19 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Or
 }
 
 func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*OrgResp, error) {
-	org, err := s.orgRepo.Update(ctx, id, UpdateOrgRepoReq{
-		Name:        req.Name,
-		Type:        req.Type,
-		Description: req.Description,
-		AdminCode:   req.AdminCode,
-		Sort:        req.Sort,
-		Status:      req.Status,
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	var org *Organization
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		var err error
+		org, err = s.orgRepo.Update(ctx, id, UpdateOrgRepoReq{
+			Name:        req.Name,
+			Type:        req.Type,
+			Description: req.Description,
+			AdminCode:   req.AdminCode,
+			Sort:        req.Sort,
+			Status:      req.Status,
+		})
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -99,18 +124,26 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*OrgResp,
 }
 
 func (s *Service) Delete(ctx context.Context, id uint) error {
-	org, err := s.orgRepo.GetByID(ctx, id)
-	if err != nil {
-		return err
-	}
-	if org.ParentID == 0 {
-		return ErrCannotDeleteRoot
-	}
-	return s.orgRepo.Delete(ctx, id)
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		org, err := s.orgRepo.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if org.ParentID == 0 {
+			return ErrCannotDeleteRoot
+		}
+		return s.orgRepo.Delete(ctx, id)
+	})
 }
 
 func (s *Service) GetTree(ctx context.Context, tenantID uint) ([]OrgResp, error) {
-	orgs, err := s.orgRepo.GetTree(ctx, tenantID)
+	var orgs []Organization
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		var err error
+		orgs, err = s.orgRepo.GetTree(ctx, tenantID)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}

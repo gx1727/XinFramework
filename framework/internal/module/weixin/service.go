@@ -23,6 +23,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/config"
+	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 )
@@ -514,7 +515,10 @@ func (s *Service) UpdatePhoneByWeChat(ctx context.Context, userID uint, code str
 		phone = phoneResp.PhoneInfo.PhoneNumber
 	}
 
-	err = s.userRepo.UpdatePhone(ctx, userID, phone)
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	err = db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		return s.userRepo.UpdatePhone(ctx, userID, phone)
+	})
 	if err != nil {
 		return "", err
 	}

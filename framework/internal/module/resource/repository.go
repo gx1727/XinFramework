@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gx1727.com/xin/framework/pkg/db"
 )
 
 type PostgresResourceRepository struct {
@@ -19,8 +20,12 @@ func NewResourceRepository(db *pgxpool.Pool) ResourceRepository {
 }
 
 func (r *PostgresResourceRepository) GetByID(ctx context.Context, id uint) (*Resource, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var res Resource
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
 		FROM resources
 		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
@@ -37,8 +42,12 @@ func (r *PostgresResourceRepository) GetByID(ctx context.Context, id uint) (*Res
 }
 
 func (r *PostgresResourceRepository) GetByCode(ctx context.Context, tenantID uint, code string) (*Resource, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var res Resource
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
 		FROM resources
 		WHERE is_deleted = FALSE AND tenant_id = $1 AND code = $2`, tenantID, code).Scan(
@@ -55,7 +64,11 @@ func (r *PostgresResourceRepository) GetByCode(ctx context.Context, tenantID uin
 }
 
 func (r *PostgresResourceRepository) GetByTenant(ctx context.Context, tenantID uint) ([]Resource, error) {
-	rows, err := r.db.Query(ctx, `
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := q.Query(ctx, `
 		SELECT id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
 		FROM resources
 		WHERE is_deleted = FALSE AND tenant_id = $1
@@ -80,7 +93,11 @@ func (r *PostgresResourceRepository) GetByTenant(ctx context.Context, tenantID u
 }
 
 func (r *PostgresResourceRepository) GetByMenu(ctx context.Context, menuID uint) ([]Resource, error) {
-	rows, err := r.db.Query(ctx, `
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := q.Query(ctx, `
 		SELECT id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
 		FROM resources
 		WHERE is_deleted = FALSE AND menu_id = $1
@@ -105,7 +122,11 @@ func (r *PostgresResourceRepository) GetByMenu(ctx context.Context, menuID uint)
 }
 
 func (r *PostgresResourceRepository) GetUserResources(ctx context.Context, tenantID, userID uint) ([]Resource, error) {
-	rows, err := r.db.Query(ctx, `
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := q.Query(ctx, `
 		SELECT DISTINCT r.id, r.tenant_id, r.menu_id, r.code, r.name, r.action, r.description, r.sort, r.status, r.created_at, r.updated_at
 		FROM resources r
 		JOIN permissions p ON p.resource_type = 'resource' AND p.resource_code = r.code
@@ -132,8 +153,12 @@ func (r *PostgresResourceRepository) GetUserResources(ctx context.Context, tenan
 }
 
 func (r *PostgresResourceRepository) Create(ctx context.Context, tenantID uint, req CreateResourceRepoReq) (*Resource, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var res Resource
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		INSERT INTO resources (tenant_id, menu_id, code, name, action, description, sort, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
@@ -151,8 +176,12 @@ func (r *PostgresResourceRepository) Create(ctx context.Context, tenantID uint, 
 }
 
 func (r *PostgresResourceRepository) Update(ctx context.Context, id uint, req UpdateResourceRepoReq) (*Resource, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var res Resource
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		UPDATE resources SET name = $2, action = $3, description = $4, sort = $5, status = $6, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1
 		RETURNING id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
@@ -170,7 +199,11 @@ func (r *PostgresResourceRepository) Update(ctx context.Context, id uint, req Up
 }
 
 func (r *PostgresResourceRepository) Delete(ctx context.Context, id uint) error {
-	tag, err := r.db.Exec(ctx, `UPDATE resources SET is_deleted = TRUE, updated_at = NOW() WHERE is_deleted = FALSE AND id = $1`, id)
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return err
+	}
+	tag, err := q.Exec(ctx, `UPDATE resources SET is_deleted = TRUE, updated_at = NOW() WHERE is_deleted = FALSE AND id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete resource: %w", err)
 	}

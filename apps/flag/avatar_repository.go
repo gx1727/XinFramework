@@ -7,7 +7,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
 )
 
@@ -21,12 +20,10 @@ func NewAvatarRepository(pool *pgxpool.Pool) *AvatarRepository {
 }
 
 func (r *AvatarRepository) List(ctx context.Context, categoryID, userID uint, avatarType string, page, size int) (_ []Avatar, _ int64, err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	where := "WHERE is_deleted = FALSE"
 	args := []interface{}{}
@@ -101,12 +98,10 @@ func (r *AvatarRepository) List(ctx context.Context, categoryID, userID uint, av
 }
 
 func (r *AvatarRepository) GetByID(ctx context.Context, id uint) (_ *Avatar, err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	var a Avatar
 	var name, sourceURL, thumbnailURL *string
@@ -148,15 +143,10 @@ func (r *AvatarRepository) GetByID(ctx context.Context, id uint) (_ *Avatar, err
 }
 
 func (r *AvatarRepository) Create(ctx context.Context, avatar *Avatar) (_ *Avatar, err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	if avatar.TenantID > 0 {
-		tenantID = avatar.TenantID
-	}
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	var a Avatar
 	var name, sourceURL, thumbnailURL *string
@@ -198,15 +188,10 @@ func (r *AvatarRepository) Create(ctx context.Context, avatar *Avatar) (_ *Avata
 }
 
 func (r *AvatarRepository) Update(ctx context.Context, avatar *Avatar) (err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	if avatar.TenantID > 0 {
-		tenantID = avatar.TenantID
-	}
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	tag, err := q.Exec(ctx, `
 		UPDATE flag_avatars SET
@@ -223,12 +208,10 @@ func (r *AvatarRepository) Update(ctx context.Context, avatar *Avatar) (err erro
 }
 
 func (r *AvatarRepository) Delete(ctx context.Context, id uint) (err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	tag, err := q.Exec(ctx, `
 		UPDATE flag_avatars SET is_deleted = TRUE, updated_at = NOW()

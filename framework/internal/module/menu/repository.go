@@ -8,7 +8,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
 )
 
@@ -21,12 +20,10 @@ func NewMenuRepository(db *pgxpool.Pool) MenuRepository {
 }
 
 func (r *PostgresMenuRepository) GetByID(ctx context.Context, id uint) (_ *Menu, err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	var m Menu
 	err = q.QueryRow(ctx, `
@@ -47,11 +44,10 @@ func (r *PostgresMenuRepository) GetByID(ctx context.Context, id uint) (_ *Menu,
 }
 
 func (r *PostgresMenuRepository) GetByCode(ctx context.Context, tenantID uint, code string) (_ *Menu, err error) {
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	var m Menu
 	err = q.QueryRow(ctx, `
@@ -72,11 +68,10 @@ func (r *PostgresMenuRepository) GetByCode(ctx context.Context, tenantID uint, c
 }
 
 func (r *PostgresMenuRepository) GetByTenant(ctx context.Context, tenantID uint) (_ []Menu, err error) {
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	rows, err := q.Query(ctx, `
 		SELECT id, tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled, created_at, updated_at
@@ -109,11 +104,10 @@ func (r *PostgresMenuRepository) GetByTenant(ctx context.Context, tenantID uint)
 }
 
 func (r *PostgresMenuRepository) GetUserMenus(ctx context.Context, tenantID, userID uint) (_ []Menu, err error) {
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	rows, err := q.Query(ctx, `
 		SELECT DISTINCT m.id, m.tenant_id, m.code, m.name, m.subtitle, m.url, m.path, m.icon, m.sort, m.parent_id, m.ancestors, m.visible, m.enabled, m.created_at, m.updated_at
@@ -149,11 +143,10 @@ func (r *PostgresMenuRepository) GetUserMenus(ctx context.Context, tenantID, use
 }
 
 func (r *PostgresMenuRepository) Create(ctx context.Context, tenantID uint, req CreateMenuRepoReq) (_ *Menu, err error) {
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	var m Menu
 	err = q.QueryRow(ctx, `
@@ -176,12 +169,10 @@ func (r *PostgresMenuRepository) Create(ctx context.Context, tenantID uint, req 
 }
 
 func (r *PostgresMenuRepository) Update(ctx context.Context, id uint, req UpdateMenuRepoReq) (_ *Menu, err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	var m Menu
 	err = q.QueryRow(ctx, `
@@ -208,12 +199,10 @@ func (r *PostgresMenuRepository) Update(ctx context.Context, id uint, req Update
 }
 
 func (r *PostgresMenuRepository) Delete(ctx context.Context, id uint) (err error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	ctx, q, tx, err := db.GetTenantQuerier(ctx, r.db, tenantID)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() { err = db.FinishTx(ctx, tx, err) }()
 
 	tag, err := q.Exec(ctx, `
 		UPDATE menus SET is_deleted = TRUE, updated_at = NOW()
