@@ -177,10 +177,10 @@ func (r *PostgresMenuRepository) Update(ctx context.Context, id uint, req Update
 	var m Menu
 	err = q.QueryRow(ctx, `
 		UPDATE menus SET
-			code = $2, name = $3, subtitle = $4, url = $5, path = $6, icon = $7, sort = $8, visible = $9, enabled = $10, updated_at = NOW()
+			code = $2, name = $3, subtitle = $4, url = $5, path = $6, icon = $7, sort = $8, parent_id = $9, ancestors = $10, visible = $11, enabled = $12, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1
 		RETURNING id, tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled, created_at, updated_at`,
-		id, req.Code, req.Name, req.Subtitle, req.URL, req.Path, req.Icon, req.Sort, req.Visible, req.Enabled,
+		id, req.Code, req.Name, req.Subtitle, req.URL, req.Path, req.Icon, req.Sort, req.ParentID, req.Ancestors, req.Visible, req.Enabled,
 	).Scan(
 		&m.ID, &m.TenantID, &m.Code, &m.Name, &m.Subtitle,
 		&m.URL, &m.Path, &m.Icon, &m.Sort, &m.ParentID, &m.Ancestors,
@@ -198,15 +198,15 @@ func (r *PostgresMenuRepository) Update(ctx context.Context, id uint, req Update
 	return &m, nil
 }
 
-func (r *PostgresMenuRepository) Delete(ctx context.Context, id uint) (err error) {
+func (r *PostgresMenuRepository) Delete(ctx context.Context, tenantID, id uint) (err error) {
 	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
 
 	tag, err := q.Exec(ctx, `
-		UPDATE menus SET is_deleted = TRUE, updated_at = NOW()
-		WHERE is_deleted = FALSE AND id = $1`, id)
+		UPDATE menus SET is_deleted = TRUE, updated_at = NOW(), tenant_id = $2
+		WHERE is_deleted = FALSE AND id = $1`, id, tenantID)
 	if err != nil {
 		return fmt.Errorf("delete menu: %w", err)
 	}

@@ -33,7 +33,7 @@ type MenuRepository interface {
 	GetUserMenus(ctx context.Context, tenantID, userID uint) ([]Menu, error)
 	Create(ctx context.Context, tenantID uint, req CreateMenuRepoReq) (*Menu, error)
 	Update(ctx context.Context, id uint, req UpdateMenuRepoReq) (*Menu, error)
-	Delete(ctx context.Context, id uint) error
+	Delete(ctx context.Context, tenantID, id uint) error
 }
 
 // CreateMenuRepoReq fields for menu creation
@@ -53,15 +53,17 @@ type CreateMenuRepoReq struct {
 
 // UpdateMenuRepoReq fields for menu update
 type UpdateMenuRepoReq struct {
-	Code     string
-	Name     string
-	Subtitle *string
-	URL      *string
-	Path     *string
-	Icon     *string
-	Sort     int
-	Visible  bool
-	Enabled  bool
+	Code      string
+	Name      string
+	Subtitle  *string
+	URL       *string
+	Path      *string
+	Icon      *string
+	Sort      int
+	ParentID  *uint
+	Ancestors *string
+	Visible   bool
+	Enabled   bool
 }
 
 var (

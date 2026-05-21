@@ -3,12 +3,10 @@ package flag
 import (
 	"fmt"
 
-	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gx1727.com/xin/framework/pkg/config"
 	xincontext "gx1727.com/xin/framework/pkg/context"
-	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/logger"
 	"gx1727.com/xin/framework/pkg/resp"
 )
@@ -28,14 +26,7 @@ func (h *Handler) ListFrames(c *gin.Context) {
 		return
 	}
 
-	uc := xincontext.NewUserContext(c)
-	var frames []Frame
-	var total int64
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		var err error
-		frames, total, err = frameRepo.List(ctx, req.CategoryID, req.Page, req.Size)
-		return err
-	})
+	frames, total, err := frameRepo.List(c.Request.Context(), req.CategoryID, req.Page, req.Size)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -56,13 +47,7 @@ func (h *Handler) GetFrame(c *gin.Context) {
 		return
 	}
 
-	uc := xincontext.NewUserContext(c)
-	var frame *Frame
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		var err error
-		frame, err = frameRepo.GetByID(ctx, req.ID)
-		return err
-	})
+	frame, err := frameRepo.GetByID(c.Request.Context(), req.ID)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -96,12 +81,7 @@ func (h *Handler) CreateFrame(c *gin.Context) {
 		Status:      1,
 	}
 
-	var result *Frame
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		var err error
-		result, err = frameRepo.Create(ctx, frame)
-		return err
-	})
+	result, err := frameRepo.Create(c.Request.Context(), frame)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -135,10 +115,7 @@ func (h *Handler) UpdateFrame(c *gin.Context) {
 		Status:      req.Status,
 	}
 
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		return frameRepo.Update(ctx, frame)
-	})
-	if err != nil {
+	if err := frameRepo.Update(c.Request.Context(), frame); err != nil {
 		resp.HandleError(c, err)
 		return
 	}
@@ -159,10 +136,7 @@ func (h *Handler) DeleteFrame(c *gin.Context) {
 		return
 	}
 
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		return frameRepo.Delete(ctx, req.ID)
-	})
-	if err != nil {
+	if err := frameRepo.Delete(c.Request.Context(), req.ID); err != nil {
 		resp.HandleError(c, err)
 		return
 	}
@@ -173,13 +147,7 @@ func (h *Handler) DeleteFrame(c *gin.Context) {
 // ==================== Categories ====================
 
 func (h *Handler) ListFrameCategories(c *gin.Context) {
-	uc := xincontext.NewUserContext(c)
-	var categories []FrameCategory
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		var err error
-		categories, err = frameCatRepo.List(ctx)
-		return err
-	})
+	categories, err := frameCatRepo.List(c.Request.Context())
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -210,12 +178,7 @@ func (h *Handler) CreateFrameCategory(c *gin.Context) {
 		Status:   1,
 	}
 
-	var category *FrameCategory
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		var err error
-		category, err = frameCatRepo.Create(ctx, cat)
-		return err
-	})
+	category, err := frameCatRepo.Create(c.Request.Context(), cat)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -246,10 +209,7 @@ func (h *Handler) UpdateFrameCategory(c *gin.Context) {
 		Status: req.Status,
 	}
 
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		return frameCatRepo.Update(ctx, cat)
-	})
-	if err != nil {
+	if err := frameCatRepo.Update(c.Request.Context(), cat); err != nil {
 		resp.HandleError(c, err)
 		return
 	}
@@ -270,10 +230,7 @@ func (h *Handler) DeleteFrameCategory(c *gin.Context) {
 		return
 	}
 
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		return frameCatRepo.Delete(ctx, req.ID)
-	})
-	if err != nil {
+	if err := frameCatRepo.Delete(c.Request.Context(), req.ID); err != nil {
 		resp.HandleError(c, err)
 		return
 	}
@@ -433,13 +390,7 @@ func (h *Handler) ListMyAvatars(c *gin.Context) {
 // ==================== Avatar Categories ====================
 
 func (h *Handler) ListAvatarCategories(c *gin.Context) {
-	uc := xincontext.NewUserContext(c)
-	var categories []AvatarCategory
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		var err error
-		categories, err = avatarCatRepo.List(ctx)
-		return err
-	})
+	categories, err := avatarCatRepo.List(c.Request.Context())
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -471,12 +422,7 @@ func (h *Handler) CreateAvatarCategory(c *gin.Context) {
 		Status:   1,
 	}
 
-	var category *AvatarCategory
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		var err error
-		category, err = avatarCatRepo.Create(ctx, cat)
-		return err
-	})
+	category, err := avatarCatRepo.Create(c.Request.Context(), cat)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -508,10 +454,7 @@ func (h *Handler) UpdateAvatarCategory(c *gin.Context) {
 		Status: req.Status,
 	}
 
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		return avatarCatRepo.Update(ctx, cat)
-	})
-	if err != nil {
+	if err := avatarCatRepo.Update(c.Request.Context(), cat); err != nil {
 		resp.HandleError(c, err)
 		return
 	}
@@ -532,10 +475,7 @@ func (h *Handler) DeleteAvatarCategory(c *gin.Context) {
 		return
 	}
 
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		return avatarCatRepo.Delete(ctx, req.ID)
-	})
-	if err != nil {
+	if err := avatarCatRepo.Delete(c.Request.Context(), req.ID); err != nil {
 		resp.HandleError(c, err)
 		return
 	}
@@ -552,14 +492,7 @@ func (h *Handler) ListAvatars(c *gin.Context) {
 		return
 	}
 
-	uc := xincontext.NewUserContext(c)
-	var avatars []Avatar
-	var total int64
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		var err error
-		avatars, total, err = avatarRepo.List(ctx, req.CategoryID, req.UserID, req.Type, req.Page, req.Size)
-		return err
-	})
+	avatars, total, err := avatarRepo.List(c.Request.Context(), req.CategoryID, req.UserID, req.Type, req.Page, req.Size)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -580,13 +513,7 @@ func (h *Handler) GetAvatar(c *gin.Context) {
 		return
 	}
 
-	uc := xincontext.NewUserContext(c)
-	var avatar *Avatar
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		var err error
-		avatar, err = avatarRepo.GetByID(ctx, req.ID)
-		return err
-	})
+	avatar, err := avatarRepo.GetByID(c.Request.Context(), req.ID)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -623,12 +550,7 @@ func (h *Handler) CreateAvatar(c *gin.Context) {
 		Status:       1,
 	}
 
-	var result *Avatar
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		var err error
-		result, err = avatarRepo.Create(ctx, avatar)
-		return err
-	})
+	result, err := avatarRepo.Create(c.Request.Context(), avatar)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -660,10 +582,7 @@ func (h *Handler) UpdateAvatar(c *gin.Context) {
 		Status:       req.Status,
 	}
 
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		return avatarRepo.Update(ctx, avatar)
-	})
-	if err != nil {
+	if err := avatarRepo.Update(c.Request.Context(), avatar); err != nil {
 		resp.HandleError(c, err)
 		return
 	}
@@ -684,10 +603,7 @@ func (h *Handler) DeleteAvatar(c *gin.Context) {
 		return
 	}
 
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
-		return avatarRepo.Delete(ctx, req.ID)
-	})
-	if err != nil {
+	if err := avatarRepo.Delete(c.Request.Context(), req.ID); err != nil {
 		resp.HandleError(c, err)
 		return
 	}

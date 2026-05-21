@@ -15,15 +15,17 @@ type CreateMenuReq struct {
 }
 
 type UpdateMenuReq struct {
-	Code     string  `json:"code"`
-	Name     string  `json:"name"`
-	Subtitle *string `json:"subtitle"`
-	URL      *string `json:"url"`
-	Path     *string `json:"path"`
-	Icon     *string `json:"icon"`
-	Sort     int     `json:"sort"`
-	Visible  *bool   `json:"visible"`
-	Enabled  *bool   `json:"enabled"`
+	Code      string  `json:"code"`
+	Name      string  `json:"name"`
+	Subtitle  *string `json:"subtitle"`
+	URL       *string `json:"url"`
+	Path      *string `json:"path"`
+	Icon      *string `json:"icon"`
+	Sort      int     `json:"sort"`
+	ParentID  *uint   `json:"parent_id"`
+	Ancestors *string `json:"ancestors"`
+	Visible   *bool   `json:"visible"`
+	Enabled   *bool   `json:"enabled"`
 }
 
 type ListMenuReq struct {
