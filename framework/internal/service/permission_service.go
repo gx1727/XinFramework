@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"golang.org/x/sync/errgroup"
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
@@ -119,44 +118,36 @@ func (s *PermissionService) GetUserOrgID(ctx context.Context, userID uint) (int6
 	return s.dsRepo.GetUserOrgID(ctx, userID)
 }
 
-// LoadUserSecurityContext loads all permission related data concurrently
+// LoadUserSecurityContext loads all permission related data (sequential execution)
+// Note: We intentionally avoid concurrent execution here to be compatible with
+// the pgx Tx model (which does not support concurrent queries on the same Tx).
+// Since these are read-only operations and the results are cached, sequential
+// execution is acceptable in terms of performance.
 func (s *PermissionService) LoadUserSecurityContext(ctx context.Context, userID uint) (perms map[string]bool, roles []string, dsPtr *permission.DataScope, orgID int64, err error) {
-	g, ctx := errgroup.WithContext(ctx)
+	var ds *permission.DataScope
 
-	var (
-		permResult map[string]bool
-		roleResult []string
-		dsResult   *permission.DataScope
-		orgResult  int64
-	)
-
-	g.Go(func() error {
-		var err error
-		permResult, err = s.LoadPermissions(ctx, userID)
-		return err
-	})
-
-	g.Go(func() error {
-		var err error
-		roleResult, err = s.LoadRoles(ctx, userID)
-		return err
-	})
-
-	g.Go(func() error {
-		var err error
-		dsResult, err = s.LoadDataScope(ctx, userID)
-		return err
-	})
-
-	g.Go(func() error {
-		var err error
-		orgResult, err = s.GetUserOrgID(ctx, userID)
-		return err
-	})
-
-	if err := g.Wait(); err != nil {
+	perms, err = s.LoadPermissions(ctx, userID)
+	if err != nil {
 		return nil, nil, nil, 0, err
 	}
 
-	return permResult, roleResult, dsResult, orgResult, nil
+	roles, err = s.LoadRoles(ctx, userID)
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
+
+	ds, err = s.LoadDataScope(ctx, userID)
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
+	if ds != nil {
+		dsPtr = ds
+	}
+
+	orgID, err = s.GetUserOrgID(ctx, userID)
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
+
+	return perms, roles, dsPtr, orgID, nil
 }

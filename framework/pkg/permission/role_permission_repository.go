@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gx1727.com/xin/framework/pkg/db"
 )
 
 type PostgresRolePermissionRepository struct {
@@ -16,7 +17,11 @@ func NewRolePermissionRepository(db *pgxpool.Pool) PermissionRepository {
 }
 
 func (r *PostgresRolePermissionRepository) GetByRoleID(ctx context.Context, roleID uint) ([]Permission, error) {
-	rows, err := r.db.Query(ctx, `
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := q.Query(ctx, `
 		SELECT id, tenant_id, role_id, resource_type, resource_id, resource_code, effect
 		FROM permissions
 		WHERE is_deleted = FALSE AND role_id = $1
@@ -38,7 +43,11 @@ func (r *PostgresRolePermissionRepository) GetByRoleID(ctx context.Context, role
 }
 
 func (r *PostgresRolePermissionRepository) DeleteByRoleID(ctx context.Context, roleID uint) error {
-	_, err := r.db.Exec(ctx, `UPDATE permissions SET is_deleted = TRUE, updated_at = NOW() WHERE role_id = $1`, roleID)
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = q.Exec(ctx, `UPDATE permissions SET is_deleted = TRUE, updated_at = NOW() WHERE role_id = $1`, roleID)
 	if err != nil {
 		return fmt.Errorf("delete permissions: %w", err)
 	}
@@ -46,7 +55,11 @@ func (r *PostgresRolePermissionRepository) DeleteByRoleID(ctx context.Context, r
 }
 
 func (r *PostgresRolePermissionRepository) Create(ctx context.Context, tenantID, roleID uint, p Permission) error {
-	_, err := r.db.Exec(ctx, `
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = q.Exec(ctx, `
 		INSERT INTO permissions (tenant_id, role_id, resource_type, resource_id, resource_code, effect)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`, tenantID, roleID, p.ResourceType, p.ResourceID, p.ResourceCode, p.Effect)

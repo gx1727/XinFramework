@@ -9,6 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"gx1727.com/xin/framework/pkg/config"
 	xinContext "gx1727.com/xin/framework/pkg/context"
+	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/resp"
@@ -78,8 +79,14 @@ func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc Permission
 
 		if permSvc != nil {
 			var dsPtr *permission.DataScope
-			perms, roles, dsPtr, orgID, _ = permSvc.LoadUserSecurityContext(ctx, claims.UserID)
-			if dsPtr != nil {
+			// 因为 RLS 策略强制要求 tenant_id，我们需要包裹在租户事务中
+			// 只有设置了 app.tenant_id 才能查询出 users/roles/permissions
+			err := db.RunInTenantTx(ctx, db.Get(), claims.TenantID, func(txCtx context.Context) error {
+				var err error
+				perms, roles, dsPtr, orgID, err = permSvc.LoadUserSecurityContext(txCtx, claims.UserID)
+				return err
+			})
+			if err == nil && dsPtr != nil {
 				ds = *dsPtr
 			}
 		}

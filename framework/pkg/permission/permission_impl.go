@@ -20,7 +20,11 @@ func NewPermissionRepository(db *pgxpool.Pool) *PostgresPermissionRepository {
 // GetUserPermissions returns map of "resource:action" -> true
 // Joins through: users -> user_roles -> roles -> permissions -> resources
 func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, userID uint) (map[string]bool, error) {
-	rows, err := r.db.Query(ctx, `
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := q.Query(ctx, `
 		SELECT DISTINCT res.code, res.action
 		FROM users u
 		JOIN user_roles ur ON ur.user_id = u.id
@@ -57,7 +61,11 @@ func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, u
 
 // GetUserRoles returns role codes for a user
 func (r *PostgresPermissionRepository) GetUserRoles(ctx context.Context, userID uint) ([]string, error) {
-	rows, err := r.db.Query(ctx, `
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := q.Query(ctx, `
 		SELECT DISTINCT rol.code
 		FROM user_roles ur
 		JOIN roles rol ON rol.id = ur.role_id
@@ -94,10 +102,14 @@ func NewDataScopeRepository(db *pgxpool.Pool) *PostgresDataScopeRepository {
 // GetDataScope returns the data scope for a user based on their roles
 // Takes the most permissive scope if user has multiple roles
 func (r *PostgresDataScopeRepository) GetDataScope(ctx context.Context, userID uint) (*DataScope, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
 	// Get the most permissive data_scope from user's roles
 	// data_scope: 1=全部 > 4=本部门及以下 > 3=本部门 > 2=自定义 > 5=本人
 	var dataScope int
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT COALESCE(MIN(rol.data_scope), 5)
 		FROM user_roles ur
 		JOIN roles rol ON rol.id = ur.role_id
@@ -116,7 +128,7 @@ func (r *PostgresDataScopeRepository) GetDataScope(ctx context.Context, userID u
 
 	// For custom data scope (type=2), load the allowed org_ids
 	if ds.Type == DataScopeCustom {
-		rows, err := r.db.Query(ctx, `
+		rows, err := q.Query(ctx, `
 			SELECT rds.org_id
 			FROM user_roles ur
 			JOIN role_data_scopes rds ON rds.role_id = ur.role_id
@@ -142,8 +154,12 @@ func (r *PostgresDataScopeRepository) GetDataScope(ctx context.Context, userID u
 
 // GetUserOrgID returns the user's organization ID
 func (r *PostgresDataScopeRepository) GetUserOrgID(ctx context.Context, userID uint) (int64, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return 0, err
+	}
 	var orgID int64
-	err := r.db.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT org_id FROM users WHERE id = $1 AND is_deleted = FALSE
 	`, userID).Scan(&orgID)
 	if err != nil {
@@ -155,7 +171,11 @@ func (r *PostgresDataScopeRepository) GetUserOrgID(ctx context.Context, userID u
 
 // GetByRoleID returns org_ids for a role's custom data scope
 func (r *PostgresDataScopeRepository) GetByRoleID(ctx context.Context, roleID uint) ([]uint, error) {
-	rows, err := r.db.Query(ctx, `
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := q.Query(ctx, `
 		SELECT org_id FROM role_data_scopes WHERE role_id = $1
 	`, roleID)
 	if err != nil {
@@ -176,30 +196,27 @@ func (r *PostgresDataScopeRepository) GetByRoleID(ctx context.Context, roleID ui
 
 // SetForRole replaces all data scopes for a role
 func (r *PostgresDataScopeRepository) SetForRole(ctx context.Context, roleID uint, orgIDs []uint) error {
-	tx, err := r.db.Begin(ctx)
+	q, err := db.GetQuerier(ctx)
 	if err != nil {
-		return fmt.Errorf("begin transaction: %w", err)
+		return err
 	}
-	defer tx.Rollback(ctx)
-
-	ctx = db.WithTx(ctx, tx)
 
 	// Delete existing
-	_, err = tx.Exec(ctx, `DELETE FROM role_data_scopes WHERE role_id = $1`, roleID)
+	_, err = q.Exec(ctx, `DELETE FROM role_data_scopes WHERE role_id = $1`, roleID)
 	if err != nil {
 		return fmt.Errorf("delete existing: %w", err)
 	}
 
 	// Get tenant_id for the role
 	var tenantID int64
-	err = tx.QueryRow(ctx, `SELECT tenant_id FROM roles WHERE id = $1`, roleID).Scan(&tenantID)
+	err = q.QueryRow(ctx, `SELECT tenant_id FROM roles WHERE id = $1`, roleID).Scan(&tenantID)
 	if err != nil {
 		return fmt.Errorf("get tenant_id: %w", err)
 	}
 
 	// Insert new
 	for _, orgID := range orgIDs {
-		_, err = tx.Exec(ctx, `
+		_, err = q.Exec(ctx, `
 			INSERT INTO role_data_scopes (tenant_id, role_id, org_id) VALUES ($1, $2, $3)
 		`, tenantID, roleID, orgID)
 		if err != nil {
@@ -207,5 +224,5 @@ func (r *PostgresDataScopeRepository) SetForRole(ctx context.Context, roleID uin
 		}
 	}
 
-	return tx.Commit(ctx)
+	return nil
 }
