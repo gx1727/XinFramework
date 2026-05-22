@@ -107,11 +107,6 @@ func (r *AvatarCategoryRepository) Delete(ctx context.Context, id uint) (err err
 		return err
 	}
 
-	_, err = q.Exec(ctx, "SELECT set_config('app.show_deleted', $1, true)", "true")
-	if err != nil {
-		return err
-	}
-
 	tag, err := q.Exec(ctx, `
 		UPDATE flag_avatar_categories SET is_deleted = TRUE, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id)

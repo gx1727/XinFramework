@@ -96,15 +96,20 @@ func RunInTx(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Contex
 }
 
 func RunInTenantTx(ctx context.Context, pool *pgxpool.Pool, tenantID uint, fn func(ctx context.Context) error) error {
-	if tenantID == 0 {
-		return fn(ctx)
-	}
-
 	return RunInTx(ctx, pool, func(ctx context.Context) error {
 		tx := ctx.Value(txKey{}).(pgx.Tx)
-		if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(tenantID))); err != nil {
-			return err
+
+		if tenantID > 0 {
+			if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", strconv.Itoa(int(tenantID))); err != nil {
+				return err
+			}
+		} else {
+			// For public/system tenant access
+			if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id', '0', true)"); err != nil {
+				return err
+			}
 		}
+
 		return fn(ctx)
 	})
 }

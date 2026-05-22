@@ -19,7 +19,7 @@ func (s *Service) GetByID(ctx context.Context, id uint) (*TenantResp, error) {
 		return nil, ErrBackendUnavailable
 	}
 	var t *Tenant
-	err := db.RunInTx(ctx, db.Get(), func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, db.Get(), 0, func(ctx context.Context) error {
 		var err error
 		t, err = s.tenantRepo.GetByID(ctx, id)
 		return err
@@ -36,7 +36,7 @@ func (s *Service) Create(ctx context.Context, req CreateTenantReq) (*TenantResp,
 		return nil, ErrBackendUnavailable
 	}
 	var t *Tenant
-	err := db.RunInTx(ctx, db.Get(), func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, db.Get(), 0, func(ctx context.Context) error {
 		var err error
 		t, err = s.tenantRepo.Create(ctx, req.Code, req.Name, req.Contact, req.Phone, req.Email)
 		return err
@@ -53,7 +53,7 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateTenantReq) (*Te
 		return nil, ErrBackendUnavailable
 	}
 	var t *Tenant
-	err := db.RunInTx(ctx, db.Get(), func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, db.Get(), 0, func(ctx context.Context) error {
 		var err error
 		t, err = s.tenantRepo.Update(ctx, id, req.Name, req.Contact, req.Phone, req.Email,
 			req.Province, req.City, req.Area, req.Address)

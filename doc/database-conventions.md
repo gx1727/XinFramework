@@ -107,13 +107,22 @@ CREATE INDEX idx_{表名}_{列名}_gin ON {表名} USING GIN ({列名});
 ALTER TABLE {表名} ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_policy ON {表名}
-    USING (NULLIF(current_setting('app.tenant_id', true), '') IS NULL
-           OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+    USING (
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
+    );
 ```
 
-策略说明：
-- 不设 `app.tenant_id` → 放行所有行（单租户模式）
-- 设了 `app.tenant_id` → 只返回匹配的租户数据（SaaS 模式）
+**⚠️ 架构红线**：
+1. **绝对禁止在 RLS 中加入业务逻辑**：不要在 RLS 策略中写 `is_deleted = FALSE` 或状态判断。如果在 RLS 中加入 `is_deleted = FALSE`，当执行软删除（`UPDATE xxx SET is_deleted = TRUE`）时，新行将无法通过 RLS 校验，导致 `new row violates row-level security policy` 报错。
+2. 软删除、状态过滤等纯业务逻辑，必须由 Repository 层的 SQL `WHERE` 条件来保证。
+3. `tenants` 这类特殊的全局表，由于自身的主键是 `id`，且需要允许系统管理员（`tenant_id = 0`）访问所有租户，其 RLS 策略应写为：
+```sql
+CREATE POLICY tenant_isolation_policy ON tenants
+    USING (
+        current_setting('app.tenant_id', true) = '0' 
+        OR id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
+    );
+```
 
 ## 7. 软删除
 

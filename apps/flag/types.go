@@ -256,7 +256,7 @@ type getAvatarRequest struct {
 }
 
 type createAvatarRequest struct {
-	CategoryID   uint   `json:"category_id"`
+	CategoryID   uint   `json:"category_id" binding:"required"`
 	Name         string `json:"name"`
 	SourceURL    string `json:"source_url" binding:"required"`
 	ThumbnailURL string `json:"thumbnail_url"`
@@ -269,8 +269,8 @@ type createAvatarRequest struct {
 type updateAvatarRequest struct {
 	ID           uint   `json:"id" binding:"required"`
 	Name         string `json:"name"`
-	CategoryID   uint   `json:"category_id"`
-	SourceURL    string `json:"source_url"`
+	CategoryID   uint   `json:"category_id" binding:"required"`
+	SourceURL    string `json:"source_url" binding:"required"`
 	ThumbnailURL string `json:"thumbnail_url"`
 	IsPublic     bool   `json:"is_public"`
 	Status       int8   `json:"status"`

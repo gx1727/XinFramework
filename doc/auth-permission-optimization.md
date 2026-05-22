@@ -50,53 +50,33 @@ func UserContextFrom(parent context.Context) (*UserContext, bool) {
 
 ---
 
-### 2. ✅ 使用 errgroup 简化并发错误处理
+### 2. ✅ 并发变串行：解决多 goroutine 共享事务的 Panic 问题
 
 **文件**: `framework/internal/service/permission_service.go`
 
-**改进前**:
+**问题发现**:
+曾尝试使用 `errgroup` 并发加载用户的多项权限数据，但导致了严重错误：
+`panic: watch already in progress` 或 `conn busy`。
+原因是：**鉴权数据加载（`LoadUserSecurityContext`）被包裹在一个统一的 `db.RunInTenantTx` 事务中**以穿透严格的 RLS。而在 Go 中，`pgx.Tx` 是绑定到单个网络连接的，**绝对不能在多个 goroutine 中并发使用**。
+
+**解决方案**:
+放弃 `errgroup`，回归简洁安全的串行查询：
+
 ```go
-var wg sync.WaitGroup
-var err1, err2, err3, err4 error
+// 串行执行，安全共享同一个 ctx 中的 pgx.Tx
+permResult, err := s.LoadPermissions(ctx, userID)
+if err != nil { return err }
 
-wg.Add(4)
-go func() { defer wg.Done(); perms, err1 = s.LoadPermissions(ctx, userID) }()
-// ... 重复 4 次
+roleResult, err := s.LoadRoles(ctx, userID)
+if err != nil { return err }
 
-wg.Wait()
-if err1 != nil { err = err1; return }
-if err2 != nil { err = err2; return }
-// ... 重复检查 4 次
+dsResult, orgResult, err := s.LoadDataScope(ctx, userID)
+if err != nil { return err }
 ```
 
-**改进后**:
-```go
-g, ctx := errgroup.WithContext(ctx)
-
-var permResult map[string]bool
-var roleResult []string
-var dsResult *permission.DataScope
-var orgResult int64
-
-g.Go(func() error {
-    var err error
-    permResult, err = s.LoadPermissions(ctx, userID)
-    return err
-})
-// ... 其他 3 个 goroutine
-
-if err := g.Wait(); err != nil {
-    return nil, nil, nil, 0, err
-}
-
-return permResult, roleResult, dsResult, orgResult, nil
-```
-
-**优势**:
-- 代码更简洁，减少 40+ 行样板代码
-- 自动处理 context 取消
-- 第一个错误发生时立即取消其他 goroutine
-- 更符合 Go 最佳实践
+**经验总结**:
+- 在闭包事务驱动架构下，安全和一致性优先于极限的并发速度。
+- PostgreSQL 的连接池模型中，单个事务的串行查询延迟在内网通常小于 1-2 毫秒。配合懒加载机制和权限缓存，串行执行的性能完全可以满足高并发需求。
 
 ---
 
@@ -329,7 +309,7 @@ SELECT id FROM org_tree
 | 优化项 | 改进前 | 改进后 | 提升幅度 |
 |--------|--------|--------|----------|
 | 懒加载重复执行 | 每次调用都查DB | sync.Once 只执行一次 | 性能 +100%* |
-| 并发加载错误处理 | 繁琐的手动检查 | errgroup 自动管理 | 代码量 -40% |
+| 权限数据加载模型 | 错误的并发加载 | 事务内的串行加载 | 彻底解决并发 Panic |
 | 数据范围 SQL | 重复代码 | 统一函数 | 维护成本 -50% |
 | 轻量认证 | 必须加载权限 | 可选加载 | 响应时间 -30%** |
 | 缓存命中率 | 无监控 | 可观测 | 可优化空间 +100% |

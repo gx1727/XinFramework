@@ -97,22 +97,25 @@ package cms
 
 import (
     "context"
-    "github.com/jackc/pgx/v5/pgxpool"
+    "gx1727.com/xin/framework/pkg/db"
 )
 
-type Repository struct {
-    db *pgxpool.Pool
-}
+type Repository struct{}
 
-func NewRepository(db *pgxpool.Pool) *Repository {
-    return &Repository{db: db}
+func NewRepository() *Repository {
+    return &Repository{}
 }
 
 // User 查询
 func (r *Repository) GetUserByID(ctx context.Context, userID uint) (*User, error) {
+    q, err := db.GetQuerier(ctx)
+    if err != nil {
+        return nil, err
+    }
+    
     var user User
-    err := r.db.QueryRow(ctx, 
-        "SELECT id, tenant_id, code, real_name FROM users WHERE id = $1",
+    err = q.QueryRow(ctx, 
+        "SELECT id, tenant_id, code, real_name FROM users WHERE is_deleted = FALSE AND id = $1",
         userID,
     ).Scan(&user.ID, &user.TenantID, &user.Code, &user.RealName)
     return &user, err
@@ -120,8 +123,13 @@ func (r *Repository) GetUserByID(ctx context.Context, userID uint) (*User, error
 
 // CmsPost CRUD
 func (r *Repository) CreatePost(ctx context.Context, tenantID uint, title, content string, status int16) (*CmsPost, error) {
+    q, err := db.GetQuerier(ctx)
+    if err != nil {
+        return nil, err
+    }
+    
     var post CmsPost
-    err := r.db.QueryRow(ctx,
+    err = q.QueryRow(ctx,
         "INSERT INTO cms_posts (tenant_id, title, content, status) VALUES ($1, $2, $3, $4) RETURNING ...",
         tenantID, title, content, status,
     ).Scan(...)
@@ -137,13 +145,15 @@ func (r *Repository) CreatePost(ctx context.Context, tenantID uint, title, conte
 package cms
 
 import (
+    "context"
     "github.com/gin-gonic/gin"
+    "gx1727.com/xin/framework/pkg/db"
     xincontext "gx1727.com/xin/framework/pkg/context"
     "gx1727.com/xin/framework/pkg/resp"
 )
 
 type Handler struct {
-    repo *Repository  // ← 直接持有 Repository
+    repo *Repository
 }
 
 func NewHandler(repo *Repository) *Handler {
@@ -154,8 +164,14 @@ func (h *Handler) GetCurrentUser(c *gin.Context) {
     xc := xincontext.New(c)
     userID := xc.GetUserID()
     
-    // 直接调用 Repository，没有 Service 层
-    user, err := h.repo.GetUserByID(c.Request.Context(), userID)
+    var user *User
+    // 使用 RunInTenantTx 提供租户事务上下文
+    err := db.RunInTenantTx(c.Request.Context(), db.Get(), xc.GetTenantID(), func(ctx context.Context) error {
+        var err error
+        user, err = h.repo.GetUserByID(ctx, userID)
+        return err
+    })
+
     if err != nil {
         resp.Error(c, 500, err.Error())
         return
@@ -202,7 +218,7 @@ func (m *module) Shutdown() error  { return nil }
 
 func (m *module) Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
     // 初始化 Repository
-    repo := NewRepository(db.Get())
+    repo := NewRepository()
     
     // 创建 Handler（直接调用 Repository，无 Service 层）
     h := NewHandler(repo)

@@ -246,7 +246,7 @@ func (s *Service) LoginByWeChat(ctx context.Context, code string) (*LoginResult,
 	var roleCode string
 	isNewUser := false
 
-	err = db.RunInTx(ctx, s.db, func(ctx context.Context) error {
+	err = db.RunInTenantTx(ctx, s.db, tenantID, func(ctx context.Context) error {
 		q, err := db.GetQuerier(ctx)
 		if err != nil {
 			return err

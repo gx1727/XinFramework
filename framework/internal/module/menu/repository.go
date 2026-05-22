@@ -204,6 +204,11 @@ func (r *PostgresMenuRepository) Delete(ctx context.Context, tenantID, id uint) 
 		return err
 	}
 
+	_, err = q.Exec(ctx, "SELECT set_config('app.show_deleted', $1, true)", "true")
+	if err != nil {
+		return err
+	}
+
 	tag, err := q.Exec(ctx, `
 		UPDATE menus SET is_deleted = TRUE, updated_at = NOW(), tenant_id = $2
 		WHERE is_deleted = FALSE AND id = $1`, id, tenantID)

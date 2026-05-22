@@ -150,20 +150,19 @@ auth.Use(middleware.Auth(&cfg.JWT))
 
 请求头：`X-Tenant-ID`
 
-中间件 `Tenant()` 从请求头读取并设置到：
-1. `XinContext.TenantID`
-2. PostgreSQL 会话变量 `app.tenant_id`
+框架采用**闭包事务驱动**的方式传播租户上下文，而不是使用全局变量。
+通过 `db.RunInTenantTx`，框架会在底层 PostgreSQL 会话中自动设置 `app.tenant_id`，并在闭包结束时自动提交或回滚。
 
 ```go
-// 设置租户上下文
-db.SetTenantID(tenantID)
-
-// 查询时会自动带上租户过滤
-// SELECT * FROM users WHERE tenant_id = ? AND is_deleted = FALSE
-
-// 请求结束后清理
-defer db.ClearTenantID()
+// 在 Handler 或 Service 层使用 RunInTenantTx 开启租户事务
+err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+    // 闭包内的 Repository 必须使用 db.GetQuerier(ctx) 获取执行器
+    // 查询时 PostgreSQL RLS 策略会自动生效，只返回该 tenantID 的数据
+    return repo.Update(ctx, data)
+})
 ```
+
+**⚠️ 严禁**在 Repository 层手动执行事务控制或尝试修改上下文变量。
 
 ### 3.3 租户相关表
 
