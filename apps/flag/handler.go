@@ -25,7 +25,7 @@ func (h *Handler) ListFrames(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
 	var req listFramesRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -53,7 +53,7 @@ func (h *Handler) GetFrame(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
 	var req getFrameRequest
 	if err := c.ShouldBindUri(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -80,7 +80,7 @@ func (h *Handler) CreateFrame(c *gin.Context) {
 
 	var req createFrameRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -119,7 +119,7 @@ func (h *Handler) UpdateFrame(c *gin.Context) {
 
 	var req updateFrameRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -155,7 +155,7 @@ func (h *Handler) DeleteFrame(c *gin.Context) {
 
 	var req deleteFrameRequest
 	if err := c.ShouldBindUri(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -197,7 +197,7 @@ func (h *Handler) CreateFrameCategory(c *gin.Context) {
 
 	var req createFrameCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -233,7 +233,7 @@ func (h *Handler) UpdateFrameCategory(c *gin.Context) {
 
 	var req updateFrameCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -266,7 +266,7 @@ func (h *Handler) DeleteFrameCategory(c *gin.Context) {
 
 	var req deleteFrameCategoryRequest
 	if err := c.ShouldBindUri(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -325,7 +325,7 @@ func (h *Handler) CreateSpace(c *gin.Context) {
 
 	var req createSpaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -355,7 +355,7 @@ func (h *Handler) UpdateSpace(c *gin.Context) {
 
 	var req updateSpaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -372,7 +372,7 @@ func (h *Handler) DeleteSpace(c *gin.Context) {
 
 	var req deleteSpaceRequest
 	if err := c.ShouldBindUri(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -395,7 +395,7 @@ func (h *Handler) GenerateAvatar(c *gin.Context) {
 
 	var req generateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -457,7 +457,7 @@ func (h *Handler) CreateAvatarCategory(c *gin.Context) {
 
 	var req createAvatarCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -494,7 +494,7 @@ func (h *Handler) UpdateAvatarCategory(c *gin.Context) {
 
 	var req updateAvatarCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -528,7 +528,7 @@ func (h *Handler) DeleteAvatarCategory(c *gin.Context) {
 
 	var req deleteAvatarCategoryRequest
 	if err := c.ShouldBindUri(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -549,7 +549,7 @@ func (h *Handler) ListAvatars(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
 	var req listAvatarsRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -577,7 +577,7 @@ func (h *Handler) GetAvatar(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
 	var req getAvatarRequest
 	if err := c.ShouldBindUri(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -604,7 +604,7 @@ func (h *Handler) CreateAvatar(c *gin.Context) {
 
 	var req createAvatarRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -646,7 +646,7 @@ func (h *Handler) UpdateAvatar(c *gin.Context) {
 
 	var req updateAvatarRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
@@ -680,7 +680,7 @@ func (h *Handler) DeleteAvatar(c *gin.Context) {
 
 	var req deleteAvatarRequest
 	if err := c.ShouldBindUri(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, FormatValidationError(err))
 		return
 	}
 
