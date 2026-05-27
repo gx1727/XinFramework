@@ -11,10 +11,11 @@ import (
 type Service struct {
 	roleRepo RoleRepository
 	dsRepo   permission.DataScopeRepository
+	menuRepo RoleMenuRepository
 }
 
-func NewService(roleRepo RoleRepository, dsRepo permission.DataScopeRepository) *Service {
-	return &Service{roleRepo: roleRepo, dsRepo: dsRepo}
+func NewService(roleRepo RoleRepository, dsRepo permission.DataScopeRepository, menuRepo RoleMenuRepository) *Service {
+	return &Service{roleRepo: roleRepo, dsRepo: dsRepo, menuRepo: menuRepo}
 }
 
 func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]RoleResp, int64, error) {
@@ -135,6 +136,29 @@ func (s *Service) UpdateDataScopes(ctx context.Context, roleID uint, req UpdateD
 	tenantID, _ := xincontext.TenantIDFrom(ctx)
 	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
 		return s.dsRepo.SetForRole(ctx, roleID, req.OrgIDs)
+	})
+}
+
+// GetMenus 获取角色的菜单权限
+func (s *Service) GetMenus(ctx context.Context, roleID uint) (*RoleMenuResp, error) {
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	var menuIDs []uint
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		var err error
+		menuIDs, err = s.menuRepo.GetByRoleID(ctx, roleID)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &RoleMenuResp{MenuIDs: menuIDs}, nil
+}
+
+// AssignMenus 分配角色的菜单权限（全量覆盖）
+func (s *Service) AssignMenus(ctx context.Context, roleID uint, req AssignMenusReq) error {
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		return s.menuRepo.SetForRole(ctx, roleID, req.MenuIDs)
 	})
 }
 

@@ -150,6 +150,45 @@ func (h *Handler) UpdateDataScopes(c *gin.Context) {
 	resp.Success(c, gin.H{"ok": true})
 }
 
+func (h *Handler) GetMenus(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		resp.BadRequest(c, "invalid role id")
+		return
+	}
+
+	menus, err := h.svc.GetMenus(c.Request.Context(), uint(id))
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+
+	resp.Success(c, menus)
+}
+
+func (h *Handler) AssignMenus(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		resp.BadRequest(c, "invalid role id")
+		return
+	}
+
+	var req AssignMenusReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.BadRequest(c, "invalid request body")
+		return
+	}
+
+	if err := h.svc.AssignMenus(c.Request.Context(), uint(id), req); err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+
+	resp.Success(c, gin.H{"ok": true})
+}
+
 func handleError(c *gin.Context, err error) {
 	switch err {
 	case ErrRoleNotFoundDB:

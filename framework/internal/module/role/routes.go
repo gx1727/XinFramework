@@ -16,5 +16,8 @@ func Register(protected *gin.RouterGroup, h *Handler) {
 		roles.DELETE("/:id", middleware.RequirePermission(permission.ResRole, permission.ActDelete), h.Delete)
 		roles.GET("/:id/data-scopes", middleware.RequirePermission(permission.ResRole, permission.ActList), h.GetDataScopes)
 		roles.PUT("/:id/data-scopes", middleware.RequirePermission(permission.ResRole, permission.ActUpdate), h.UpdateDataScopes)
+		// 角色菜单权限
+		roles.GET("/:id/menus", middleware.RequirePermission(permission.ResRole, permission.ActList), h.GetMenus)
+		roles.PUT("/:id/menus", middleware.RequirePermission(permission.ResRole, permission.ActUpdate), h.AssignMenus)
 	}
 }

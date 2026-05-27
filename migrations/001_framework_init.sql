@@ -362,6 +362,7 @@ CREATE TABLE menus
 );
 CREATE UNIQUE INDEX uk_menu_code ON menus (tenant_id, code) WHERE is_deleted = FALSE;
 CREATE INDEX idx_menu_tenant ON menus (tenant_id) WHERE is_deleted = FALSE;
+CREATE INDEX idx_menu_parent ON menus (parent_id) WHERE is_deleted = FALSE;
 CREATE INDEX idx_menu_ancestors_gist ON menus USING GIST (ancestors);
 CREATE INDEX IF NOT EXISTS idx_menus_tenant_active
     ON menus (tenant_id) WHERE is_deleted = FALSE;

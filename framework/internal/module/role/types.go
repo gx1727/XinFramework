@@ -29,6 +29,11 @@ type UpdateDataScopesReq struct {
 	OrgIDs []uint `json:"org_ids"`
 }
 
+// AssignMenusReq 分配角色菜单权限请求
+type AssignMenusReq struct {
+	MenuIDs []uint `json:"menu_ids" binding:"required"`
+}
+
 type RoleResp struct {
 	ID          uint   `json:"id"`
 	TenantID    uint   `json:"tenant_id"`
