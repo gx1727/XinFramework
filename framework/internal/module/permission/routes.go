@@ -7,10 +7,9 @@ import (
 )
 
 func Register(protected *gin.RouterGroup, h *Handler) {
-	// Permission management for roles
+	// Permission management for roles (resources only - menus moved to role module)
 	protected.GET("/roles/:id/permissions", middleware.RequirePermission(permission.ResRole, permission.ActList), h.GetPermissions)
 	protected.POST("/roles/:id/permissions", middleware.RequirePermission(permission.ResRole, permission.ActUpdate), h.AssignPermissions)
 	protected.PUT("/roles/:id/permissions", middleware.RequirePermission(permission.ResRole, permission.ActUpdate), h.AssignPermissions)
-	protected.GET("/roles/:id/menus", middleware.RequirePermission(permission.ResRole, permission.ActList), h.GetMenus)
 	protected.GET("/roles/:id/resources", middleware.RequirePermission(permission.ResRole, permission.ActList), h.GetResources)
 }

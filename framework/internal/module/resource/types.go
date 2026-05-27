@@ -9,9 +9,9 @@ type ListReq struct {
 
 type CreateReq struct {
 	MenuID      uint   `json:"menu_id"`
-	Code        string `json:"code" binding:"required"`
-	Name        string `json:"name" binding:"required"`
-	Action      string `json:"action" binding:"required"`
+	Code        string `json:"code"`
+	Name        string `json:"name"`
+	Action      string `json:"action"`
 	Description string `json:"description"`
 	Sort        int    `json:"sort"`
 	Status      int8   `json:"status"`
