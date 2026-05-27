@@ -205,9 +205,12 @@ func (r *PostgresRoleRepository) Delete(ctx context.Context, id uint) error {
 	if err != nil {
 		return err
 	}
-	_, err = q.Exec(ctx, `UPDATE roles SET is_deleted = TRUE, updated_at = NOW() WHERE id = $1`, id)
+	tag, err := q.Exec(ctx, `UPDATE roles SET is_deleted = TRUE, updated_at = NOW() WHERE is_deleted = FALSE AND id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete role: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrRoleNotFound
 	}
 	return nil
 }

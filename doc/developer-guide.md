@@ -1,8 +1,59 @@
 # XinFramework 开发者指南
 
-## 1. 配置系统
+## 1. 项目结构
 
-### 1.1 配置结构
+```
+XinFramework/
+├── framework/                      # 核心框架 (gx1727.com/xin/framework)
+│   ├── framework.go               # 框架入口、模块注册、路由设置
+│   ├── cmd.go                     # 命令行处理 (start/stop/restart等)
+│   ├── signal.go                  # 信号处理、优雅关闭
+│   ├── pkg/                        # 公共包（可被外部apps引用）
+│   │   ├── config/                 # YAML配置系统 + 环境变量覆盖
+│   │   ├── db/                    # pgx/v5/pgxpool + 事务封装
+│   │   ├── cache/                 # Redis客户端
+│   │   ├── session/               # Session管理接口 + Redis/DB实现
+│   │   ├── jwt/                   # Token生成/验证
+│   │   ├── context/               # XinContext/UserContext上下文
+│   │   ├── permission/            # 权限类型、接口、缓存
+│   │   ├── plugin/                # 模块接口和注册表
+│   │   ├── resp/                  # 统一响应格式
+│   │   ├── migrate/              # SQL迁移运行器
+│   │   ├── model/                 # 公共模型定义
+│   │   ├── storage/              # 文件存储（local/COS）
+│   │   └── dict/                 # 数据字典访问
+│   └── internal/
+│       ├── core/
+│       │   ├── boot/              # 应用初始化 (boot.Init)
+│       │   ├── server/            # HTTP服务器（优雅关闭）
+│       │   └── middleware/        # 中间件（CORS/Logger/Recovery/Tenant/Auth）
+│       ├── module/               # 12个内置模块
+│       │   ├── auth/             # 登录/登出/注册
+│       │   ├── user/             # 用户管理
+│       │   ├── tenant/           # 租户管理
+│       │   ├── role/             # 角色管理
+│       │   ├── permission/      # 权限分配
+│       │   ├── menu/            # 菜单管理（ltree）
+│       │   ├── organization/    # 组织机构（ltree）
+│       │   ├── resource/        # 按钮权限
+│       │   ├── dict/            # 数据字典
+│       │   ├── asset/           # 文件存储
+│       │   ├── system/          # 健康检查
+│       │   └── weixin/          # 微信登录（存根）
+│       └── service/              # PermissionService
+├── apps/                          # 外部业务插件
+│   ├── cms/                       # CMS插件（扁平化架构）
+│   └── flag/                      # Flag插件（头像/相框）
+├── cmd/xin/                       # 程序入口点
+├── config/                        # 配置文件
+└── migrations/                   # SQL迁移文件
+```
+
+---
+
+## 2. 配置系统
+
+### 2.1 配置结构
 
 配置文件：`config/config.yaml`
 
@@ -20,9 +71,11 @@ database:
   password: postgres
   dbname: xin
   sslmode: disable
+  max_open_conns: 25
+  max_idle_conns: 5
 
 redis:
-  host: 192.168.151.176
+  host: 127.0.0.1
   port: 6379
   enabled: true
   required: false
@@ -32,23 +85,60 @@ jwt:
   expire: 3600
   refresh_expire: 86400
 
+storage:
+  provider: local
+  local_dir: ./uploads
+  local_base_url: http://localhost:8080/uploads
+
 log:
   dir: logs
   level: info
 
+cors:
+  enabled: true
+  allow_origins: ["*"]
+  allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+  allow_headers: "*"
+
 module:
-  - weixin  # 内置模块开关
+  - auth
+  - user
+  - tenant
+  - menu
+  - role
+  - organization
+  - resource
+  - permission
+  - dict
+  - asset
+  - system
+  - weixin
 
 apps:
-  - cms     # 外部插件开关
-
-user:
-  max_login_attempts: 5
-  lock_duration_sec: 300
-  # ... 用户模块配置
+  - cms
+  - flag
 ```
 
-### 1.2 添加新配置项
+### 2.2 配置加载顺序
+
+| 优先级 | 来源 | 说明 |
+|--------|------|------|
+| 1 | 环境变量 | `XIN_APP_PORT=9999` 覆盖任何配置 |
+| 2 | `.env` 文件 | 项目根目录的 `.env` 文件 |
+| 3 | `config.yaml` | YAML 配置文件 |
+| 4 | 默认值 | 代码中的硬编码默认值 |
+
+### 2.3 环境变量映射
+
+| 配置项 | 环境变量前缀 | 示例 |
+|--------|-------------|------|
+| App | `XIN_APP_` | `XIN_APP_PORT=9999` |
+| Database | `XIN_DB_` | `XIN_DB_HOST=localhost` |
+| Redis | `XIN_REDIS_` | `XIN_REDIS_HOST=127.0.0.1` |
+| JWT | `XIN_JWT_` | `XIN_JWT_SECRET=xxx` |
+| 模块配置 | `XIN_<NAME>_` | `XIN_FLAG_xxx` |
+
+### 2.4 添加新配置项
 
 **步骤 1**：在 `framework/pkg/config/config.go` 的 `Config` 结构体中添加字段
 
@@ -56,14 +146,8 @@ user:
 type Config struct {
     App      AppConfig      `yaml:"app"`
     Database DatabaseConfig `yaml:"database"`
-    Redis    RedisConfig    `yaml:"redis"`
-    JWT      JWTConfig      `yaml:"jwt"`
-    Log      LogConfig      `yaml:"log"`
-    Modules  []string       `yaml:"module"`
-    Apps     []string       `yaml:"apps"`
-    User     UserConfig     `yaml:"user"`
-    // 新增：SMS 配置
-    SMS      SMSConfig      `yaml:"sms"`
+    // ... 现有字段
+    SMS      SMSConfig      `yaml:"sms"` // 新增
 }
 ```
 
@@ -97,218 +181,26 @@ sms:
   sign_name: XinFramework
 ```
 
-### 1.3 配置加载顺序
+---
 
-1. 加载 `config/config.yaml`
-2. 环境变量覆盖（优先级最高）
+## 3. 模块系统
 
-### 1.4 模块独立配置
+### 3.1 Module 接口
 
-#### 1.4.1 文件结构
-
-```
-config/
-├── config.yaml              # 主配置
-├── config.dev.yaml
-├── config.prod.yaml
-└── modules/                 # 业务模块配置目录（如果使用）
-    ├── auth.yaml
-    └── cms.yaml
-```
-
-#### 1.4.2 在模块中定义配置结构体
-
-以 user 模块为例，`framework/internal/module/user/config.go`：
+所有模块（内置和外部）都实现 `plugin.Module` 接口：
 
 ```go
-package user
-
-import "gx1727.com/xin/framework/pkg/config"
-
-type UserConfig struct {
-    MaxLoginAttempts      int    `yaml:"max_login_attempts"`
-    LockDurationSec       int    `yaml:"lock_duration_sec"`
-    PasswordPolicy        string `yaml:"password_policy"`
-    TokenExpireSec        int    `yaml:"token_expire_sec"`
-    RefreshTokenExpireSec int    `yaml:"refresh_token_expire_sec"`
-}
-
-var moduleCfg *UserConfig
-
-func Cfg() *UserConfig {
-    return moduleCfg
-}
-
-func InitConfig() error {
-    moduleCfg = &UserConfig{
-        MaxLoginAttempts:      5,
-        LockDurationSec:       300,
-        PasswordPolicy:        "standard",
-        TokenExpireSec:        3600,
-        RefreshTokenExpireSec: 86400,
-    }
-    return config.LoadModule("user", moduleCfg)
+type Module interface {
+    Name() string                    // 模块名称
+    Init() error                    // 初始化（可选）
+    Register(public, protected *gin.RouterGroup) // 注册路由
+    Shutdown() error                // 关闭时清理（可选）
 }
 ```
 
-#### 1.4.3 环境变量覆盖
+### 3.2 创建模块
 
-模块配置支持环境变量覆盖，规则为 `XIN_<模块名大写>_<字段名大写>`：
-
-```bash
-XIN_USER_MAX_LOGIN_ATTEMPTS=10
-XIN_USER_LOCK_DURATION_SEC=600
-```
-
-***
-
-## 2. 日志系统
-
-### 2.1 日志初始化
-
-日志在 `boot.Init()` 中初始化：
-
-```go
-logger.Init(cfg.Log.Dir, cfg.Log.Level)
-```
-
-### 2.2 日志级别
-
-| 级别 | 值 | 说明 |
-|------|---|------|
-| DEBUG | 0 | 调试信息 |
-| INFO | 1 | 一般信息（默认） |
-| WARN | 2 | 警告 |
-| ERROR | 3 | 错误 |
-
-### 2.3 日志函数
-
-```go
-// 格式化输出
-logger.Debugf("用户登录: userID=%d", userID)
-logger.Infof("请求处理完成: path=%s duration=%dms", path, duration)
-logger.Warnf("配置缺失: key=%s", key)
-logger.Errorf("数据库错误: %v", err)
-
-// 原始内容输出
-logger.Debug("收到请求")
-logger.Info("任务完成")
-```
-
-### 2.4 日志输出
-
-- 输出到标准输出（stdout）
-- 输出到按天分割的文件：`{log.dir}/2026-04-22.log`
-
-### 2.5 模块自定义日志
-
-使用 `logger.Module("<prefix>")` 获取模块日志器：
-
-```go
-package user
-
-import "gx1727.com/xin/framework/pkg/logger"
-
-var userLogger *logger.Logger
-
-func InitConfig() error {
-    userLogger = logger.Module("user")
-    if userLogger != nil {
-        userLogger.Infof("user module config loaded")
-    } else {
-        logger.Infof("user module config loaded")
-    }
-    return nil
-}
-```
-
-文件命名规则：
-- 全局日志器：`{log.dir}/YYYY-MM-DD.log`
-- 模块日志器：`{log.dir}/user-YYYY-MM-DD.log`
-
-***
-
-## 3. 添加新模块
-
-### 3.0 架构说明
-
-模块分两类：
-1. **内置模块** (`framework/internal/module/`) - 通过 `module:` 配置控制
-2. **外部插件** (`apps/*`) - 调用 `framework.RegisterModule()` 注册
-
-### 3.1 外部插件（推荐）
-
-创建 `apps/mymodule/mymodule.go`：
-
-```go
-package mymodule
-
-import (
-    "github.com/gin-gonic/gin"
-    "gx1727.com/xin/framework/pkg/config"
-    "gx1727.com/xin/framework/pkg/migrate"
-    "gx1727.com/xin/framework/pkg/plugin"
-)
-
-type MyConfig struct {
-    FeatureX bool `yaml:"feature_x"`
-}
-
-var moduleCfg *MyConfig
-
-func Cfg() *MyConfig {
-    return moduleCfg
-}
-
-func Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
-    protected.GET("/mymodule/ping", func(c *gin.Context) {
-        // handler logic
-    })
-}
-
-func Module() plugin.Module {
-    return plugin.NewModuleWithOpts("mymodule", Register,
-        plugin.WithInit(initModule),
-        plugin.WithMigrate(migrateModule),
-    )
-}
-
-func initModule() error {
-    moduleCfg = &MyConfig{FeatureX: true}
-    return config.LoadModule("mymodule", moduleCfg)
-}
-
-func migrateModule() error {
-    return migrate.Run("apps/mymodule/migrations")
-}
-```
-
-在 `cmd/xin/main.go` 中注册：
-
-```go
-func main() {
-    cfg, _ := config.Load("config/config.yaml")
-
-    if cfg.AppEnabled("mymodule") {
-        framework.RegisterModule(mymodule.Module())
-    }
-
-    framework.Run(cfg)
-}
-```
-
-### 3.2 内置模块
-
-在 `framework/internal/module/` 下创建目录，包含：
-- `deps.go` - 依赖声明与构造
-- `handler.go` - HTTP 处理层
-- `service.go` - 业务逻辑层（可选）
-- `routes.go` - 路由注册 + `Module()` 函数
-- `model.go` - 数据模型（可选）
-
-#### 3.2.1 简单模块（无 Service 层）
-
-示例：`framework/internal/module/mymodule/routes.go`
+#### 方式一：使用 plugin.NewModule（简单）
 
 ```go
 package mymodule
@@ -316,601 +208,445 @@ package mymodule
 import (
     "github.com/gin-gonic/gin"
     "gx1727.com/xin/framework/pkg/plugin"
+    "gx1727.com/xin/framework/pkg/db"
 )
 
-func Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
-    protected.GET("/mymodule/ping", func(c *gin.Context) {
-        // ...
+func Module() plugin.Module {
+    return plugin.NewModule("mymodule", func(public, protected *gin.RouterGroup) {
+        repo := NewRepository()
+        h := NewHandler(repo)
+
+        // 注册公开路由（可选认证）
+        public.GET("/mymodule/public", h.PublicHandler)
+
+        // 注册受保护路由（需要认证）
+        protected.GET("/mymodule/data", h.DataHandler)
     })
+}
+```
+
+#### 方式二：自定义模块结构（支持 Init/Shutdown）
+
+```go
+type module struct {
+    name string
+}
+
+func (m *module) Name() string     { return m.name }
+func (m *module) Init() error      { /* 初始化逻辑 */ return nil }
+func (m *module) Shutdown() error  { /* 清理逻辑 */ return nil }
+
+func (m *module) Register(public, protected *gin.RouterGroup) {
+    repo := NewRepository()
+    h := NewHandler(repo)
+    Register(h, public, protected)
 }
 
 func Module() plugin.Module {
-    return plugin.NewModule("mymodule", Register)
+    return &module{name: "mymodule"}
 }
 ```
 
-内置模块默认全部启用，可在 `config.yaml` 的 `module:` 列表中控制。
+### 3.3 注册模块
 
-#### 3.2.2 带 Service 层的模块（手写依赖注入）
-
-对于有业务逻辑的模块，采用手写依赖注入模式：Handler → Service → DB/Config/SessionManager，所有依赖在启动期显式构造，禁止在业务层直接访问全局状态。
-
-**完整示例**（以 `user` 模块为参考）：
-
-**1) 定义依赖与接口** — `deps.go`
+**内置模块**（在 `framework/framework.go` 中注册）：
 
 ```go
-package user
+var builtinMap = map[string]plugin.Module{
+    "auth":       authModule.Module(),
+    "user":       userModule.Module(),
+    "tenant":     tenantModule.Module(),
+    // ...
+}
+```
+
+**外部插件**（在 `apps/*/module.go` 中注册）：
+
+```go
+// apps/cms/module.go
+func init() {
+    plugin.Register(cms.Module())
+}
+
+// apps/cms/module.go
+func Module() plugin.Module {
+    return &module{name: "cms"}
+}
+```
+
+### 3.4 启用模块
+
+在 `config/config.yaml` 中配置：
+
+```yaml
+module:
+  - auth
+  - user
+  - tenant
+  # ...
+
+apps:
+  - cms
+  - flag
+```
+
+---
+
+## 4. 数据库访问
+
+### 4.1 核心接口
+
+```go
+// framework/pkg/db/db.go
+
+// Querier 数据库查询接口
+type Querier interface {
+    Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+    Query(ctx context.Context, sql string, optionsAndArgs ...any) (pgx.Rows, error)
+    QueryRow(ctx context.Context, sql string, optionsAndArgs ...any) pgx.Row
+}
+
+// GetQuerier 从上下文获取查询器（自动适配事务）
+func GetQuerier(ctx context.Context) (Querier, error)
+
+// RunInTenantTx 在租户上下文中执行事务
+func RunInTenantTx(ctx context.Context, pool *pgxpool.Pool, tenantID uint, fn func(ctx context.Context) error) error
+
+// WithTx 将事务注入上下文
+func WithTx(ctx context.Context, tx pgx.Tx) context.Context
+```
+
+### 4.2 Repository 模式
+
+```go
+// 示例：apps/flag/repository.go
+package flag
 
 import (
-    "time"
-
-    "gorm.io/gorm"
-    "gx1727.com/xin/framework/pkg/config"
-    "gx1727.com/xin/framework/pkg/session"
+    "context"
+    "gx1727.com/xin/framework/pkg/db"
 )
 
-type SessionManager interface {
-    Create(sessionID string, userID, tenantID uint, role string, ttl time.Duration) error
-    Revoke(sessionID string) error
+type Repository struct{}
+
+func NewRepository() *Repository {
+    return &Repository{}
 }
 
-type Dependencies struct {
-    DB      *gorm.DB
-    Config  *config.Config
-    Session SessionManager
-}
-
-type defaultSessionManager struct{}
-
-func (defaultSessionManager) Create(sessionID string, userID, tenantID uint, role string, ttl time.Duration) error {
-    return session.Create(sessionID, userID, tenantID, role, ttl)
-}
-
-func (defaultSessionManager) Revoke(sessionID string) error {
-    return session.Revoke(sessionID)
-}
-
-func DefaultDependencies(cfg *config.Config, db *gorm.DB) Dependencies {
-    return Dependencies{
-        DB:      db,
-        Config:  cfg,
-        Session: defaultSessionManager{},
-    }
-}
-```
-
-**2) Service 接收显式依赖** — `service.go`
-
-```go
-type Service struct {
-    db      *gorm.DB
-    config  *config.Config
-    session SessionManager
-}
-
-func NewService(deps Dependencies) *Service {
-    return &Service{
-        db:      deps.DB,
-        config:  deps.Config,
-        session: deps.Session,
-    }
-}
-
-func (s *Service) Login(req loginRequest) (*loginResult, error) {
-    // 使用 s.db、s.config、s.session，不再调用 db.Get() / config.Get()
-    ...
-}
-```
-
-**3) Handler 注入 Service** — `handler.go`
-
-```go
-type Handler struct {
-    svc *Service
-}
-
-func NewHandler(svc *Service) *Handler {
-    return &Handler{svc: svc}
-}
-```
-
-**4) 路由注册接收 Handler** — `routes.go`
-
-```go
-func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
-    public.POST("/login", h.Login)
-    protected.POST("/logout", h.Logout)
-}
-
-func Module(h *Handler) plugin.Module {
-    return plugin.NewModule("user", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
-        Register(public, protected, h)
-    })
-}
-```
-
-**5) 启动期组装** — `framework/api/v1/register.go`
-
-```go
-type Dependencies struct {
-    UserHandler *user.Handler
-}
-
-func RegisterRoutes(r *gin.Engine, cfg *config.Config, deps Dependencies) {
-    for _, m := range builtinModules(deps) {
-        ...
-    }
-}
-```
-
-**6) 启动入口构造依赖** — `framework/framework.go`
-
-```go
-func setupRouter(app *boot.App) {
-    userDeps := user.DefaultDependencies(app.Config, app.DB)
-    userService := user.NewService(userDeps)
-    userHandler := user.NewHandler(userService)
-    v1.RegisterRoutes(app.Server.Engine, app.Config, v1.Dependencies{
-        UserHandler: userHandler,
-    })
-}
-```
-
-**核心原则**：
-- Service 通过构造函数接收所有依赖，禁止内部调用 `db.Get()`、`config.Get()`、`cache.Get()`
-- Handler 由启动期构造并注入 Service，禁止内部 `NewService()`
-- 需要替换的外部依赖（如 session）抽象为接口，便于测试和替换
-- 全局包级函数（`db.Get()` 等）仅在基础设施层和外部插件中使用
-
-### 3.3 分层规范
-
-推荐 C-S（Handler-Service）两层，复杂业务可扩展到 H-S-R-M：
-
-| 层 | 职责 | 禁止 |
-|---|---|---|
-| **Handler** | 参数校验、响应组装 | 写业务逻辑、写 SQL |
-| **Service** | 业务规则、事务边界 | 依赖 Gin 上下文、调用全局 Get() |
-| **Repo** | 数据访问（可选） | 跨表操作 |
-| **Model** | 数据结构 | 业务逻辑 |
-
-***
-
-## 4. 中间件开发
-
-### 4.1 中间件模板
-
-```go
-package middleware
-
-import (
-    "github.com/gin-gonic/gin"
-)
-
-func MyMiddleware() gin.HandlerFunc {
-    return func(c *gin.Context) {
-        // 前置处理
-
-        c.Next() // 执行业务逻辑
-
-        // 后置处理
-    }
-}
-```
-
-### 4.2 获取请求数据
-
-```go
-// 请求头
-header := c.GetHeader("X-Custom-Header")
-
-// Query 参数
-query := c.Query("key")
-
-// Path 参数
-pathParam := c.Param("id")
-
-// Form 参数
-form := c.PostForm("field")
-
-// JSON Body
-var body map[string]interface{}
-c.ShouldBindJSON(&body)
-```
-
-### 4.3 终止请求
-
-```go
-func MyMiddleware() gin.HandlerFunc {
-    return func(c *gin.Context) {
-        if someCondition {
-            resp.Unauthorized(c, "不符合条件")
-            c.Abort()
-            return
-        }
-        c.Next()
-    }
-}
-```
-
-***
-
-## 5. 数据库操作
-
-### 5.1 获取数据库连接与执行器
-
-框架统一通过 `db.GetQuerier(ctx)` 获取数据库执行器（`Querier`）。`Querier` 接口是对 `*pgxpool.Pool` 和 `pgx.Tx` 的统一抽象。
-
-**标准写法（Repository 层）**：
-
-```go
-import "gx1727.com/xin/framework/pkg/db"
-
-func (r *Repository) GetByID(ctx context.Context, id uint) (*Model, error) {
-    // 1. 获取 Querier，框架会自动判断 ctx 中是否有事务
+func (r *Repository) GetByID(ctx context.Context, id uint) (*Avatar, error) {
     q, err := db.GetQuerier(ctx)
     if err != nil {
         return nil, err
     }
 
-    // 2. 执行查询（不要去管 release，也不要在 Repo 层控制事务提交）
-    var m Model
-    err = q.QueryRow(ctx, `SELECT id, name FROM table WHERE is_deleted = FALSE AND id = $1`, id).Scan(&m.ID, &m.Name)
-    // ...
+    var avatar Avatar
+    err = q.QueryRow(ctx,
+        "SELECT id, name, url FROM flag_avatars WHERE is_deleted = FALSE AND id = $1",
+        id,
+    ).Scan(&avatar.ID, &avatar.Name, &avatar.URL)
+    return &avatar, err
 }
-```
 
-**特点**：
-- ✅ **极简纯粹**：Repo 层不需要关心自己是否在事务中，不需要写 `defer` 释放资源。
-- ✅ **自动上下文穿透**：如果外层开启了 `RunInTenantTx` 事务，`GetQuerier` 会自动提取并使用该事务，确保 RLS 等租户上下文生效。
-
-### 5.2 闭包驱动的事务管理器（核心架构）
-
-XinFramework 采用 **“闭包驱动事务管理器”**，将事务边界的管理上浮到 Service 层或 Handler 层，严禁在 Repository 层手动 `Begin/Commit/Rollback`。
-
-#### 方式一：多租户表事务（必须使用，触发 RLS）
-
-对于任何有 `tenant_id` 的表，必须使用 `db.RunInTenantTx`。它会自动开启事务，注入 `app.tenant_id` 上下文，并在闭包结束时自动提交或回滚。
-
-```go
-// 在 Handler 或 Service 中调用
-err := db.RunInTenantTx(ctx, db.Get(), uc.TenantID, func(ctx context.Context) error {
-    // 闭包内所有的 repo 调用，都会自动使用上面开启的同一个注入了租户上下文的事务
-    if err := repo.Create(ctx, data); err != nil {
-        return err // 返回 err 自动 Rollback
+func (r *Repository) Create(ctx context.Context, a *Avatar) error {
+    q, err := db.GetQuerier(ctx)
+    if err != nil {
+        return err
     }
-    return repo.UpdateStats(ctx, data.ID) // 成功自动 Commit
-})
-```
 
-#### 方式二：全局/系统表事务（无 RLS）
-
-对于 `accounts` 等不需要租户隔离的表，使用 `db.RunInTx`：
-
-```go
-err := db.RunInTx(ctx, db.Get(), func(ctx context.Context) error {
-    return accountRepo.Update(ctx, account)
-})
-```
-
-### 5.3 架构边界与开发规范
-
-| 层 | 职责 | 禁止 |
-|---|---|---|
-| **Handler / Service** | 通过 `RunInTenantTx` 定义事务边界，编排业务逻辑 | 直接写 SQL |
-| **Repository** | 仅通过 `db.GetQuerier(ctx)` 获取执行器并执行 SQL | 绝对禁止调用 `Begin/Commit/Rollback`，禁止修改 Session 配置 |
-
-### 5.4 多租户与 RLS 深度隔离机制
-
-框架采用 **PostgreSQL RLS (Row-Level Security)** 实现坚如磐石的多租户隔离：
-
-1. **环境准备**：`RunInTenantTx` 开启 `pgx.Tx`，并在事务开头执行 `SET app.tenant_id = $1`。
-2. **执行阻截**：无论你写的 SQL 是否漏掉了 `WHERE tenant_id = ?`，PG 底层都会附加 `USING (tenant_id = app.tenant_id)` 的策略。
-3. **软删除隔离**：软删除（`is_deleted`）属于业务逻辑，完全由 Repo 层的 SQL `WHERE` 保证，**绝不能写进 RLS 策略中**，否则会引发更新后的新行 RLS 校验失败以及严重的上下文污染问题。
-
-***
-
-## 6. 缓存操作
-
-### 6.1 使用缓存
-
-```go
-import "gx1727.com/xin/framework/pkg/cache"
-
-client := cache.Get()
-
-// 设置值
-client.Set(ctx, "key", "value", time.Hour)
-
-// 获取值
-val, err := client.Get(ctx, "key").Result()
-
-// 删除
-client.Del(ctx, "key")
-```
-
-Redis 配置中 `enabled=false` 时 `cache.Get()` 返回 nil。
-
-***
-
-## 7. JWT 使用
-
-### 7.1 生成 Token
-
-```go
-import jwtpkg "gx1727.com/xin/framework/pkg/jwt"
-
-// token 内包含 sid（SessionID）
-token, err := jwtpkg.Generate(&cfg.JWT, userID, tenantID, role, sessionID)
-```
-
-### 7.2 验证
-
-框架提供 `middleware.Auth()` 中间件自动验证并设置 `XinContext.UserID`。
-
-***
-
-## 8. 编译与运行
-
-### 8.1 编译
-
-```bash
-# 构建脚本
-./build.ps1          # Windows
-./build.sh           # Linux
-
-# 手动构建
-go build -ldflags="-s -w" -o ./out/xin ./cmd/xin
-```
-
-### 8.2 运行
-
-```bash
-# 前台运行
-go run ./cmd/xin run
-
-# 守护进程模式
-./out/xin start
-
-# 查看状态
-./out/xin status
-
-# 停止
-./out/xin stop
-```
-
-### 8.3 热重载
-
-```bash
-air  # 使用 go install github.com/air-verse/air@latest 安装
-```
-
-***
-
-## 9. 目录结构参考
-
-### 9.1 整体结构
-
-```
-XinFramework/
-├── apps/                      # 外部业务插件
-│   └── cms/
-│       ├── cms.go
-│       └── migrations/
-├── cmd/xin/                   # 入口点
-│   └── main.go
-├── config/
-│   └── config.yaml
-├── framework/                  # 核心框架
-│   ├── framework.go
-│   ├── cmd.go
-│   ├── signal.go
-│   ├── api/v1/
-│   │   └── register.go        # 路由注册
-│   ├── pkg/                   # 公共包（可被外部导入）
-│   │   ├── config/            # 配置管理
-│   │   ├── db/                # 数据库连接池（pgx/v5/pgxpool）
-│   │   ├── cache/             # Redis 缓存客户端
-│   │   ├── logger/            # 日志系统
-│   │   ├── session/           # 会话管理
-│   │   ├── jwt/               # JWT 令牌处理
-│   │   ├── migrate/           # 数据库迁移工具
-│   │   ├── model/             # 领域模型和仓储接口（避免循环依赖）
-│   │   ├── permission/        # 权限类型和接口（避免循环依赖）
-│   │   ├── plugin/            # 插件系统
-│   │   ├── resp/              # HTTP 响应封装
-│   │   ├── dict/              # 数据字典缓存
-│   │   ├── context/           # 上下文管理
-│   │   └── storage/           # 存储抽象（本地/COS）
-│   └── internal/              # 内部实现（不可被外部导入）
-│       ├── core/
-│       │   ├── boot/          # 启动初始化
-│       │   ├── server/        # HTTP 服务器
-│       │   └── middleware/    # 中间件
-│       ├── module/            # 内置模块
-│       │   ├── auth/
-│       │   ├── user/
-│       │   ├── tenant/
-│       │   └── ...
-│       ├── repository/        # Repository 实现 + Provider
-│       │   ├── provider.go    # Repository Provider（工厂模式）
-│       │   ├── user_repository.go
-│       │   └── ...
-│       └── service/           # Service 层
-│           └── permission_service.go
-└── migrations/
-    └── framework/
-```
-
-### 9.2 pkg 与 internal 的使用原则
-
-#### pkg 目录（公共包）
-
-**用途**：存放可以被外部项目安全导入的通用库代码。
-
-**适合放在 pkg 的内容**：
-- ✅ **基础设施组件**：config, db, cache, logger, jwt, session
-- ✅ **通用工具**：resp, migrate, dict, storage, plugin
-- ✅ **类型定义和接口**：model, permission, context（为避免循环依赖）
-
-**不适合放在 pkg 的内容**：
-- ❌ **业务逻辑实现**：应放在 internal/module
-- ❌ **Repository 实现**：应放在 internal/repository
-- ❌ **Service 实现**：应放在 internal/service
-- ❌ **引用 internal 包的代码**：会造成架构混乱
-
-**关键原则**：
-1. **pkg 不能引用 internal**：这违反了分层原则
-2. **接口定义在 pkg，实现在 internal**：如 `model.UserRepository` 接口在 pkg/model，实现在 internal/repository
-3. **避免循环依赖**：pkg/model 和 pkg/permission 的存在是为了让 internal/repository 和 internal/module 都能引用这些类型而不形成循环依赖
-
-#### internal 目录（内部实现）
-
-**用途**：存放项目内部实现细节，不能被外部项目导入。
-
-**适合放在 internal 的内容**：
-- ✅ **Repository 实现**：internal/repository（包括 Provider）
-- ✅ **Service 实现**：internal/service
-- ✅ **Module 实现**：internal/module/*
-- ✅ **Middleware 实现**：internal/core/middleware
-- ✅ **Boot 逻辑**：internal/core/boot
-
-**Provider 模式**：
-```go
-// internal/repository/provider.go
-type Provider struct {
-    db         *pgxpool.Pool
-    userRepo   model.UserRepository
-    tenantRepo model.TenantRepository
-    // ...
-}
-
-func NewProvider(pool *pgxpool.Pool) *Provider {
-    return &Provider{
-        db:         pool,
-        userRepo:   NewUserRepository(pool),
-        tenantRepo: NewTenantRepository(pool),
-        // ...
-    }
-}
-
-func (p *Provider) User() model.UserRepository {
-    return p.userRepo
+    _, err = q.Exec(ctx,
+        "INSERT INTO flag_avatars (name, url, tenant_id) VALUES ($1, $2, $3)",
+        a.Name, a.URL, a.TenantID,
+    )
+    return err
 }
 ```
 
-**使用示例**：
-```go
-// 在 boot.go 中
-repoProvider := repository.NewProvider(db.Get())
-repository.Init(repoProvider)
+### 4.3 事务控制
 
-// 在模块中使用
-userRepo := app.Repository.User()
-tenantRepo := app.Repository.Tenant()
-```
-
-***
-
-## 10. 启动流程与依赖注入
-
-### 10.1 启动流程
-
-```
-main()
-  → config.Load()                # 加载配置
-  → framework.RegisterModule()   # 注册外部插件
-  → framework.Run(cfg)
-      → boot.Init(cfg)           # 初始化基础设施，返回 *boot.App
-          → logger.Init()
-          → db.Init()
-          → cache.Init()
-          → loadModuleConfigs()
-          → server.New()
-      → initModules()            # 初始化外部插件
-      → runFrameworkMigrations()
-      → migrateModules()
-      → setupRouter(app)         # 组装依赖 + 注册路由
-          → user.DefaultDependencies()
-          → user.NewService()
-          → user.NewHandler()
-          → v1.RegisterRoutes()
-      → srv.Start()
-      → waitForSignal()
-```
-
-### 10.2 boot.App
-
-`boot.Init()` 返回 `*boot.App`，是启动期的依赖聚合对象：
+**Handler 层负责事务管理**：
 
 ```go
-type App struct {
-    Config *config.Config
-    DB     *gorm.DB
-    Server *server.XinServer
-}
-```
+func (h *Handler) GetAvatar(c *gin.Context) {
+    xc := xincontext.New(c)
+    var avatar *Avatar
 
-`setupRouter(app)` 从 `App` 中取出所需依赖，构造业务对象并注入路由。
-
-### 10.3 新增内置模块的依赖注入步骤
-
-以新增一个带 Service 的 `order` 模块为例：
-
-**步骤 1**：创建 `deps.go`，定义 `Dependencies` 和接口
-
-```go
-type Dependencies struct {
-    DB     *gorm.DB
-    Config *config.Config
-}
-```
-
-**步骤 2**：创建 `service.go`，`NewService(deps Dependencies)` 接收依赖
-
-**步骤 3**：创建 `handler.go`，`NewHandler(svc *Service)` 注入 Service
-
-**步骤 4**：创建 `routes.go`
-
-```go
-func Module(h *Handler) plugin.Module {
-    return plugin.NewModule("order", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
-        Register(public, protected, h)
+    // 使用 RunInTenantTx 提供租户上下文（触发 RLS）
+    err := db.RunInTenantTx(c.Request.Context(), db.Get(), xc.GetTenantID(), func(ctx context.Context) error {
+        var err error
+        avatar, err = h.repo.GetByID(ctx, avatarID)
+        return err
     })
+
+    if err != nil {
+        resp.ServerError(c, err.Error())
+        return
+    }
+
+    resp.Success(c, avatar)
 }
 ```
 
-**步骤 5**：在 `v1/Dependencies` 中添加 `OrderHandler`
+### 4.4 关键规则
+
+| 层级 | 职责 | 禁止 |
+|------|------|------|
+| **Repository** | 数据访问，使用 `db.GetQuerier(ctx)` | 禁止直接使用 `db.Get()` |
+| **Handler/Service** | 业务逻辑，事务控制，使用 `db.RunInTenantTx` | 禁止在 Repository 层开始事务 |
+
+---
+
+## 5. 中间件
+
+### 5.1 中间件链顺序
+
+```
+1. Recovery()     — panic recovery，最先执行
+2. RequestID()    — 请求ID生成/传播
+3. CORS()         — 跨域资源共享 + OPTIONS预检
+4. Logger()       — 请求日志（依赖 RequestID）
+5. [Tenant]       — 租户上下文（可选）
+6. [protected] → Auth() — JWT+Session验证
+```
+
+### 5.2 Auth 中间件变体
+
+| 中间件 | Token验证 | XinContext | UserContext | 用途 |
+|--------|-----------|------------|------------|------|
+| `Auth()` | 必需 | 注入 | 懒加载 | 受保护路由 |
+| `AuthLite()` | 必需 | 注入 | 不加载 | 轻量认证场景 |
+| `OptionalAuth()` | 可选 | 有则注入 | 有则懒加载 | 公共接口 |
+
+### 5.3 使用示例
 
 ```go
-type Dependencies struct {
-    UserHandler  *user.Handler
-    OrderHandler *order.Handler
+func setupRouter(app *boot.App) {
+    srv := app.Server
+    cfg := app.Config
+
+    srv.Engine.Use(middleware.Recovery())
+    srv.Engine.Use(middleware.RequestID())
+    srv.Engine.Use(middleware.CORS(&cfg.CORS))
+    srv.Engine.Use(middleware.Logger())
+
+    v1 := r.Group("/api/v1")
+    public := v1.Group("")
+    public.Use(middleware.OptionalAuth(&cfg.JWT, app.SessionMgr, app.PermService))
+
+    protected := v1.Group("")
+    protected.Use(middleware.Auth(&cfg.JWT, app.SessionMgr, app.PermService))
+
+    // 注册模块路由
+    // ...
 }
 ```
 
-**步骤 6**：在 `framework.go` 的 `setupRouter` 中构造并传入
+---
+
+## 6. 上下文系统
+
+### 6.1 XinContext（轻量级身份）
 
 ```go
-orderDeps := order.DefaultDependencies(app.Config, app.DB)
-orderService := order.NewService(orderDeps)
-orderHandler := order.NewHandler(orderService)
-v1.RegisterRoutes(srv.Engine, cfg, v1.Dependencies{
-    UserHandler:  userHandler,
-    OrderHandler: orderHandler,
+// framework/pkg/context/context.go
+
+type XinContext struct {
+    TenantID  uint
+    UserID    uint
+    SessionID string
+    Role      string
+}
+
+func New(c *gin.Context) *XinContext
+func (x *XinContext) GetUserID() uint
+func (x *XinContext) GetTenantID() uint
+func (x *XinContext) GetSessionID() string
+func (x *XinContext) GetRole() string
+```
+
+### 6.2 UserContext（RBAC + DataScope）
+
+```go
+type UserContext struct {
+    *XinContext
+    OrgID       int64
+    Roles       []string
+    Permissions map[string]bool
+    DataScope   permission.DataScope
+}
+
+// 懒加载：首次访问时从数据库加载
+func (x *XinContext) MustNewUserContext(ctx context.Context) *UserContext
+```
+
+### 6.3 使用示例
+
+```go
+func MyHandler(c *gin.Context) {
+    xc := xincontext.New(c)
+
+    // 获取基本信息
+    userID := xc.GetUserID()
+    tenantID := xc.GetTenantID()
+
+    // 需要权限时，获取完整上下文
+    uc := xc.MustNewUserContext(c.Request.Context())
+    if !uc.Permissions["post:create"] {
+        resp.Forbidden(c, "权限不足")
+        return
+    }
+}
+```
+
+---
+
+## 7. 权限系统
+
+### 7.1 权限格式
+
+```
+"resource_code:action"
+例如：
+  "user:list"    — 查看用户列表
+  "user:create"  — 创建用户
+  "user:update"  — 修改用户
+  "user:delete"  — 删除用户
+  "*:*"          — 超级管理员（所有权限）
+```
+
+### 7.2 DataScope（数据范围）
+
+| 值 | 名称 | 说明 |
+|----|------|------|
+| 1 | DataScopeAll | 所有数据（租户内） |
+| 2 | DataScopeCustom | 自定义机构范围 |
+| 3 | DataScopeDept | 本部门数据 |
+| 4 | DataScopeDeptAndBelow | 本部门及下级数据 |
+| 5 | DataScopeSelf | 仅本人数据 |
+
+### 7.3 权限检查
+
+**中间件方式**：
+
+```go
+router.GET("/users",
+    middleware.RequirePermission("user", "list"),
+    handler.ListUsers,
+)
+```
+
+**代码方式**：
+
+```go
+func MyHandler(c *gin.Context) {
+    xc := xincontext.New(c)
+    uc := xc.MustNewUserContext(c.Request.Context())
+
+    if !uc.HasPermission("post:create") {
+        resp.Forbidden(c, "权限不足")
+        return
+    }
+    // ...
+}
+```
+
+---
+
+## 8. 响应格式
+
+### 8.1 统一响应结构
+
+```json
+{
+  "code": 0,
+  "msg": "ok",
+  "data": {}
+}
+```
+
+### 8.2 响应函数
+
+| 函数 | HTTP状态 | 业务码 | 用途 |
+|------|---------|--------|------|
+| `resp.Success(c, data)` | 200 | 0 | 成功响应 |
+| `resp.Error(c, code, msg)` | 200 | 自定义 | 业务错误 |
+| `resp.Unauthorized(c, msg)` | 401 | 401 | 未认证 |
+| `resp.Forbidden(c, msg)` | 403 | 403 | 无权限 |
+| `resp.BadRequest(c, msg)` | 400 | 400 | 参数错误 |
+| `resp.NotFound(c, msg)` | 404 | 404 | 资源不存在 |
+| `resp.ServerError(c, msg)` | 500 | 500 | 系统错误 |
+| `resp.Paginate(c, total, list)` | 200 | 0 | 分页列表 |
+
+### 8.3 使用示例
+
+```go
+// 成功
+resp.Success(c, map[string]interface{}{
+    "id": 1,
+    "name": "test",
 })
+
+// 失败
+resp.Error(c, 1001, "用户名或密码错误")
+
+// 分页
+resp.Paginate(c, 100, []User{...})
 ```
 
-### 10.4 迁移进度
+---
 
-| 模块/包 | 状态 | 说明 |
-|---------|------|------|
-| `boot.Init` → `*App` | ✅ 已迁移 | 返回依赖聚合对象 |
-| `user.Service` | ✅ 已迁移 | 显式注入 DB/Config/SessionManager |
-| `user.Handler` | ✅ 已迁移 | 显式注入 Service |
-| `user.auth_query` | ✅ 已迁移 | `ResolveLoginIdentity` 接收 `*gorm.DB` 参数 |
-| `v1.RegisterRoutes` | ✅ 已迁移 | 接收 `Dependencies` 参数 |
-| `session` | 🔲 待迁移 | 仍使用全局 `db.Get()` / `cache.Get()` |
-| `middleware.Auth` | 🔲 待迁移 | 仍依赖全局 `session.Validate()` |
-| `migrate` | 🔲 待迁移 | 仍使用全局 `db.Get()` |
-| 外部插件（cms 等） | 🔲 不迁移 | 保持 `plugin.Register` 动态注册模式 |
+## 9. 启动与关闭
+
+### 9.1 启动流程
+
+```
+main() [cmd/xin/main.go]
+  → config.Load("config/config.yaml")
+  → framework.Run(cfg)
+
+framework.Run(cfg)
+  → boot.Init(cfg)                  # logger → db → cache → session → PermService
+  → initModules(cfg)                # 内置模块.Init() + 插件.Init()
+  → runMigrations()                 # migrate.Run("migrations")
+  → setupRouter(app)               # 中间件链 + 路由注册
+  → srv.Start(addr)                # HTTP 服务器启动
+  → waitForSignal(srv, app)        # 信号处理 → 优雅关闭
+```
+
+### 9.2 命令行接口
+
+| 命令 | 功能 |
+|------|------|
+| `./xin run` | 前台运行 |
+| `./xin start` | 守护进程模式（写入 PID） |
+| `./xin stop` | 优雅停止（SIGTERM，30s 超时） |
+| `./xin restart` | 重启 |
+| `./xin reload` | 热重载（SIGUSR1） |
+| `./xin hot-restart` | 零宕机重启 |
+| `./xin status` | 查看状态 |
+| `./xin help` | 帮助 |
+
+---
+
+## 10. 常见问题
+
+### Q: 如何添加一个新的内置模块？
+
+1. 在 `framework/internal/module/` 下创建目录
+2. 实现 `module.go`（Module 函数）和 `routes.go`（Register 函数）
+3. 在 `framework/framework.go` 的 `builtinMap` 中注册
+
+### Q: 如何在 Apps 模块中访问 Framework 的表？
+
+使用 `db.GetQuerier(ctx)` 获取查询器，它会自动适配当前的事务上下文（包括 RLS 所需的 tenant_id 设置）。
+
+### Q: 权限检查失败的原因？
+
+1. 检查是否使用了正确的 Auth 中间件
+2. 检查 UserContext 是否正确加载
+3. 检查数据库中 `permissions` 表的数据
+
+### Q: RLS 策略不生效？
+
+1. 确保在 `db.RunInTenantTx` 内执行操作
+2. 检查 `set_config('app.tenant_id', ...)` 是否正确执行
+3. 检查表是否正确启用了 RLS

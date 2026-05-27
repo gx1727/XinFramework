@@ -197,9 +197,12 @@ func (r *PostgresOrganizationRepository) Delete(ctx context.Context, id uint) er
 	if err != nil {
 		return err
 	}
-	_, err = q.Exec(ctx, `UPDATE organizations SET is_deleted = TRUE, updated_at = NOW() WHERE id = $1`, id)
+	tag, err := q.Exec(ctx, `UPDATE organizations SET is_deleted = TRUE, updated_at = NOW() WHERE is_deleted = FALSE AND id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete organization: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrOrgNotFound
 	}
 	return nil
 }

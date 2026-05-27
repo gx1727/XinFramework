@@ -2,6 +2,7 @@ package cms
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -131,12 +132,15 @@ func (r *postgresCmsPostRepository) Delete(ctx context.Context, id uint) error {
 	if err != nil {
 		return err
 	}
-	_, err = q.Exec(ctx, `
+	tag, err := q.Exec(ctx, `
 		UPDATE cms_posts SET is_deleted = TRUE, updated_at = NOW()
-		WHERE id = $1
+		WHERE is_deleted = FALSE AND id = $1
 	`, id)
 	if err != nil {
 		return fmt.Errorf("delete cms post: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return errors.New("post not found")
 	}
 	return nil
 }

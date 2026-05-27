@@ -797,152 +797,90 @@ COMMENT ON COLUMN attachments.is_deleted IS '软删除标记';
 -- ============================================
 --
 -- ⚠️ 重要说明：
--- 本 RLS 策略已降级为"纵深防御"，主要依赖应用层 SET app.tenant_id。
+-- 应用层（SET app.tenant_id）为主隔离机制，RLS 仅作为纵深防御。
 -- 本层作用：防止应用层漏 SET 时的数据泄漏，或运维直接操作 DB 时的越权。
 --
--- ⚠️ tenant_id 约束：
---   所有租户表都必须匹配 app.tenant_id，未设置时拒绝访问（安全默认值）
---   tenants / accounts 为平台级元数据表，不依赖 tenant_id 做隔离
+-- 📋 RLS 策略分级：
+--   关键表（保留 RLS）：users, roles, permissions, role_data_scopes, user_roles, organizations, tenant_user_seq
+--   应用层管控（移除 RLS）：menus, resources, routes, dicts, dict_items, account_auths, subscriptions, usage_records, ai_documents, attachments
 --
--- ⚠️ 注意：accounts 表为平台级，不在 RLS 覆盖范围内（同一账号可跨租户存在）。
+-- ⚠️ 安全默认值：未设置 app.tenant_id 时，拒绝访问所有 RLS 保护的表
 --
 
--- 1. 对所有租户数据表启用 RLS
-ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE account_auths ENABLE ROW LEVEL SECURITY;
-ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+-- ============================================
+-- 关键表：启用 RLS（纵深防御）
+-- ============================================
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE permissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE role_data_scopes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE menus ENABLE ROW LEVEL SECURITY;
-ALTER TABLE resources ENABLE ROW LEVEL SECURITY;
-ALTER TABLE routes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE permissions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE dicts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE dict_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE usage_records ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ai_documents ENABLE ROW LEVEL SECURITY;
-ALTER TABLE attachments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tenant_user_seq ENABLE ROW LEVEL SECURITY;
 
--- 2. 创建租户隔离策略 (读取 & 写入)
--- tenant_id 必须匹配 app.tenant_id
--- 未设置 app.tenant_id：拒绝所有行（安全默认值）
-DROP POLICY  IF EXISTS tenant_isolation_policy ON tenants;
-CREATE POLICY tenant_isolation_policy ON tenants
-    USING (
-        current_setting('app.tenant_id', true) = '0' 
-        OR id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
-    );
+-- ============================================
+-- 关键表：创建租户隔离策略
+-- ============================================
 
-DROP POLICY IF EXISTS tenant_isolation_policy ON account_auths;
-CREATE POLICY tenant_isolation_policy ON account_auths
-    USING (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
-    );
-
-DROP POLICY IF EXISTS tenant_isolation_policy ON organizations;
-CREATE POLICY tenant_isolation_policy ON organizations
-    USING (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
-    );
-
+-- users: 用户数据最敏感，RLS 兜底防止漏写 WHERE tenant_id
 DROP POLICY IF EXISTS tenant_isolation_policy ON users;
 CREATE POLICY tenant_isolation_policy ON users
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
+-- roles: 权限体系核心，RLS 兜底
 DROP POLICY IF EXISTS tenant_isolation_policy ON roles;
 CREATE POLICY tenant_isolation_policy ON roles
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
-DROP POLICY IF EXISTS tenant_isolation_policy ON role_data_scopes;
-CREATE POLICY tenant_isolation_policy ON role_data_scopes
-    USING (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
-    );
-
-DROP POLICY IF EXISTS tenant_isolation_policy ON user_roles;
-CREATE POLICY tenant_isolation_policy ON user_roles
-    USING (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
-    );
-
-
-DROP POLICY IF EXISTS tenant_isolation_policy ON menus;
-CREATE POLICY tenant_isolation_policy ON menus
-    USING (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
-    );
-
-
-DROP POLICY IF EXISTS tenant_isolation_policy ON resources;
-CREATE POLICY tenant_isolation_policy ON resources
-    USING (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
-    );
-
-DROP POLICY IF EXISTS tenant_isolation_policy ON routes;
-CREATE POLICY tenant_isolation_policy ON routes
-    USING (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
-    );
-
+-- permissions: 权限配置表
 DROP POLICY IF EXISTS tenant_isolation_policy ON permissions;
 CREATE POLICY tenant_isolation_policy ON permissions
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
-DROP POLICY IF EXISTS tenant_isolation_policy ON dicts;
-CREATE POLICY tenant_isolation_policy ON dicts
+-- role_data_scopes: 数据范围配置表
+DROP POLICY IF EXISTS tenant_isolation_policy ON role_data_scopes;
+CREATE POLICY tenant_isolation_policy ON role_data_scopes
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
-
-DROP POLICY IF EXISTS tenant_isolation_policy ON dict_items;
-CREATE POLICY tenant_isolation_policy ON dict_items
+-- user_roles: 用户-角色关联
+DROP POLICY IF EXISTS tenant_isolation_policy ON user_roles;
+CREATE POLICY tenant_isolation_policy ON user_roles
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
-DROP POLICY IF EXISTS tenant_isolation_policy ON subscriptions;
-CREATE POLICY tenant_isolation_policy ON subscriptions
+-- organizations: 组织树层级深容易遗漏，RLS 兜底
+DROP POLICY IF EXISTS tenant_isolation_policy ON organizations;
+CREATE POLICY tenant_isolation_policy ON organizations
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 
-
-DROP POLICY IF EXISTS tenant_isolation_policy ON usage_records;
-CREATE POLICY tenant_isolation_policy ON usage_records
-    USING (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
-    );
-
-DROP POLICY IF EXISTS tenant_isolation_policy ON ai_documents;
-CREATE POLICY tenant_isolation_policy ON ai_documents
-    USING (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
-    );
-
-DROP POLICY IF EXISTS tenant_isolation_policy ON attachments;
-CREATE POLICY tenant_isolation_policy ON attachments
-    USING (
-        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
-    );
-
-
+-- tenant_user_seq: 租户下用户序号生成
 DROP POLICY IF EXISTS tenant_isolation_policy ON tenant_user_seq;
 CREATE POLICY tenant_isolation_policy ON tenant_user_seq
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
+
+-- ============================================
+-- 应用层管控表：不启用 RLS，依赖应用层 + 索引隔离
+-- ============================================
+-- menus: 应用层控制力度强（菜单按租户查询，不会跨租户）
+-- resources: 按钮权限，菜单关联查询不会跨租户
+-- routes: API 路由配置，按租户查询即可
+-- dicts / dict_items: 字典数据相对静态，应用层显式 WHERE tenant_id
+-- account_auths: 平台级表，可用其他方式隔离（无 tenant_id 字段）
+-- subscriptions / usage_records: 账单相关，按租户查询即可
+-- attachments / ai_documents: 文件/文档相对独立，按租户查询
 
 
 -- ============================================

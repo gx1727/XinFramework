@@ -2,14 +2,29 @@
 
 基础路径: `/api/v1`
 
-## 认证说明
+---
 
-所有受保护的接口需要在请求头中携带 JWT Token:
+## 1. 认证说明
+
+### 1.1 认证方式
+
+受保护接口需要在请求头中携带 JWT Token:
 ```
 Authorization: Bearer <token>
 ```
 
-## 响应格式
+### 1.2 路由组说明
+
+| 路由组 | 前缀 | 认证要求 |
+|--------|------|----------|
+| `public` | `/api/v1` | 可选认证（Token 有效则注入上下文） |
+| `protected` | `/api/v1` | 必须认证（有效 JWT Token） |
+
+---
+
+## 2. 响应格式
+
+### 2.1 统一响应结构
 
 ```json
 {
@@ -19,6 +34,8 @@ Authorization: Bearer <token>
 }
 ```
 
+### 2.2 错误码
+
 | 错误码 | 说明 |
 |--------|------|
 | 0 | 成功 |
@@ -27,21 +44,23 @@ Authorization: Bearer <token>
 | 403 | 禁止访问 |
 | 404 | 资源不存在 |
 | 500 | 服务器错误 |
+| 1001 | 用户名或密码错误 |
+| 2002 | Token 已过期 |
 
 ---
 
-## 认证模块 (Auth)
+## 3. 认证模块 (Auth)
 
-### 公开接口 (无需认证)
+### 公开接口
 
 #### POST /auth/login - 用户登录
 
 **请求参数:**
 ```json
 {
-  "account": "账号",
+  "account": "账号（手机号/邮箱）",
   "password": "密码",
-  "tenant_id": 0
+  "tenant_id": 1
 }
 ```
 
@@ -51,8 +70,8 @@ Authorization: Bearer <token>
   "code": 0,
   "msg": "ok",
   "data": {
-    "token": "jwt_token",
-    "refresh_token": "刷新令牌",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "user": {
       "id": 1,
       "tenant_id": 1,
@@ -71,7 +90,7 @@ Authorization: Bearer <token>
 ```json
 {
   "account": "账号",
-  "password": "密码 (6-32字符)",
+  "password": "密码（6-32字符）",
   "tenant_id": 0,
   "real_name": "真实姓名"
 }
@@ -83,12 +102,12 @@ Authorization: Bearer <token>
   "code": 0,
   "msg": "ok",
   "data": {
-    "token": "jwt_token",
-    "refresh_token": "刷新令牌",
+    "token": "...",
+    "refresh_token": "...",
     "user": {
       "id": 1,
       "tenant_id": 1,
-      "code": "admin",
+      "code": "user001",
       "role": "user"
     }
   }
@@ -97,7 +116,7 @@ Authorization: Bearer <token>
 
 ---
 
-#### POST /auth/refresh - 刷新令牌
+#### POST /auth/refresh - 刷新Token
 
 **请求参数:**
 ```json
@@ -112,7 +131,7 @@ Authorization: Bearer <token>
   "code": 0,
   "msg": "ok",
   "data": {
-    "token": "新jwt_token",
+    "token": "新JWT令牌",
     "refresh_token": "新刷新令牌"
   }
 }
@@ -124,185 +143,31 @@ Authorization: Bearer <token>
 
 #### POST /auth/logout - 用户登出
 
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": null
-}
-```
-
----
-
-## 系统模块 (System)
-
-#### GET /health - 健康检查
+**请求头:** `Authorization: Bearer <token>`
 
 **响应示例:**
 ```json
 {
   "code": 0,
   "msg": "ok",
-  "data": {
-    "status": "ok"
-  }
+  "data": { "ok": true }
 }
 ```
 
 ---
 
-## 租户模块 (Tenant)
+## 4. 用户模块 (User)
 
-#### GET /tenants - 租户列表
-
-**查询参数:**
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| page | int | 1 | 页码 |
-| size | int | 20 | 每页数量 (最大100) |
-| keyword | string | | 搜索关键词 |
-| status | int | | 按状态筛选 |
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "list": [
-      {
-        "id": 1,
-        "code": "tenant1",
-        "name": "租户名称",
-        "status": 1,
-        "contact": "联系人",
-        "phone": "电话",
-        "email": "邮箱",
-        "province": "省",
-        "city": "市",
-        "area": "区",
-        "address": "地址",
-        "created_at": "2024-01-01T00:00:00Z",
-        "updated_at": "2024-01-01T00:00:00Z"
-      }
-    ],
-    "total": 100
-  }
-}
-```
-
----
-
-#### GET /tenants/:id - 获取租户详情
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "id": 1,
-    "code": "tenant1",
-    "name": "租户名称",
-    "status": 1,
-    "contact": "联系人",
-    "phone": "电话",
-    "email": "邮箱",
-    "province": "省",
-    "city": "市",
-    "area": "区",
-    "address": "地址",
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z"
-  }
-}
-```
-
----
-
-#### POST /tenants - 创建租户
-
-**请求参数:**
-```json
-{
-  "code": "编码 (必填, 1-50字符)",
-  "name": "名称 (必填, 1-100字符)",
-  "contact": "联系人",
-  "phone": "电话",
-  "email": "邮箱",
-  "status": 1
-}
-```
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "id": 1,
-    "code": "tenant1",
-    "name": "租户名称",
-    "status": 1,
-    "created_at": "2024-01-01T00:00:00Z"
-  }
-}
-```
-
----
-
-#### PUT /tenants/:id - 更新租户
-
-**请求参数:**
-```json
-{
-  "name": "名称 (必填)",
-  "contact": "联系人",
-  "phone": "电话",
-  "email": "邮箱",
-  "status": 1,
-  "province": "省",
-  "city": "市",
-  "area": "区",
-  "address": "地址"
-}
-```
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": null
-}
-```
-
----
-
-#### DELETE /tenants/:id - 删除租户 (软删除)
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": null
-}
-```
-
----
-
-## 用户模块 (User)
+### 受保护接口
 
 #### GET /users - 用户列表
 
-**查询参数:**
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| keyword | string | | 搜索关键词 |
-| page | int | 1 | 页码 |
-| size | int | 20 | 每页数量 |
+**请求参数:**
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| page | int | 页码（默认1） |
+| size | int | 每页数量（默认20） |
+| keyword | string | 搜索关键字（可选） |
 
 **响应示例:**
 ```json
@@ -311,18 +176,7 @@ Authorization: Bearer <token>
   "msg": "ok",
   "data": {
     "list": [
-      {
-        "id": 1,
-        "tenant_id": 1,
-        "account_id": 1,
-        "code": "user001",
-        "status": 1,
-        "real_name": "张三",
-        "avatar": "头像URL",
-        "phone": "手机号",
-        "email": "邮箱",
-        "role": "user"
-      }
+      { "id": 1, "tenant_id": 1, "code": "admin", "real_name": "管理员", "status": 1 }
     ],
     "total": 100,
     "page": 1,
@@ -333,7 +187,7 @@ Authorization: Bearer <token>
 
 ---
 
-#### GET /users/:id - 获取用户详情
+#### GET /users/:id - 获取用户
 
 **响应示例:**
 ```json
@@ -343,14 +197,13 @@ Authorization: Bearer <token>
   "data": {
     "id": 1,
     "tenant_id": 1,
-    "account_id": 1,
-    "code": "user001",
+    "code": "admin",
+    "real_name": "管理员",
+    "phone": "13800138000",
+    "email": "admin@example.com",
+    "org_id": 1,
     "status": 1,
-    "real_name": "张三",
-    "avatar": "头像URL",
-    "phone": "手机号",
-    "email": "邮箱",
-    "role": "user"
+    "created_at": "2026-01-01T00:00:00Z"
   }
 }
 ```
@@ -362,37 +215,42 @@ Authorization: Bearer <token>
 **请求参数:**
 ```json
 {
-  "id": 1,
   "status": 1
 }
 ```
 
-| 状态值 | 说明 |
-|--------|------|
-| 1 | 正常 |
-| 2 | 停用 |
+---
+
+#### GET /user/profile - 获取当前用户信息
 
 **响应示例:**
 ```json
 {
   "code": 0,
   "msg": "ok",
-  "data": null
+  "data": {
+    "id": 1,
+    "tenant_id": 1,
+    "code": "admin",
+    "real_name": "管理员",
+    "role": "super_admin"
+  }
 }
 ```
 
 ---
 
-## 菜单模块 (Menu)
+## 5. 租户模块 (Tenant)
 
-#### GET /menus - 菜单列表
+### 受保护接口
 
-**查询参数:**
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| page | int | 1 | 页码 |
-| size | int | 20 | 每页数量 |
-| root | bool | false | 仅查询顶级菜单 |
+#### GET /tenants - 租户列表
+
+**请求参数:**
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| page | int | 页码 |
+| size | int | 每页数量 |
 
 **响应示例:**
 ```json
@@ -401,32 +259,58 @@ Authorization: Bearer <token>
   "msg": "ok",
   "data": {
     "list": [
-      {
-        "id": 1,
-        "tenant_id": 1,
-        "code": "menu1",
-        "name": "菜单名称",
-        "subtitle": "副标题",
-        "url": "/url",
-        "path": "/path",
-        "icon": "icon",
-        "sort": 1,
-        "parent_id": 0,
-        "ancestors": "0",
-        "visible": true,
-        "enabled": true,
-        "created_at": "2024-01-01T00:00:00Z",
-        "updated_at": "2024-01-01T00:00:00Z"
-      }
+      { "id": 1, "code": "default", "name": "默认租户", "status": 1 }
     ],
-    "total": 50
+    "total": 10,
+    "page": 1,
+    "size": 20
   }
 }
 ```
 
 ---
 
-#### GET /menus/tree - 获取菜单树形结构
+#### GET /tenants/:id - 获取租户
+
+---
+
+#### POST /tenants - 创建租户
+
+**请求参数:**
+```json
+{
+  "code": "new_tenant",
+  "name": "新租户",
+  "contact": "联系人",
+  "phone": "13800138000"
+}
+```
+
+---
+
+#### PUT /tenants/:id - 更新租户
+
+---
+
+#### DELETE /tenants/:id - 删除租户
+
+---
+
+## 6. 菜单模块 (Menu)
+
+### 受保护接口
+
+#### GET /menus - 菜单列表
+
+**请求参数:**
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| page | int | 页码 |
+| size | int | 每页数量 |
+
+---
+
+#### GET /menus/tree - 菜单树
 
 **响应示例:**
 ```json
@@ -436,26 +320,11 @@ Authorization: Bearer <token>
   "data": [
     {
       "id": 1,
-      "tenant_id": 1,
-      "code": "menu1",
-      "name": "菜单名称",
-      "subtitle": "副标题",
-      "url": "/url",
-      "path": "/path",
-      "icon": "icon",
-      "sort": 1,
-      "parent_id": 0,
-      "ancestors": "0",
-      "visible": true,
-      "enabled": true,
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z",
+      "name": "系统管理",
+      "path": "/system",
+      "icon": "setting",
       "children": [
-        {
-          "id": 2,
-          "parent_id": 1,
-          "children": []
-        }
+        { "id": 2, "name": "用户管理", "path": "/system/users" }
       ]
     }
   ]
@@ -464,32 +333,7 @@ Authorization: Bearer <token>
 
 ---
 
-#### GET /menus/:id - 获取菜单详情
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "id": 1,
-    "tenant_id": 1,
-    "code": "menu1",
-    "name": "菜单名称",
-    "subtitle": "副标题",
-    "url": "/url",
-    "path": "/path",
-    "icon": "icon",
-    "sort": 1,
-    "parent_id": 0,
-    "ancestors": "0",
-    "visible": true,
-    "enabled": true,
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z"
-  }
-}
-```
+#### GET /menus/:id - 获取菜单
 
 ---
 
@@ -498,30 +342,11 @@ Authorization: Bearer <token>
 **请求参数:**
 ```json
 {
-  "code": "编码 (必填)",
-  "name": "名称 (必填)",
-  "subtitle": "副标题",
-  "url": "URL",
-  "path": "路径",
-  "icon": "图标",
-  "sort": 1,
+  "name": "菜单名称",
+  "path": "/path",
+  "icon": "icon-name",
   "parent_id": 0,
-  "ancestors": "0,1",
-  "visible": true,
-  "enabled": true
-}
-```
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "id": 1,
-    "code": "menu1",
-    "name": "菜单名称"
-  }
+  "sort": 1
 }
 ```
 
@@ -529,315 +354,21 @@ Authorization: Bearer <token>
 
 #### PUT /menus/:id - 更新菜单
 
-**请求参数:**
-```json
-{
-  "code": "编码",
-  "name": "名称",
-  "subtitle": "副标题",
-  "url": "URL",
-  "path": "路径",
-  "icon": "图标",
-  "sort": 1,
-  "visible": true,
-  "enabled": true
-}
-```
+---
 
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": null
-}
-```
+#### DELETE /menus/:id - 删除菜单
 
 ---
 
-#### DELETE /menus/:id - 删除菜单 (软删除)
+## 7. 角色模块 (Role)
 
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": null
-}
-```
-
----
-
-## 字典模块 (Dict)
-
-#### GET /dicts - 字典列表
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "list": [
-      {
-        "id": 1,
-        "tenant_id": 1,
-        "code": "status",
-        "name": "状态",
-        "extend": {},
-        "items": [
-          {
-            "id": 1,
-            "dict_id": 1,
-            "code": "1",
-            "name": "启用",
-            "sort": 1,
-            "extend": {}
-          }
-        ]
-      }
-    ],
-    "total": 10
-  }
-}
-```
-
----
-
-#### GET /dicts/:code - 获取字典详情
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "id": 1,
-    "tenant_id": 1,
-    "code": "status",
-    "name": "状态",
-    "extend": {},
-    "items": [
-      {
-        "id": 1,
-        "dict_id": 1,
-        "code": "1",
-        "name": "启用",
-        "sort": 1,
-        "extend": {}
-      }
-    ]
-  }
-}
-```
-
----
-
-#### POST /dicts - 创建字典
-
-**请求参数:**
-```json
-{
-  "code": "编码 (必填)",
-  "name": "名称 (必填)",
-  "extend": {}
-}
-```
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "id": 1,
-    "code": "status",
-    "name": "状态"
-  }
-}
-```
-
----
-
-#### PUT /dicts/:id - 更新字典
-
-**请求参数:**
-```json
-{
-  "name": "名称",
-  "extend": {}
-}
-```
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "ok": true
-  }
-}
-```
-
----
-
-#### DELETE /dicts/:id - 删除字典 (软删除)
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "ok": true
-  }
-}
-```
-
----
-
-#### POST /dicts/:id/items - 创建字典项
-
-**请求参数:**
-```json
-{
-  "code": "编码 (必填)",
-  "name": "名称 (必填)",
-  "sort": 1,
-  "extend": {}
-}
-```
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "id": 1,
-    "dict_id": 1,
-    "code": "1",
-    "name": "启用",
-    "sort": 1
-  }
-}
-```
-
----
-
-#### PUT /dicts/:id/items/:item_id - 更新字典项
-
-**请求参数:**
-```json
-{
-  "name": "名称",
-  "sort": 1,
-  "extend": {}
-}
-```
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "ok": true
-  }
-}
-```
-
----
-
-#### DELETE /dicts/:id/items/:item_id - 删除字典项
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "ok": true
-  }
-}
-```
-
----
-
-## 角色模块 (Role)
+### 受保护接口
 
 #### GET /roles - 角色列表
 
-**查询参数:**
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| keyword | string | | 按编码或名称搜索 |
-| page | int | 1 | 页码 |
-| size | int | 20 | 每页数量 |
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "list": [
-      {
-        "id": 1,
-        "tenant_id": 1,
-        "org_id": 1,
-        "code": "admin",
-        "name": "管理员",
-        "description": "管理员角色",
-        "data_scope": 1,
-        "extend": "{}",
-        "is_default": false,
-        "sort": 1,
-        "status": 1,
-        "created_at": "2024-01-01T00:00:00Z",
-        "updated_at": "2024-01-01T00:00:00Z"
-      }
-    ],
-    "total": 10
-  }
-}
-```
-
-| 数据范围 | 说明 |
-|----------|------|
-| 1 | 全部数据 |
-| 2 | 自定义机构范围 |
-| 3 | 仅本部门 |
-| 4 | 本部门及下级 |
-| 5 | 仅本人 |
-
 ---
 
-#### GET /roles/:id - 获取角色详情
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "id": 1,
-    "tenant_id": 1,
-    "org_id": 1,
-    "code": "admin",
-    "name": "管理员",
-    "description": "管理员角色",
-    "data_scope": 1,
-    "extend": "{}",
-    "is_default": false,
-    "sort": 1,
-    "status": 1,
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z"
-  }
-}
-```
+#### GET /roles/:id - 获取角色
 
 ---
 
@@ -846,70 +377,32 @@ Authorization: Bearer <token>
 **请求参数:**
 ```json
 {
-  "code": "编码 (必填)",
-  "name": "名称 (必填)",
-  "description": "描述",
+  "code": "admin",
+  "name": "管理员",
   "data_scope": 1,
-  "is_default": false,
-  "sort": 1,
-  "status": 1
+  "remark": "备注"
 }
 ```
 
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "id": 1,
-    "code": "admin",
-    "name": "管理员"
-  }
-}
-```
+| data_scope | 说明 |
+|------------|------|
+| 1 | 全部数据 |
+| 2 | 自定义数据范围 |
+| 3 | 本部门数据 |
+| 4 | 本部门及下级 |
+| 5 | 仅本人数据 |
 
 ---
 
 #### PUT /roles/:id - 更新角色
 
-**请求参数:**
-```json
-{
-  "name": "名称 (必填)",
-  "description": "描述",
-  "data_scope": 1,
-  "is_default": false,
-  "sort": 1,
-  "status": 1
-}
-```
+---
 
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": null
-}
-```
+#### DELETE /roles/:id - 删除角色
 
 ---
 
-#### DELETE /roles/:id - 删除角色 (软删除)
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": null
-}
-```
-
----
-
-#### GET /roles/:id/data-scopes - 获取角色数据权限
+#### GET /roles/:id/data-scopes - 获取角色数据范围
 
 **响应示例:**
 ```json
@@ -917,6 +410,7 @@ Authorization: Bearer <token>
   "code": 0,
   "msg": "ok",
   "data": {
+    "data_scope": 2,
     "org_ids": [1, 2, 3]
   }
 }
@@ -924,86 +418,138 @@ Authorization: Bearer <token>
 
 ---
 
-#### PUT /roles/:id/data-scopes - 更新角色数据权限
+#### PUT /roles/:id/data-scopes - 更新角色数据范围
 
 **请求参数:**
 ```json
 {
+  "data_scope": 2,
   "org_ids": [1, 2, 3]
 }
 ```
 
+---
+
+## 8. 权限模块 (Permission)
+
+### 受保护接口
+
+#### GET /roles/:id/permissions - 获取角色权限列表
+
 **响应示例:**
 ```json
 {
   "code": 0,
   "msg": "ok",
-  "data": null
+  "data": [
+    { "id": 1, "resource_type": "menu", "resource_code": "user", "action": "list" },
+    { "id": 2, "resource_type": "menu", "resource_code": "user", "action": "create" }
+  ]
 }
 ```
 
 ---
 
-## 资源模块 (Resource)
+#### POST /roles/:id/permissions - 分配权限
+
+**请求参数:**
+```json
+{
+  "permissions": [
+    { "resource_type": "menu", "resource_code": "user", "action": "list" },
+    { "resource_type": "menu", "resource_code": "user", "action": "create" }
+  ]
+}
+```
+
+---
+
+#### PUT /roles/:id/permissions - 更新权限（同分配）
+
+---
+
+#### GET /roles/:id/menus - 获取角色可访问菜单
+
+---
+
+#### GET /roles/:id/resources - 获取角色可访问资源
+
+---
+
+## 9. 组织机构模块 (Organization)
+
+### 受保护接口
+
+#### GET /organizations/tree - 组织树
+
+**响应示例:**
+```json
+{
+  "code": 0,
+  "msg": "ok",
+  "data": [
+    {
+      "id": 1,
+      "name": "总公司",
+      "code": "HQ",
+      "children": [
+        { "id": 2, "name": "研发部", "code": "RD" }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+#### GET /organizations - 组织列表
+
+---
+
+#### GET /organizations/:id - 获取组织
+
+---
+
+#### POST /organizations - 创建组织
+
+**请求参数:**
+```json
+{
+  "name": "部门名称",
+  "code": "DEPT001",
+  "parent_id": 0
+}
+```
+
+---
+
+#### PUT /organizations/:id - 更新组织
+
+---
+
+#### DELETE /organizations/:id - 删除组织
+
+---
+
+## 10. 资源模块 (Resource)
+
+### 受保护接口
 
 #### GET /resources - 资源列表
 
-**查询参数:**
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| menu_id | uint | | 按菜单ID筛选 |
-| action | string | | 按操作筛选 |
-| page | int | 1 | 页码 |
-| size | int | 20 | 每页数量 |
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "list": [
-      {
-        "id": 1,
-        "tenant_id": 1,
-        "menu_id": 1,
-        "code": "user:create",
-        "name": "创建用户",
-        "action": "create",
-        "description": "创建新用户",
-        "sort": 1,
-        "status": 1,
-        "created_at": "2024-01-01T00:00:00Z",
-        "updated_at": "2024-01-01T00:00:00Z"
-      }
-    ],
-    "total": 50
-  }
-}
-```
-
 ---
 
-#### GET /resources/:id - 获取资源详情
+#### GET /resources/by-menu/:menu_id - 获取菜单下的资源
 
 **响应示例:**
 ```json
 {
   "code": 0,
   "msg": "ok",
-  "data": {
-    "id": 1,
-    "tenant_id": 1,
-    "menu_id": 1,
-    "code": "user:create",
-    "name": "创建用户",
-    "action": "create",
-    "description": "创建新用户",
-    "sort": 1,
-    "status": 1,
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z"
-  }
+  "data": [
+    { "id": 1, "menu_id": 1, "name": "查看", "code": "list", "action": "list" },
+    { "id": 2, "menu_id": 1, "name": "新建", "code": "create", "action": "create" }
+  ]
 }
 ```
 
@@ -1015,25 +561,9 @@ Authorization: Bearer <token>
 ```json
 {
   "menu_id": 1,
-  "code": "编码 (必填)",
-  "name": "名称 (必填)",
-  "action": "操作 (必填)",
-  "description": "描述",
-  "sort": 1,
-  "status": 1
-}
-```
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "id": 1,
-    "code": "user:create",
-    "name": "创建用户"
-  }
+  "name": "按钮名称",
+  "code": "button_code",
+  "action": "create"
 }
 ```
 
@@ -1041,42 +571,46 @@ Authorization: Bearer <token>
 
 #### PUT /resources/:id - 更新资源
 
+---
+
+#### DELETE /resources/:id - 删除资源
+
+---
+
+## 11. 数据字典模块 (Dict)
+
+### 受保护接口
+
+#### GET /dicts - 字典列表
+
+---
+
+#### GET /dicts/:id - 获取字典
+
+---
+
+#### POST /dicts - 创建字典
+
 **请求参数:**
 ```json
 {
-  "name": "名称 (必填)",
-  "action": "操作",
-  "description": "描述",
-  "sort": 1,
-  "status": 1
-}
-```
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": null
+  "code": "status",
+  "name": "状态",
+  "remark": "备注"
 }
 ```
 
 ---
 
-#### DELETE /resources/:id - 删除资源 (软删除)
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": null
-}
-```
+#### PUT /dicts/:id - 更新字典
 
 ---
 
-#### GET /resources/by-menu/:menu_id - 按菜单获取资源
+#### DELETE /dicts/:id - 删除字典
+
+---
+
+#### GET /dicts/:code/items - 获取字典项
 
 **响应示例:**
 ```json
@@ -1084,366 +618,205 @@ Authorization: Bearer <token>
   "code": 0,
   "msg": "ok",
   "data": [
-    {
-      "id": 1,
-      "tenant_id": 1,
-      "menu_id": 1,
-      "code": "user:create",
-      "name": "创建用户",
-      "action": "create",
-      "description": "创建新用户",
-      "sort": 1,
-      "status": 1,
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
-    }
+    { "id": 1, "dict_code": "status", "label": "启用", "value": "1", "sort": 1 },
+    { "id": 2, "dict_code": "status", "label": "禁用", "value": "0", "sort": 2 }
   ]
 }
 ```
 
 ---
 
-## 组织机构模块 (Organization)
+## 12. 系统模块 (System)
 
-#### GET /organizations - 组织列表
+### 公开接口
 
-**查询参数:**
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| keyword | string | | 搜索关键词 |
-| parent_id | uint | | 按父级ID筛选 |
-| page | int | 1 | 页码 |
-| size | int | 20 | 每页数量 |
+#### GET /health - 健康检查
 
 **响应示例:**
 ```json
 {
   "code": 0,
   "msg": "ok",
-  "data": {
-    "list": [
-      {
-        "id": 1,
-        "tenant_id": 1,
-        "code": "org1",
-        "name": "总公司",
-        "type": "company",
-        "description": "集团总部",
-        "admin_code": "admin",
-        "parent_id": 0,
-        "ancestors": "0",
-        "sort": 1,
-        "status": 1,
-        "created_at": "2024-01-01T00:00:00Z",
-        "updated_at": "2024-01-01T00:00:00Z"
-      }
-    ],
-    "total": 20
-  }
+  "data": { "status": "ok" }
 }
 ```
 
 ---
 
-#### GET /organizations/tree - 获取组织树形结构
+## 13. Flag 模块
 
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "tree": [
-      {
-        "id": 1,
-        "tenant_id": 1,
-        "code": "org1",
-        "name": "总公司",
-        "type": "company",
-        "description": "集团总部",
-        "admin_code": "admin",
-        "parent_id": 0,
-        "ancestors": "0",
-        "sort": 1,
-        "status": 1,
-        "created_at": "2024-01-01T00:00:00Z",
-        "updated_at": "2024-01-01T00:00:00Z",
-        "children": [
-          {
-            "id": 2,
-            "parent_id": 1,
-            "children": []
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+### 公开接口
+
+#### GET /flag/frames - 相框列表
+
+**请求参数:**
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| category_id | int | 分类ID（可选） |
+| page | int | 页码 |
+| size | int | 每页数量 |
 
 ---
 
-#### GET /organizations/:id - 获取组织详情
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "id": 1,
-    "tenant_id": 1,
-    "code": "org1",
-    "name": "总公司",
-    "type": "company",
-    "description": "集团总部",
-    "admin_code": "admin",
-    "parent_id": 0,
-    "ancestors": "0",
-    "sort": 1,
-    "status": 1,
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z"
-  }
-}
-```
+#### GET /flag/frames/:id - 获取相框
 
 ---
 
-#### POST /organizations - 创建组织
+#### GET /flag/frames-categories - 相框分类列表
+
+---
+
+#### GET /flag/spaces/:code - 通过编码获取Space
+
+---
+
+#### GET /flag/avatar-categories - 头像分类列表
+
+---
+
+#### GET /flag/avatars - 头像列表
+
+---
+
+#### GET /flag/avatars/:id - 获取头像
+
+---
+
+### 受保护接口
+
+#### POST /flag/frames - 创建相框
 
 **请求参数:**
 ```json
 {
-  "code": "编码 (必填)",
-  "name": "名称 (必填)",
-  "type": "类型 (必填)",
+  "category_id": 1,
+  "name": "相框名称",
   "description": "描述",
-  "admin_code": "管理员账号",
-  "parent_id": 0,
-  "sort": 1,
-  "status": 1
-}
-```
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "id": 1,
-    "code": "org1",
-    "name": "总公司"
-  }
+  "preview_url": "预览图URL",
+  "template_url": "模板URL",
+  "type": 1,
+  "sort": 1
 }
 ```
 
 ---
 
-#### PUT /organizations/:id - 更新组织
+#### PUT /flag/frames/:id - 更新相框
 
-**请求参数:**
+---
+
+#### DELETE /flag/frames/:id - 删除相框
+
+---
+
+#### POST /flag/frames-categories - 创建分类
+
+---
+
+#### PUT /flag/frames-categories/:id - 更新分类
+
+---
+
+#### DELETE /flag/frames-categories/:id - 删除分类
+
+---
+
+#### POST /flag/spaces - 创建Space
+
+---
+
+#### PUT /flag/spaces/:id - 更新Space
+
+---
+
+#### DELETE /flag/spaces/:id - 删除Space
+
+---
+
+#### GET /flag/spaces - Space列表
+
+---
+
+#### POST /flag/avatar-categories - 创建头像分类
+
+---
+
+#### PUT /flag/avatar-categories/:id - 更新头像分类
+
+---
+
+#### DELETE /flag/avatar-categories/:id - 删除头像分类
+
+---
+
+#### POST /flag/avatars - 创建头像
+
+---
+
+#### PUT /flag/avatars/:id - 更新头像
+
+---
+
+#### DELETE /flag/avatars/:id - 删除头像
+
+---
+
+#### POST /flag/generate - 生成头像
+
+---
+
+#### GET /flag/my-avatars - 我的头像列表
+
+---
+
+## 14. 错误响应示例
+
+### 未授权 (401)
+
 ```json
 {
-  "name": "名称 (必填)",
-  "type": "类型",
-  "description": "描述",
-  "admin_code": "管理员账号",
-  "sort": 1,
-  "status": 1
-}
-```
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
+  "code": 401,
+  "msg": "token 已过期",
   "data": null
 }
 ```
 
----
+### 禁止访问 (403)
 
-#### DELETE /organizations/:id - 删除组织 (软删除)
-
-**响应示例:**
 ```json
 {
-  "code": 0,
-  "msg": "ok",
+  "code": 403,
+  "msg": "权限不足",
   "data": null
 }
 ```
 
----
+### 参数错误 (400)
 
-## 权限模块 (Permission)
-
-#### GET /roles/:id/permissions - 获取角色所有权限
-
-**响应示例:**
 ```json
 {
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "menus": [
-      {
-        "id": 1,
-        "code": "menu1",
-        "name": "菜单1",
-        "effect": 1
-      }
-    ],
-    "resources": [
-      {
-        "id": 1,
-        "code": "user:create",
-        "name": "创建用户",
-        "action": "create",
-        "effect": 1
-      }
-    ]
-  }
-}
-```
-
-| effect | 说明 |
-|--------|------|
-| 1 | 允许 |
-| 0 | 拒绝 |
-
----
-
-#### POST /roles/:id/permissions - 分配权限给角色
-
-**请求参数:**
-```json
-{
-  "permissions": [
-    {
-      "resource_type": "menu",
-      "resource_id": 1,
-      "resource_code": "menu1",
-      "effect": 1
-    },
-    {
-      "resource_type": "resource",
-      "resource_id": 1,
-      "resource_code": "user:create",
-      "effect": 1
-    }
-  ]
-}
-```
-
-| resource_type | 说明 |
-|---------------|------|
-| menu | 菜单权限 |
-| resource | 资源/按钮权限 |
-| route | API路由权限 |
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
+  "code": 400,
+  "msg": "名称不能为空",
   "data": null
 }
 ```
 
----
+### 资源不存在 (404)
 
-#### PUT /roles/:id/permissions - 更新角色权限 (替换所有)
-
-**请求参数:**
-同 POST
-
-**响应示例:**
 ```json
 {
-  "code": 0,
-  "msg": "ok",
+  "code": 404,
+  "msg": "用户不存在",
   "data": null
 }
 ```
 
----
+### 服务器错误 (500)
 
-#### GET /roles/:id/menus - 获取角色菜单权限
-
-**响应示例:**
 ```json
 {
-  "code": 0,
-  "msg": "ok",
-  "data": [
-    {
-      "id": 1,
-      "code": "menu1",
-      "name": "菜单1",
-      "effect": 1
-    }
-  ]
+  "code": 500,
+  "msg": "服务器内部错误",
+  "data": null
 }
 ```
-
----
-
-#### GET /roles/:id/resources - 获取角色资源权限
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": [
-    {
-      "id": 1,
-      "code": "user:create",
-      "name": "创建用户",
-      "action": "create",
-      "effect": 1
-    }
-  ]
-}
-```
-
----
-
-## 微信模块 (WeChat)
-
-#### GET /weixin/ping - 微信模块健康检查
-
-**响应示例:**
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "domain": "weixin",
-    "status": "enabled"
-  }
-}
-```
-
----
-
-## 接口统计
-
-| 模块 | 接口数量 | 说明 |
-|------|----------|------|
-| auth | 4 | 登录/注册/刷新/登出 |
-| system | 1 | 健康检查 |
-| tenant | 5 | 租户CRUD |
-| user | 3 | 用户查询 |
-| menu | 6 | 菜单CRUD |
-| dict | 8 | 字典及字典项CRUD |
-| role | 7 | 角色CRUD + 数据权限 |
-| resource | 6 | 资源CRUD |
-| organization | 6 | 组织CRUD |
-| permission | 5 | 角色权限分配 |
-| weixin | 1 | 微信模块 |
-| **合计** | **52** | |

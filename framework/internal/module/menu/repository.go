@@ -76,7 +76,8 @@ func (r *PostgresMenuRepository) GetByTenant(ctx context.Context, tenantID uint)
 	rows, err := q.Query(ctx, `
 		SELECT id, tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled, created_at, updated_at
 		FROM menus
-		ORDER BY sort ASC, id ASC`)
+		WHERE is_deleted = FALSE AND tenant_id = $1
+		ORDER BY sort ASC, id ASC`, tenantID)
 	if err != nil {
 		return nil, err
 	}

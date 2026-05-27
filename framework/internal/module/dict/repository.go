@@ -3,6 +3,7 @@ package dict
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -68,12 +69,15 @@ func (r *DictRepository) Delete(ctx context.Context, tenantID uint, id uint) err
 	if err != nil {
 		return err
 	}
-	_, err = q.Exec(ctx, `
+	tag, err := q.Exec(ctx, `
 		UPDATE dicts SET is_deleted = TRUE, updated_at = NOW()
-		WHERE id = $1 AND tenant_id = $2
+		WHERE is_deleted = FALSE AND id = $1 AND tenant_id = $2
 	`, id, tenantID)
 	if err != nil {
 		return fmt.Errorf("delete dict: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return errors.New("dict not found")
 	}
 	dictpkg.Invalidate(tenantID, "")
 	return nil
@@ -130,12 +134,15 @@ func (r *DictRepository) DeleteItem(ctx context.Context, tenantID uint, id uint)
 	if err != nil {
 		return err
 	}
-	_, err = q.Exec(ctx, `
+	tag, err := q.Exec(ctx, `
 		UPDATE dict_items SET is_deleted = TRUE, updated_at = NOW()
-		WHERE id = $1 AND tenant_id = $2
+		WHERE is_deleted = FALSE AND id = $1 AND tenant_id = $2
 	`, id, tenantID)
 	if err != nil {
 		return fmt.Errorf("delete dict item: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return errors.New("dict item not found")
 	}
 	dictpkg.Invalidate(tenantID, "")
 	return nil

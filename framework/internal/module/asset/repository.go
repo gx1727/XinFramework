@@ -169,7 +169,13 @@ func (r *PostgresAttachmentRepository) Delete(ctx context.Context, id uint) erro
 		return err
 	}
 
-	query := `UPDATE attachments SET is_deleted = true, updated_at = NOW() WHERE id = $1`
-	_, err = q.Exec(ctx, query, id)
-	return err
+	query := `UPDATE attachments SET is_deleted = true, updated_at = NOW() WHERE is_deleted = FALSE AND id = $1`
+	tag, err := q.Exec(ctx, query, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrFileNotFound
+	}
+	return nil
 }

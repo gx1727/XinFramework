@@ -37,7 +37,6 @@ COMMENT ON COLUMN cms_posts.is_deleted IS '软删除标记';
 -- is_deleted = TRUE 的行默认不可见，除非 SET app.show_deleted = true
 ALTER TABLE cms_posts ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY  IF EXISTS tenant_isolation_policy ON cms_posts;
 CREATE POLICY tenant_isolation_policy ON cms_posts
     USING (
         tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
