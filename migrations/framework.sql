@@ -76,6 +76,8 @@ CREATE TABLE organizations
     status     SMALLINT    DEFAULT 1,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
+    created_by BIGINT,
+    updated_by BIGINT,
     is_deleted BOOLEAN     DEFAULT FALSE
 );
 CREATE INDEX idx_org_tenant ON organizations (tenant_id) WHERE is_deleted = FALSE;
@@ -95,6 +97,8 @@ CREATE TABLE users
     status     SMALLINT    DEFAULT 1,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
+    created_by BIGINT,
+    updated_by BIGINT,
     is_deleted BOOLEAN     DEFAULT FALSE
 );
 CREATE INDEX idx_users_tenant ON users (tenant_id) WHERE is_deleted = FALSE;
@@ -117,6 +121,8 @@ CREATE TABLE roles
     status      SMALLINT             DEFAULT 1,
     created_at  TIMESTAMPTZ          DEFAULT NOW(),
     updated_at  TIMESTAMPTZ          DEFAULT NOW(),
+    created_by  BIGINT,
+    updated_by  BIGINT,
     is_deleted  BOOLEAN              DEFAULT FALSE
 );
 CREATE INDEX idx_roles_tenant ON roles (tenant_id) WHERE is_deleted = FALSE;
@@ -170,6 +176,8 @@ CREATE TABLE menus
     enabled    BOOLEAN     DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
+    created_by BIGINT,
+    updated_by BIGINT,
     is_deleted BOOLEAN     DEFAULT FALSE
 );
 CREATE UNIQUE INDEX uk_menu_code ON menus (tenant_id, code) WHERE is_deleted = FALSE;
@@ -190,6 +198,8 @@ CREATE TABLE resources
     status      SMALLINT    DEFAULT 1,
     created_at  TIMESTAMPTZ DEFAULT NOW(),
     updated_at  TIMESTAMPTZ DEFAULT NOW(),
+    created_by  BIGINT,
+    updated_by  BIGINT,
     is_deleted  BOOLEAN     DEFAULT FALSE
 );
 CREATE UNIQUE INDEX uk_resource_code ON resources (tenant_id, code) WHERE is_deleted = FALSE;
