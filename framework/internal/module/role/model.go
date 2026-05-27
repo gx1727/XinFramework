@@ -10,7 +10,7 @@ import (
 type Role struct {
 	ID          uint      `json:"id"`
 	TenantID    uint      `json:"tenant_id"`
-	OrgID       uint      `json:"org_id"`
+	OrgID       *uint     `json:"org_id"`
 	Code        string    `json:"code"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`

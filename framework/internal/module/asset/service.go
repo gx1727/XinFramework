@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/logger"
 	"gx1727.com/xin/framework/pkg/storage"
 )
@@ -60,12 +59,7 @@ func (s *FileService) Upload(ctx context.Context, tenantID uint, userID uint, fi
 	fileHash := hex.EncodeToString(hashWriter.Sum(nil))
 
 	// 2. 查重 (Deduplication)
-	var existing *Attachment
-	err = db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		var err error
-		existing, err = s.repo.GetByHash(ctx, tenantID, fileHash)
-		return err
-	})
+	existing, err := s.repo.GetByHash(ctx, tenantID, fileHash)
 	if err != nil {
 		logger.Errorf("failed to query attachment by hash: %v", err)
 		return nil, ErrUploadFailed
@@ -87,12 +81,7 @@ func (s *FileService) Upload(ctx context.Context, tenantID uint, userID uint, fi
 			Status:    1,
 		}
 
-		var created *Attachment
-		err = db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-			var err error
-			created, err = s.repo.Create(ctx, attachment)
-			return err
-		})
+		created, err := s.repo.Create(ctx, attachment)
 		if err != nil {
 			logger.Errorf("failed to create attachment record (dedup): %v", err)
 			return nil, ErrUploadFailed
@@ -130,12 +119,7 @@ func (s *FileService) Upload(ctx context.Context, tenantID uint, userID uint, fi
 		Status:    1,
 	}
 
-	var created *Attachment
-	err = db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		var err error
-		created, err = s.repo.Create(ctx, attachment)
-		return err
-	})
+	created, err := s.repo.Create(ctx, attachment)
 	if err != nil {
 		logger.Errorf("failed to create attachment record: %v", err)
 		return nil, ErrUploadFailed
@@ -146,12 +130,7 @@ func (s *FileService) Upload(ctx context.Context, tenantID uint, userID uint, fi
 
 // Delete logically deletes the attachment (soft delete)
 func (s *FileService) Delete(ctx context.Context, tenantID uint, id uint) error {
-	var attachment *Attachment
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		var err error
-		attachment, err = s.repo.GetByID(ctx, id)
-		return err
-	})
+	attachment, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return ErrUploadFailed
 	}
@@ -159,7 +138,5 @@ func (s *FileService) Delete(ctx context.Context, tenantID uint, id uint) error 
 		return ErrFileNotFound
 	}
 
-	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		return s.repo.UpdateStatus(ctx, id, 0)
-	})
+	return s.repo.UpdateStatus(ctx, id, 0)
 }

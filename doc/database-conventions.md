@@ -101,8 +101,25 @@ CREATE INDEX idx_{表名}_{列名}_gin ON {表名} USING GIN ({列名});
 
 ## 6. RLS（行级安全）
 
-所有含 `tenant_id` 的表必须启用 RLS 并创建隔离策略：
+### 6.1 架构原则
 
+**应用层为主，RLS 为纵深防御**。RLS 仅在关键表上启用，防止应用层漏写 `WHERE tenant_id` 时的数据泄漏，或运维直接操作 DB 时的越权。
+
+### 6.2 RLS 关键表（保留策略）
+
+以下 7 个表启用 RLS 策略：
+
+| 表 | 保留原因 |
+|---|---|
+| `users` | 用户数据最敏感，漏写 WHERE tenant_id 风险高 |
+| `roles` | 权限体系核心，RLS 兜底 |
+| `permissions` | 权限配置表 |
+| `role_data_scopes` | 数据范围配置表 |
+| `user_roles` | 用户-角色关联 |
+| `organizations` | 组织树，层级深容易遗漏 |
+| `tenant_user_seq` | 租户下用户序号生成 |
+
+**标准 RLS 策略**：
 ```sql
 ALTER TABLE {表名} ENABLE ROW LEVEL SECURITY;
 
@@ -112,6 +129,23 @@ CREATE POLICY tenant_isolation_policy ON {表名}
     );
 ```
 
+### 6.3 应用层管控表（无 RLS）
+
+以下表不启用 RLS，依赖应用层显式 `WHERE tenant_id` + 索引隔离：
+
+| 表 | 原因 |
+|---|---|
+| `menus` | 应用层控制力度强 |
+| `resources` | 按钮权限，菜单关联查询不会跨租户 |
+| `routes` | API 路由配置，按租户查询即可 |
+| `dicts` / `dict_items` | 字典数据相对静态 |
+| `subscriptions` / `usage_records` | 账单相关，按租户查询即可 |
+| `ai_documents` / `attachments` | 文件/文档相对独立 |
+
+### 6.4 安全默认值
+
+**未设置 `app.tenant_id` 时，拒绝访问所有 RLS 保护的表。**
+
 **⚠️ 架构红线**：
 1. **绝对禁止在 RLS 中加入业务逻辑**：不要在 RLS 策略中写 `is_deleted = FALSE` 或状态判断。如果在 RLS 中加入 `is_deleted = FALSE`，当执行软删除（`UPDATE xxx SET is_deleted = TRUE`）时，新行将无法通过 RLS 校验，导致 `new row violates row-level security policy` 报错。
 2. 软删除、状态过滤等纯业务逻辑，必须由 Repository 层的 SQL `WHERE` 条件来保证。
@@ -119,7 +153,7 @@ CREATE POLICY tenant_isolation_policy ON {表名}
 ```sql
 CREATE POLICY tenant_isolation_policy ON tenants
     USING (
-        current_setting('app.tenant_id', true) = '0' 
+        current_setting('app.tenant_id', true) = '0'
         OR id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
     );
 ```

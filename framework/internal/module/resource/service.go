@@ -1,12 +1,9 @@
 package resource
 
 import (
-	"gx1727.com/xin/framework/internal/module/menu"
-
 	"context"
 
-	xincontext "gx1727.com/xin/framework/pkg/context"
-	"gx1727.com/xin/framework/pkg/db"
+	"gx1727.com/xin/framework/internal/module/menu"
 )
 
 type Service struct {
@@ -28,22 +25,16 @@ func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]Resou
 
 	var resources []Resource
 	var total int64
-
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		var err error
-		if req.MenuID > 0 {
-			resources, err = s.resourceRepo.GetByMenu(ctx, req.MenuID)
-			total = int64(len(resources))
-		} else {
-			resources, err = s.resourceRepo.GetByTenant(ctx, tenantID)
-			total = int64(len(resources))
-		}
-		return err
-	})
-
+	var err error
+	if req.MenuID > 0 {
+		resources, err = s.resourceRepo.GetByMenu(ctx, req.MenuID)
+	} else {
+		resources, err = s.resourceRepo.GetByTenant(ctx, tenantID)
+	}
 	if err != nil {
 		return nil, 0, err
 	}
+	total = int64(len(resources))
 
 	result := make([]ResourceResp, 0, len(resources))
 	for _, r := range resources {
@@ -57,13 +48,7 @@ func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]Resou
 }
 
 func (s *Service) Get(ctx context.Context, id uint) (*ResourceResp, error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	var r *Resource
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		var err error
-		r, err = s.resourceRepo.GetByID(ctx, id)
-		return err
-	})
+	r, err := s.resourceRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -75,19 +60,14 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Re
 	if req.Status == 0 {
 		req.Status = 1
 	}
-	var r *Resource
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		var err error
-		r, err = s.resourceRepo.Create(ctx, tenantID, CreateResourceRepoReq{
-			MenuID:      req.MenuID,
-			Code:        req.Code,
-			Name:        req.Name,
-			Action:      req.Action,
-			Description: req.Description,
-			Sort:        req.Sort,
-			Status:      req.Status,
-		})
-		return err
+	r, err := s.resourceRepo.Create(ctx, tenantID, CreateResourceRepoReq{
+		MenuID:      req.MenuID,
+		Code:        req.Code,
+		Name:        req.Name,
+		Action:      req.Action,
+		Description: req.Description,
+		Sort:        req.Sort,
+		Status:      req.Status,
 	})
 	if err != nil {
 		return nil, err
@@ -97,18 +77,12 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Re
 }
 
 func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*ResourceResp, error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	var r *Resource
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		var err error
-		r, err = s.resourceRepo.Update(ctx, id, UpdateResourceRepoReq{
-			Name:        req.Name,
-			Action:      req.Action,
-			Description: req.Description,
-			Sort:        req.Sort,
-			Status:      req.Status,
-		})
-		return err
+	r, err := s.resourceRepo.Update(ctx, id, UpdateResourceRepoReq{
+		Name:        req.Name,
+		Action:      req.Action,
+		Description: req.Description,
+		Sort:        req.Sort,
+		Status:      req.Status,
 	})
 	if err != nil {
 		return nil, err
@@ -118,20 +92,11 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*Resource
 }
 
 func (s *Service) Delete(ctx context.Context, id uint) error {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		return s.resourceRepo.Delete(ctx, id)
-	})
+	return s.resourceRepo.Delete(ctx, id)
 }
 
 func (s *Service) GetByMenu(ctx context.Context, menuID uint) ([]ResourceResp, error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	var resources []Resource
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		var err error
-		resources, err = s.resourceRepo.GetByMenu(ctx, menuID)
-		return err
-	})
+	resources, err := s.resourceRepo.GetByMenu(ctx, menuID)
 	if err != nil {
 		return nil, err
 	}

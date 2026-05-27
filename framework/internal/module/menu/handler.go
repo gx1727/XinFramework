@@ -66,7 +66,9 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.Delete(c.Request.Context(), id); err != nil {
+	xc := context.New(c)
+	tenantID := xc.GetTenantID()
+	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
 		resp.Error(c, MapRespError(err), err.Error())
 		return
 	}
