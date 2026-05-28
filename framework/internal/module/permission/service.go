@@ -1,183 +1,92 @@
 package permission
 
 import (
-	"gx1727.com/xin/framework/internal/module/menu"
-	"gx1727.com/xin/framework/internal/module/resource"
-
 	"context"
-	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"gx1727.com/xin/framework/internal/service"
+	"gx1727.com/xin/framework/pkg/cache"
 	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
-	permPkg "gx1727.com/xin/framework/pkg/permission"
+	"gx1727.com/xin/framework/pkg/permission"
 )
 
+// Service manages role-resource permission assignments via role_resources table.
+// Menu permission management has moved to the role module.
 type Service struct {
-	db           *pgxpool.Pool
-	permRepo     permPkg.PermissionRepository
-	menuRepo     menu.MenuRepository
-	resourceRepo resource.ResourceRepository
+	db               *pgxpool.Pool
+	roleResourceRepo RoleResourceRepository
 }
 
-func NewService(db *pgxpool.Pool, permRepo permPkg.PermissionRepository, menuRepo menu.MenuRepository, resourceRepo resource.ResourceRepository) *Service {
+func NewService(db *pgxpool.Pool, roleResourceRepo RoleResourceRepository) *Service {
 	return &Service{
-		db:           db,
-		permRepo:     permRepo,
-		menuRepo:     menuRepo,
-		resourceRepo: resourceRepo,
+		db:               db,
+		roleResourceRepo: roleResourceRepo,
 	}
 }
 
-func (s *Service) GetPermissions(ctx context.Context, roleID uint) (*RolePermissionsResp, error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
+// GetPermissions 返回角色已分配的资源权限列表
+func (s *Service) GetPermissions(ctx context.Context, roleID uint) ([]ResourcePerm, error) {
+	return s.GetResources(ctx, roleID)
+}
 
-	resp := &RolePermissionsResp{
-		Menus:     make([]MenuPerm, 0),
-		Resources: make([]ResourcePerm, 0),
-	}
-
+// AssignPermissions 全量覆盖角色的资源权限
+func (s *Service) AssignPermissions(ctx context.Context, tenantID, roleID uint, req AssignResourceReq) error {
 	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		perms, err := s.permRepo.GetByRoleID(ctx, roleID)
-		if err != nil {
-			return err
-		}
-
-		for _, p := range perms {
-			if p.ResourceType == "menu" {
-				if p.ResourceID > 0 {
-					if menu, err := s.menuRepo.GetByID(ctx, p.ResourceID); err == nil {
-						resp.Menus = append(resp.Menus, MenuPerm{
-							ID:     menu.ID,
-							Code:   menu.Code,
-							Name:   menu.Name,
-							Effect: p.Effect,
-						})
-					}
-				}
-			} else if p.ResourceType == "resource" {
-				if p.ResourceID > 0 {
-					if res, err := s.resourceRepo.GetByID(ctx, p.ResourceID); err == nil {
-						resp.Resources = append(resp.Resources, ResourcePerm{
-							ID:     res.ID,
-							Code:   res.Code,
-							Name:   res.Name,
-							Action: res.Action,
-							Effect: p.Effect,
-						})
-					}
-				}
-			}
-		}
-		return nil
+		return s.roleResourceRepo.SetForRole(ctx, roleID, req.ResourceIDs)
 	})
-
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return resp, nil
-}
-
-func (s *Service) AssignPermissions(ctx context.Context, tenantID, roleID uint, req AssignReq) error {
-	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		// Delete existing permissions
-		if err := s.permRepo.DeleteByRoleID(ctx, roleID); err != nil {
-			return fmt.Errorf("delete existing permissions: %w", err)
-		}
-
-		// Insert new permissions
-		for _, p := range req.Permissions {
-			perm := permPkg.Permission{
-				TenantID:     tenantID,
-				RoleID:       roleID,
-				ResourceType: p.ResourceType,
-				ResourceID:   p.ResourceID,
-				ResourceCode: p.ResourceCode,
-				Effect:       p.Effect,
-			}
-			if err := s.permRepo.Create(ctx, tenantID, roleID, perm); err != nil {
-				return fmt.Errorf("create permission: %w", err)
-			}
-		}
-
-		return nil
-	})
-}
-
-func (s *Service) GetMenus(ctx context.Context, roleID uint) ([]MenuPerm, error) {
-	tenantID, _ := xincontext.TenantIDFrom(ctx)
-
-	result := make([]MenuPerm, 0)
-
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		perms, err := s.permRepo.GetByRoleID(ctx, roleID)
-		if err != nil {
-			return err
-		}
-
-		seen := make(map[uint]bool)
-
-		for _, p := range perms {
-			if p.ResourceType != "menu" || p.ResourceID == 0 {
-				continue
-			}
-			if seen[p.ResourceID] {
-				continue
-			}
-			seen[p.ResourceID] = true
-
-			if menu, err := s.menuRepo.GetByID(ctx, p.ResourceID); err == nil {
-				result = append(result, MenuPerm{
-					ID:     menu.ID,
-					Code:   menu.Code,
-					Name:   menu.Name,
-					Effect: p.Effect,
-				})
-			}
-		}
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
+	// 使关联该角色的用户缓存失效
+	if cache.Get() != nil {
+		permService := service.NewPermissionService(
+			permission.NewPermissionRepository(db.Get()),
+			permission.NewDataScopeRepository(db.Get()),
+			permission.NewRedisPermissionCache(),
+		)
+		_ = permService.InvalidateRoleUsers(context.Background(), roleID)
 	}
 
-	return result, nil
+	return nil
 }
 
+// GetResources 查询角色的资源权限列表
 func (s *Service) GetResources(ctx context.Context, roleID uint) ([]ResourcePerm, error) {
 	tenantID, _ := xincontext.TenantIDFrom(ctx)
 
 	result := make([]ResourcePerm, 0)
 
 	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		perms, err := s.permRepo.GetByRoleID(ctx, roleID)
+		resourceIDs, err := s.roleResourceRepo.GetByRoleID(ctx, roleID)
 		if err != nil {
 			return err
 		}
 
-		seen := make(map[uint]bool)
-
-		for _, p := range perms {
-			if p.ResourceType != "resource" || p.ResourceID == 0 {
+		for _, resID := range resourceIDs {
+			// 直接查 resources 表获取详情
+			var (
+				id, menuID         uint
+				code, name, action string
+			)
+			q, qErr := db.GetQuerier(ctx)
+			if qErr != nil {
 				continue
 			}
-			if seen[p.ResourceID] {
-				continue
+			err := q.QueryRow(ctx, `
+				SELECT id, menu_id, code, name, action FROM resources
+				WHERE is_deleted = FALSE AND id = $1`, resID).Scan(&id, &menuID, &code, &name, &action)
+			if err != nil {
+				continue // 跳过已删除的资源
 			}
-			seen[p.ResourceID] = true
-
-			if res, err := s.resourceRepo.GetByID(ctx, p.ResourceID); err == nil {
-				result = append(result, ResourcePerm{
-					ID:     res.ID,
-					Code:   res.Code,
-					Name:   res.Name,
-					Action: res.Action,
-					Effect: p.Effect,
-				})
-			}
+			result = append(result, ResourcePerm{
+				ID:     id,
+				Code:   code,
+				Name:   name,
+				Action: action,
+			})
 		}
 		return nil
 	})

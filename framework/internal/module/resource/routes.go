@@ -15,5 +15,6 @@ func Register(protected *gin.RouterGroup, h *Handler) {
 		resources.PUT("/:id", middleware.RequirePermission(permission.ResResource, permission.ActUpdate), h.Update)
 		resources.DELETE("/:id", middleware.RequirePermission(permission.ResResource, permission.ActDelete), h.Delete)
 		resources.GET("/by-menu/:menu_id", middleware.RequirePermission(permission.ResResource, permission.ActList), h.GetByMenu)
+		resources.GET("/my", h.GetMyResources)
 	}
 }

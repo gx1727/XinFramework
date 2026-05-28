@@ -107,6 +107,19 @@ func (s *Service) GetByMenu(ctx context.Context, menuID uint) ([]ResourceResp, e
 	return result, nil
 }
 
+// GetUserResourcesByMenu 查询当前用户在指定菜单下可访问的资源
+func (s *Service) GetUserResourcesByMenu(ctx context.Context, tenantID, userID, menuID uint) ([]ResourceResp, error) {
+	resources, err := s.resourceRepo.GetUserResourcesByMenu(ctx, tenantID, userID, menuID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]ResourceResp, len(resources))
+	for i, r := range resources {
+		result[i] = toResp(r)
+	}
+	return result, nil
+}
+
 func toResp(r Resource) ResourceResp {
 	return ResourceResp{
 		ID:          r.ID,

@@ -3,6 +3,8 @@ package role
 import (
 	"context"
 
+	"gx1727.com/xin/framework/internal/service"
+	"gx1727.com/xin/framework/pkg/cache"
 	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/permission"
@@ -53,6 +55,7 @@ func (s *Service) Get(ctx context.Context, id uint) (*RoleResp, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	resp := toResp(*role)
 	return &resp, nil
 }
@@ -78,6 +81,7 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Ro
 	if err != nil {
 		return nil, err
 	}
+
 	resp := toResp(*role)
 	return &resp, nil
 }
@@ -100,13 +104,31 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*RoleResp
 	if err != nil {
 		return nil, err
 	}
+
+	if cache.Get() != nil {
+		permService := service.NewPermissionService(
+			permission.NewPermissionRepository(db.Get()),
+			permission.NewDataScopeRepository(db.Get()),
+			permission.NewRedisPermissionCache(),
+		)
+		_ = permService.InvalidateRoleUsers(context.Background(), id)
+	}
+
 	resp := toResp(*role)
 	return &resp, nil
 }
 
 func (s *Service) Delete(ctx context.Context, id uint) error {
 	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+
+	// Get users before deleting the role so we can invalidate them
+	var userIDs []uint
+	if cache.Get() != nil {
+		permRepo := permission.NewPermissionRepository(db.Get())
+		userIDs, _ = permRepo.GetUserIDsByRole(ctx, id)
+	}
+
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
 		role, err := s.roleRepo.GetByID(ctx, id)
 		if err != nil {
 			return err
@@ -116,6 +138,22 @@ func (s *Service) Delete(ctx context.Context, id uint) error {
 		}
 		return s.roleRepo.Delete(ctx, id)
 	})
+	if err != nil {
+		return err
+	}
+
+	if cache.Get() != nil && len(userIDs) > 0 {
+		permService := service.NewPermissionService(
+			permission.NewPermissionRepository(db.Get()),
+			permission.NewDataScopeRepository(db.Get()),
+			permission.NewRedisPermissionCache(),
+		)
+		for _, uid := range userIDs {
+			_ = permService.InvalidateUser(context.Background(), uid)
+		}
+	}
+
+	return nil
 }
 
 func (s *Service) GetDataScopes(ctx context.Context, roleID uint) (*DataScopeResp, error) {
@@ -134,9 +172,23 @@ func (s *Service) GetDataScopes(ctx context.Context, roleID uint) (*DataScopeRes
 
 func (s *Service) UpdateDataScopes(ctx context.Context, roleID uint, req UpdateDataScopesReq) error {
 	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
 		return s.dsRepo.SetForRole(ctx, roleID, req.OrgIDs)
 	})
+	if err != nil {
+		return err
+	}
+
+	if cache.Get() != nil {
+		permService := service.NewPermissionService(
+			permission.NewPermissionRepository(db.Get()),
+			permission.NewDataScopeRepository(db.Get()),
+			permission.NewRedisPermissionCache(),
+		)
+		_ = permService.InvalidateRoleUsers(context.Background(), roleID)
+	}
+
+	return nil
 }
 
 // GetMenus 获取角色的菜单权限

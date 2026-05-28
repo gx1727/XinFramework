@@ -1,32 +1,14 @@
 package permission
 
-type AssignReq struct {
-	Permissions []PermissionAssign `json:"permissions" binding:"required"`
+// AssignResourceReq 分配角色资源权限请求（全量覆盖）
+type AssignResourceReq struct {
+	ResourceIDs []uint `json:"resource_ids" binding:"required"`
 }
 
-type PermissionAssign struct {
-	ResourceType string `json:"resource_type" binding:"required"` // menu, resource, route
-	ResourceID   uint   `json:"resource_id"`
-	ResourceCode string `json:"resource_code"`
-	Effect       int8   `json:"effect"` // 1=allow, 0=deny
-}
-
-type RolePermissionsResp struct {
-	Menus     []MenuPerm     `json:"menus"`
-	Resources []ResourcePerm `json:"resources"`
-}
-
-type MenuPerm struct {
-	ID     uint   `json:"id"`
-	Code   string `json:"code"`
-	Name   string `json:"name"`
-	Effect int8   `json:"effect"`
-}
-
+// ResourcePerm 角色已分配的资源权限
 type ResourcePerm struct {
 	ID     uint   `json:"id"`
 	Code   string `json:"code"`
 	Name   string `json:"name"`
 	Action string `json:"action"`
-	Effect int8   `json:"effect"`
 }

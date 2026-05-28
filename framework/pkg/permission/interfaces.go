@@ -23,6 +23,9 @@ type UserPermissionRepository interface {
 
 	// GetUserRoles returns role codes for a user
 	GetUserRoles(ctx context.Context, userID uint) ([]string, error)
+
+	// GetUserIDsByRole returns all user IDs that have the given role
+	GetUserIDsByRole(ctx context.Context, roleID uint) ([]uint, error)
 }
 
 // DataScopeRepository loads data scope from database

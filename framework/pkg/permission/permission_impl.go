@@ -90,6 +90,35 @@ func (r *PostgresPermissionRepository) GetUserRoles(ctx context.Context, userID 
 	return roles, nil
 }
 
+// GetUserIDsByRole returns all user IDs that have the given role
+func (r *PostgresPermissionRepository) GetUserIDsByRole(ctx context.Context, roleID uint) ([]uint, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := q.Query(ctx, `
+		SELECT ur.user_id
+		FROM user_roles ur
+		WHERE ur.role_id = $1
+		  AND ur.is_deleted = FALSE
+	`, roleID)
+	if err != nil {
+		return nil, fmt.Errorf("get user ids by role: %w", err)
+	}
+	defer rows.Close()
+
+	var userIDs []uint
+	for rows.Next() {
+		var uid uint
+		if err := rows.Scan(&uid); err != nil {
+			return nil, err
+		}
+		userIDs = append(userIDs, uid)
+	}
+	return userIDs, nil
+}
+
 // PostgresDataScopeRepository implements DataScopeRepository
 type PostgresDataScopeRepository struct {
 	db *pgxpool.Pool

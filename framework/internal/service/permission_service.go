@@ -88,6 +88,24 @@ func (s *PermissionService) InvalidateUser(ctx context.Context, userID uint) err
 	return nil
 }
 
+// InvalidateRoleUsers invalidates cached permission/data for all users that have the given role
+func (s *PermissionService) InvalidateRoleUsers(ctx context.Context, roleID uint) error {
+	if s.cache == nil {
+		return nil
+	}
+
+	userIDs, err := s.permRepo.GetUserIDsByRole(ctx, roleID)
+	if err != nil {
+		return err
+	}
+
+	for _, userID := range userIDs {
+		s.InvalidateUser(ctx, userID)
+	}
+
+	return nil
+}
+
 // HasPermission checks if user has a specific permission
 func (s *PermissionService) HasPermission(ctx context.Context, userID uint, resource, action string) (bool, error) {
 	perms, err := s.LoadPermissions(ctx, userID)

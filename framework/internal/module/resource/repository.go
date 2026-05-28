@@ -129,10 +129,45 @@ func (r *PostgresResourceRepository) GetUserResources(ctx context.Context, tenan
 	rows, err := q.Query(ctx, `
 		SELECT DISTINCT r.id, r.tenant_id, r.menu_id, r.code, r.name, r.action, r.description, r.sort, r.status, r.created_at, r.updated_at
 		FROM resources r
-		JOIN permissions p ON p.resource_type = 'resource' AND p.resource_code = r.code
-		JOIN user_roles ur ON ur.role_id = p.role_id
-		WHERE r.is_deleted = FALSE AND r.tenant_id = $1 AND ur.user_id = $2 AND ur.is_deleted = FALSE
+		JOIN role_resources rr ON rr.resource_id = r.id AND rr.is_deleted = FALSE AND rr.effect = 1
+		JOIN roles rol ON rol.id = rr.role_id AND rol.is_deleted = FALSE AND rol.status = 1
+		JOIN user_roles ur ON ur.role_id = rol.id AND ur.is_deleted = FALSE
+		WHERE r.is_deleted = FALSE AND r.tenant_id = $1 AND ur.user_id = $2
 		ORDER BY r.id ASC`, tenantID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var resources []Resource
+	for rows.Next() {
+		var res Resource
+		if err := rows.Scan(
+			&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
+			&res.CreatedAt, &res.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		resources = append(resources, res)
+	}
+	return resources, nil
+}
+
+// GetUserResourcesByMenu 查询当前用户在指定菜单下可访问的资源（包括全局资源 menu_id IS NULL）
+func (r *PostgresResourceRepository) GetUserResourcesByMenu(ctx context.Context, tenantID, userID, menuID uint) ([]Resource, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := q.Query(ctx, `
+		SELECT DISTINCT r.id, r.tenant_id, r.menu_id, r.code, r.name, r.action, r.description, r.sort, r.status, r.created_at, r.updated_at
+		FROM resources r
+		JOIN role_resources rr ON rr.resource_id = r.id AND rr.is_deleted = FALSE AND rr.effect = 1
+		JOIN roles rol ON rol.id = rr.role_id AND rol.is_deleted = FALSE AND rol.status = 1
+		JOIN user_roles ur ON ur.role_id = rol.id AND ur.is_deleted = FALSE
+		WHERE r.is_deleted = FALSE AND r.tenant_id = $1 AND ur.user_id = $2
+		  AND (r.menu_id = $3 OR r.menu_id IS NULL)
+		ORDER BY r.sort ASC, r.id ASC`, tenantID, userID, menuID)
 	if err != nil {
 		return nil, err
 	}

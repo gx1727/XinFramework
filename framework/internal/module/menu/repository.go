@@ -113,9 +113,9 @@ func (r *PostgresMenuRepository) GetUserMenus(ctx context.Context, tenantID, use
 	rows, err := q.Query(ctx, `
 		SELECT DISTINCT m.id, m.tenant_id, m.code, m.name, m.subtitle, m.url, m.path, m.icon, m.sort, m.parent_id, m.ancestors, m.visible, m.enabled, m.created_at, m.updated_at
 		FROM menus m
-		JOIN permissions p ON p.resource_type = 'menu' AND p.resource_code = m.code
-		JOIN user_roles ur ON ur.role_id = p.role_id
-		WHERE m.is_deleted = FALSE AND m.tenant_id = $1 AND ur.user_id = $2 AND ur.is_deleted = FALSE
+		JOIN role_menus rm ON rm.menu_id = m.id AND rm.is_deleted = FALSE
+		JOIN user_roles ur ON ur.role_id = rm.role_id AND ur.is_deleted = FALSE
+		WHERE m.is_deleted = FALSE AND m.tenant_id = $1 AND ur.user_id = $2
 		ORDER BY m.sort ASC, m.id ASC`, tenantID, userID)
 	if err != nil {
 		return nil, err

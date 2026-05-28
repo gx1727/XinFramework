@@ -28,6 +28,7 @@ type ResourceRepository interface {
 	GetByTenant(ctx context.Context, tenantID uint) ([]Resource, error)
 	GetByMenu(ctx context.Context, menuID uint) ([]Resource, error)
 	GetUserResources(ctx context.Context, tenantID, userID uint) ([]Resource, error)
+	GetUserResourcesByMenu(ctx context.Context, tenantID, userID, menuID uint) ([]Resource, error)
 	Create(ctx context.Context, tenantID uint, req CreateResourceRepoReq) (*Resource, error)
 	Update(ctx context.Context, id uint, req UpdateResourceRepoReq) (*Resource, error)
 	Delete(ctx context.Context, id uint) error

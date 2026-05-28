@@ -16,5 +16,11 @@ func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
 	{
 		system.GET("/server-info", middleware.RequirePermission(permission.ResSystem, permission.ActList), h.ServerInfo)
 		system.POST("/clear-cache", middleware.RequirePermission(permission.ResSystem, permission.ActUpdate), h.ClearCache)
+
+		// Redis Cache Controls
+		system.GET("/cache/info", middleware.RequirePermission(permission.ResSystem, permission.ActList), h.CacheInfo)
+		system.GET("/cache/keys", middleware.RequirePermission(permission.ResSystem, permission.ActList), h.GetCacheKeys)
+		system.GET("/cache/value/*key", middleware.RequirePermission(permission.ResSystem, permission.ActList), h.GetCacheValue)
+		system.DELETE("/cache/keys/*key", middleware.RequirePermission(permission.ResSystem, permission.ActUpdate), h.DeleteCacheKey)
 	}
 }

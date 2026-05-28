@@ -126,3 +126,25 @@ func (h *Handler) GetByMenu(c *gin.Context) {
 
 	resp.Success(c, list)
 }
+
+// GetMyResources 查询当前用户在指定菜单下可访问的资源（前端按钮权限）
+func (h *Handler) GetMyResources(c *gin.Context) {
+	ctx := context.New(c)
+	tenantID := ctx.GetTenantID()
+	userID := ctx.GetUserID()
+
+	menuIDStr := c.Query("menu_id")
+	menuID, err := strconv.ParseUint(menuIDStr, 10, 64)
+	if err != nil || menuID == 0 {
+		resp.BadRequest(c, "invalid or missing menu_id")
+		return
+	}
+
+	list, err := h.svc.GetUserResourcesByMenu(c.Request.Context(), tenantID, userID, uint(menuID))
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+
+	resp.Success(c, list)
+}

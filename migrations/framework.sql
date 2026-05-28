@@ -223,24 +223,6 @@ CREATE TABLE routes
 );
 CREATE INDEX idx_routes_tenant ON routes (tenant_id) WHERE is_deleted = FALSE;
 
--- 11. permissions (权限关联表)
-DROP TABLE IF EXISTS permissions;
-CREATE TABLE permissions
-(
-    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    tenant_id     BIGINT      NOT NULL,
-    role_id       BIGINT      NOT NULL,
-    resource_type VARCHAR(20) NOT NULL,
-    resource_id   BIGINT,
-    resource_code VARCHAR(64),
-    effect        SMALLINT    DEFAULT 1,
-    created_at    TIMESTAMPTZ DEFAULT NOW(),
-    updated_at    TIMESTAMPTZ DEFAULT NOW(),
-    is_deleted    BOOLEAN     DEFAULT FALSE
-);
-CREATE UNIQUE INDEX uk_permission_unique ON permissions (role_id, resource_type, resource_id, resource_code) WHERE is_deleted = FALSE;
-CREATE INDEX idx_permission_role ON permissions (role_id) WHERE is_deleted = FALSE;
-
 -- 12. dicts (字典表)
 DROP TABLE IF EXISTS dicts;
 CREATE TABLE dicts
@@ -455,7 +437,6 @@ CREATE INDEX idx_role_resources_role ON role_resources (role_id) WHERE is_delete
 -- ============================================
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE permissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE role_data_scopes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
@@ -474,12 +455,6 @@ DROP
 POLICY IF EXISTS tenant_isolation_policy ON roles;
 CREATE
 POLICY tenant_isolation_policy ON roles USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
-
--- permissions
-DROP
-POLICY IF EXISTS tenant_isolation_policy ON permissions;
-CREATE
-POLICY tenant_isolation_policy ON permissions USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 
 -- role_data_scopes
 DROP
