@@ -1,49 +1,29 @@
-package permission
+﻿﻿package permission
 
 import (
 	"context"
 )
 
-// PermissionRepository loads and manages role permissions
 type PermissionRepository interface {
-	// GetByRoleID returns all permissions for a role
 	GetByRoleID(ctx context.Context, roleID uint) ([]Permission, error)
-
-	// DeleteByRoleID soft deletes all permissions for a role
 	DeleteByRoleID(ctx context.Context, roleID uint) error
-
-	// Create creates a new permission record
 	Create(ctx context.Context, tenantID, roleID uint, p Permission) error
 }
 
-// PermissionRepository loads permissions from database
 type UserPermissionRepository interface {
-	// GetUserPermissions returns a map of "resource:action" -> true
 	GetUserPermissions(ctx context.Context, userID uint) (map[string]bool, error)
-
-	// GetUserRoles returns role codes for a user
 	GetUserRoles(ctx context.Context, userID uint) ([]string, error)
-
-	// GetUserIDsByRole returns all user IDs that have the given role
 	GetUserIDsByRole(ctx context.Context, roleID uint) ([]uint, error)
+	GetUserIDsByResource(ctx context.Context, resourceID uint) ([]uint, error)
 }
 
-// DataScopeRepository loads data scope from database
 type DataScopeRepository interface {
-	// GetDataScope returns the data scope for a user
 	GetDataScope(ctx context.Context, userID uint) (*DataScope, error)
-
-	// GetUserOrgID returns the user's organization ID
 	GetUserOrgID(ctx context.Context, userID uint) (int64, error)
-
-	// GetByRoleID returns org_ids for a role's custom data scope
 	GetByRoleID(ctx context.Context, roleID uint) ([]uint, error)
-
-	// SetForRole replaces all data scopes for a role
 	SetForRole(ctx context.Context, roleID uint, orgIDs []uint) error
 }
 
-// PermissionCache defines caching operations for permissions
 type PermissionCache interface {
 	GetPermissions(ctx context.Context, userID uint) (map[string]bool, error)
 	SetPermissions(ctx context.Context, userID uint, perms map[string]bool) error

@@ -25,11 +25,12 @@ func (r *PostgresResourceRepository) GetByID(ctx context.Context, id uint) (*Res
 		return nil, err
 	}
 	var res Resource
+	var menuID *uint
 	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
 		FROM resources
 		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
-		&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
+		&res.ID, &res.TenantID, &menuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
 		&res.CreatedAt, &res.UpdatedAt,
 	)
 	if err != nil {
@@ -37,6 +38,9 @@ func (r *PostgresResourceRepository) GetByID(ctx context.Context, id uint) (*Res
 			return nil, ErrResourceNotFound
 		}
 		return nil, err
+	}
+	if menuID != nil {
+		res.MenuID = *menuID
 	}
 	return &res, nil
 }
@@ -47,11 +51,12 @@ func (r *PostgresResourceRepository) GetByCode(ctx context.Context, tenantID uin
 		return nil, err
 	}
 	var res Resource
+	var menuID *uint
 	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
 		FROM resources
 		WHERE is_deleted = FALSE AND tenant_id = $1 AND code = $2`, tenantID, code).Scan(
-		&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
+		&res.ID, &res.TenantID, &menuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
 		&res.CreatedAt, &res.UpdatedAt,
 	)
 	if err != nil {
@@ -59,6 +64,9 @@ func (r *PostgresResourceRepository) GetByCode(ctx context.Context, tenantID uin
 			return nil, ErrResourceNotFound
 		}
 		return nil, err
+	}
+	if menuID != nil {
+		res.MenuID = *menuID
 	}
 	return &res, nil
 }
@@ -81,11 +89,15 @@ func (r *PostgresResourceRepository) GetByTenant(ctx context.Context, tenantID u
 	var resources []Resource
 	for rows.Next() {
 		var res Resource
+		var menuID *uint
 		if err := rows.Scan(
-			&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
+			&res.ID, &res.TenantID, &menuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
 			&res.CreatedAt, &res.UpdatedAt,
 		); err != nil {
 			return nil, err
+		}
+		if menuID != nil {
+			res.MenuID = *menuID
 		}
 		resources = append(resources, res)
 	}
@@ -110,11 +122,15 @@ func (r *PostgresResourceRepository) GetByMenu(ctx context.Context, menuID uint)
 	var resources []Resource
 	for rows.Next() {
 		var res Resource
+		var menuID *uint
 		if err := rows.Scan(
-			&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
+			&res.ID, &res.TenantID, &menuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
 			&res.CreatedAt, &res.UpdatedAt,
 		); err != nil {
 			return nil, err
+		}
+		if menuID != nil {
+			res.MenuID = *menuID
 		}
 		resources = append(resources, res)
 	}
@@ -142,11 +158,15 @@ func (r *PostgresResourceRepository) GetUserResources(ctx context.Context, tenan
 	var resources []Resource
 	for rows.Next() {
 		var res Resource
+		var menuID *uint
 		if err := rows.Scan(
-			&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
+			&res.ID, &res.TenantID, &menuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
 			&res.CreatedAt, &res.UpdatedAt,
 		); err != nil {
 			return nil, err
+		}
+		if menuID != nil {
+			res.MenuID = *menuID
 		}
 		resources = append(resources, res)
 	}
@@ -176,11 +196,15 @@ func (r *PostgresResourceRepository) GetUserResourcesByMenu(ctx context.Context,
 	var resources []Resource
 	for rows.Next() {
 		var res Resource
+		var mID *uint
 		if err := rows.Scan(
-			&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
+			&res.ID, &res.TenantID, &mID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
 			&res.CreatedAt, &res.UpdatedAt,
 		); err != nil {
 			return nil, err
+		}
+		if mID != nil {
+			res.MenuID = *mID
 		}
 		resources = append(resources, res)
 	}

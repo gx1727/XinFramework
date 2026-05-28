@@ -1,4 +1,4 @@
-package service
+﻿﻿package service
 
 import (
 	"context"
@@ -7,11 +7,20 @@ import (
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
-// PermissionService handles permission loading and checking
 type PermissionService struct {
 	permRepo permission.UserPermissionRepository
 	dsRepo   permission.DataScopeRepository
 	cache    permission.PermissionCache
+}
+
+var globalPermService *PermissionService
+
+func SetGlobalPermissionService(ps *PermissionService) {
+	globalPermService = ps
+}
+
+func GlobalPermissionService() *PermissionService {
+	return globalPermService
 }
 
 func NewPermissionService(
@@ -26,9 +35,7 @@ func NewPermissionService(
 	}
 }
 
-// LoadPermissions loads user permissions with caching
 func (s *PermissionService) LoadPermissions(ctx context.Context, userID uint) (map[string]bool, error) {
-	// Try cache first
 	if s.cache != nil {
 		perms, err := s.cache.GetPermissions(ctx, userID)
 		if err == nil && perms != nil {
@@ -36,13 +43,11 @@ func (s *PermissionService) LoadPermissions(ctx context.Context, userID uint) (m
 		}
 	}
 
-	// Load from database
 	perms, err := s.permRepo.GetUserPermissions(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("load permissions: %w", err)
 	}
 
-	// Cache the result
 	if s.cache != nil {
 		_ = s.cache.SetPermissions(ctx, userID, perms)
 	}
@@ -50,9 +55,7 @@ func (s *PermissionService) LoadPermissions(ctx context.Context, userID uint) (m
 	return perms, nil
 }
 
-// LoadDataScope loads user data scope with caching
 func (s *PermissionService) LoadDataScope(ctx context.Context, userID uint) (*permission.DataScope, error) {
-	// Try cache first
 	if s.cache != nil {
 		ds, err := s.cache.GetDataScope(ctx, userID)
 		if err == nil && ds != nil {
@@ -60,13 +63,11 @@ func (s *PermissionService) LoadDataScope(ctx context.Context, userID uint) (*pe
 		}
 	}
 
-	// Load from database
 	ds, err := s.dsRepo.GetDataScope(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("load data scope: %w", err)
 	}
 
-	// Cache the result
 	if s.cache != nil {
 		_ = s.cache.SetDataScope(ctx, userID, ds)
 	}
@@ -74,12 +75,10 @@ func (s *PermissionService) LoadDataScope(ctx context.Context, userID uint) (*pe
 	return ds, nil
 }
 
-// LoadRoles loads user role codes
 func (s *PermissionService) LoadRoles(ctx context.Context, userID uint) ([]string, error) {
 	return s.permRepo.GetUserRoles(ctx, userID)
 }
 
-// InvalidateUser invalidates all cached permission/data for a user
 func (s *PermissionService) InvalidateUser(ctx context.Context, userID uint) error {
 	if s.cache != nil {
 		_ = s.cache.InvalidatePermissions(ctx, userID)
@@ -88,7 +87,6 @@ func (s *PermissionService) InvalidateUser(ctx context.Context, userID uint) err
 	return nil
 }
 
-// InvalidateRoleUsers invalidates cached permission/data for all users that have the given role
 func (s *PermissionService) InvalidateRoleUsers(ctx context.Context, roleID uint) error {
 	if s.cache == nil {
 		return nil
@@ -106,7 +104,6 @@ func (s *PermissionService) InvalidateRoleUsers(ctx context.Context, roleID uint
 	return nil
 }
 
-// HasPermission checks if user has a specific permission
 func (s *PermissionService) HasPermission(ctx context.Context, userID uint, resource, action string) (bool, error) {
 	perms, err := s.LoadPermissions(ctx, userID)
 	if err != nil {
@@ -115,8 +112,6 @@ func (s *PermissionService) HasPermission(ctx context.Context, userID uint, reso
 	return permission.HasPermission(perms, resource, action), nil
 }
 
-// BuildDataScopeSQL builds SQL WHERE clause for data filtering
-// Returns: "org_id = ANY($1)" or "creator_id = $1", and args slice
 func (s *PermissionService) BuildDataScopeSQL(ctx context.Context, userID uint) (string, []any, error) {
 	ds, err := s.LoadDataScope(ctx, userID)
 	if err != nil {
@@ -131,16 +126,10 @@ func (s *PermissionService) BuildDataScopeSQL(ctx context.Context, userID uint) 
 	return permission.BuildDataScopeSQL(*ds, userID, orgID)
 }
 
-// GetUserOrgID returns the user's organization ID
 func (s *PermissionService) GetUserOrgID(ctx context.Context, userID uint) (int64, error) {
 	return s.dsRepo.GetUserOrgID(ctx, userID)
 }
 
-// LoadUserSecurityContext loads all permission related data (sequential execution)
-// Note: We intentionally avoid concurrent execution here to be compatible with
-// the pgx Tx model (which does not support concurrent queries on the same Tx).
-// Since these are read-only operations and the results are cached, sequential
-// execution is acceptable in terms of performance.
 func (s *PermissionService) LoadUserSecurityContext(ctx context.Context, userID uint) (perms map[string]bool, roles []string, dsPtr *permission.DataScope, orgID int64, err error) {
 	var ds *permission.DataScope
 
@@ -168,4 +157,21 @@ func (s *PermissionService) LoadUserSecurityContext(ctx context.Context, userID 
 	}
 
 	return perms, roles, dsPtr, orgID, nil
+}
+
+func (s *PermissionService) InvalidateResourceUsers(ctx context.Context, resourceID uint) error {
+	if s.cache == nil {
+		return nil
+	}
+
+	userIDs, err := s.permRepo.GetUserIDsByResource(ctx, resourceID)
+	if err != nil {
+		return err
+	}
+
+	for _, userID := range userIDs {
+		s.InvalidateUser(ctx, userID)
+	}
+
+	return nil
 }

@@ -26,20 +26,20 @@ type App struct {
 	PermService *service.PermissionService
 }
 
+var globalApp *App
+
 func Init(cfg *config.Config) (*App, error) {
 	logger.Init(cfg.Log.Dir, cfg.Log.Level)
 	if err := db.Init(&cfg.Database); err != nil {
 		return nil, fmt.Errorf("db init failed: %w", err)
 	}
 
-	// 初始化 dict 缓存
 	dict.Init(db.Get())
 
 	if err := cache.Init(&cfg.Redis); err != nil {
 		return nil, fmt.Errorf("cache init failed: %w", err)
 	}
 
-	// 初始化 session manager
 	var sm session.SessionManager
 	if cache.Get() != nil {
 		sm = session.NewRedisSessionManager()
@@ -48,7 +48,6 @@ func Init(cfg *config.Config) (*App, error) {
 	}
 	session.Init(sm)
 
-	// 初始化 permission service
 	var permCache permission.PermissionCache
 	if cache.Get() != nil {
 		permCache = permission.NewRedisPermissionCache()
@@ -56,20 +55,26 @@ func Init(cfg *config.Config) (*App, error) {
 
 	ext_impl.InitExtApi()
 
-	// 初始化本地 repo 用于 PermService
 	permService := service.NewPermissionService(
 		permission.NewPermissionRepository(db.Get()),
 		permission.NewDataScopeRepository(db.Get()),
 		permCache,
 	)
+	service.SetGlobalPermissionService(permService)
 
-	return &App{
+	globalApp = &App{
 		Config:      cfg,
 		DB:          db.Get(),
 		SessionMgr:  sm,
 		Server:      server.New(cfg),
 		PermService: permService,
-	}, nil
+	}
+
+	return globalApp, nil
+}
+
+func AppInstance() *App {
+	return globalApp
 }
 
 func Shutdown(app *App) {

@@ -12,6 +12,8 @@ const (
 	ResRole         = "role"
 	ResUser         = "user"
 	ResPermission   = "permission"
+	ResWeixin       = "weixin"
+	ResAuth         = "auth"
 )
 
 // Action definition constants

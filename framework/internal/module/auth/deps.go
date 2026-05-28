@@ -4,9 +4,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"gx1727.com/xin/framework/internal/module/role"
 	"gx1727.com/xin/framework/internal/module/tenant"
-	"gx1727.com/xin/framework/internal/module/user"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/session"
 )
@@ -22,8 +20,6 @@ type Dependencies struct {
 	Session     SessionManager
 	AccountRepo AccountRepository
 	TenantRepo  tenant.TenantRepository
-	RoleRepo    role.RoleRepository
-	UserRepo    user.UserRepository
 }
 
 type defaultSessionManager struct{}
@@ -43,15 +39,10 @@ func DefaultDependencies(cfg *config.Config, db *pgxpool.Pool, repos Repositorie
 		Session:     defaultSessionManager{},
 		AccountRepo: repos.Account,
 		TenantRepo:  repos.Tenant,
-		RoleRepo:    repos.Role,
-		UserRepo:    repos.User,
 	}
 }
 
-// Repositories 鉴权模块所需的仓储接口
 type Repositories struct {
 	Account AccountRepository
 	Tenant  tenant.TenantRepository
-	Role    role.RoleRepository
-	User    user.UserRepository
 }

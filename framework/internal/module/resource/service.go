@@ -3,16 +3,15 @@ package resource
 import (
 	"context"
 
-	"gx1727.com/xin/framework/internal/module/menu"
+	"gx1727.com/xin/framework/internal/service"
 )
 
 type Service struct {
 	resourceRepo ResourceRepository
-	menuRepo     menu.MenuRepository
 }
 
-func NewService(resourceRepo ResourceRepository, menuRepo menu.MenuRepository) *Service {
-	return &Service{resourceRepo: resourceRepo, menuRepo: menuRepo}
+func NewService(resourceRepo ResourceRepository) *Service {
+	return &Service{resourceRepo: resourceRepo}
 }
 
 func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]ResourceResp, int64, error) {
@@ -87,11 +86,20 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*Resource
 	if err != nil {
 		return nil, err
 	}
+
+	if ps := service.GlobalPermissionService(); ps != nil {
+		_ = ps.InvalidateResourceUsers(context.Background(), id)
+	}
+
 	resp := toResp(*r)
 	return &resp, nil
 }
 
 func (s *Service) Delete(ctx context.Context, id uint) error {
+	if ps := service.GlobalPermissionService(); ps != nil {
+		_ = ps.InvalidateResourceUsers(context.Background(), id)
+	}
+
 	return s.resourceRepo.Delete(ctx, id)
 }
 
@@ -107,7 +115,6 @@ func (s *Service) GetByMenu(ctx context.Context, menuID uint) ([]ResourceResp, e
 	return result, nil
 }
 
-// GetUserResourcesByMenu 查询当前用户在指定菜单下可访问的资源
 func (s *Service) GetUserResourcesByMenu(ctx context.Context, tenantID, userID, menuID uint) ([]ResourceResp, error) {
 	resources, err := s.resourceRepo.GetUserResourcesByMenu(ctx, tenantID, userID, menuID)
 	if err != nil {

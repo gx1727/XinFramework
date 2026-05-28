@@ -1,9 +1,7 @@
 package auth
 
 import (
-	"gx1727.com/xin/framework/internal/module/role"
 	"gx1727.com/xin/framework/internal/module/tenant"
-	"gx1727.com/xin/framework/internal/module/user"
 
 	"context"
 	"errors"
@@ -107,8 +105,6 @@ type Service struct {
 	session     SessionManager
 	accountRepo AccountRepository
 	tenantRepo  tenant.TenantRepository
-	roleRepo    role.RoleRepository
-	userRepo    user.UserRepository
 }
 
 func NewService(deps Dependencies) *Service {
@@ -118,8 +114,6 @@ func NewService(deps Dependencies) *Service {
 		session:     deps.Session,
 		accountRepo: deps.AccountRepo,
 		tenantRepo:  deps.TenantRepo,
-		roleRepo:    deps.RoleRepo,
-		userRepo:    deps.UserRepo,
 	}
 }
 
