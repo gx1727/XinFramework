@@ -18,7 +18,7 @@ func NewPermissionRepository(db *pgxpool.Pool) *PostgresPermissionRepository {
 }
 
 // GetUserPermissions returns map of "resource:action" -> true
-// Joins through: users -> user_roles -> roles -> permissions -> resources
+// Joins through: users -> user_roles -> roles -> role_resources -> resources
 func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, userID uint) (map[string]bool, error) {
 	q, err := db.GetQuerier(ctx)
 	if err != nil {
@@ -29,15 +29,15 @@ func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, u
 		FROM users u
 		JOIN user_roles ur ON ur.user_id = u.id
 		JOIN roles rol ON rol.id = ur.role_id
-		JOIN permissions perm ON perm.role_id = rol.id
-		JOIN resources res ON res.id = perm.resource_id
+		JOIN role_resources rr ON rr.role_id = rol.id
+		JOIN resources res ON res.id = rr.resource_id
 		WHERE u.id = $1
 		  AND u.is_deleted = FALSE
 		  AND ur.is_deleted = FALSE
 		  AND rol.is_deleted = FALSE
 		  AND rol.status = 1
-		  AND perm.is_deleted = FALSE
-		  AND perm.effect = 1
+		  AND rr.is_deleted = FALSE
+		  AND rr.effect = 1
 		  AND res.is_deleted = FALSE
 		  AND res.status = 1
 	`, userID)
