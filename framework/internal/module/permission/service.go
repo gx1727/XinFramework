@@ -6,7 +6,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"gx1727.com/xin/framework/internal/service"
-	"gx1727.com/xin/framework/pkg/cache"
 	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
 )
@@ -40,10 +39,8 @@ func (s *Service) AssignPermissions(ctx context.Context, tenantID, roleID uint, 
 	}
 
 	// 使关联该角色的用户缓存失效
-	if cache.Get() != nil {
-		if authz := service.GlobalAuthorizationService(); authz != nil {
-			_ = authz.InvalidateRole(context.Background(), roleID)
-		}
+	if authz := service.GlobalAuthorizationService(); authz != nil {
+		_ = authz.InvalidateRole(context.Background(), roleID)
 	}
 
 	return nil

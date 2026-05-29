@@ -14,13 +14,13 @@ func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
 
 	system := protected.Group("/system")
 	{
-		system.GET("/server-info", middleware.RequirePermission(permission.ResSystem, permission.ActList), h.ServerInfo)
-		system.POST("/clear-cache", middleware.RequirePermission(permission.ResSystem, permission.ActUpdate), h.ClearCache)
+		system.GET("/server-info", middleware.Require(permission.P(permission.ResSystem, permission.ActList)), h.ServerInfo)
+		system.POST("/clear-cache", middleware.Require(permission.P(permission.ResSystem, permission.ActUpdate)), h.ClearCache)
 
 		// Redis Cache Controls
-		system.GET("/cache/info", middleware.RequirePermission(permission.ResSystem, permission.ActList), h.CacheInfo)
-		system.GET("/cache/keys", middleware.RequirePermission(permission.ResSystem, permission.ActList), h.GetCacheKeys)
-		system.GET("/cache/value/*key", middleware.RequirePermission(permission.ResSystem, permission.ActList), h.GetCacheValue)
-		system.DELETE("/cache/keys/*key", middleware.RequirePermission(permission.ResSystem, permission.ActUpdate), h.DeleteCacheKey)
+		system.GET("/cache/info", middleware.Require(permission.P(permission.ResSystem, permission.ActList)), h.CacheInfo)
+		system.GET("/cache/keys", middleware.Require(permission.P(permission.ResSystem, permission.ActList)), h.GetCacheKeys)
+		system.GET("/cache/value/*key", middleware.Require(permission.P(permission.ResSystem, permission.ActList)), h.GetCacheValue)
+		system.DELETE("/cache/keys/*key", middleware.Require(permission.P(permission.ResSystem, permission.ActUpdate)), h.DeleteCacheKey)
 	}
 }

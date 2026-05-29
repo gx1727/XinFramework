@@ -7,13 +7,13 @@ import (
 )
 
 func Register(protected *gin.RouterGroup, h *Handler) {
-	protected.GET("/dicts", middleware.RequirePermission(permission.ResDict, permission.ActList), h.List)
-	protected.GET("/dicts/:code", middleware.RequirePermission(permission.ResDict, permission.ActList), h.Get)
-	protected.POST("/dicts", middleware.RequirePermission(permission.ResDict, permission.ActCreate), h.Create)
-	protected.PUT("/dicts/:id", middleware.RequirePermission(permission.ResDict, permission.ActUpdate), h.Update)
-	protected.DELETE("/dicts/:id", middleware.RequirePermission(permission.ResDict, permission.ActDelete), h.Delete)
+	protected.GET("/dicts", middleware.Require(permission.P(permission.ResDict, permission.ActList)), h.List)
+	protected.GET("/dicts/:code", middleware.Require(permission.P(permission.ResDict, permission.ActList)), h.Get)
+	protected.POST("/dicts", middleware.Require(permission.P(permission.ResDict, permission.ActCreate)), h.Create)
+	protected.PUT("/dicts/:id", middleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.Update)
+	protected.DELETE("/dicts/:id", middleware.Require(permission.P(permission.ResDict, permission.ActDelete)), h.Delete)
 
-	protected.POST("/dicts/:id/items", middleware.RequirePermission(permission.ResDict, permission.ActUpdate), h.CreateItem)
-	protected.PUT("/dicts/:id/items/:item_id", middleware.RequirePermission(permission.ResDict, permission.ActUpdate), h.UpdateItem)
-	protected.DELETE("/dicts/:id/items/:item_id", middleware.RequirePermission(permission.ResDict, permission.ActUpdate), h.DeleteItem)
+	protected.POST("/dicts/:id/items", middleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.CreateItem)
+	protected.PUT("/dicts/:id/items/:item_id", middleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.UpdateItem)
+	protected.DELETE("/dicts/:id/items/:item_id", middleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.DeleteItem)
 }

@@ -61,7 +61,6 @@ func Init(cfg *config.Config) (*App, error) {
 		permission.NewDataScopeRepository(db.Get()),
 		permCache,
 	)
-	service.SetGlobalPermissionService(permService)
 	authzService := service.NewAuthorizationService(permService)
 	service.SetGlobalAuthorizationService(authzService)
 

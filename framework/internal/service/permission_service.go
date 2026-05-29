@@ -13,16 +13,6 @@ type PermissionService struct {
 	cache    permission.PermissionCache
 }
 
-var globalPermService *PermissionService
-
-func SetGlobalPermissionService(ps *PermissionService) {
-	globalPermService = ps
-}
-
-func GlobalPermissionService() *PermissionService {
-	return globalPermService
-}
-
 func NewPermissionService(
 	permRepo permission.UserPermissionRepository,
 	dsRepo permission.DataScopeRepository,

@@ -19,6 +19,7 @@ const (
 // Action definition constants
 const (
 	ActList   = "list"
+	ActGet    = "get"
 	ActCreate = "create"
 	ActUpdate = "update"
 	ActDelete = "delete"

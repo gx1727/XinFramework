@@ -275,13 +275,15 @@ func (r *PostgresDataScopeRepository) SetForRole(ctx context.Context, roleID uin
 		return fmt.Errorf("get tenant_id: %w", err)
 	}
 
-	// Insert new
-	for _, orgID := range orgIDs {
+	// Insert new (batch)
+	if len(orgIDs) > 0 {
 		_, err = q.Exec(ctx, `
-			INSERT INTO role_data_scopes (tenant_id, role_id, org_id) VALUES ($1, $2, $3)
-		`, tenantID, roleID, orgID)
+			INSERT INTO role_data_scopes (tenant_id, role_id, org_id)
+			SELECT $1, $2, unnest
+			FROM unnest($3::bigint[]) AS unnest
+		`, tenantID, roleID, orgIDs)
 		if err != nil {
-			return fmt.Errorf("insert data scope: %w", err)
+			return fmt.Errorf("insert data scopes: %w", err)
 		}
 	}
 

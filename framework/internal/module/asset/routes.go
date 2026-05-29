@@ -12,9 +12,9 @@ func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *FileHandle
 
 	{
 		// Upload endpoint
-		assetGroup.POST("/upload", middleware.RequirePermission(permission.ResAsset, permission.ActCreate), h.Upload)
+		assetGroup.POST("/upload", middleware.Require(permission.P(permission.ResAsset, permission.ActCreate)), h.Upload)
 
 		// Delete endpoint
-		assetGroup.DELETE("/:id", middleware.RequirePermission(permission.ResAsset, permission.ActDelete), h.Delete)
+		assetGroup.DELETE("/:id", middleware.Require(permission.P(permission.ResAsset, permission.ActDelete)), h.Delete)
 	}
 }
