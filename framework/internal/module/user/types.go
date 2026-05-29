@@ -49,3 +49,22 @@ type updateProfileRequest struct {
 	Nickname string `json:"nickName" binding:"required"`
 	Avatar   string `json:"avatarUrl"`
 }
+
+type createRequest struct {
+	Username string `json:"username" binding:"required"`
+	Phone    string `json:"phone" binding:"required"`
+	Email    string `json:"email"`
+	RealName string `json:"real_name" binding:"required"`
+	Password string `json:"password" binding:"required,min=6"`
+	Status   int8   `json:"status" binding:"omitempty,oneof=1 2"`
+}
+
+type createResponse struct {
+	ID       uint   `json:"id"`
+	TenantID uint   `json:"tenant_id"`
+	Code     string `json:"code"`
+	Username string `json:"username"`
+	RealName string `json:"real_name"`
+	Phone    string `json:"phone"`
+	Status   int8   `json:"status"`
+}

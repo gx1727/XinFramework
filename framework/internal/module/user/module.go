@@ -1,13 +1,13 @@
 package user
 
 import (
-	"gx1727.com/xin/framework/pkg/config"
-
 	"log"
 
 	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/internal/module/asset"
+	"gx1727.com/xin/framework/internal/module/auth"
 	"gx1727.com/xin/framework/internal/module/role"
+	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/plugin"
 	"gx1727.com/xin/framework/pkg/storage"
@@ -18,7 +18,6 @@ import (
 // Module 返回 user 模块的完整定义
 func Module() plugin.Module {
 	return plugin.NewModule("user", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
-		// 创建 storage
 		var s storage.Storage
 		if config.Get().Storage.Provider == "cos" {
 			cosStorage, err := storage_cos.NewCosStorage(storage_cos.Config{
@@ -39,7 +38,12 @@ func Module() plugin.Module {
 		}
 
 		assetSvc := asset.NewFileService(s, asset.NewAttachmentRepository(db.Get()))
-		h := NewHandler(NewService(NewUserRepository(db.Get()), role.NewRoleRepository(db.Get()), assetSvc))
+		h := NewHandler(NewService(
+			NewUserRepository(db.Get()),
+			role.NewRoleRepository(db.Get()),
+			assetSvc,
+			auth.NewAccountRepository(db.Get()),
+		))
 		Register(protected, h)
 	})
 }

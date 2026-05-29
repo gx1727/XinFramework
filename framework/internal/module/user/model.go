@@ -39,6 +39,8 @@ type UserRepository interface {
 }
 
 var (
-	ErrUserNotFoundDB = errors.New("user not found")
-	ErrUserDisabledDB = errors.New("user is disabled")
+	ErrUserNotFoundDB      = errors.New("user not found")
+	ErrUserDisabledDB      = errors.New("user is disabled")
+	ErrUserAlreadyExists   = errors.New("username already exists")
+	ErrDefaultRoleNotFound = errors.New("default role not found")
 )

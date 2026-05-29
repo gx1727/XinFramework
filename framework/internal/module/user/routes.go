@@ -8,6 +8,7 @@ import (
 
 func Register(protected *gin.RouterGroup, h *Handler) {
 	protected.GET("/users", middleware.Require(permission.P(permission.ResUser, permission.ActList)), h.List)
+	protected.POST("/users", middleware.Require(permission.P(permission.ResUser, permission.ActCreate)), h.Create)
 	protected.GET("/users/:id", middleware.Require(permission.P(permission.ResUser, permission.ActList)), h.Get)
 	protected.PUT("/users/:id/status", middleware.Require(permission.P(permission.ResUser, permission.ActUpdate)), h.UpdateStatus)
 	protected.GET("/user/profile", middleware.RequireAuthenticated(), h.Profile)

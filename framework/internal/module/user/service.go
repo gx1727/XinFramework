@@ -7,21 +7,24 @@ import (
 	"mime/multipart"
 
 	"gx1727.com/xin/framework/internal/module/asset"
+	"gx1727.com/xin/framework/internal/module/auth"
 	"gx1727.com/xin/framework/internal/module/role"
 	"gx1727.com/xin/framework/pkg/db"
 )
 
 type Service struct {
-	userRepo UserRepository
-	roleRepo role.RoleRepository
-	assetSvc *asset.FileService
+	userRepo    UserRepository
+	roleRepo    role.RoleRepository
+	assetSvc    *asset.FileService
+	accountRepo auth.AccountRepository
 }
 
-func NewService(userRepo UserRepository, roleRepo role.RoleRepository, assetSvc *asset.FileService) *Service {
+func NewService(userRepo UserRepository, roleRepo role.RoleRepository, assetSvc *asset.FileService, accountRepo auth.AccountRepository) *Service {
 	return &Service{
-		userRepo: userRepo,
-		roleRepo: roleRepo,
-		assetSvc: assetSvc,
+		userRepo:    userRepo,
+		roleRepo:    roleRepo,
+		assetSvc:    assetSvc,
+		accountRepo: accountRepo,
 	}
 }
 
@@ -206,4 +209,86 @@ func (s *Service) UpdateProfile(ctx context.Context, tenantID, userID uint, nick
 		}
 		return nil
 	})
+}
+
+func (s *Service) Create(ctx context.Context, tenantID, creatorID uint, req createRequest) (*createResponse, error) {
+	var (
+		newUserID   uint
+		newUserCode string
+		newAccount  *auth.Account
+	)
+
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		if s.accountRepo != nil {
+			exists, err := s.accountRepo.Exists(ctx, req.Username)
+			if err != nil {
+				return fmt.Errorf("check account exists: %w", err)
+			}
+			if exists {
+				return ErrUserAlreadyExists
+			}
+		}
+
+		status := req.Status
+		if status == 0 {
+			status = 1
+		}
+
+		var err error
+		newAccount, err = s.accountRepo.Create(ctx, req.Username, req.Phone, req.Email, req.RealName, req.Password)
+		if err != nil {
+			return fmt.Errorf("create account: %w", err)
+		}
+
+		querier, err := db.GetQuerier(ctx)
+		if err != nil {
+			return fmt.Errorf("get querier: %w", err)
+		}
+
+		err = querier.QueryRow(ctx, `
+			INSERT INTO users (tenant_id, account_id, code, status, created_by)
+			VALUES ($1, $2, '', $3, $4)
+			RETURNING id`, tenantID, newAccount.ID, status, creatorID).Scan(&newUserID)
+		if err != nil {
+			return fmt.Errorf("create user: %w", err)
+		}
+
+		var roleID uint
+		err = querier.QueryRow(ctx, `
+			SELECT id FROM roles
+			WHERE is_deleted = FALSE AND tenant_id = $1 AND is_default = TRUE
+			LIMIT 1`, tenantID).Scan(&roleID)
+		if err != nil {
+			return ErrDefaultRoleNotFound
+		}
+
+		_, err = querier.Exec(ctx, `
+			INSERT INTO user_roles (tenant_id, user_id, role_id)
+			VALUES ($1, $2, $3)`, tenantID, newUserID, roleID)
+		if err != nil {
+			return fmt.Errorf("assign default role: %w", err)
+		}
+
+		newUserCode = fmt.Sprintf("U%07d", newUserID)
+
+		_, err = querier.Exec(ctx, `UPDATE users SET code = $1 WHERE id = $2`, newUserCode, newUserID)
+		if err != nil {
+			return fmt.Errorf("update user code: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &createResponse{
+		ID:       newUserID,
+		TenantID: tenantID,
+		Code:     newUserCode,
+		Username: newAccount.Username,
+		RealName: newAccount.RealName,
+		Phone:    newAccount.Phone,
+		Status:   newAccount.Status,
+	}, nil
 }

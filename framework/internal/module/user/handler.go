@@ -1,6 +1,8 @@
 package user
 
 import (
+	"errors"
+
 	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/resp"
@@ -36,6 +38,34 @@ func (h *Handler) List(c *gin.Context) {
 		Page:  req.Page,
 		Size:  req.Size,
 	})
+}
+
+func (h *Handler) Create(c *gin.Context) {
+	var req createRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.BadRequest(c, "请求参数格式错误")
+		return
+	}
+
+	uc := context.NewUserContext(c)
+	tenantID := uc.GetTenantID()
+	creatorID := uc.GetUserID()
+
+	result, err := h.svc.Create(c.Request.Context(), tenantID, creatorID, req)
+	if err != nil {
+		if errors.Is(err, ErrUserAlreadyExists) {
+			resp.Error(c, 409, "用户名已存在")
+			return
+		}
+		if errors.Is(err, ErrDefaultRoleNotFound) {
+			resp.Error(c, 500, "系统错误：默认角色未配置")
+			return
+		}
+		resp.HandleError(c, err)
+		return
+	}
+
+	resp.Success(c, result)
 }
 
 func (h *Handler) Get(c *gin.Context) {
