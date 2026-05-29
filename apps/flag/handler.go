@@ -73,10 +73,6 @@ func (h *Handler) GetFrame(c *gin.Context) {
 
 func (h *Handler) CreateFrame(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
-	if uc.TenantID == 0 {
-		resp.Unauthorized(c, "未登录")
-		return
-	}
 
 	var req createFrameRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -112,10 +108,6 @@ func (h *Handler) CreateFrame(c *gin.Context) {
 
 func (h *Handler) UpdateFrame(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
-	if uc.TenantID == 0 {
-		resp.Unauthorized(c, "未登录")
-		return
-	}
 
 	var req updateFrameRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -148,10 +140,6 @@ func (h *Handler) UpdateFrame(c *gin.Context) {
 
 func (h *Handler) DeleteFrame(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
-	if uc.TenantID == 0 {
-		resp.Unauthorized(c, "未登录")
-		return
-	}
 
 	var req deleteFrameRequest
 	if err := c.ShouldBindUri(&req); err != nil {
@@ -190,10 +178,6 @@ func (h *Handler) ListFrameCategories(c *gin.Context) {
 
 func (h *Handler) CreateFrameCategory(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
-	if uc.TenantID == 0 {
-		resp.Unauthorized(c, "未登录")
-		return
-	}
 
 	var req createFrameCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -226,10 +210,6 @@ func (h *Handler) CreateFrameCategory(c *gin.Context) {
 
 func (h *Handler) UpdateFrameCategory(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
-	if uc.TenantID == 0 {
-		resp.Unauthorized(c, "未登录")
-		return
-	}
 
 	var req updateFrameCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -259,10 +239,6 @@ func (h *Handler) UpdateFrameCategory(c *gin.Context) {
 
 func (h *Handler) DeleteFrameCategory(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
-	if uc.TenantID == 0 {
-		resp.Unauthorized(c, "未登录")
-		return
-	}
 
 	var req deleteFrameCategoryRequest
 	if err := c.ShouldBindUri(&req); err != nil {
@@ -318,10 +294,6 @@ func (h *Handler) GetSpaceByCode(c *gin.Context) {
 
 func (h *Handler) CreateSpace(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
-	if uc.TenantID == 0 {
-		resp.Unauthorized(c, "未登录")
-		return
-	}
 
 	var req createSpaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -348,10 +320,6 @@ func (h *Handler) CreateSpace(c *gin.Context) {
 
 func (h *Handler) UpdateSpace(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
-	if uc.TenantID == 0 {
-		resp.Unauthorized(c, "未登录")
-		return
-	}
 
 	var req updateSpaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -365,10 +333,6 @@ func (h *Handler) UpdateSpace(c *gin.Context) {
 
 func (h *Handler) DeleteSpace(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
-	if uc.TenantID == 0 {
-		resp.Unauthorized(c, "未登录")
-		return
-	}
 
 	var req deleteSpaceRequest
 	if err := c.ShouldBindUri(&req); err != nil {
@@ -381,12 +345,6 @@ func (h *Handler) DeleteSpace(c *gin.Context) {
 }
 
 func (h *Handler) ListSpaces(c *gin.Context) {
-	uc := xincontext.NewUserContext(c)
-	if uc.TenantID == 0 {
-		resp.Unauthorized(c, "未登录")
-		return
-	}
-
 	resp.Success(c, []Space{})
 }
 
@@ -450,10 +408,6 @@ func (h *Handler) ListAvatarCategories(c *gin.Context) {
 
 func (h *Handler) CreateAvatarCategory(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
-	if uc.TenantID == 0 {
-		resp.Unauthorized(c, "未登录")
-		return
-	}
 
 	var req createAvatarCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -487,10 +441,6 @@ func (h *Handler) CreateAvatarCategory(c *gin.Context) {
 
 func (h *Handler) UpdateAvatarCategory(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
-	if uc.TenantID == 0 {
-		resp.Unauthorized(c, "未登录")
-		return
-	}
 
 	var req updateAvatarCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -521,10 +471,6 @@ func (h *Handler) UpdateAvatarCategory(c *gin.Context) {
 
 func (h *Handler) DeleteAvatarCategory(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
-	if uc.TenantID == 0 {
-		resp.Unauthorized(c, "未登录")
-		return
-	}
 
 	var req deleteAvatarCategoryRequest
 	if err := c.ShouldBindUri(&req); err != nil {
@@ -639,10 +585,6 @@ func (h *Handler) CreateAvatar(c *gin.Context) {
 
 func (h *Handler) UpdateAvatar(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
-	if uc.TenantID == 0 {
-		resp.Unauthorized(c, "未登录")
-		return
-	}
 
 	var req updateAvatarRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -673,10 +615,6 @@ func (h *Handler) UpdateAvatar(c *gin.Context) {
 
 func (h *Handler) DeleteAvatar(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
-	if uc.TenantID == 0 {
-		resp.Unauthorized(c, "未登录")
-		return
-	}
 
 	var req deleteAvatarRequest
 	if err := c.ShouldBindUri(&req); err != nil {

@@ -15,6 +15,7 @@ const (
 	CodeDict         = 10000 // dict: 10001-10999
 	CodeSystem       = 11000 // system: 11001-11999
 	CodeWeixin       = 12000 // weixin: 12001-12999
+	CodeFlag         = 13000 // flag: 13001-13999
 )
 
 // Err 模块错误构造函数，替代直接使用 NewError
