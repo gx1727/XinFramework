@@ -104,8 +104,8 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*RoleResp
 		return nil, err
 	}
 
-	if ps := service.GlobalPermissionService(); ps != nil {
-		_ = ps.InvalidateRoleUsers(context.Background(), id)
+	if authz := service.GlobalAuthorizationService(); authz != nil {
+		_ = authz.InvalidateRole(context.Background(), id)
 	}
 
 	resp := toResp(*role)
@@ -116,7 +116,7 @@ func (s *Service) Delete(ctx context.Context, id uint) error {
 	tenantID, _ := xincontext.TenantIDFrom(ctx)
 
 	var userIDs []uint
-	if ps := service.GlobalPermissionService(); ps != nil {
+	if authz := service.GlobalAuthorizationService(); authz != nil {
 		permRepo := permission.NewPermissionRepository(db.Get())
 		userIDs, _ = permRepo.GetUserIDsByRole(ctx, id)
 	}
@@ -135,9 +135,9 @@ func (s *Service) Delete(ctx context.Context, id uint) error {
 		return err
 	}
 
-	if ps := service.GlobalPermissionService(); ps != nil && len(userIDs) > 0 {
+	if authz := service.GlobalAuthorizationService(); authz != nil && len(userIDs) > 0 {
 		for _, uid := range userIDs {
-			_ = ps.InvalidateUser(context.Background(), uid)
+			_ = authz.InvalidateUser(context.Background(), uid)
 		}
 	}
 
@@ -167,8 +167,8 @@ func (s *Service) UpdateDataScopes(ctx context.Context, roleID uint, req UpdateD
 		return err
 	}
 
-	if ps := service.GlobalPermissionService(); ps != nil {
-		_ = ps.InvalidateRoleUsers(context.Background(), roleID)
+	if authz := service.GlobalAuthorizationService(); authz != nil {
+		_ = authz.InvalidateRole(context.Background(), roleID)
 	}
 
 	return nil

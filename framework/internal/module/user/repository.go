@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
+	"gx1727.com/xin/framework/pkg/permission"
 )
 
 type PostgresUserRepository struct {
@@ -17,6 +19,26 @@ type PostgresUserRepository struct {
 
 func NewUserRepository(db *pgxpool.Pool) UserRepository {
 	return &PostgresUserRepository{db: db}
+}
+
+var userScopeColumns = permission.ScopeColumns{
+	SelfColumn: "id",
+	OrgID:      "org_id",
+}
+
+func buildUserScopeFilter(ctx context.Context) (permission.ScopeFilter, error) {
+	uc, ok := xincontext.UserContextFrom(ctx)
+	if !ok || uc == nil || uc.UserID == 0 {
+		return permission.ScopeFilter{}, nil
+	}
+	return uc.GetDataScopeFilterFor(userScopeColumns)
+}
+
+func rebindScopeSQL(sql string, from, to int) string {
+	for i := from; i >= 1; i-- {
+		sql = strings.ReplaceAll(sql, fmt.Sprintf("$%d", i), fmt.Sprintf("$%d", to+i-1))
+	}
+	return sql
 }
 
 func (r *PostgresUserRepository) GetByID(ctx context.Context, id uint) (_ *User, err error) {
@@ -31,6 +53,58 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id uint) (_ *User,
 		SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
 		FROM users
 		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
+		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &nickname, &u.Status,
+		&realName, &avatar, &phone, &email,
+		&u.CreatedAt, &u.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	if nickname != nil {
+		u.Nickname = *nickname
+	}
+	if realName != nil {
+		u.RealName = *realName
+	}
+	if avatar != nil {
+		u.Avatar = *avatar
+	}
+	if phone != nil {
+		u.Phone = *phone
+	}
+	if email != nil {
+		u.Email = *email
+	}
+	return &u, nil
+}
+
+func (r *PostgresUserRepository) GetByIDScoped(ctx context.Context, id uint) (_ *User, err error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	filter, err := buildUserScopeFilter(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
+		FROM users
+		WHERE is_deleted = FALSE AND id = $1`
+	args := []any{id}
+	if !filter.IsEmpty() {
+		query += fmt.Sprintf(" AND (%s)", filter.SQL)
+		args = append(args, filter.Args...)
+	}
+
+	var u User
+	var nickname, realName, avatar, phone, email *string
+	err = q.QueryRow(ctx, query, args...).Scan(
 		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &nickname, &u.Status,
 		&realName, &avatar, &phone, &email,
 		&u.CreatedAt, &u.UpdatedAt,
@@ -157,6 +231,97 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keywor
 		where += fmt.Sprintf(" AND tenant_id = $%d", argIdx)
 		args = append(args, tenantID)
 		argIdx++
+	}
+	if keyword != "" {
+		where += fmt.Sprintf(" AND (code ILIKE $%d OR nickname ILIKE $%d OR real_name ILIKE $%d OR phone ILIKE $%d)", argIdx, argIdx, argIdx, argIdx)
+		args = append(args, "%"+keyword+"%")
+		argIdx++
+	}
+
+	var total int64
+	err = q.QueryRow(ctx, "SELECT COUNT(*) FROM users "+where, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if page < 1 {
+		page = 1
+	}
+	if size < 1 {
+		size = 20
+	}
+	offset := (page - 1) * size
+
+	query := fmt.Sprintf(`SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
+		FROM users %s ORDER BY id DESC LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
+	args = append(args, size, offset)
+
+	rows, err := q.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var list []User
+	for rows.Next() {
+		var u User
+		var nickname, realName, avatar, phone, email *string
+		if err := rows.Scan(
+			&u.ID, &u.TenantID, &u.AccountID, &u.Code, &nickname, &u.Status,
+			&realName, &avatar, &phone, &email,
+			&u.CreatedAt, &u.UpdatedAt,
+		); err != nil {
+			return nil, 0, err
+		}
+		if nickname != nil {
+			u.Nickname = *nickname
+		}
+		if realName != nil {
+			u.RealName = *realName
+		}
+		if avatar != nil {
+			u.Avatar = *avatar
+		}
+		if phone != nil {
+			u.Phone = *phone
+		}
+		if email != nil {
+			u.Email = *email
+		}
+		list = append(list, u)
+	}
+	return list, total, nil
+}
+
+func (r *PostgresUserRepository) ListScoped(ctx context.Context, tenantID uint, keyword string, page, size int) (_ []User, _ int64, err error) {
+	if tenantID == 0 {
+		tenantID, _ = xincontext.TenantIDFrom(ctx)
+	}
+
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	filter, err := buildUserScopeFilter(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	where := "WHERE is_deleted = FALSE"
+	args := []any{}
+	argIdx := 1
+
+	if tenantID > 0 {
+		where += fmt.Sprintf(" AND tenant_id = $%d", argIdx)
+		args = append(args, tenantID)
+		argIdx++
+	}
+	if !filter.IsEmpty() {
+		sql := rebindScopeSQL(filter.SQL, len(filter.Args), argIdx)
+		where += " AND (" + sql + ")"
+		args = append(args, filter.Args...)
+		argIdx += len(filter.Args)
 	}
 	if keyword != "" {
 		where += fmt.Sprintf(" AND (code ILIKE $%d OR nickname ILIKE $%d OR real_name ILIKE $%d OR phone ILIKE $%d)", argIdx, argIdx, argIdx, argIdx)

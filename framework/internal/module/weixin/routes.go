@@ -2,6 +2,7 @@ package weixin
 
 import (
 	"github.com/gin-gonic/gin"
+	"gx1727.com/xin/framework/internal/core/middleware"
 )
 
 func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
@@ -14,5 +15,5 @@ func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
 	public.POST("/weixin/phone", h.GetPhoneNumber)
 
 	// 需要登录的接口
-	protected.POST("/weixin/bind-phone", h.BindPhone)
+	protected.POST("/weixin/bind-phone", middleware.RequireAuthenticated(), h.BindPhone)
 }

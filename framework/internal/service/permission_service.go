@@ -113,17 +113,28 @@ func (s *PermissionService) HasPermission(ctx context.Context, userID uint, reso
 }
 
 func (s *PermissionService) BuildDataScopeSQL(ctx context.Context, userID uint) (string, []any, error) {
-	ds, err := s.LoadDataScope(ctx, userID)
+	filter, err := s.BuildDataScopeFilter(ctx, userID, permission.DefaultScopeColumns)
 	if err != nil {
 		return "", nil, err
+	}
+	return filter.SQL, filter.Args, nil
+}
+
+func (s *PermissionService) BuildDataScopeFilter(ctx context.Context, userID uint, columns permission.ScopeColumns) (permission.ScopeFilter, error) {
+	ds, err := s.LoadDataScope(ctx, userID)
+	if err != nil {
+		return permission.ScopeFilter{}, err
 	}
 
 	orgID, err := s.dsRepo.GetUserOrgID(ctx, userID)
 	if err != nil {
-		return "", nil, err
+		return permission.ScopeFilter{}, err
 	}
 
-	return permission.BuildDataScopeSQL(*ds, userID, orgID)
+	if ds == nil {
+		return permission.ScopeFilter{}, nil
+	}
+	return permission.BuildDataScopeFilter(*ds, userID, orgID, columns)
 }
 
 func (s *PermissionService) GetUserOrgID(ctx context.Context, userID uint) (int64, error) {

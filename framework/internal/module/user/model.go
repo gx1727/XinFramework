@@ -25,9 +25,11 @@ type User struct {
 // UserRepository defines data access operations for users
 type UserRepository interface {
 	GetByID(ctx context.Context, id uint) (*User, error)
+	GetByIDScoped(ctx context.Context, id uint) (*User, error)
 	GetByAccountID(ctx context.Context, accountID uint) (*User, error)
 	GetByCode(ctx context.Context, code string) (*User, error)
 	List(ctx context.Context, tenantID uint, keyword string, page, size int) ([]User, int64, error)
+	ListScoped(ctx context.Context, tenantID uint, keyword string, page, size int) ([]User, int64, error)
 	Create(ctx context.Context, tenantID, accountID uint, code string) (*User, error)
 	UpdateStatus(ctx context.Context, id uint, status int8) error
 	UpdatePhone(ctx context.Context, userID uint, phone string) error

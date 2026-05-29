@@ -127,7 +127,16 @@ func (u *UserContext) HasPermission(resource, action string) bool {
 
 // GetDataScopeFilter returns SQL WHERE clause and args for data filtering
 func (u *UserContext) GetDataScopeFilter() (string, []any, error) {
-	return permission.BuildDataScopeSQL(u.DataScope, u.UserID, u.OrgID)
+	filter, err := u.GetDataScopeFilterFor(permission.DefaultScopeColumns)
+	if err != nil {
+		return "", nil, err
+	}
+	return filter.SQL, filter.Args, nil
+}
+
+// GetDataScopeFilterFor returns a data-scope filter using explicit column mapping.
+func (u *UserContext) GetDataScopeFilterFor(columns permission.ScopeColumns) (permission.ScopeFilter, error) {
+	return permission.BuildDataScopeFilter(u.DataScope, u.UserID, u.OrgID, columns)
 }
 
 // XinContext getters

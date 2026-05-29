@@ -24,6 +24,7 @@ type App struct {
 	SessionMgr  session.SessionManager
 	Server      *server.XinServer
 	PermService *service.PermissionService
+	Authz       *service.AuthorizationService
 }
 
 var globalApp *App
@@ -61,6 +62,8 @@ func Init(cfg *config.Config) (*App, error) {
 		permCache,
 	)
 	service.SetGlobalPermissionService(permService)
+	authzService := service.NewAuthorizationService(permService)
+	service.SetGlobalAuthorizationService(authzService)
 
 	globalApp = &App{
 		Config:      cfg,
@@ -68,6 +71,7 @@ func Init(cfg *config.Config) (*App, error) {
 		SessionMgr:  sm,
 		Server:      server.New(cfg),
 		PermService: permService,
+		Authz:       authzService,
 	}
 
 	return globalApp, nil

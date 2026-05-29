@@ -37,7 +37,7 @@ func (s *Service) List(ctx context.Context, tenantID uint, req listRequest) ([]U
 	var total int64
 
 	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		users, t, err := s.userRepo.List(ctx, tenantID, req.Keyword, req.Page, req.Size)
+		users, t, err := s.userRepo.ListScoped(ctx, tenantID, req.Keyword, req.Page, req.Size)
 		if err != nil {
 			return err
 		}
@@ -74,7 +74,7 @@ func (s *Service) List(ctx context.Context, tenantID uint, req listRequest) ([]U
 func (s *Service) Get(ctx context.Context, tenantID, userID uint) (*UserInfo, error) {
 	var info *UserInfo
 	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		u, err := s.userRepo.GetByID(ctx, userID)
+		u, err := s.userRepo.GetByIDScoped(ctx, userID)
 		if err != nil {
 			if errors.Is(err, ErrUserNotFoundDB) {
 				return ErrUserNotFound
@@ -113,7 +113,7 @@ func (s *Service) Get(ctx context.Context, tenantID, userID uint) (*UserInfo, er
 
 func (s *Service) UpdateStatus(ctx context.Context, tenantID, userID uint, status int8) error {
 	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		u, err := s.userRepo.GetByID(ctx, userID)
+		u, err := s.userRepo.GetByIDScoped(ctx, userID)
 		if err != nil {
 			return err
 		}

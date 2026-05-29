@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
+	"gx1727.com/xin/framework/pkg/permission"
 )
 
 type PostgresOrganizationRepository struct {
@@ -16,6 +19,27 @@ type PostgresOrganizationRepository struct {
 
 func NewOrganizationRepository(db *pgxpool.Pool) OrganizationRepository {
 	return &PostgresOrganizationRepository{db: db}
+}
+
+var organizationScopeColumns = permission.ScopeColumns{
+	SelfColumn:   "id",
+	SelfUseOrgID: true,
+	OrgID:        "id",
+}
+
+func buildOrganizationScopeFilter(ctx context.Context) (permission.ScopeFilter, error) {
+	uc, ok := xincontext.UserContextFrom(ctx)
+	if !ok || uc == nil || uc.UserID == 0 {
+		return permission.ScopeFilter{}, nil
+	}
+	return uc.GetDataScopeFilterFor(organizationScopeColumns)
+}
+
+func rebindScopeSQL(sql string, from, to int) string {
+	for i := from; i >= 1; i-- {
+		sql = strings.ReplaceAll(sql, fmt.Sprintf("$%d", i), fmt.Sprintf("$%d", to+i-1))
+	}
+	return sql
 }
 
 func (r *PostgresOrganizationRepository) GetByID(ctx context.Context, id uint) (*Organization, error) {
@@ -28,6 +52,40 @@ func (r *PostgresOrganizationRepository) GetByID(ctx context.Context, id uint) (
 		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
 		FROM organizations
 		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
+		&org.ID, &org.TenantID, &org.Code, &org.Name, &org.Type, &org.Description,
+		&org.AdminCode, &org.ParentID, &org.Ancestors, &org.Sort, &org.Status, &org.CreatedAt, &org.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("organization not found")
+		}
+		return nil, err
+	}
+	return &org, nil
+}
+
+func (r *PostgresOrganizationRepository) GetByIDScoped(ctx context.Context, id uint) (*Organization, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filter, err := buildOrganizationScopeFilter(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
+		FROM organizations
+		WHERE is_deleted = FALSE AND id = $1`
+	args := []any{id}
+	if !filter.IsEmpty() {
+		query += " AND (" + rebindScopeSQL(filter.SQL, len(filter.Args), 2) + ")"
+		args = append(args, filter.Args...)
+	}
+
+	var org Organization
+	err = q.QueryRow(ctx, query, args...).Scan(
 		&org.ID, &org.TenantID, &org.Code, &org.Name, &org.Type, &org.Description,
 		&org.AdminCode, &org.ParentID, &org.Ancestors, &org.Sort, &org.Status, &org.CreatedAt, &org.UpdatedAt,
 	)
@@ -91,6 +149,47 @@ func (r *PostgresOrganizationRepository) GetByTenant(ctx context.Context, tenant
 	return orgs, nil
 }
 
+func (r *PostgresOrganizationRepository) GetByTenantScoped(ctx context.Context, tenantID uint) ([]Organization, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filter, err := buildOrganizationScopeFilter(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
+		FROM organizations
+		WHERE is_deleted = FALSE AND tenant_id = $1`
+	args := []any{tenantID}
+	if !filter.IsEmpty() {
+		query += " AND (" + rebindScopeSQL(filter.SQL, len(filter.Args), 2) + ")"
+		args = append(args, filter.Args...)
+	}
+	query += " ORDER BY sort ASC, id ASC"
+
+	rows, err := q.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orgs []Organization
+	for rows.Next() {
+		var org Organization
+		if err := rows.Scan(
+			&org.ID, &org.TenantID, &org.Code, &org.Name, &org.Type, &org.Description,
+			&org.AdminCode, &org.ParentID, &org.Ancestors, &org.Sort, &org.Status, &org.CreatedAt, &org.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		orgs = append(orgs, org)
+	}
+	return orgs, nil
+}
+
 func (r *PostgresOrganizationRepository) GetChildren(ctx context.Context, parentID uint) ([]Organization, error) {
 	q, err := db.GetQuerier(ctx)
 	if err != nil {
@@ -120,6 +219,47 @@ func (r *PostgresOrganizationRepository) GetChildren(ctx context.Context, parent
 	return orgs, nil
 }
 
+func (r *PostgresOrganizationRepository) GetChildrenScoped(ctx context.Context, parentID uint) ([]Organization, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filter, err := buildOrganizationScopeFilter(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
+		FROM organizations
+		WHERE is_deleted = FALSE AND parent_id = $1`
+	args := []any{parentID}
+	if !filter.IsEmpty() {
+		query += " AND (" + rebindScopeSQL(filter.SQL, len(filter.Args), 2) + ")"
+		args = append(args, filter.Args...)
+	}
+	query += " ORDER BY sort ASC, id ASC"
+
+	rows, err := q.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orgs []Organization
+	for rows.Next() {
+		var org Organization
+		if err := rows.Scan(
+			&org.ID, &org.TenantID, &org.Code, &org.Name, &org.Type, &org.Description,
+			&org.AdminCode, &org.ParentID, &org.Ancestors, &org.Sort, &org.Status, &org.CreatedAt, &org.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		orgs = append(orgs, org)
+	}
+	return orgs, nil
+}
+
 func (r *PostgresOrganizationRepository) GetTree(ctx context.Context, tenantID uint) ([]Organization, error) {
 	q, err := db.GetQuerier(ctx)
 	if err != nil {
@@ -130,6 +270,47 @@ func (r *PostgresOrganizationRepository) GetTree(ctx context.Context, tenantID u
 		FROM organizations
 		WHERE is_deleted = FALSE AND tenant_id = $1
 		ORDER BY ancestors ASC, sort ASC, id ASC`, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orgs []Organization
+	for rows.Next() {
+		var org Organization
+		if err := rows.Scan(
+			&org.ID, &org.TenantID, &org.Code, &org.Name, &org.Type, &org.Description,
+			&org.AdminCode, &org.ParentID, &org.Ancestors, &org.Sort, &org.Status, &org.CreatedAt, &org.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		orgs = append(orgs, org)
+	}
+	return orgs, nil
+}
+
+func (r *PostgresOrganizationRepository) GetTreeScoped(ctx context.Context, tenantID uint) ([]Organization, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filter, err := buildOrganizationScopeFilter(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
+		FROM organizations
+		WHERE is_deleted = FALSE AND tenant_id = $1`
+	args := []any{tenantID}
+	if !filter.IsEmpty() {
+		query += " AND (" + rebindScopeSQL(filter.SQL, len(filter.Args), 2) + ")"
+		args = append(args, filter.Args...)
+	}
+	query += " ORDER BY ancestors ASC, sort ASC, id ASC"
+
+	rows, err := q.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

@@ -61,48 +61,12 @@ func IsSuperAdmin(perms map[string]bool) bool {
 	return perms["*:*"]
 }
 
-// BuildDataScopeSQL builds SQL WHERE clause for data filtering based on DataScope
-// This is a utility function that can be used by both UserContext and PermissionService
+// BuildDataScopeSQL builds SQL WHERE clause for data filtering based on DataScope.
+// Deprecated: prefer BuildDataScopeFilter with explicit ScopeColumns.
 func BuildDataScopeSQL(ds DataScope, userID uint, orgID int64) (string, []any, error) {
-	switch ds.Type {
-	case DataScopeAll:
-		// No filtering - can see all data
-		return "", nil, nil
-
-	case DataScopeSelf:
-		return "creator_id = $1", []any{userID}, nil
-
-	case DataScopeCustom:
-		if len(ds.OrgIDs) == 0 {
-			return "creator_id = $1", []any{userID}, nil
-		}
-		return "org_id = ANY($1)", []any{ds.OrgIDs}, nil
-
-	case DataScopeDept:
-		if orgID == 0 {
-			return "creator_id = $1", []any{userID}, nil
-		}
-		return "org_id = $1", []any{orgID}, nil
-
-	case DataScopeDeptAndBelow:
-		if orgID == 0 {
-			return "creator_id = $1", []any{userID}, nil
-		}
-		// Use CTE to find all descendant org IDs
-		return `
-			org_id = $1
-			OR org_id IN (
-				WITH RECURSIVE org_tree AS (
-					SELECT id FROM organizations WHERE id = $1
-					UNION ALL
-					SELECT o.id FROM organizations o
-					JOIN org_tree ot ON o.parent_id = ot.id
-				)
-				SELECT id FROM org_tree
-			)
-		`, []any{orgID}, nil
-
-	default:
-		return "creator_id = $1", []any{userID}, nil
+	filter, err := BuildDataScopeFilter(ds, userID, orgID, DefaultScopeColumns)
+	if err != nil {
+		return "", nil, err
 	}
+	return filter.SQL, filter.Args, nil
 }

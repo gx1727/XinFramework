@@ -16,8 +16,8 @@ import (
 	"gx1727.com/xin/framework/pkg/session"
 )
 
-// PermissionServiceInterface defines the permission service methods needed by Auth middleware
-type PermissionServiceInterface interface {
+// SecurityContextLoader defines the authorization methods needed by auth middleware.
+type SecurityContextLoader interface {
 	LoadUserSecurityContext(ctx context.Context, userID uint) (map[string]bool, []string, *permission.DataScope, int64, error)
 }
 
@@ -47,7 +47,7 @@ func processAuthToken(c *gin.Context, cfg *config.JWTConfig, sm session.SessionM
 }
 
 // injectAuthContext loads permissions and injects UserContext and XinContext into the request
-func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc PermissionServiceInterface) {
+func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc SecurityContextLoader) {
 	ctx := c.Request.Context()
 
 	// 始终优先装配轻量的 XinContext（包含了身份的基本标识）
@@ -104,7 +104,7 @@ func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc Permission
 }
 
 // Auth 认证中间件 - 验证 JWT Token 和 Session
-func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc PermissionServiceInterface) gin.HandlerFunc {
+func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityContextLoader) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		claims, err := processAuthToken(c, cfg, sm)
 		if err != nil {
@@ -173,7 +173,7 @@ func AuthLite(cfg *config.JWTConfig, sm session.SessionManager) gin.HandlerFunc 
 }
 
 // OptionalAuth 可选认证中间件 - 如果有 Token 则解析并注入上下文，没有或无效也继续执行
-func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc PermissionServiceInterface) gin.HandlerFunc {
+func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityContextLoader) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		claims, err := processAuthToken(c, cfg, sm)
 		// 如果 Token 解析成功，注入上下文；否则尝试从 Header 获取租户信息（当游客）
@@ -199,62 +199,113 @@ func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc Perm
 	}
 }
 
-// RequirePermission 创建权限检查中间件 - 检查特定权限
-// 用法: protected.GET("/users", RequirePermission(permission.ResUser, permission.ActList), h.List)
-func RequirePermission(resource, action string) gin.HandlerFunc {
+func requireWithSpecs(mode string, specs ...permission.Spec) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		uc := xinContext.MustNewUserContext(c)
 
-		if !uc.HasPermission(resource, action) {
-			resp.Forbidden(c, "permission denied: "+resource+":"+action)
+		switch mode {
+		case "one":
+			spec := specs[0]
+			if !spec.IsValid() {
+				resp.Forbidden(c, "invalid permission spec")
+				c.Abort()
+				return
+			}
+			if spec.IsAuthOnly() {
+				c.Next()
+				return
+			}
+			if !uc.HasPermission(spec.Resource, spec.Action) {
+				resp.Forbidden(c, "permission denied: "+spec.String())
+				c.Abort()
+				return
+			}
+		case "any":
+			for _, spec := range specs {
+				if !spec.IsValid() {
+					continue
+				}
+				if spec.IsAuthOnly() || uc.HasPermission(spec.Resource, spec.Action) {
+					c.Next()
+					return
+				}
+			}
+			resp.Forbidden(c, "permission denied")
 			c.Abort()
 			return
+		case "all":
+			for _, spec := range specs {
+				if !spec.IsValid() {
+					resp.Forbidden(c, "invalid permission spec")
+					c.Abort()
+					return
+				}
+				if spec.IsAuthOnly() {
+					continue
+				}
+				if !uc.HasPermission(spec.Resource, spec.Action) {
+					resp.Forbidden(c, "permission denied: "+spec.String())
+					c.Abort()
+					return
+				}
+			}
 		}
 
 		c.Next()
 	}
+}
+
+// Require creates an authorization middleware from a typed permission spec.
+func Require(spec permission.Spec) gin.HandlerFunc {
+	return requireWithSpecs("one", spec)
+}
+
+// RequireAuthenticated creates a login-only middleware with no RBAC check.
+func RequireAuthenticated() gin.HandlerFunc {
+	return Require(permission.AuthOnly())
+}
+
+// RequireAny creates an authorization middleware that accepts any spec.
+func RequireAny(specs ...permission.Spec) gin.HandlerFunc {
+	return requireWithSpecs("any", specs...)
+}
+
+// RequireAll creates an authorization middleware that requires all specs.
+func RequireAll(specs ...permission.Spec) gin.HandlerFunc {
+	return requireWithSpecs("all", specs...)
+}
+
+// RequirePermission 创建权限检查中间件 - 检查特定权限
+// 用法: protected.GET("/users", RequirePermission(permission.ResUser, permission.ActList), h.List)
+func RequirePermission(resource, action string) gin.HandlerFunc {
+	return Require(permission.P(resource, action))
 }
 
 // RequireAnyPermission 创建权限检查中间件 - 用户拥有任意一个权限即可通过
 func RequireAnyPermission(permissions ...string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		uc := xinContext.MustNewUserContext(c)
-
-		for _, perm := range permissions {
-			parts := strings.SplitN(perm, ":", 2)
-			if len(parts) != 2 {
-				continue
-			}
-			if uc.HasPermission(parts[0], parts[1]) {
-				c.Next()
-				return
-			}
+	specs := make([]permission.Spec, 0, len(permissions))
+	for _, raw := range permissions {
+		spec, ok := permission.ParseSpec(raw)
+		if !ok {
+			continue
 		}
-
-		resp.Forbidden(c, "permission denied")
-		c.Abort()
+		specs = append(specs, spec)
 	}
+	return RequireAny(specs...)
 }
 
 // RequireAllPermissions 创建权限检查中间件 - 用户必须拥有所有权限才能通过
 func RequireAllPermissions(permissions ...string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		uc := xinContext.MustNewUserContext(c)
-
-		for _, perm := range permissions {
-			parts := strings.SplitN(perm, ":", 2)
-			if len(parts) != 2 {
-				resp.Forbidden(c, "invalid permission format: "+perm)
+	specs := make([]permission.Spec, 0, len(permissions))
+	for _, raw := range permissions {
+		spec, ok := permission.ParseSpec(raw)
+		if !ok {
+			return func(c *gin.Context) {
+				resp.Forbidden(c, "invalid permission format")
 				c.Abort()
-				return
-			}
-			if !uc.HasPermission(parts[0], parts[1]) {
-				resp.Forbidden(c, "permission denied: "+perm)
-				c.Abort()
-				return
 			}
 		}
-
-		c.Next()
+		specs = append(specs, spec)
 	}
+	return RequireAll(specs...)
 }

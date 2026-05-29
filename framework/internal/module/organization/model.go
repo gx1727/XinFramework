@@ -25,10 +25,14 @@ type Organization struct {
 // OrganizationRepository defines data access operations for organizations
 type OrganizationRepository interface {
 	GetByID(ctx context.Context, id uint) (*Organization, error)
+	GetByIDScoped(ctx context.Context, id uint) (*Organization, error)
 	GetByCode(ctx context.Context, tenantID uint, code string) (*Organization, error)
 	GetByTenant(ctx context.Context, tenantID uint) ([]Organization, error)
+	GetByTenantScoped(ctx context.Context, tenantID uint) ([]Organization, error)
 	GetChildren(ctx context.Context, parentID uint) ([]Organization, error)
+	GetChildrenScoped(ctx context.Context, parentID uint) ([]Organization, error)
 	GetTree(ctx context.Context, tenantID uint) ([]Organization, error)
+	GetTreeScoped(ctx context.Context, tenantID uint) ([]Organization, error)
 	Create(ctx context.Context, tenantID uint, req CreateOrgRepoReq) (*Organization, error)
 	Update(ctx context.Context, id uint, req UpdateOrgRepoReq) (*Organization, error)
 	Delete(ctx context.Context, id uint) error

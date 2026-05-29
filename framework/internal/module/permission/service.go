@@ -9,7 +9,6 @@ import (
 	"gx1727.com/xin/framework/pkg/cache"
 	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
-	"gx1727.com/xin/framework/pkg/permission"
 )
 
 // Service manages role-resource permission assignments via role_resources table.
@@ -42,12 +41,9 @@ func (s *Service) AssignPermissions(ctx context.Context, tenantID, roleID uint, 
 
 	// 使关联该角色的用户缓存失效
 	if cache.Get() != nil {
-		permService := service.NewPermissionService(
-			permission.NewPermissionRepository(db.Get()),
-			permission.NewDataScopeRepository(db.Get()),
-			permission.NewRedisPermissionCache(),
-		)
-		_ = permService.InvalidateRoleUsers(context.Background(), roleID)
+		if authz := service.GlobalAuthorizationService(); authz != nil {
+			_ = authz.InvalidateRole(context.Background(), roleID)
+		}
 	}
 
 	return nil

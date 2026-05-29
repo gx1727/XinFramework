@@ -23,9 +23,9 @@ func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]OrgRe
 	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
 		var err error
 		if req.ParentID > 0 {
-			orgs, err = s.orgRepo.GetChildren(ctx, req.ParentID)
+			orgs, err = s.orgRepo.GetChildrenScoped(ctx, req.ParentID)
 		} else {
-			orgs, err = s.orgRepo.GetByTenant(ctx, tenantID)
+			orgs, err = s.orgRepo.GetByTenantScoped(ctx, tenantID)
 		}
 		return err
 	})
@@ -53,7 +53,7 @@ func (s *Service) Get(ctx context.Context, id uint) (*OrgResp, error) {
 	var org *Organization
 	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
 		var err error
-		org, err = s.orgRepo.GetByID(ctx, id)
+		org, err = s.orgRepo.GetByIDScoped(ctx, id)
 		return err
 	})
 	if err != nil {
@@ -73,7 +73,7 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Or
 		// Build ancestors path
 		ancestors := fmt.Sprintf("%d", req.ParentID)
 		if req.ParentID > 0 {
-			parent, err := s.orgRepo.GetByID(ctx, req.ParentID)
+			parent, err := s.orgRepo.GetByIDScoped(ctx, req.ParentID)
 			if err == nil && parent.Ancestors != "" {
 				ancestors = parent.Ancestors + "." + ancestors
 			}
@@ -105,6 +105,9 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*OrgResp,
 	tenantID, _ := xincontext.TenantIDFrom(ctx)
 	var org *Organization
 	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		if _, err := s.orgRepo.GetByIDScoped(ctx, id); err != nil {
+			return err
+		}
 		var err error
 		org, err = s.orgRepo.Update(ctx, id, UpdateOrgRepoReq{
 			Name:        req.Name,
@@ -126,7 +129,7 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*OrgResp,
 func (s *Service) Delete(ctx context.Context, id uint) error {
 	tenantID, _ := xincontext.TenantIDFrom(ctx)
 	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		org, err := s.orgRepo.GetByID(ctx, id)
+		org, err := s.orgRepo.GetByIDScoped(ctx, id)
 		if err != nil {
 			return err
 		}
@@ -141,7 +144,7 @@ func (s *Service) GetTree(ctx context.Context, tenantID uint) ([]OrgResp, error)
 	var orgs []Organization
 	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
 		var err error
-		orgs, err = s.orgRepo.GetTree(ctx, tenantID)
+		orgs, err = s.orgRepo.GetTreeScoped(ctx, tenantID)
 		return err
 	})
 	if err != nil {

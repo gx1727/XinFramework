@@ -159,10 +159,10 @@ func setupRouter(app *boot.App) {
 func registerModules(r *gin.Engine, cfg *config.Config, app *boot.App) {
 	v1 := r.Group("/api/v1")
 	public := v1.Group("")
-	public.Use(middleware.OptionalAuth(&cfg.JWT, app.SessionMgr, app.PermService))
+	public.Use(middleware.OptionalAuth(&cfg.JWT, app.SessionMgr, app.Authz))
 
 	protected := v1.Group("")
-	protected.Use(middleware.Auth(&cfg.JWT, app.SessionMgr, app.PermService))
+	protected.Use(middleware.Auth(&cfg.JWT, app.SessionMgr, app.Authz))
 
 	// 注册内置模块路由
 	for _, name := range cfg.Module {

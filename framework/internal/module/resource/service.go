@@ -87,8 +87,8 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*Resource
 		return nil, err
 	}
 
-	if ps := service.GlobalPermissionService(); ps != nil {
-		_ = ps.InvalidateResourceUsers(context.Background(), id)
+	if authz := service.GlobalAuthorizationService(); authz != nil {
+		_ = authz.InvalidateResource(context.Background(), id)
 	}
 
 	resp := toResp(*r)
@@ -96,8 +96,8 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*Resource
 }
 
 func (s *Service) Delete(ctx context.Context, id uint) error {
-	if ps := service.GlobalPermissionService(); ps != nil {
-		_ = ps.InvalidateResourceUsers(context.Background(), id)
+	if authz := service.GlobalAuthorizationService(); authz != nil {
+		_ = authz.InvalidateResource(context.Background(), id)
 	}
 
 	return s.resourceRepo.Delete(ctx, id)
