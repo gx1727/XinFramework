@@ -5,11 +5,11 @@ import (
 )
 
 var (
-	ErrWeChatAPIFailed    = resp.NewError(4001, "wechat api call failed")
-	ErrInvalidCode        = resp.NewError(4002, "invalid wechat code")
-	ErrSessionKeyExpired  = resp.NewError(4003, "session key expired")
-	ErrPhoneCodeInvalid   = resp.NewError(4004, "invalid phone code")
-	ErrBackendUnavailable = resp.NewError(5001, "backend service unavailable")
-	ErrUserDisabled       = resp.NewError(4005, "user is disabled")
-	ErrInvalidPhoneNumber = resp.NewError(4006, "invalid phone number")
+	ErrWeChatAPIFailed    = resp.Err(12001, "wechat api call failed")
+	ErrInvalidCode        = resp.Err(12002, "invalid wechat code")
+	ErrSessionKeyExpired  = resp.Err(12003, "session key expired")
+	ErrPhoneCodeInvalid   = resp.Err(12004, "invalid phone code")
+	ErrBackendUnavailable = resp.Err(12005, "backend service unavailable")
+	ErrUserDisabled       = resp.Err(12006, "user is disabled")
+	ErrInvalidPhoneNumber = resp.Err(12007, "invalid phone number")
 )

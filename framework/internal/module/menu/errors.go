@@ -1,9 +1,9 @@
 package menu
 
-import "errors"
+import "gx1727.com/xin/framework/pkg/resp"
 
 var (
-	ErrMenuNotFound       = errors.New("menu not found")
-	ErrMenuCodeExists     = errors.New("menu code already exists")
-	ErrBackendUnavailable = errors.New("backend service unavailable")
+	ErrMenuNotFound       = resp.Err(5001, "菜单不存在")
+	ErrMenuCodeExists     = resp.Err(5002, "菜单编码已存在")
+	ErrBackendUnavailable = resp.Err(5003, "服务后端未初始化或不可用")
 )

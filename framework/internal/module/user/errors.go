@@ -5,5 +5,5 @@ import (
 )
 
 var (
-	ErrUserNotFound = resp.NewError(2001, "用户不存在")
+	ErrUserNotFound = resp.Err(2001, "用户不存在")
 )

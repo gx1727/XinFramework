@@ -1,10 +1,10 @@
 package organization
 
-import "errors"
+import "gx1727.com/xin/framework/pkg/resp"
 
 var (
-	ErrOrgNotFound        = errors.New("organization not found")
-	ErrOrgCodeExists      = errors.New("organization code already exists")
-	ErrCannotDeleteRoot   = errors.New("cannot delete root organization")
-	ErrBackendUnavailable = errors.New("backend unavailable")
+	ErrOrgNotFound        = resp.Err(6001, "组织不存在")
+	ErrOrgCodeExists      = resp.Err(6002, "组织编码已存在")
+	ErrCannotDeleteRoot   = resp.Err(6003, "不能删除根组织")
+	ErrBackendUnavailable = resp.Err(6004, "服务后端未初始化或不可用")
 )

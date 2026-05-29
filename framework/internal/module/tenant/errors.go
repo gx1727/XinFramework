@@ -7,14 +7,14 @@ import (
 )
 
 var (
-	ErrTenantNotFound     = resp.NewError(2001, "租户不存在")
-	ErrTenantCodeExists   = resp.NewError(2002, "租户编码已存在")
-	ErrTenantDisabled     = resp.NewError(2003, "租户已被禁用")
-	ErrTenantCreateFailed = resp.NewError(2004, "创建租户失败")
-	ErrTenantUpdateFailed = resp.NewError(2005, "更新租户失败")
-	ErrTenantDeleteFailed = resp.NewError(2006, "删除租户失败")
-	ErrTenantListFailed   = resp.NewError(2007, "查询租户列表失败")
-	ErrBackendUnavailable = resp.NewError(2008, "服务后端未初始化或不可用")
+	ErrTenantNotFound     = resp.Err(3001, "租户不存在")
+	ErrTenantCodeExists   = resp.Err(3002, "租户编码已存在")
+	ErrTenantDisabled     = resp.Err(3003, "租户已被禁用")
+	ErrTenantCreateFailed = resp.Err(3004, "创建租户失败")
+	ErrTenantUpdateFailed = resp.Err(3005, "更新租户失败")
+	ErrTenantDeleteFailed = resp.Err(3006, "删除租户失败")
+	ErrTenantListFailed   = resp.Err(3007, "查询租户列表失败")
+	ErrBackendUnavailable = resp.Err(3008, "服务后端未初始化或不可用")
 )
 
 func mapRepoError(err error) error {
