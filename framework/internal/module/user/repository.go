@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
+	"gx1727.com/xin/framework/pkg/logger"
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
@@ -21,10 +22,25 @@ func NewUserRepository(db *pgxpool.Pool) UserRepository {
 	return &PostgresUserRepository{db: db}
 }
 
+// userScopeColumns uses table-qualified column names so the generated
+// scope predicates remain unambiguous after the users ⨯ accounts join
+// in userFromClause.
 var userScopeColumns = permission.ScopeColumns{
-	SelfColumn: "id",
-	OrgID:      "org_id",
+	SelfColumn: "u.id",
+	OrgID:      "u.org_id",
 }
+
+// userSelectColumns is the canonical column list for every user read path.
+// phone/email come from the JOINed accounts row; nickname lives on users.
+const userSelectColumns = `u.id, u.tenant_id, u.account_id, u.code, u.nickname, u.status,
+		u.real_name, u.avatar,
+		a.phone, a.email,
+		u.created_at, u.updated_at`
+
+// userFromClause is the canonical FROM + JOIN for every user read path.
+// The join keeps accounts.is_deleted out of the result so soft-deleted
+// accounts surface phone/email as NULL (handled by the *string nil-checks).
+const userFromClause = `FROM users u LEFT JOIN accounts a ON a.id = u.account_id AND a.is_deleted = FALSE`
 
 func buildUserScopeFilter(ctx context.Context) (permission.ScopeFilter, error) {
 	uc, ok := xincontext.UserContextFrom(ctx)
@@ -41,26 +57,18 @@ func rebindScopeSQL(sql string, from, to int) string {
 	return sql
 }
 
-func (r *PostgresUserRepository) GetByID(ctx context.Context, id uint) (_ *User, err error) {
-	q, err := db.GetQuerier(ctx)
-	if err != nil {
-		return nil, err
-	}
-
+// scanUser scans a single row produced by the userSelectColumns column list
+// into a User. Optional columns (nickname, real_name, avatar, phone, email)
+// are nullable; the join may leave phone/email NULL when the account is
+// soft-deleted.
+func scanUser(row pgx.Row) (*User, error) {
 	var u User
 	var nickname, realName, avatar, phone, email *string
-	err = q.QueryRow(ctx, `
-		SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
-		FROM users
-		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
+	if err := row.Scan(
 		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &nickname, &u.Status,
 		&realName, &avatar, &phone, &email,
 		&u.CreatedAt, &u.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrUserNotFound
-		}
+	); err != nil {
 		return nil, err
 	}
 	if nickname != nil {
@@ -81,7 +89,26 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id uint) (_ *User,
 	return &u, nil
 }
 
-func (r *PostgresUserRepository) GetByIDScoped(ctx context.Context, id uint) (_ *User, err error) {
+func (r *PostgresUserRepository) GetByID(ctx context.Context, id uint) (*User, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	u, err := scanUser(q.QueryRow(ctx,
+		`SELECT `+userSelectColumns+`
+		`+userFromClause+`
+		WHERE u.is_deleted = FALSE AND u.id = $1`, id))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	return u, nil
+}
+
+func (r *PostgresUserRepository) GetByIDScoped(ctx context.Context, id uint) (*User, error) {
 	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
@@ -92,128 +119,62 @@ func (r *PostgresUserRepository) GetByIDScoped(ctx context.Context, id uint) (_ 
 		return nil, err
 	}
 
-	query := `
-		SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
-		FROM users
-		WHERE is_deleted = FALSE AND id = $1`
+	query := `SELECT ` + userSelectColumns + " " + userFromClause + ` WHERE u.is_deleted = FALSE AND u.id = $1`
 	args := []any{id}
 	if !filter.IsEmpty() {
 		query += fmt.Sprintf(" AND (%s)", filter.SQL)
 		args = append(args, filter.Args...)
 	}
 
-	var u User
-	var nickname, realName, avatar, phone, email *string
-	err = q.QueryRow(ctx, query, args...).Scan(
-		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &nickname, &u.Status,
-		&realName, &avatar, &phone, &email,
-		&u.CreatedAt, &u.UpdatedAt,
-	)
+	u, err := scanUser(q.QueryRow(ctx, query, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound
 		}
 		return nil, err
 	}
-	if nickname != nil {
-		u.Nickname = *nickname
-	}
-	if realName != nil {
-		u.RealName = *realName
-	}
-	if avatar != nil {
-		u.Avatar = *avatar
-	}
-	if phone != nil {
-		u.Phone = *phone
-	}
-	if email != nil {
-		u.Email = *email
-	}
-	return &u, nil
+	return u, nil
 }
 
-func (r *PostgresUserRepository) GetByAccountID(ctx context.Context, accountID uint) (_ *User, err error) {
+func (r *PostgresUserRepository) GetByAccountID(ctx context.Context, accountID uint) (*User, error) {
 	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var u User
-	var nickname, realName, avatar, phone, email *string
-	err = q.QueryRow(ctx, `
-		SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
-		FROM users
-		WHERE is_deleted = FALSE AND account_id = $1`, accountID).Scan(
-		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &nickname, &u.Status,
-		&realName, &avatar, &phone, &email,
-		&u.CreatedAt, &u.UpdatedAt,
-	)
+	u, err := scanUser(q.QueryRow(ctx,
+		`SELECT `+userSelectColumns+`
+		`+userFromClause+`
+		WHERE u.is_deleted = FALSE AND u.account_id = $1`, accountID))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound
 		}
 		return nil, err
 	}
-	if nickname != nil {
-		u.Nickname = *nickname
-	}
-	if realName != nil {
-		u.RealName = *realName
-	}
-	if avatar != nil {
-		u.Avatar = *avatar
-	}
-	if phone != nil {
-		u.Phone = *phone
-	}
-	if email != nil {
-		u.Email = *email
-	}
-	return &u, nil
+	return u, nil
 }
 
-func (r *PostgresUserRepository) GetByCode(ctx context.Context, code string) (_ *User, err error) {
+func (r *PostgresUserRepository) GetByCode(ctx context.Context, code string) (*User, error) {
 	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var u User
-	var nickname, realName, avatar, phone, email *string
-	err = q.QueryRow(ctx, `
-		SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
-		FROM users
-		WHERE is_deleted = FALSE AND code = $1`, code).Scan(
-		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &nickname, &u.Status,
-		&realName, &avatar, &phone, &email,
-		&u.CreatedAt, &u.UpdatedAt,
-	)
+	u, err := scanUser(q.QueryRow(ctx,
+		`SELECT `+userSelectColumns+`
+		`+userFromClause+`
+		WHERE u.is_deleted = FALSE AND u.code = $1`, code))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound
 		}
 		return nil, err
 	}
-	if nickname != nil {
-		u.Nickname = *nickname
-	}
-	if realName != nil {
-		u.RealName = *realName
-	}
-	if avatar != nil {
-		u.Avatar = *avatar
-	}
-	if phone != nil {
-		u.Phone = *phone
-	}
-	if email != nil {
-		u.Email = *email
-	}
-	return &u, nil
+	return u, nil
 }
 
-func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keyword string, page, size int) (_ []User, _ int64, err error) {
+func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keyword string, page, size int) ([]User, int64, error) {
 	if tenantID == 0 {
 		tenantID, _ = xincontext.TenantIDFrom(ctx)
 	}
@@ -223,25 +184,13 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keywor
 		return nil, 0, err
 	}
 
-	where := "WHERE is_deleted = FALSE"
-	args := []interface{}{}
-	argIdx := 1
-
-	if tenantID > 0 {
-		where += fmt.Sprintf(" AND tenant_id = $%d", argIdx)
-		args = append(args, tenantID)
-		argIdx++
-	}
-	if keyword != "" {
-		where += fmt.Sprintf(" AND (code ILIKE $%d OR nickname ILIKE $%d OR real_name ILIKE $%d OR phone ILIKE $%d)", argIdx, argIdx, argIdx, argIdx)
-		args = append(args, "%"+keyword+"%")
-		argIdx++
-	}
+	where, args, argIdx := buildUserListWhere(tenantID, permission.ScopeFilter{}, keyword)
 
 	var total int64
-	err = q.QueryRow(ctx, "SELECT COUNT(*) FROM users "+where, args...).Scan(&total)
-	if err != nil {
-		return nil, 0, err
+	countSQL := "SELECT COUNT(*) " + userFromClause + " " + where
+	if e := q.QueryRow(ctx, countSQL, args...).Scan(&total); e != nil {
+		logger.Module("user").Errorf("[List] COUNT failed: %v | sql=%s | args=%v", e, countSQL, args)
+		return nil, 0, e
 	}
 
 	if page < 1 {
@@ -252,8 +201,8 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keywor
 	}
 	offset := (page - 1) * size
 
-	query := fmt.Sprintf(`SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
-		FROM users %s ORDER BY id DESC LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
+	query := fmt.Sprintf(`SELECT %s %s %s ORDER BY u.id DESC LIMIT $%d OFFSET $%d`,
+		userSelectColumns, userFromClause, where, argIdx, argIdx+1)
 	args = append(args, size, offset)
 
 	rows, err := q.Query(ctx, query, args...)
@@ -262,38 +211,14 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keywor
 	}
 	defer rows.Close()
 
-	var list []User
-	for rows.Next() {
-		var u User
-		var nickname, realName, avatar, phone, email *string
-		if err := rows.Scan(
-			&u.ID, &u.TenantID, &u.AccountID, &u.Code, &nickname, &u.Status,
-			&realName, &avatar, &phone, &email,
-			&u.CreatedAt, &u.UpdatedAt,
-		); err != nil {
-			return nil, 0, err
-		}
-		if nickname != nil {
-			u.Nickname = *nickname
-		}
-		if realName != nil {
-			u.RealName = *realName
-		}
-		if avatar != nil {
-			u.Avatar = *avatar
-		}
-		if phone != nil {
-			u.Phone = *phone
-		}
-		if email != nil {
-			u.Email = *email
-		}
-		list = append(list, u)
+	list, err := scanUserRows(rows)
+	if err != nil {
+		return nil, 0, err
 	}
 	return list, total, nil
 }
 
-func (r *PostgresUserRepository) ListScoped(ctx context.Context, tenantID uint, keyword string, page, size int) (_ []User, _ int64, err error) {
+func (r *PostgresUserRepository) ListScoped(ctx context.Context, tenantID uint, keyword string, page, size int) ([]User, int64, error) {
 	if tenantID == 0 {
 		tenantID, _ = xincontext.TenantIDFrom(ctx)
 	}
@@ -308,12 +233,52 @@ func (r *PostgresUserRepository) ListScoped(ctx context.Context, tenantID uint, 
 		return nil, 0, err
 	}
 
-	where := "WHERE is_deleted = FALSE"
+	where, args, argIdx := buildUserListWhere(tenantID, filter, keyword)
+
+	var total int64
+	countSQL := "SELECT COUNT(*) " + userFromClause + " " + where
+	if e := q.QueryRow(ctx, countSQL, args...).Scan(&total); e != nil {
+		logger.Module("user").Errorf("[ListScoped] COUNT failed: %v | sql=%s | args=%v", e, countSQL, args)
+		return nil, 0, e
+	}
+
+	if page < 1 {
+		page = 1
+	}
+	if size < 1 {
+		size = 20
+	}
+	offset := (page - 1) * size
+
+	query := fmt.Sprintf(`SELECT %s %s %s ORDER BY u.id DESC LIMIT $%d OFFSET $%d`,
+		userSelectColumns, userFromClause, where, argIdx, argIdx+1)
+	args = append(args, size, offset)
+
+	rows, err := q.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	list, err := scanUserRows(rows)
+	if err != nil {
+		return nil, 0, err
+	}
+	return list, total, nil
+}
+
+// buildUserListWhere assembles the WHERE clause and args for the user list
+// queries. tenantID, the data-scope filter, and the keyword search each
+// consume a single $N placeholder (keyword is reused 5x). Returns the
+// assembled WHERE, the args slice, and the next free placeholder index
+// (used by the caller to append LIMIT/OFFSET).
+func buildUserListWhere(tenantID uint, filter permission.ScopeFilter, keyword string) (string, []any, int) {
+	where := "WHERE u.is_deleted = FALSE"
 	args := []any{}
 	argIdx := 1
 
 	if tenantID > 0 {
-		where += fmt.Sprintf(" AND tenant_id = $%d", argIdx)
+		where += fmt.Sprintf(" AND u.tenant_id = $%d", argIdx)
 		args = append(args, tenantID)
 		argIdx++
 	}
@@ -324,105 +289,55 @@ func (r *PostgresUserRepository) ListScoped(ctx context.Context, tenantID uint, 
 		argIdx += len(filter.Args)
 	}
 	if keyword != "" {
-		where += fmt.Sprintf(" AND (code ILIKE $%d OR nickname ILIKE $%d OR real_name ILIKE $%d OR phone ILIKE $%d)", argIdx, argIdx, argIdx, argIdx)
+		// 5 spec-required fields: 账号(username) / 昵称(nickname) / 姓名(real_name) / 手机(phone) / 编码(code).
+		// One shared $N placeholder reused 5x (PostgreSQL allows this).
+		where += fmt.Sprintf(" AND (u.code ILIKE $%d OR u.nickname ILIKE $%d OR u.real_name ILIKE $%d OR a.phone ILIKE $%d OR a.username ILIKE $%d)",
+			argIdx, argIdx, argIdx, argIdx, argIdx)
 		args = append(args, "%"+keyword+"%")
 		argIdx++
 	}
-
-	var total int64
-	err = q.QueryRow(ctx, "SELECT COUNT(*) FROM users "+where, args...).Scan(&total)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	if page < 1 {
-		page = 1
-	}
-	if size < 1 {
-		size = 20
-	}
-	offset := (page - 1) * size
-
-	query := fmt.Sprintf(`SELECT id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at
-		FROM users %s ORDER BY id DESC LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
-	args = append(args, size, offset)
-
-	rows, err := q.Query(ctx, query, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-
-	var list []User
-	for rows.Next() {
-		var u User
-		var nickname, realName, avatar, phone, email *string
-		if err := rows.Scan(
-			&u.ID, &u.TenantID, &u.AccountID, &u.Code, &nickname, &u.Status,
-			&realName, &avatar, &phone, &email,
-			&u.CreatedAt, &u.UpdatedAt,
-		); err != nil {
-			return nil, 0, err
-		}
-		if nickname != nil {
-			u.Nickname = *nickname
-		}
-		if realName != nil {
-			u.RealName = *realName
-		}
-		if avatar != nil {
-			u.Avatar = *avatar
-		}
-		if phone != nil {
-			u.Phone = *phone
-		}
-		if email != nil {
-			u.Email = *email
-		}
-		list = append(list, u)
-	}
-	return list, total, nil
+	return where, args, argIdx
 }
 
-func (r *PostgresUserRepository) Create(ctx context.Context, tenantID, accountID uint, code string) (_ *User, err error) {
+func scanUserRows(rows pgx.Rows) ([]User, error) {
+	var list []User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, *u)
+	}
+	return list, nil
+}
+
+func (r *PostgresUserRepository) Create(ctx context.Context, tenantID, accountID uint, code string) (*User, error) {
 	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var u User
-	var nickname, realName, avatar, phone, email *string
-	err = q.QueryRow(ctx, `
+	// Insert on users; the RETURNING covers the user-row columns only
+	// (no phone/email here — they live on the JOINed accounts row).
+	u, err := scanUser(q.QueryRow(ctx, `
 		INSERT INTO users (tenant_id, account_id, code, status)
 		VALUES ($1, $2, $3, 1)
-		RETURNING id, tenant_id, account_id, code, nickname, status, real_name, avatar, phone, email, created_at, updated_at`,
-		tenantID, accountID, code).Scan(
-		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &nickname, &u.Status,
-		&realName, &avatar, &phone, &email,
-		&u.CreatedAt, &u.UpdatedAt,
-	)
+		RETURNING id, tenant_id, account_id, code, nickname, status, real_name, avatar, created_at, updated_at`,
+		tenantID, accountID, code))
 	if err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
-	if nickname != nil {
-		u.Nickname = *nickname
+
+	// Fill phone/email from the freshly-created account.
+	if err := q.QueryRow(ctx,
+		`SELECT phone, email FROM accounts WHERE id = $1 AND is_deleted = FALSE`,
+		accountID).Scan(&u.Phone, &u.Email); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("load account: %w", err)
 	}
-	if realName != nil {
-		u.RealName = *realName
-	}
-	if avatar != nil {
-		u.Avatar = *avatar
-	}
-	if phone != nil {
-		u.Phone = *phone
-	}
-	if email != nil {
-		u.Email = *email
-	}
-	return &u, nil
+	return u, nil
 }
 
-func (r *PostgresUserRepository) UpdateStatus(ctx context.Context, id uint, status int8) (err error) {
+func (r *PostgresUserRepository) UpdateStatus(ctx context.Context, id uint, status int8) error {
 	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
@@ -440,7 +355,7 @@ func (r *PostgresUserRepository) UpdateStatus(ctx context.Context, id uint, stat
 	return nil
 }
 
-func (r *PostgresUserRepository) Delete(ctx context.Context, id uint) (err error) {
+func (r *PostgresUserRepository) Delete(ctx context.Context, id uint) error {
 	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
@@ -458,15 +373,22 @@ func (r *PostgresUserRepository) Delete(ctx context.Context, id uint) (err error
 	return nil
 }
 
-func (r *PostgresUserRepository) UpdatePhone(ctx context.Context, userID uint, phone string) (err error) {
+// UpdatePhone writes phone to the user's underlying account row (phone is
+// an account-level attribute, not a per-tenant user attribute). The single
+// UPDATE...FROM statement resolves account_id without a separate lookup.
+func (r *PostgresUserRepository) UpdatePhone(ctx context.Context, userID uint, phone string) error {
 	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
 	}
 
 	tag, err := q.Exec(ctx, `
-		UPDATE users SET phone = $2, updated_at = NOW()
-		WHERE is_deleted = FALSE AND id = $1`, userID, phone)
+		UPDATE accounts a SET phone = $2, updated_at = NOW()
+		FROM users u
+		WHERE u.id = $1
+		  AND a.id = u.account_id
+		  AND u.is_deleted = FALSE
+		  AND a.is_deleted = FALSE`, userID, phone)
 	if err != nil {
 		return fmt.Errorf("update user phone: %w", err)
 	}
@@ -476,7 +398,7 @@ func (r *PostgresUserRepository) UpdatePhone(ctx context.Context, userID uint, p
 	return nil
 }
 
-func (r *PostgresUserRepository) UpdateProfile(ctx context.Context, id uint, nickname, avatar string) (err error) {
+func (r *PostgresUserRepository) UpdateProfile(ctx context.Context, id uint, nickname, avatar string) error {
 	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err
@@ -494,7 +416,7 @@ func (r *PostgresUserRepository) UpdateProfile(ctx context.Context, id uint, nic
 	return nil
 }
 
-func (r *PostgresUserRepository) UpdateAvatar(ctx context.Context, id uint, avatar string) (err error) {
+func (r *PostgresUserRepository) UpdateAvatar(ctx context.Context, id uint, avatar string) error {
 	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return err

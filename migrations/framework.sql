@@ -93,6 +93,7 @@ CREATE TABLE users
     code       VARCHAR(32),
     org_id     BIGINT,
     real_name  VARCHAR(64),
+    nickname   VARCHAR(64),
     avatar     VARCHAR(512),
     status     SMALLINT    DEFAULT 1,
     created_at TIMESTAMPTZ DEFAULT NOW(),
