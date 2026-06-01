@@ -1,6 +1,5 @@
 package permission
 
-import "strings"
 
 // Spec describes an authorization requirement for a route or action.
 type Spec struct {
@@ -46,13 +45,4 @@ func (s Spec) String() string {
 		return "auth"
 	}
 	return s.Resource + ":" + s.Action
-}
-
-// ParseSpec parses "resource:action" into a permission spec.
-func ParseSpec(raw string) (Spec, bool) {
-	parts := strings.SplitN(raw, ":", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return Spec{}, false
-	}
-	return P(parts[0], parts[1]), true
 }

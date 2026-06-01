@@ -36,3 +36,5 @@ logs/
 
 out/
 uploads/
+.gocache/
+_tmpgen/

@@ -274,38 +274,3 @@ func RequireAny(specs ...permission.Spec) gin.HandlerFunc {
 func RequireAll(specs ...permission.Spec) gin.HandlerFunc {
 	return requireWithSpecs("all", specs...)
 }
-
-// RequirePermission 创建权限检查中间件 - 检查特定权限
-// 用法: protected.GET("/users", RequirePermission(permission.ResUser, permission.ActList), h.List)
-func RequirePermission(resource, action string) gin.HandlerFunc {
-	return Require(permission.P(resource, action))
-}
-
-// RequireAnyPermission 创建权限检查中间件 - 用户拥有任意一个权限即可通过
-func RequireAnyPermission(permissions ...string) gin.HandlerFunc {
-	specs := make([]permission.Spec, 0, len(permissions))
-	for _, raw := range permissions {
-		spec, ok := permission.ParseSpec(raw)
-		if !ok {
-			continue
-		}
-		specs = append(specs, spec)
-	}
-	return RequireAny(specs...)
-}
-
-// RequireAllPermissions 创建权限检查中间件 - 用户必须拥有所有权限才能通过
-func RequireAllPermissions(permissions ...string) gin.HandlerFunc {
-	specs := make([]permission.Spec, 0, len(permissions))
-	for _, raw := range permissions {
-		spec, ok := permission.ParseSpec(raw)
-		if !ok {
-			return func(c *gin.Context) {
-				resp.Forbidden(c, "invalid permission format")
-				c.Abort()
-			}
-		}
-		specs = append(specs, spec)
-	}
-	return RequireAll(specs...)
-}
