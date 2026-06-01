@@ -3,7 +3,6 @@ package ext_impl
 import (
 	"context"
 
-	"gx1727.com/xin/framework/internal/module/cms"
 	"gx1727.com/xin/framework/internal/module/tenant"
 	"gx1727.com/xin/framework/internal/module/user"
 	"gx1727.com/xin/framework/pkg/db"
@@ -66,56 +65,6 @@ func (f *tenantFacadeImpl) GetByID(ctx context.Context, id uint) (*extapi.Tenant
 	}, nil
 }
 
-// ----------------- CmsPost Facade -----------------
-type cmsPostFacadeImpl struct {
-	repo cms.CmsPostRepository
-}
-
-func (f *cmsPostFacadeImpl) GetByID(ctx context.Context, id uint) (*extapi.CmsPost, error) {
-	p, err := f.repo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return &extapi.CmsPost{
-		ID: p.ID, TenantID: p.TenantID, Title: p.Title, Content: p.Content,
-		Status: p.Status, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
-	}, nil
-}
-
-func (f *cmsPostFacadeImpl) List(ctx context.Context, tenantID uint, keyword string, status *int16, page, size int) ([]extapi.CmsPost, int64, error) {
-	posts, total, err := f.repo.List(ctx, tenantID, keyword, status, page, size)
-	if err != nil {
-		return nil, 0, err
-	}
-	res := make([]extapi.CmsPost, len(posts))
-	for i, p := range posts {
-		res[i] = extapi.CmsPost{
-			ID: p.ID, TenantID: p.TenantID, Title: p.Title, Content: p.Content,
-			Status: p.Status, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
-		}
-	}
-	return res, total, nil
-}
-
-func (f *cmsPostFacadeImpl) Create(ctx context.Context, tenantID uint, title, content string, status int16) (*extapi.CmsPost, error) {
-	p, err := f.repo.Create(ctx, tenantID, title, content, status)
-	if err != nil {
-		return nil, err
-	}
-	return &extapi.CmsPost{
-		ID: p.ID, TenantID: p.TenantID, Title: p.Title, Content: p.Content,
-		Status: p.Status, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
-	}, nil
-}
-
-func (f *cmsPostFacadeImpl) Update(ctx context.Context, id uint, title, content string, status int16) error {
-	return f.repo.Update(ctx, id, title, content, status)
-}
-
-func (f *cmsPostFacadeImpl) Delete(ctx context.Context, id uint) error {
-	return f.repo.Delete(ctx, id)
-}
-
 // ----------------- Provider Methods -----------------
 func (p *defaultProvider) User() extapi.UserFacade {
 	return &userFacadeImpl{repo: user.NewUserRepository(db.Get())}
@@ -123,10 +72,6 @@ func (p *defaultProvider) User() extapi.UserFacade {
 
 func (p *defaultProvider) Tenant() extapi.TenantFacade {
 	return &tenantFacadeImpl{repo: tenant.NewTenantRepository(db.Get())}
-}
-
-func (p *defaultProvider) CmsPost() extapi.CmsPostFacade {
-	return &cmsPostFacadeImpl{repo: cms.NewCmsPostRepository(db.Get())}
 }
 
 func InitExtApi() {

@@ -40,17 +40,6 @@ type Tenant struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// CmsPost DTO for external apps
-type CmsPost struct {
-	ID        uint      `json:"id"`
-	TenantID  uint      `json:"tenant_id"`
-	Title     string    `json:"title"`
-	Content   string    `json:"content"`
-	Status    int16     `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
 type UserFacade interface {
 	GetByID(ctx context.Context, id uint) (*User, error)
 	List(ctx context.Context, tenantID uint, keyword string, page, size int) ([]User, int64, error)
@@ -60,17 +49,8 @@ type TenantFacade interface {
 	GetByID(ctx context.Context, id uint) (*Tenant, error)
 }
 
-type CmsPostFacade interface {
-	GetByID(ctx context.Context, id uint) (*CmsPost, error)
-	List(ctx context.Context, tenantID uint, keyword string, status *int16, page, size int) ([]CmsPost, int64, error)
-	Create(ctx context.Context, tenantID uint, title, content string, status int16) (*CmsPost, error)
-	Update(ctx context.Context, id uint, title, content string, status int16) error
-	Delete(ctx context.Context, id uint) error
-}
-
 // Provider is the Facade for external apps to interact with internal modules.
 type Provider interface {
 	User() UserFacade
 	Tenant() TenantFacade
-	CmsPost() CmsPostFacade
 }

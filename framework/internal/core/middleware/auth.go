@@ -11,6 +11,7 @@ import (
 	xinContext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
+	pkgmiddleware "gx1727.com/xin/framework/pkg/middleware"
 	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/resp"
 	"gx1727.com/xin/framework/pkg/session"
@@ -199,78 +200,23 @@ func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc Secu
 	}
 }
 
-func requireWithSpecs(mode string, specs ...permission.Spec) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		uc := xinContext.MustNewUserContext(c)
-
-		switch mode {
-		case "one":
-			spec := specs[0]
-			if !spec.IsValid() {
-				resp.Forbidden(c, "invalid permission spec")
-				c.Abort()
-				return
-			}
-			if spec.IsAuthOnly() {
-				c.Next()
-				return
-			}
-			if !uc.HasPermission(spec.Resource, spec.Action) {
-				resp.Forbidden(c, "permission denied: "+spec.String())
-				c.Abort()
-				return
-			}
-		case "any":
-			for _, spec := range specs {
-				if !spec.IsValid() {
-					continue
-				}
-				if spec.IsAuthOnly() || uc.HasPermission(spec.Resource, spec.Action) {
-					c.Next()
-					return
-				}
-			}
-			resp.Forbidden(c, "permission denied")
-			c.Abort()
-			return
-		case "all":
-			for _, spec := range specs {
-				if !spec.IsValid() {
-					resp.Forbidden(c, "invalid permission spec")
-					c.Abort()
-					return
-				}
-				if spec.IsAuthOnly() {
-					continue
-				}
-				if !uc.HasPermission(spec.Resource, spec.Action) {
-					resp.Forbidden(c, "permission denied: "+spec.String())
-					c.Abort()
-					return
-				}
-			}
-		}
-
-		c.Next()
-	}
-}
-
 // Require creates an authorization middleware from a typed permission spec.
+// Thin wrapper around pkg/middleware.Require to keep a single source of truth.
 func Require(spec permission.Spec) gin.HandlerFunc {
-	return requireWithSpecs("one", spec)
+	return pkgmiddleware.Require(spec)
 }
 
 // RequireAuthenticated creates a login-only middleware with no RBAC check.
 func RequireAuthenticated() gin.HandlerFunc {
-	return Require(permission.AuthOnly())
+	return pkgmiddleware.RequireAuthenticated()
 }
 
 // RequireAny creates an authorization middleware that accepts any spec.
 func RequireAny(specs ...permission.Spec) gin.HandlerFunc {
-	return requireWithSpecs("any", specs...)
+	return pkgmiddleware.RequireAny(specs...)
 }
 
 // RequireAll creates an authorization middleware that requires all specs.
 func RequireAll(specs ...permission.Spec) gin.HandlerFunc {
-	return requireWithSpecs("all", specs...)
+	return pkgmiddleware.RequireAll(specs...)
 }

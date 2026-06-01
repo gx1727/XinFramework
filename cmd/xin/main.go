@@ -3,11 +3,11 @@ package main
 import (
 	"log"
 
+	"gx1727.com/xin/apps/cms"
 	"gx1727.com/xin/apps/flag"
 	"gx1727.com/xin/framework"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/plugin"
-	"gx1727.com/xin/module/cms"
 )
 
 var appsRegistry = map[string]func() plugin.Module{

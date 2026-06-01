@@ -8,9 +8,9 @@ import (
 )
 
 // Require 创建权限检查中间件 - 用户必须拥有指定权限才能访问
-// 用法: protected.POST("/flag/frames", middleware.Require(permission.ResFlag, permission.ActCreate), h.CreateFrame)
-func Require(resource string, action string) gin.HandlerFunc {
-	return requireWithSpecs("one", permission.P(resource, action))
+// 用法: protected.POST("/flag/frames", middleware.Require(permission.P(permission.ResFlag, permission.ActCreate)), h.CreateFrame)
+func Require(spec permission.Spec) gin.HandlerFunc {
+	return requireWithSpecs("one", spec)
 }
 
 // RequireAuthenticated 创建登录检查中间件 - 只需登录即可访问，不检查具体权限
@@ -20,13 +20,13 @@ func RequireAuthenticated() gin.HandlerFunc {
 }
 
 // RequireAny 创建任意权限检查中间件 - 用户拥有任意一个指定权限即可访问
-// 用法: protected.DELETE("/admin", middleware.RequireAny(permission.ResUser, permission.ResAdmin, permission.ActDelete), h.Delete)
+// 用法: protected.DELETE("/admin", middleware.RequireAny(permission.P(permission.ResUser, permission.ActDelete), permission.P(permission.ResAdmin, permission.ActDelete)), h.Delete)
 func RequireAny(specs ...permission.Spec) gin.HandlerFunc {
 	return requireWithSpecs("any", specs...)
 }
 
 // RequireAll 创建全部权限检查中间件 - 用户必须拥有所有指定权限才能访问
-// 用法: protected.GET("/admin", middleware.RequireAll(permission.ResUser, permission.ResAdmin, permission.ActList), h.List)
+// 用法: protected.GET("/admin", middleware.RequireAll(specs...), h.List)
 func RequireAll(specs ...permission.Spec) gin.HandlerFunc {
 	return requireWithSpecs("all", specs...)
 }

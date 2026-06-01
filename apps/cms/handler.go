@@ -5,20 +5,25 @@ import (
 
 	"github.com/gin-gonic/gin"
 	xincontext "gx1727.com/xin/framework/pkg/context"
+	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/extapi"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
 // Handler HTTP 处理器
 type Handler struct {
-	// 直接依赖框架的 Provider，取代自己手写的 Repository
+	// 业务层直接依赖自己的 CmsPostRepository
+	posts CmsPostRepository
+	// 跨域能力仍通过 extapi 获取
 	provider extapi.Provider
 }
 
 // NewHandler 创建 Handler 实例
 func NewHandler() *Handler {
-	// 启动时从全局获取已注入的核心能力 Provider
-	return &Handler{provider: extapi.Get()}
+	return &Handler{
+		posts:    NewCmsPostRepository(db.Get()),
+		provider: extapi.Get(),
+	}
 }
 
 // ============ Ping ============
@@ -129,7 +134,7 @@ func (h *Handler) ListPosts(c *gin.Context) {
 	page := 1
 	size := 20
 
-	posts, total, err := h.provider.CmsPost().List(c.Request.Context(), tenantID, keyword, status, page, size)
+	posts, total, err := h.posts.List(c.Request.Context(), tenantID, keyword, status, page, size)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -151,7 +156,7 @@ func (h *Handler) GetPost(c *gin.Context) {
 		return
 	}
 
-	post, err := h.provider.CmsPost().GetByID(c.Request.Context(), uint(id))
+	post, err := h.posts.GetByID(c.Request.Context(), uint(id))
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -178,7 +183,7 @@ func (h *Handler) CreatePost(c *gin.Context) {
 		return
 	}
 
-	post, err := h.provider.CmsPost().Create(c.Request.Context(), tenantID, req.Title, req.Content, req.Status)
+	post, err := h.posts.Create(c.Request.Context(), tenantID, req.Title, req.Content, req.Status)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
@@ -205,7 +210,7 @@ func (h *Handler) UpdatePost(c *gin.Context) {
 		return
 	}
 
-	if err := h.provider.CmsPost().Update(c.Request.Context(), uint(id), req.Title, req.Content, req.Status); err != nil {
+	if err := h.posts.Update(c.Request.Context(), uint(id), req.Title, req.Content, req.Status); err != nil {
 		resp.HandleError(c, err)
 		return
 	}
@@ -221,7 +226,7 @@ func (h *Handler) DeletePost(c *gin.Context) {
 		return
 	}
 
-	if err := h.provider.CmsPost().Delete(c.Request.Context(), uint(id)); err != nil {
+	if err := h.posts.Delete(c.Request.Context(), uint(id)); err != nil {
 		resp.HandleError(c, err)
 		return
 	}

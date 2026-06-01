@@ -1,4 +1,4 @@
-module gx1727.com/xin/module/cms
+module gx1727.com/xin/apps/cms
 
 go 1.25.0
 
