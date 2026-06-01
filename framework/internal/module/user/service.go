@@ -234,8 +234,12 @@ func (s *Service) Create(ctx context.Context, tenantID, creatorID uint, req crea
 			status = 1
 		}
 
-		var err error
-		newAccount, err = s.accountRepo.Create(ctx, req.Username, req.Phone, req.Email, req.RealName, req.Password)
+		passwordHash, err := auth.HashPassword(req.Password)
+		if err != nil {
+			return fmt.Errorf("hash password: %w", err)
+		}
+
+		newAccount, err = s.accountRepo.Create(ctx, req.Username, req.Phone, req.Email, req.RealName, passwordHash)
 		if err != nil {
 			return fmt.Errorf("create account: %w", err)
 		}
