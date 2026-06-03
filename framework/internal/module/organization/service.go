@@ -154,35 +154,47 @@ func (s *Service) GetTree(ctx context.Context, tenantID uint) ([]OrgResp, error)
 }
 
 func buildTree(orgs []Organization) []OrgResp {
-	orgMap := make(map[uint]*OrgResp)
-	var roots []OrgResp
-
-	// First pass: create all nodes
-	for _, org := range orgs {
-		node := toResp(org)
-		node.Children = make([]OrgResp, 0)
-		orgMap[org.ID] = &node
+	type tnode struct {
+		resp     OrgResp
+		children []*tnode
 	}
 
-	// Second pass: build tree
-	for _, org := range orgs {
-		node := orgMap[org.ID]
+	nodes := make(map[uint]*tnode, len(orgs))
+	for i := range orgs {
+		org := orgs[i]
+		node := toResp(org)
+		node.Children = []OrgResp{}
+		nodes[org.ID] = &tnode{resp: node}
+	}
+
+	var roots []*tnode
+	for i := range orgs {
+		org := orgs[i]
+		n, ok := nodes[org.ID]
+		if !ok {
+			continue
+		}
 		if org.ParentID == 0 {
-			roots = append(roots, *node)
-		} else {
-			if parent, ok := orgMap[org.ParentID]; ok {
-				parent.Children = append(parent.Children, *node)
-			}
+			roots = append(roots, n)
+			continue
+		}
+		if parent, ok := nodes[org.ParentID]; ok {
+			parent.children = append(parent.children, n)
 		}
 	}
 
-	// Convert pointers back to values
-	result := make([]OrgResp, len(roots))
-	for i, root := range roots {
-		result[i] = root
+	var toList func(ns []*tnode) []OrgResp
+	toList = func(ns []*tnode) []OrgResp {
+		out := make([]OrgResp, 0, len(ns))
+		for _, n := range ns {
+			r := n.resp
+			r.Children = toList(n.children)
+			out = append(out, r)
+		}
+		return out
 	}
 
-	return result
+	return toList(roots)
 }
 
 func toResp(m Organization) OrgResp {

@@ -6,7 +6,7 @@ This file provides guidance to Codex when working with code in this repository.
 
 ```bash
 # Build framework + all apps
-go build -ldflags="-s -w" ./cmd/xin ./apps/cms/...
+go build -ldflags="-s -w" ./cmd/xin ./framework/... ./apps/...
 
 # Run in dev mode
 go run ./cmd/xin run
@@ -23,38 +23,43 @@ XinFramework is an enterprise SaaS foundation framework built with Go + Gin. Mul
 
 ```
 XinFramework/
-├── framework/                      # gx1727.com/xin/framework
-│   ├── framework.go                # Run(), RegisterModule(), runServer()
-│   ├── signal.go                   # waitForSignal(), graceful shutdown
-│   ├── api/v1/
-│   │   └── register.go            # builtinModules, Dependencies, RegisterRoutes
-│   ├── pkg/                        # Public packages (importable by apps)
-│   │   ├── config/                 # YAML + env config system
-│   │   ├── db/                    # pgx/v5/pgxpool + tenant session variable
-│   │   ├── cache/                 # Redis client (go-redis/v8)
-│   │   ├── logger/                # Daily rotating file logger
-│   │   ├── session/               # SessionManager interface + Redis/DB impl
-│   │   ├── jwt/                   # Token generation/validation
-│   │   ├── migrate/              # SQL migration runner
-│   │   ├── model/                 # Domain models and repository interfaces
-│   │   ├── plugin/                # Module interface and registry
-│   │   ├── repository/            # Repository Provider implementation
-│   │   ├── resp/                  # Unified response {code, msg, data}
-│   │   ├── context/               # XinContext (UserID, TenantID, SessionID, Role)
-│   │   ├── dict/                  # Dictionary data access + cache
-│   │   └── permission/            # Permission types and interfaces
-│   ├── internal/
+├── go.work                                        # 多module仓库（ms/ framework/ apps/、、)
+├── cmd/xin/                       # 进程入口，加载 config 并按 cfg.Apps 列表装车插件
+├── framework/                      # gx1727.com/xin/framework （独立 Go模块)
+│   ├── framework.go                # Run() / RegisterModule() / initModules()
+│   ├── cmd.go                     # start / stop / restart / reload / hot-restart / status
+│   ├── signal.go                   # waitForSignal() ，优雅关闭
+│   ├── .env.example                # XIN_* 环境变量样例
+│   ├── pkg/                        # 可被 apps/* 导入的公共包
+│   │   ├── cache/                 # go-redis/v8 客户端
+│   │   ├── config/                 # YAML + 环境变量
+│   │   ├── context/               # XinContext / UserContext （懒加载)
+│   │   ├── db/                    # pgx/v5/pgxpool + tenant RLS
+│   │   ├── dict/                  # 字典数据访问 + 缓存
+│   │   ├── extapi/                # 外部 API Provider 接口
+│   │   ├── jwt/                   # Token 生成/校验
+│   │   ├── logger/                # 按天切分日志
+│   │   ├── middleware/            # AuthLite / Require 等公开中间件
+│   │   ├── migrate/              # SQL 迁移运行器
+│   │   ├── model/                 # 领域模型 + 通用错误
+│   │   ├── permission/            # RBAC + DataScope 类型
+│   │   ├── plugin/                # Module 接口 + Register / Apps 注册表
+│   │   ├── resp/                  # {code, msg, data} 统一响应
+│   │   ├── session/               # SessionManager (Redis / DB [备])
+│   │   ├── storage/               # 文件存储（local / cos)
+│   ├── internal/                # 构架内部，不对外
 │   │   ├── core/
-│   │   │   ├── boot/              # App initialization (boot.Init, Shutdown)
-│   │   │   ├── server/            # XinServer with graceful shutdown
-│   │   │   └── middleware/        # CORS, RequestID, Logger, Recovery, Tenant, Auth
-│   │   ├── module/                # Built-in modules (12 total)
-│   │   └── service/               # PermissionService
-├── apps/                          # External business plugins
-│   └── cms/                       # CMS plugin template
-├── cmd/xin/                       # Entry point
-├── config/                        # System config
-└── migrations/                   # SQL migrations (001-003)
+│   │   │   ├── boot/              # boot.Init / Shutdown
+│   │   │   ├── ext_impl/            # extapi Provider 默认实现
+│   │   │   ├── middleware/        # Recovery / RequestID / CORS / Logger / Auth / OptionalAuth
+│   │   │   └── server/            # XinServer ，优雅关闭
+│   │   ├── module/                # 12 个内置模块
+│   │   └── service/               # permission_service / authorization_service
+├── apps/                          # 外部业务插件（独立 Go模块)
+│   ├── cms/                       # CMS 模板
+│   └── flag/                      # 头像 / 相框社团
+├── config/                        # YAML 配置（config.yaml / *.dev.yaml / *.prod.yaml / cms.yaml)
+└── migrations/                   # framework.sql / cms.sql / flag.sql
 ```
 
 ## Key Interfaces
@@ -103,9 +108,18 @@ xc.GetUserID() / xc.GetTenantID() / xc.GetSessionID() / xc.GetRole()
 
 ### Permission Interfaces (`pkg/permission/interfaces.go`)
 ```go
-type PermissionRepository interface {
+type UserPermissionRepository interface {
     GetUserPermissions(ctx context.Context, userID uint) (map[string]bool, error)
     GetUserRoles(ctx context.Context, userID uint) ([]string, error)
+    GetUserIDsByRole(ctx context.Context, roleID uint) ([]uint, error)
+    GetUserIDsByResource(ctx context.Context, resourceID uint) ([]uint, error)
+}
+
+// pkg/permission/interfaces.go 变化：PermissionRepository 用于角色→资源映射
+type PermissionRepository interface {
+    GetByRoleID(ctx context.Context, roleID uint) ([]Permission, error)
+    DeleteByRoleID(ctx context.Context, roleID uint) error
+    Create(ctx context.Context, tenantID, roleID uint, p Permission) error
 }
 
 type DataScopeRepository interface {
@@ -209,12 +223,17 @@ Apps in `apps/*` call `plugin.Register(xxx.Module())` in their init, registered 
 ## Middleware Chain (order matters)
 
 ```
-1. Recovery()     — panic recovery, must be first
+# 全局（pkg/framework/setupRouter 中按此顺序注册)
+1. Recovery()     — panic recovery，必须最先
 2. RequestID()    — X-Request-ID generation/propagation
-3. CORS()        — Cross-origin resource sharing + OPTIONS preflight
-4. Logger()      — Request logging (after RequestID set)
-5. Tenant()
-6. [protected routes] → Auth(&cfg.JWT, sm, permService)
+3. CORS(&cfg.CORS)   — Cross-origin + OPTIONS preflight
+4. Logger()      — 请求日志（依赖 RequestID)
+
+# /api/v1 分组（pkg/framework/registerModules 中的 registerModules）
+public := v1.Group("")
+public.Use(middleware.OptionalAuth(&cfg.JWT, sm, permSvc))
+protected := v1.Group("")
+protected.Use(middleware.Auth(&cfg.JWT, sm, permSvc))
 ```
 
 ## Permission System
@@ -232,17 +251,26 @@ Apps in `apps/*` call `plugin.Register(xxx.Module())` in their init, registered 
 | 4 | DataScopeDeptAndBelow | User's dept + all descendant depts |
 | 5 | DataScopeSelf | Only own records |
 
-**Auth middleware** sets `UserContext`:
-```go
-xc := context.New(c)
-xc.SetUserID(claims.UserID)
-xc.SetTenantID(claims.TenantID)
-xc.SetSessionID(claims.SessionID)
-xc.SetRole(claims.Role)
-c.Request = c.Request.WithContext(context.WithXinContext(c.Request.Context(), xc))
-```
+**Auth middleware** (`internal/core/middleware/auth.go`) 会验
 
-## Tenant Isolation Modes
+```go
+// pkg/context.go:XinContext ，没有 Set* method
+xc := &xinContext.XinContext{
+    TenantID:  claims.TenantID,
+    UserID:    claims.UserID,
+    SessionID: claims.SessionID,
+    Role:      claims.Role,
+}
+ctx = xinContext.WithXinContext(ctx, xc)
+ctx = xinContext.WithTenantID(ctx, claims.TenantID)
+
+// 懒加载:权限/数据范围只在使用MustNewUserContext 时才去�查
+ctx = xinContext.WithUserContextLoader(ctx, func() *xinContext.UserContext {
+    // permSvc.LoadUserSecurityContext() -> perms, roles, ds, orgID
+    return &xinContext.UserContext{XinContext: xc, ...}
+})
+c.Request = c.Request.WithContext(ctx)
+```## Tenant Isolation Modes
 
 | Mode | Behavior |
 |------|----------|

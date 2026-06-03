@@ -4,7 +4,7 @@
 
 **轻量的 Go SaaS 基础框架** — 不用 ORM，手写 SQL 的企业级开发框架
 
-[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat-square&logo=go)](https://golang.org/)
+[![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat-square&logo=go)](https://golang.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
 
@@ -33,7 +33,7 @@
 | Web 框架 | [Gin](https://github.com/gin-gonic/gin) | v1.12.0 |
 | 数据库驱动 | [pgx/v5](https://github.com/jackc/pgx) | v5.9.0 |
 | Redis 客户端 | [go-redis/redis](https://github.com/go-redis/redis) | v8.11.5 |
-| JWT | [golang-jwt/jwt](https://github.com/golang-jwt/jwt) | v5.2.2 |
+| JWT | [golang-jwt/jwt](https://github.com/golang-jwt/jwt) | v5.2.3 |
 | 密码加密 | Argon2id | golang.org/x/crypto |
 | 配置解析 | yaml.v3 | gopkg.in/yaml.v3 |
 
@@ -94,7 +94,7 @@ xin/
 
 ### 前置要求
 
-- Go 1.21+
+- Go 1.25+ (见 go.work)
 - PostgreSQL 15+
 - Redis (可选)
 
@@ -108,14 +108,15 @@ cd XinFramework
 ### 2. 配置环境
 
 ```bash
-cp .env.example .env
-# 编辑 .env 配置数据库等信息
+cp framework/.env.example framework/.env
+# 编辑 framework/.env 配置数据库等信息
 ```
 
 ### 3. 初始化数据库
 
 ```bash
-psql -U postgres -d xin_db -f migrations/001_init.sql
+psql -U xin_user -d xin -f migrations/framework.sql
+# 启动时由框架自动执行 migrate.Run('migrations/') 依次应用 cms.sql / flag.sql
 ```
 
 ### 4. 启动服务
@@ -142,6 +143,7 @@ go build -o xin ./cmd/xin
 | `stop` | 停止服务 |
 | `restart` | 重启服务 |
 | `reload` | 热加载配置 (Unix) |
+| `hot-restart` | 零停时张压动 (启动新进程并关闭旧进程) |
 | `status` | 查看运行状态 |
 
 ---
@@ -153,10 +155,10 @@ go build -o xin ./cmd/xin
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/v1/health` | 健康检查 |
-| POST | `/api/v1/login` | 用户登录 |
-| POST | `/api/v1/register` | 用户注册 |
-| POST | `/api/v1/logout` | 用户登出 |
-| POST | `/api/v1/refresh` | 刷新 Token |
+| POST | `/api/v1/auth/login` | 用户登录 |
+| POST | `/api/v1/auth/register` | 用户注册 |
+| POST | `/api/v1/auth/logout` | 用户登出 |
+| POST | `/api/v1/auth/refresh` | 刷新 Token |
 
 ### 租户管理
 
@@ -171,10 +173,14 @@ go build -o xin ./cmd/xin
 
 ## 🏢 多租户
 
-请求时必须传递租户 ID：
+租户 ID 两种亲取：
 
 ```bash
-curl -H "X-Tenant-ID: tenant_001" http://localhost:8080/api/v1/users
+# 主路径：请求带 Authorization: Bearer <jwt> 头，租户 ID 从 JWT claims.tenantID 读取
+curl -H "Authorization: Bearer <jwt>" http://localhost:8080/api/v1/users
+
+# 公开路由的 OptionalAuth 中，如果没有 Token 仍可以通过 X-Tenant-ID 000
+curl -H "X-Tenant-ID: 1" http://localhost:8080/api/v1/health
 ```
 
 实现机制：通过 PostgreSQL `SET app.tenant_id = $1` 设置会话变量，配合行级安全策略 (RLS) 实现租户隔离。
