@@ -2,11 +2,23 @@ package user
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/resp"
 )
+
+// normalizeKeyword treats JS-serialized sentinels ("undefined", "null") and
+// surrounding whitespace as no search term, so a missing frontend value
+// doesn't accidentally match zero rows.
+func normalizeKeyword(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "undefined" || s == "null" {
+		return ""
+	}
+	return s
+}
 
 type Handler struct {
 	svc *Service
@@ -22,6 +34,7 @@ func (h *Handler) List(c *gin.Context) {
 		resp.BadRequest(c, "请求参数格式错误")
 		return
 	}
+	req.Keyword = normalizeKeyword(req.Keyword)
 
 	ctx := context.New(c)
 	tenantID := ctx.GetTenantID()
