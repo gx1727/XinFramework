@@ -25,6 +25,16 @@ type UpdateReq struct {
 	Status      int8   `json:"status"`
 }
 
+// PatchReq 局部更新请求：nil 指针表示"不修改该字段"，避免 0 值与"未提供"混淆
+type PatchReq struct {
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	DataScope   *int8   `json:"data_scope"`
+	IsDefault   *bool   `json:"is_default"`
+	Sort        *int    `json:"sort"`
+	Status      *int8   `json:"status"`
+}
+
 type UpdateDataScopesReq struct {
 	OrgIDs []uint `json:"org_ids"`
 }

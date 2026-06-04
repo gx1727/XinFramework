@@ -13,6 +13,7 @@ func Register(protected *gin.RouterGroup, h *Handler) {
 		roles.GET("/:id", middleware.Require(permission.P(permission.ResRole, permission.ActList)), h.Get)
 		roles.POST("", middleware.Require(permission.P(permission.ResRole, permission.ActCreate)), h.Create)
 		roles.PUT("/:id", middleware.Require(permission.P(permission.ResRole, permission.ActUpdate)), h.Update)
+		roles.PATCH("/:id", middleware.Require(permission.P(permission.ResRole, permission.ActUpdate)), h.Patch)
 		roles.DELETE("/:id", middleware.Require(permission.P(permission.ResRole, permission.ActDelete)), h.Delete)
 		roles.GET("/:id/data-scopes", middleware.Require(permission.P(permission.ResRole, permission.ActList)), h.GetDataScopes)
 		roles.PUT("/:id/data-scopes", middleware.Require(permission.P(permission.ResRole, permission.ActUpdate)), h.UpdateDataScopes)

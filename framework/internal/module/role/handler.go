@@ -23,7 +23,7 @@ func (h *Handler) List(c *gin.Context) {
 
 	var req ListReq
 	if err := c.ShouldBindQuery(&req); err != nil {
-		resp.BadRequest(c, "invalid parameters")
+		resp.BadRequest(c, "invalid parameters: "+err.Error())
 		return
 	}
 
@@ -59,7 +59,7 @@ func (h *Handler) Create(c *gin.Context) {
 
 	var req CreateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "invalid request body")
+		resp.BadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 
@@ -82,7 +82,7 @@ func (h *Handler) Update(c *gin.Context) {
 
 	var req UpdateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "invalid request body")
+		resp.BadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 
@@ -107,8 +107,30 @@ func (h *Handler) Delete(c *gin.Context) {
 		resp.HandleError(c, err)
 		return
 	}
-
 	resp.Success(c, gin.H{"ok": true})
+}
+
+// Patch 局部更新角色；body 中未提供的字段保持原值
+func (h *Handler) Patch(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		resp.BadRequest(c, "invalid role id")
+		return
+	}
+
+	var req PatchReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.BadRequest(c, "invalid request body: "+err.Error())
+		return
+	}
+
+	role, err := h.svc.Patch(c.Request.Context(), uint(id), req)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+	resp.Success(c, role)
 }
 
 func (h *Handler) GetDataScopes(c *gin.Context) {
@@ -138,7 +160,7 @@ func (h *Handler) UpdateDataScopes(c *gin.Context) {
 
 	var req UpdateDataScopesReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "invalid request body")
+		resp.BadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 
@@ -177,7 +199,7 @@ func (h *Handler) AssignMenus(c *gin.Context) {
 
 	var req AssignMenusReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "invalid request body")
+		resp.BadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 

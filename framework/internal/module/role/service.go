@@ -112,6 +112,34 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*RoleResp
 	return &resp, nil
 }
 
+// Patch 局部更新角色字段。空 body 等价于 GET；任意非空字段都会被改写
+func (s *Service) Patch(ctx context.Context, id uint, req PatchReq) (*RoleResp, error) {
+	tenantID, _ := xincontext.TenantIDFrom(ctx)
+	var role *Role
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		var err error
+		role, err = s.roleRepo.Patch(ctx, id, PatchRoleRepoReq{
+			Name:        req.Name,
+			Description: req.Description,
+			DataScope:   req.DataScope,
+			IsDefault:   req.IsDefault,
+			Sort:        req.Sort,
+			Status:      req.Status,
+		})
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if authz := service.GlobalAuthorizationService(); authz != nil {
+		_ = authz.InvalidateRole(context.Background(), id)
+	}
+
+	resp := toResp(*role)
+	return &resp, nil
+}
+
 func (s *Service) Delete(ctx context.Context, id uint) error {
 	tenantID, _ := xincontext.TenantIDFrom(ctx)
 

@@ -31,6 +31,7 @@ type RoleRepository interface {
 	List(ctx context.Context, tenantID uint, keyword string, page, size int) ([]Role, int64, error)
 	Create(ctx context.Context, tenantID uint, req CreateRoleRepoReq) (*Role, error)
 	Update(ctx context.Context, id uint, req UpdateRoleRepoReq) (*Role, error)
+	Patch(ctx context.Context, id uint, req PatchRoleRepoReq) (*Role, error)
 	Delete(ctx context.Context, id uint) error
 }
 
@@ -53,6 +54,16 @@ type UpdateRoleRepoReq struct {
 	IsDefault   bool
 	Sort        int
 	Status      int8
+}
+
+// PatchRoleRepoReq 局部更新请求。nil 字段表示保持原值不更新
+type PatchRoleRepoReq struct {
+	Name        *string
+	Description *string
+	DataScope   *int8
+	IsDefault   *bool
+	Sort        *int
+	Status      *int8
 }
 
 var (

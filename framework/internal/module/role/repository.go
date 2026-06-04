@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -193,6 +194,79 @@ func (r *PostgresRoleRepository) Update(ctx context.Context, id uint, req Update
 			return nil, ErrRoleNotFound
 		}
 		return nil, fmt.Errorf("update role: %w", err)
+	}
+	if extend != nil {
+		role.Extend = string(extend)
+	}
+	return &role, nil
+}
+
+// Patch 局部更新：仅修改 req 中非 nil 的字段，nil 字段保持原值
+func (r *PostgresRoleRepository) Patch(ctx context.Context, id uint, req PatchRoleRepoReq) (*Role, error) {
+	sets := make([]string, 0, 6)
+	args := make([]interface{}, 0, 7)
+	idx := 1
+
+	if req.Name != nil {
+		sets = append(sets, fmt.Sprintf("name = $%d", idx))
+		args = append(args, *req.Name)
+		idx++
+	}
+	if req.Description != nil {
+		sets = append(sets, fmt.Sprintf("description = $%d", idx))
+		args = append(args, *req.Description)
+		idx++
+	}
+	if req.DataScope != nil {
+		sets = append(sets, fmt.Sprintf("data_scope = $%d", idx))
+		args = append(args, *req.DataScope)
+		idx++
+	}
+	if req.IsDefault != nil {
+		sets = append(sets, fmt.Sprintf("is_default = $%d", idx))
+		args = append(args, *req.IsDefault)
+		idx++
+	}
+	if req.Sort != nil {
+		sets = append(sets, fmt.Sprintf("sort = $%d", idx))
+		args = append(args, *req.Sort)
+		idx++
+	}
+	if req.Status != nil {
+		sets = append(sets, fmt.Sprintf("status = $%d", idx))
+		args = append(args, *req.Status)
+		idx++
+	}
+
+	// 未提供任何字段 → 直接返回当前记录
+	if len(sets) == 0 {
+		return r.GetByID(ctx, id)
+	}
+
+	sets = append(sets, "updated_at = NOW()")
+	args = append(args, id)
+
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	sql := fmt.Sprintf(`
+		UPDATE roles SET %s
+		WHERE id = $%d AND is_deleted = FALSE
+		RETURNING id, tenant_id, org_id, code, name, description, data_scope, extend, is_default, sort, status, created_at, updated_at
+	`, strings.Join(sets, ", "), idx)
+
+	var role Role
+	var extend []byte
+	if err := q.QueryRow(ctx, sql, args...).Scan(
+		&role.ID, &role.TenantID, &role.OrgID, &role.Code, &role.Name, &role.Description,
+		&role.DataScope, &extend, &role.IsDefault, &role.Sort, &role.Status, &role.CreatedAt, &role.UpdatedAt,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrRoleNotFound
+		}
+		return nil, fmt.Errorf("patch role: %w", err)
 	}
 	if extend != nil {
 		role.Extend = string(extend)
