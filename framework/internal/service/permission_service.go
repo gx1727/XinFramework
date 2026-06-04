@@ -4,24 +4,28 @@ import (
 	"context"
 	"fmt"
 
+	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
 type PermissionService struct {
-	permRepo permission.UserPermissionRepository
-	dsRepo   permission.DataScopeRepository
-	cache    permission.PermissionCache
+	permRepo   permission.UserPermissionRepository
+	dsRepo     permission.DataScopeRepository
+	cache      permission.PermissionCache
+	platformRp permission.PlatformRoleRepository
 }
 
 func NewPermissionService(
 	permRepo permission.UserPermissionRepository,
 	dsRepo permission.DataScopeRepository,
 	cache permission.PermissionCache,
+	platformRp permission.PlatformRoleRepository,
 ) *PermissionService {
 	return &PermissionService{
-		permRepo: permRepo,
-		dsRepo:   dsRepo,
-		cache:    cache,
+		permRepo:   permRepo,
+		dsRepo:     dsRepo,
+		cache:      cache,
+		platformRp: platformRp,
 	}
 }
 
@@ -157,7 +161,53 @@ func (s *PermissionService) LoadUserSecurityContext(ctx context.Context, userID 
 		return nil, nil, nil, 0, err
 	}
 
+	// 平台超级管理员短路：忽略原本的角色/数据范围，直接授予全权限 + 全部数据
+	if s.platformRp != nil {
+		platformRoles, perr := s.platformRp.GetRolesByUserID(ctx, userID)
+		if perr == nil {
+			for _, r := range platformRoles {
+				if r == jwtpkg.PlatformRoleSuperAdmin {
+					perms = map[string]bool{"*:*": true}
+					allDS := permission.DataScope{Type: permission.DataScopeAll}
+					dsPtr = &allDS
+					roles = append(roles, "super_admin")
+					return perms, roles, dsPtr, orgID, nil
+				}
+			}
+		}
+		// 查询失败不阻塞常规流程
+	}
+
 	return perms, roles, dsPtr, orgID, nil
+}
+
+// LoadPlatformRoles 单独获取用户拥有的平台级角色（登录时使用）
+func (s *PermissionService) LoadPlatformRoles(ctx context.Context, userID uint) []string {
+	if s.platformRp == nil {
+		return nil
+	}
+	roles, err := s.platformRp.GetRolesByUserID(ctx, userID)
+	if err != nil {
+		return nil
+	}
+	return roles
+}
+
+// IsPlatformSuperAdmin 单独判断用户是否 super_admin
+func (s *PermissionService) IsPlatformSuperAdmin(ctx context.Context, userID uint) bool {
+	if s.platformRp == nil {
+		return false
+	}
+	roles, err := s.platformRp.GetRolesByUserID(ctx, userID)
+	if err != nil {
+		return false
+	}
+	for _, r := range roles {
+		if r == jwtpkg.PlatformRoleSuperAdmin {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *PermissionService) InvalidateResourceUsers(ctx context.Context, resourceID uint) error {

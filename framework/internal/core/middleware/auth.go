@@ -59,12 +59,14 @@ func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc SecurityCo
 		xc.UserID = claims.UserID
 		xc.SessionID = claims.SessionID
 		xc.Role = claims.Role
+		xc.PlatformRoles = claims.PlatformRoles
 	} else {
 		xc = &xinContext.XinContext{
-			TenantID:  claims.TenantID,
-			UserID:    claims.UserID,
-			SessionID: claims.SessionID,
-			Role:      claims.Role,
+			TenantID:      claims.TenantID,
+			UserID:        claims.UserID,
+			SessionID:     claims.SessionID,
+			Role:          claims.Role,
+			PlatformRoles: claims.PlatformRoles,
 		}
 	}
 	ctx = xinContext.WithXinContext(ctx, xc)
@@ -157,12 +159,14 @@ func AuthLite(cfg *config.JWTConfig, sm session.SessionManager) gin.HandlerFunc 
 			xc.UserID = claims.UserID
 			xc.SessionID = claims.SessionID
 			xc.Role = claims.Role
+			xc.PlatformRoles = claims.PlatformRoles
 		} else {
 			xc = &xinContext.XinContext{
-				TenantID:  claims.TenantID,
-				UserID:    claims.UserID,
-				SessionID: claims.SessionID,
-				Role:      claims.Role,
+				TenantID:      claims.TenantID,
+				UserID:        claims.UserID,
+				SessionID:     claims.SessionID,
+				Role:          claims.Role,
+				PlatformRoles: claims.PlatformRoles,
 			}
 		}
 		ctx = xinContext.WithXinContext(ctx, xc)

@@ -105,6 +105,7 @@ type Service struct {
 	session     SessionManager
 	accountRepo AccountRepository
 	tenantRepo  tenant.TenantRepository
+	platformRp  PlatformRoleRepository
 }
 
 func NewService(deps Dependencies) *Service {
@@ -114,12 +115,14 @@ func NewService(deps Dependencies) *Service {
 		session:     deps.Session,
 		accountRepo: deps.AccountRepo,
 		tenantRepo:  deps.TenantRepo,
+		platformRp:  deps.PlatformRepo,
 	}
 }
 
 type tokenPair struct {
-	accessToken  string
-	refreshToken string
+	accessToken   string
+	refreshToken  string
+	platformRoles []string
 }
 
 func (s *Service) generateTokens(ctx context.Context, userID, tenantID uint, role string) (*tokenPair, error) {
@@ -134,20 +137,37 @@ func (s *Service) generateTokens(ctx context.Context, userID, tenantID uint, rol
 		return nil, ErrSessionCreateFailed
 	}
 
-	accessToken, err := jwtpkg.Generate(&s.config.JWT, userID, tenantID, role, sessionID)
+	// 取出用户绑定的平台级角色（如 super_admin），写入 JWT
+	platformRoles := s.loadPlatformRoles(ctx, userID)
+
+	accessToken, err := jwtpkg.GenerateWithPlatformRoles(&s.config.JWT, userID, tenantID, role, sessionID, platformRoles, jwtpkg.TokenTypeAccess)
 	if err != nil {
 		return nil, ErrGenerateTokenFailed
 	}
 
-	refreshToken, err := jwtpkg.GenerateWithType(&s.config.JWT, userID, tenantID, role, sessionID, jwtpkg.TokenTypeRefresh)
+	refreshToken, err := jwtpkg.GenerateWithPlatformRoles(&s.config.JWT, userID, tenantID, role, sessionID, platformRoles, jwtpkg.TokenTypeRefresh)
 	if err != nil {
 		return nil, ErrGenerateTokenFailed
 	}
 
 	return &tokenPair{
-		accessToken:  accessToken,
-		refreshToken: refreshToken,
+		accessToken:   accessToken,
+		refreshToken:  refreshToken,
+		platformRoles: platformRoles,
 	}, nil
+}
+
+// loadPlatformRoles 查 user_id 对应的 account_id 拥有的平台角色
+// 在普通租户事务外查（account_roles 不受 RLS 限制）。
+func (s *Service) loadPlatformRoles(ctx context.Context, userID uint) []string {
+	if s.platformRp == nil || s.db == nil || userID == 0 {
+		return nil
+	}
+	roles, err := s.platformRp.GetRolesByUserID(ctx, userID)
+	if err != nil {
+		return nil
+	}
+	return roles
 }
 
 func (s *Service) Login(ctx context.Context, req loginRequest) (*LoginResult, error) {

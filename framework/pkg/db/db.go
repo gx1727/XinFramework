@@ -114,6 +114,22 @@ func RunInTenantTx(ctx context.Context, pool *pgxpool.Pool, tenantID uint, fn fu
 	})
 }
 
+// RunInPlatformTx 平台级事务：设置 app.tenant_id = '0'，并打开 app.bypass_rls = 'on'，
+// 用于超级管理员跨租户/无租户上下文访问。
+// 使用时 RLS policy 应识别 current_setting('app.bypass_rls', true) = 'on' 放行。
+func RunInPlatformTx(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context) error) error {
+	return RunInTx(ctx, pool, func(ctx context.Context) error {
+		tx := ctx.Value(txKey{}).(pgx.Tx)
+		if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id', '0', true)"); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, "SELECT set_config('app.bypass_rls', 'on', true)"); err != nil {
+			return err
+		}
+		return fn(ctx)
+	})
+}
+
 func GetQuerier(ctx context.Context) (Querier, error) {
 	if tx, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
 		return tx, nil

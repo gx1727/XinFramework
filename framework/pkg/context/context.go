@@ -14,16 +14,33 @@ type XinContext struct {
 	UserID    uint
 	SessionID string
 	Role      string
+	// PlatformRoles 平台级角色（如 super_admin），不绑定具体租户
+	PlatformRoles []string
+}
+
+// IsSuperAdmin 判断当前上下文是否携带 super_admin 平台角色
+func (x *XinContext) IsSuperAdmin() bool {
+	if x == nil {
+		return false
+	}
+	for _, r := range x.PlatformRoles {
+		if r == "super_admin" {
+			return true
+		}
+	}
+	return false
 }
 
 // Clone returns a copy of XinContext
 func (x *XinContext) Clone() *XinContext {
-	return &XinContext{
-		TenantID:  x.TenantID,
-		UserID:    x.UserID,
-		SessionID: x.SessionID,
-		Role:      x.Role,
+	clone := &XinContext{
+		TenantID:      x.TenantID,
+		UserID:        x.UserID,
+		SessionID:     x.SessionID,
+		Role:          x.Role,
+		PlatformRoles: append([]string(nil), x.PlatformRoles...),
 	}
+	return clone
 }
 
 // UserContext extends XinContext with RBAC + DataScope

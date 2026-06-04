@@ -1,6 +1,7 @@
 package boot
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -60,6 +61,7 @@ func Init(cfg *config.Config) (*App, error) {
 		permission.NewPermissionRepository(db.Get()),
 		permission.NewDataScopeRepository(db.Get()),
 		permCache,
+		permission.NewPlatformRoleRepository(db.Get()),
 	)
 	authzService := service.NewAuthorizationService(permService)
 	service.SetGlobalAuthorizationService(authzService)
@@ -71,6 +73,13 @@ func Init(cfg *config.Config) (*App, error) {
 		Server:      server.New(cfg),
 		PermService: permService,
 		Authz:       authzService,
+	}
+
+	// 启动期引导：在普通业务表就绪前确保存在一个 super_admin
+	if bcfg := LoadBootstrapConfig(); bcfg.Enabled {
+		if err := RunBootstrap(context.Background(), db.Get(), bcfg); err != nil {
+			log.Printf("[bootstrap] failed: %v", err)
+		}
 	}
 
 	return globalApp, nil

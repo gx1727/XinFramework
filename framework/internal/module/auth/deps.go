@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -14,12 +15,18 @@ type SessionManager interface {
 	Revoke(sessionID string) error
 }
 
+// PlatformRoleRepository 平台级角色访问接口（最小子集，登录阶段使用）
+type PlatformRoleRepository interface {
+	GetRolesByUserID(ctx context.Context, userID uint) ([]string, error)
+}
+
 type Dependencies struct {
-	DB          *pgxpool.Pool
-	Config      *config.Config
-	Session     SessionManager
-	AccountRepo AccountRepository
-	TenantRepo  tenant.TenantRepository
+	DB           *pgxpool.Pool
+	Config       *config.Config
+	Session      SessionManager
+	AccountRepo  AccountRepository
+	TenantRepo   tenant.TenantRepository
+	PlatformRepo PlatformRoleRepository
 }
 
 type defaultSessionManager struct{}
@@ -34,15 +41,17 @@ func (defaultSessionManager) Revoke(sessionID string) error {
 
 func DefaultDependencies(cfg *config.Config, db *pgxpool.Pool, repos Repositories) Dependencies {
 	return Dependencies{
-		DB:          db,
-		Config:      cfg,
-		Session:     defaultSessionManager{},
-		AccountRepo: repos.Account,
-		TenantRepo:  repos.Tenant,
+		DB:           db,
+		Config:       cfg,
+		Session:      defaultSessionManager{},
+		AccountRepo:  repos.Account,
+		TenantRepo:   repos.Tenant,
+		PlatformRepo: repos.Platform,
 	}
 }
 
 type Repositories struct {
-	Account AccountRepository
-	Tenant  tenant.TenantRepository
+	Account  AccountRepository
+	Tenant   tenant.TenantRepository
+	Platform PlatformRoleRepository
 }

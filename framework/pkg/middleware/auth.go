@@ -35,6 +35,12 @@ func requireWithSpecs(mode string, specs ...permission.Spec) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		uc := xinContext.MustNewUserContext(c)
 
+		// 平台超级管理员：无视所有权限规格直接放行
+		if uc.IsSuperAdmin() {
+			c.Next()
+			return
+		}
+
 		switch mode {
 		case "one":
 			spec := specs[0]
