@@ -17,6 +17,7 @@ const FrameCategoriesPage = lazy(() => import("@/pages/FrameCategories").then((m
 const AvatarCategoriesPage = lazy(() => import("@/pages/AvatarCategories").then((m) => ({ default: m.AvatarCategoriesPage })))
 const ResourcesPage = lazy(() => import("@/pages/Resources").then((m) => ({ default: m.ResourcesPage })))
 const OrganizationsPage = lazy(() => import("@/pages/Organizations").then((m) => ({ default: m.OrganizationsPage })))
+const DictsPage = lazy(() => import("@/pages/Dicts").then((m) => ({ default: m.DictsPage })))
 const CachePage = lazy(() => import("@/pages/Cache"))
 
 function PageLoader() {
@@ -43,6 +44,7 @@ export function App() {
         <Route path="/menus" element={<MenusPage />} />
         <Route path="/resources" element={<ResourcesPage />} />
         <Route path="/organizations" element={<OrganizationsPage />} />
+        <Route path="/dicts" element={<DictsPage />} />
         <Route path="/frames" element={<FramesPage />} />
         <Route path="/frame-categories" element={<FrameCategoriesPage />} />
         <Route path="/avatars" element={<AvatarsPage />} />

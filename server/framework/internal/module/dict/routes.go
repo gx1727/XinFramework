@@ -1,3 +1,4 @@
+// Package dict ??????
 package dict
 
 import (
@@ -7,13 +8,18 @@ import (
 )
 
 func Register(protected *gin.RouterGroup, h *Handler) {
-	protected.GET("/dicts", middleware.Require(permission.P(permission.ResDict, permission.ActList)), h.List)
-	protected.GET("/dicts/:code", middleware.Require(permission.P(permission.ResDict, permission.ActList)), h.Get)
-	protected.POST("/dicts", middleware.Require(permission.P(permission.ResDict, permission.ActCreate)), h.Create)
-	protected.PUT("/dicts/:id", middleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.Update)
-	protected.DELETE("/dicts/:id", middleware.Require(permission.P(permission.ResDict, permission.ActDelete)), h.Delete)
+	d := protected.Group("/dicts")
+	{
+		d.GET("", middleware.Require(permission.P(permission.ResDict, permission.ActList)), h.List)
+		d.GET("/:id", middleware.Require(permission.P(permission.ResDict, permission.ActGet)), h.Get)
+		d.POST("", middleware.Require(permission.P(permission.ResDict, permission.ActCreate)), h.Create)
+		d.PUT("/:id", middleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.Update)
+		d.DELETE("/:id", middleware.Require(permission.P(permission.ResDict, permission.ActDelete)), h.Delete)
 
-	protected.POST("/dicts/:id/items", middleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.CreateItem)
-	protected.PUT("/dicts/:id/items/:item_id", middleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.UpdateItem)
-	protected.DELETE("/dicts/:id/items/:item_id", middleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.DeleteItem)
+		// ????????????????
+		d.GET("/:id/items", middleware.Require(permission.P(permission.ResDict, permission.ActList)), h.ListItems)
+		d.POST("/:id/items", middleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.CreateItem)
+		d.PUT("/:id/items/:item_id", middleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.UpdateItem)
+		d.DELETE("/:id/items/:item_id", middleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.DeleteItem)
+	}
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"gx1727.com/xin/framework/pkg/audit"
 	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
 )
@@ -136,7 +137,46 @@ func (s *Service) Delete(ctx context.Context, id uint) error {
 		if org.ParentID == 0 {
 			return ErrCannotDeleteRoot
 		}
-		return s.orgRepo.Delete(ctx, id)
+
+		// 0) 子组织还在，禁止删除
+		children, err := s.orgRepo.CountChildren(ctx, id)
+		if err != nil {
+			return fmt.Errorf("count children: %w", err)
+		}
+		if children > 0 {
+			return fmt.Errorf("%w (子组织数=%d)", ErrOrgHasUsers, children)
+		}
+
+		// 1) 子树下还有用户，禁止删除。用 org 仓库自带的 CountUsersInOrgTree，跨表查询在仓库内封闭。
+		n, err := s.orgRepo.CountUsersInOrgTree(ctx, id)
+		if err != nil {
+			return fmt.Errorf("count org users: %w", err)
+		}
+		if n > 0 {
+			return fmt.Errorf("%w (用户数=%d)", ErrOrgHasUsers, n)
+		}
+
+		if err := s.orgRepo.Delete(ctx, id); err != nil {
+			return err
+		}
+
+		// 2) 审计：记录组织软删除事件
+		audit.Log(ctx, audit.Entry{
+			TenantID:  org.TenantID,
+			Action:    "org:delete",
+			TableName: "organizations",
+			RecordID:  org.ID,
+			OldData: map[string]any{
+				"id":        org.ID,
+				"code":      org.Code,
+				"name":      org.Name,
+				"type":      org.Type,
+				"parent_id": org.ParentID,
+				"ancestors": org.Ancestors,
+				"status":    org.Status,
+			},
+		})
+		return nil
 	})
 }
 

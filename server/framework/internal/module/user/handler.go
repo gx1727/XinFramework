@@ -150,6 +150,34 @@ func (h *Handler) Patch(c *gin.Context) {
 	resp.Success(c, info)
 }
 
+// UpdateOrg 调整用户的主组织；body: {"org_id": 2} 或 {"org_id": null} 或 {}
+func (h *Handler) UpdateOrg(c *gin.Context) {
+	var uri getRequest
+	if err := c.ShouldBindUri(&uri); err != nil {
+		resp.BadRequest(c, "请求参数格式错误: "+err.Error())
+		return
+	}
+	var req updateOrgRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.BadRequest(c, "请求参数格式错误: "+err.Error())
+		return
+	}
+
+	ctx := context.New(c)
+	tenantID := ctx.GetTenantID()
+
+	info, err := h.svc.UpdateOrg(c.Request.Context(), tenantID, uri.ID, req.OrgID)
+	if err != nil {
+		if errors.Is(err, ErrOrgNotFound) {
+			resp.Error(c, 400, err.Error())
+			return
+		}
+		resp.HandleError(c, err)
+		return
+	}
+	resp.Success(c, info)
+}
+
 func (h *Handler) UpdateStatus(c *gin.Context) {
 	var req updateStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

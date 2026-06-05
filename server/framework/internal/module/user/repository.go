@@ -33,14 +33,17 @@ var userScopeColumns = permission.ScopeColumns{
 // userSelectColumns is the canonical column list for every user read path.
 // phone/email come from the JOINed accounts row; nickname lives on users.
 const userSelectColumns = `u.id, u.tenant_id, u.account_id, u.code, u.nickname, u.status,
-		u.real_name, u.avatar,
+		u.real_name, u.avatar, u.org_id,
 		a.phone, a.email,
-		u.created_at, u.updated_at`
+		u.created_at, u.updated_at,
+		o.name AS org_name`
 
 // userFromClause is the canonical FROM + JOIN for every user read path.
 // The join keeps accounts.is_deleted out of the result so soft-deleted
 // accounts surface phone/email as NULL (handled by the *string nil-checks).
-const userFromClause = `FROM users u LEFT JOIN accounts a ON a.id = u.account_id AND a.is_deleted = FALSE`
+const userFromClause = `FROM users u
+	LEFT JOIN accounts a ON a.id = u.account_id AND a.is_deleted = FALSE
+	LEFT JOIN organizations o ON o.id = u.org_id AND o.is_deleted = FALSE`
 
 func buildUserScopeFilter(ctx context.Context) (permission.ScopeFilter, error) {
 	uc, ok := xincontext.UserContextFrom(ctx)
@@ -63,11 +66,14 @@ func rebindScopeSQL(sql string, from, to int) string {
 // soft-deleted.
 func scanUser(row pgx.Row) (*User, error) {
 	var u User
-	var nickname, realName, avatar, phone, email *string
+	var nickname, realName, avatar, phone, email, orgName *string
+	var orgID *uint64
 	if err := row.Scan(
 		&u.ID, &u.TenantID, &u.AccountID, &u.Code, &nickname, &u.Status,
-		&realName, &avatar, &phone, &email,
+		&realName, &avatar, &orgID,
+		&phone, &email,
 		&u.CreatedAt, &u.UpdatedAt,
+		&orgName,
 	); err != nil {
 		return nil, err
 	}
@@ -85,6 +91,13 @@ func scanUser(row pgx.Row) (*User, error) {
 	}
 	if email != nil {
 		u.Email = *email
+	}
+	if orgID != nil {
+		v := uint(*orgID)
+		u.OrgID = &v
+	}
+	if orgName != nil {
+		u.OrgName = *orgName
 	}
 	return &u, nil
 }
@@ -184,7 +197,7 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keywor
 		return nil, 0, err
 	}
 
-	where, args, argIdx := buildUserListWhere(tenantID, permission.ScopeFilter{}, keyword)
+	where, args, argIdx := buildUserListWhere(tenantID, permission.ScopeFilter{}, keyword, nil)
 
 	var total int64
 	countSQL := "SELECT COUNT(*) " + userFromClause + " " + where
@@ -218,7 +231,7 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keywor
 	return list, total, nil
 }
 
-func (r *PostgresUserRepository) ListScoped(ctx context.Context, tenantID uint, keyword string, page, size int) ([]User, int64, error) {
+func (r *PostgresUserRepository) ListScoped(ctx context.Context, tenantID uint, keyword string, orgID *uint, page, size int) ([]User, int64, error) {
 	if tenantID == 0 {
 		tenantID, _ = xincontext.TenantIDFrom(ctx)
 	}
@@ -233,7 +246,7 @@ func (r *PostgresUserRepository) ListScoped(ctx context.Context, tenantID uint, 
 		return nil, 0, err
 	}
 
-	where, args, argIdx := buildUserListWhere(tenantID, filter, keyword)
+	where, args, argIdx := buildUserListWhere(tenantID, filter, keyword, orgID)
 
 	var total int64
 	countSQL := "SELECT COUNT(*) " + userFromClause + " " + where
@@ -272,7 +285,7 @@ func (r *PostgresUserRepository) ListScoped(ctx context.Context, tenantID uint, 
 // consume a single $N placeholder (keyword is reused 5x). Returns the
 // assembled WHERE, the args slice, and the next free placeholder index
 // (used by the caller to append LIMIT/OFFSET).
-func buildUserListWhere(tenantID uint, filter permission.ScopeFilter, keyword string) (string, []any, int) {
+func buildUserListWhere(tenantID uint, filter permission.ScopeFilter, keyword string, orgID *uint) (string, []any, int) {
 	where := "WHERE u.is_deleted = FALSE"
 	args := []any{}
 	argIdx := 1
@@ -296,6 +309,11 @@ func buildUserListWhere(tenantID uint, filter permission.ScopeFilter, keyword st
 		args = append(args, "%"+keyword+"%")
 		argIdx++
 	}
+	if orgID != nil {
+		where += fmt.Sprintf(" AND u.org_id = $%d", argIdx)
+		args = append(args, *orgID)
+		argIdx++
+	}
 	return where, args, argIdx
 }
 
@@ -311,24 +329,37 @@ func scanUserRows(rows pgx.Rows) ([]User, error) {
 	return list, nil
 }
 
-func (r *PostgresUserRepository) Create(ctx context.Context, tenantID, accountID uint, code string) (*User, error) {
+func (r *PostgresUserRepository) Create(ctx context.Context, tenantID, accountID uint, code string, orgID *uint) (*User, error) {
 	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Insert on users; the RETURNING covers the user-row columns only
-	// (no phone/email here — they live on the JOINed accounts row).
-	u, err := scanUser(q.QueryRow(ctx, `
-		INSERT INTO users (tenant_id, account_id, code, status)
-		VALUES ($1, $2, $3, 1)
-		RETURNING id, tenant_id, account_id, code, nickname, status, real_name, avatar, created_at, updated_at`,
-		tenantID, accountID, code))
-	if err != nil {
+	// Insert on users; org_id is optional (nullable column).
+	var orgIDArg interface{}
+	if orgID != nil {
+		orgIDArg = *orgID
+	}
+
+	// RETURNING is the user-row only (no JOIN). org_name gets loaded
+	// below by re-reading the canonical JOINed row.
+	var insertedID uint
+	if err := q.QueryRow(ctx, `
+		INSERT INTO users (tenant_id, account_id, code, status, org_id)
+		VALUES ($1, $2, $3, 1, $4)
+		RETURNING id`,
+		tenantID, accountID, code, orgIDArg).Scan(&insertedID); err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
 
-	// Fill phone/email from the freshly-created account.
+	// Re-read via the canonical JOINed path so the returned struct matches
+	// the read path used everywhere else.
+	u, err := r.GetByID(ctx, insertedID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fill phone/email from the freshly-created account (preserved behavior).
 	if err := q.QueryRow(ctx,
 		`SELECT phone, email FROM accounts WHERE id = $1 AND is_deleted = FALSE`,
 		accountID).Scan(&u.Phone, &u.Email); err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -344,10 +375,14 @@ func (r *PostgresUserRepository) Update(ctx context.Context, id uint, req Update
 		return nil, err
 	}
 
+	var orgIDArg interface{}
+	if req.OrgID != nil {
+		orgIDArg = *req.OrgID
+	}
 	tag, err := q.Exec(ctx, `
-		UPDATE users SET nickname = $2, real_name = $3, avatar = $4, status = $5, updated_at = NOW()
+		UPDATE users SET nickname = $2, real_name = $3, avatar = $4, status = $5, org_id = $6, updated_at = NOW()
 		WHERE id = $1 AND is_deleted = FALSE`,
-		id, req.Nickname, req.RealName, req.Avatar, req.Status)
+		id, req.Nickname, req.RealName, req.Avatar, req.Status, orgIDArg)
 	if err != nil {
 		return nil, fmt.Errorf("update user: %w", err)
 	}
@@ -383,6 +418,17 @@ func (r *PostgresUserRepository) Patch(ctx context.Context, id uint, req PatchUs
 	if req.Status != nil {
 		sets = append(sets, fmt.Sprintf("status = $%d", idx))
 		args = append(args, *req.Status)
+		idx++
+	}
+	if req.OrgID != nil {
+		var arg interface{}
+		if *req.OrgID == 0 {
+			arg = nil // explicit "remove from org"
+		} else {
+			arg = *req.OrgID
+		}
+		sets = append(sets, fmt.Sprintf("org_id = $%d", idx))
+		args = append(args, arg)
 		idx++
 	}
 
@@ -448,6 +494,32 @@ func (r *PostgresUserRepository) Delete(ctx context.Context, id uint) error {
 		return ErrUserNotFound
 	}
 	return nil
+}
+
+// UpdateOrg 调整用户的主组织；orgID 为 nil 或 0 都表示移出组织（org_id 置 NULL）。
+// org 是否存在 / 是否同租户的校验由 service 层负责，仓库只做原子写入。
+func (r *PostgresUserRepository) UpdateOrg(ctx context.Context, id uint, orgID *uint) (*User, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var arg interface{}
+	if orgID != nil && *orgID != 0 {
+		arg = *orgID
+	}
+
+	tag, err := q.Exec(ctx, `
+		UPDATE users SET org_id = $2, updated_at = NOW()
+		WHERE id = $1 AND is_deleted = FALSE`,
+		id, arg)
+	if err != nil {
+		return nil, fmt.Errorf("update user org: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return nil, ErrUserNotFoundDB
+	}
+	return r.GetByIDScoped(ctx, id)
 }
 
 // UpdatePhone writes phone to the user's underlying account row (phone is

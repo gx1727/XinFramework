@@ -31,6 +31,11 @@ type OrganizationRepository interface {
 	GetByTenantScoped(ctx context.Context, tenantID uint) ([]Organization, error)
 	GetChildren(ctx context.Context, parentID uint) ([]Organization, error)
 	GetChildrenScoped(ctx context.Context, parentID uint) ([]Organization, error)
+	CountChildren(ctx context.Context, parentID uint) (int64, error)
+
+	// CountUsersInOrgTree 统计直接挂在 orgID 下、或挂在 orgID 任意后代下的未删用户数。
+	// 这里直接查 users 表（org 模块读 user 表是允许的，反过来则不行）。
+	CountUsersInOrgTree(ctx context.Context, orgID uint) (int64, error)
 	GetTree(ctx context.Context, tenantID uint) ([]Organization, error)
 	GetTreeScoped(ctx context.Context, tenantID uint) ([]Organization, error)
 	Create(ctx context.Context, tenantID uint, req CreateOrgRepoReq) (*Organization, error)

@@ -107,6 +107,7 @@ CREATE TABLE users
 );
 CREATE INDEX idx_users_tenant ON users (tenant_id) WHERE is_deleted = FALSE;
 CREATE UNIQUE INDEX uk_users_account ON users (account_id) WHERE is_deleted = FALSE;
+CREATE INDEX idx_users_org ON users (org_id) WHERE is_deleted = FALSE;
 
 -- 5. roles (角色表)
 DROP TABLE IF EXISTS roles;
@@ -237,6 +238,7 @@ CREATE TABLE dicts
     name       VARCHAR(64) NOT NULL,
     status     SMALLINT    DEFAULT 1,
     sort       INT         DEFAULT 0,
+    extend     JSONB       DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     is_deleted BOOLEAN     DEFAULT FALSE
@@ -250,15 +252,17 @@ CREATE TABLE dict_items
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id  BIGINT      NOT NULL,
     dict_id    BIGINT      NOT NULL,
-    label      VARCHAR(64) NOT NULL,
-    value      VARCHAR(128),
+    code       VARCHAR(64) NOT NULL,
+    name       VARCHAR(128) NOT NULL,
     sort       INT         DEFAULT 0,
     status     SMALLINT    DEFAULT 1,
+    extend     JSONB       DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     is_deleted BOOLEAN     DEFAULT FALSE
 );
 CREATE INDEX idx_dict_items_dict ON dict_items (dict_id) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX uk_dict_items_code ON dict_items (dict_id, code) WHERE is_deleted = FALSE;
 
 -- 14. db_logs (数据库日志表)
 DROP TABLE IF EXISTS db_logs;
@@ -447,6 +451,8 @@ ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tenant_user_seq ENABLE ROW LEVEL SECURITY;
 ALTER TABLE role_menus ENABLE ROW LEVEL SECURITY;
 ALTER TABLE role_resources ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dicts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dict_items ENABLE ROW LEVEL SECURITY;
 
 -- users
 DROP
@@ -496,6 +502,18 @@ POLICY IF EXISTS tenant_isolation_policy ON role_resources;
 CREATE
 POLICY tenant_isolation_policy ON role_resources USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 
+-- dicts
+DROP
+POLICY IF EXISTS tenant_isolation_policy ON dicts;
+CREATE
+POLICY tenant_isolation_policy ON dicts USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+
+-- dict_items
+DROP
+POLICY IF EXISTS tenant_isolation_policy ON dict_items;
+CREATE
+POLICY tenant_isolation_policy ON dict_items USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+
 -- ============================================
 -- 初始化数据
 -- ============================================
@@ -541,6 +559,7 @@ VALUES (51, 1, 'users', '用户管理', '/users', 'FileIcon', 1, 5, '5.51', TRUE
        (53, 1, 'menus', '菜单管理', '/menus', 'MenuIcon', 3, 5, '5.53', TRUE, TRUE),
        (54, 1, 'resources', '资源管理', '/resources', 'ResourceIcon', 4, 5, '5.54', TRUE, TRUE),
        (55, 1, 'organizations', '组织管理', '/organizations', 'ResourceIcon', 5, 5, '5.55', TRUE, TRUE),
+       (56, 1, 'dicts', '数据字典', '/dicts', 'BookIcon', 6, 5, '5.56', TRUE, TRUE),
        (61, 1, 'frame-list', '相框列表', '/frames', 'FileIcon', 1, 6, '6.61', TRUE, TRUE),
        (62, 1, 'frame-categories', '相框分类', '/frame-categories', 'ListIcon', 2, 6, '6.62', TRUE, TRUE),
        (71, 1, 'avatar-list', '头像列表', '/avatars', 'FileIcon', 1, 7, '7.71', TRUE, TRUE),
@@ -555,6 +574,14 @@ VALUES (1, 54, 'resource:list', '查询资源', 'list', '查询资源列表', 1,
        (1, 54, 'resource:create', '创建资源', 'create', '新建资源', 3, 1),
        (1, 54, 'resource:update', '更新资源', 'update', '更新资源信息', 4, 1),
        (1, 54, 'resource:delete', '删除资源', 'delete', '删除资源', 5, 1);
+
+-- 字典资源\uff08菜单 56\uff09
+INSERT INTO resources (tenant_id, menu_id, code, name, action, description, sort, status)
+VALUES (1, 56, 'dict:list', '查询字典', 'list', '查询字典列表', 1, 1),
+       (1, 56, 'dict:get', '查看字典', 'get', '查看单个字典及字典项', 2, 1),
+       (1, 56, 'dict:create', '创建字典', 'create', '新建字典', 3, 1),
+       (1, 56, 'dict:update', '更新字典', 'update', '更新字典及字典项', 4, 1),
+       (1, 56, 'dict:delete', '删除字典', 'delete', '删除字典及字典项', 5, 1);
 
 SELECT setval('resources_id_seq', 100, true);
 
@@ -571,3 +598,22 @@ VALUES (1, '*', '超级管理员通配权限', '*', '拥有系统所有权限', 
 -- admin 角色绑定超级资源 (role_resources)
 INSERT INTO role_resources (tenant_id, role_id, resource_id, effect)
 VALUES (1, 1, (SELECT id FROM resources WHERE code = '*'), 1);
+
+-- 字典示例数据
+INSERT INTO dicts (tenant_id, code, name, sort, status)
+VALUES (1, 'gender', '性别', 1, 1),
+       (1, 'user_status', '用户状态', 2, 1),
+       (1, 'education', '学历', 3, 1);
+
+INSERT INTO dict_items (tenant_id, dict_id, code, name, sort, status)
+SELECT 1, d.id, x.code, x.name, x.sort, 1
+FROM dicts d
+JOIN (VALUES
+  ('gender', 'male', '男', 1),
+  ('gender', 'female', '女', 2),
+  ('user_status', 'active', '启用', 1),
+  ('user_status', 'disabled', '停用', 2),
+  ('education', 'bachelor', '本科', 1),
+  ('education', 'master', '硕士', 2),
+  ('education', 'doctor', '博士', 3)
+) AS x(dict_code, code, name, sort) ON x.dict_code = d.code;

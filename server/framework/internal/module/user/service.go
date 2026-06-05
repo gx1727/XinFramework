@@ -8,21 +8,132 @@ import (
 
 	"gx1727.com/xin/framework/internal/module/asset"
 	"gx1727.com/xin/framework/internal/module/auth"
+	"gx1727.com/xin/framework/internal/module/organization"
 	"gx1727.com/xin/framework/internal/module/role"
+	"gx1727.com/xin/framework/pkg/audit"
 	"gx1727.com/xin/framework/pkg/db"
 )
 
 type Service struct {
 	userRepo    UserRepository
 	roleRepo    role.RoleRepository
+	orgRepo     organization.OrganizationRepository
 	assetSvc    *asset.FileService
 	accountRepo auth.AccountRepository
 }
 
-func NewService(userRepo UserRepository, roleRepo role.RoleRepository, assetSvc *asset.FileService, accountRepo auth.AccountRepository) *Service {
+// validateOrg 校验主组织 ID 是否存在且与租户一致。nil 表示允许"未指定"。
+// 与 0 等价的请求也允许（表示移出主组织），但 0 不需要查数据库。
+func (s *Service) validateOrg(ctx context.Context, tenantID uint, orgID *uint) error {
+	if orgID == nil || *orgID == 0 {
+		return nil
+	}
+	if s.orgRepo == nil {
+		return errors.New("organization repository not wired")
+	}
+	org, err := s.orgRepo.GetByIDScoped(ctx, *orgID)
+	if err != nil {
+		return ErrOrgNotFound
+	}
+	if org.TenantID != tenantID {
+		return ErrOrgNotFound
+	}
+	if org.Status != 1 {
+		return ErrOrgNotFound
+	}
+	return nil
+}
+
+// UpdateOrg 调整用户的主组织（orgID=nil 或 0 表示移出组织）。
+func (s *Service) UpdateOrg(ctx context.Context, tenantID, userID uint, orgID *uint) (*UserInfo, error) {
+	var info *UserInfo
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		// 校验目标存在 + 同租户
+		// 先读出旧 org_id，写审计要用
+		oldUser, err := s.userRepo.GetByIDScoped(ctx, userID)
+		if err != nil {
+			if errors.Is(err, ErrUserNotFoundDB) {
+				return ErrUserNotFound
+			}
+			return err
+		}
+		oldOrgID := uint(0)
+		if oldUser.OrgID != nil {
+			oldOrgID = *oldUser.OrgID
+		}
+		oldOrgName := oldUser.OrgName
+
+		if err := s.validateOrg(ctx, tenantID, orgID); err != nil {
+			return err
+		}
+		u, err := s.userRepo.UpdateOrg(ctx, userID, orgID)
+		if err != nil {
+			if errors.Is(err, ErrUserNotFoundDB) {
+				return ErrUserNotFound
+			}
+			return err
+		}
+		if u.TenantID != tenantID {
+			return ErrUserNotFound
+		}
+		info = &UserInfo{
+			ID:       u.ID,
+			TenantID: u.TenantID,
+			OrgID:    u.OrgID,
+			OrgName:  u.OrgName,
+			Code:     u.Code,
+			Nickname: u.Nickname,
+			RealName: u.RealName,
+			Avatar:   u.Avatar,
+			Phone:    u.Phone,
+			Email:    u.Email,
+			Status:   u.Status,
+		}
+		roles, err := s.roleRepo.GetUserRoles(ctx, u.ID)
+		if err == nil && len(roles) > 0 {
+			info.Role = roles[0].Code
+		}
+
+		// 审计：组织变更（从 oldOrgID 改到新 orgID）
+		newOrgID := uint(0)
+		if u.OrgID != nil {
+			newOrgID = *u.OrgID
+		}
+		if oldOrgID != newOrgID {
+			audit.Log(ctx, audit.Entry{
+				TenantID:  u.TenantID,
+				Action:    "user:org_change",
+				TableName: "users",
+				RecordID:  u.ID,
+				OldData: map[string]any{
+					"org_id":   oldOrgID,
+					"org_name": oldOrgName,
+				},
+				NewData: map[string]any{
+					"org_id":   newOrgID,
+					"org_name": u.OrgName,
+				},
+			})
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return info, nil
+}
+
+func NewService(
+	userRepo UserRepository,
+	roleRepo role.RoleRepository,
+	orgRepo organization.OrganizationRepository,
+	assetSvc *asset.FileService,
+	accountRepo auth.AccountRepository,
+) *Service {
 	return &Service{
 		userRepo:    userRepo,
 		roleRepo:    roleRepo,
+		orgRepo:     orgRepo,
 		assetSvc:    assetSvc,
 		accountRepo: accountRepo,
 	}
@@ -40,7 +151,7 @@ func (s *Service) List(ctx context.Context, tenantID uint, req listRequest) ([]U
 	var total int64
 
 	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
-		users, t, err := s.userRepo.ListScoped(ctx, tenantID, req.Keyword, req.Page, req.Size)
+		users, t, err := s.userRepo.ListScoped(ctx, tenantID, req.Keyword, req.OrgID, req.Page, req.Size)
 		if err != nil {
 			return err
 		}
@@ -51,6 +162,8 @@ func (s *Service) List(ctx context.Context, tenantID uint, req listRequest) ([]U
 			result[i] = UserInfo{
 				ID:       u.ID,
 				TenantID: u.TenantID,
+				OrgID:    u.OrgID,
+				OrgName:  u.OrgName,
 				Code:     u.Code,
 				Nickname: u.Nickname,
 				RealName: u.RealName,
@@ -93,6 +206,8 @@ func (s *Service) Get(ctx context.Context, tenantID, userID uint) (*UserInfo, er
 		info = &UserInfo{
 			ID:       u.ID,
 			TenantID: u.TenantID,
+			OrgID:    u.OrgID,
+			OrgName:  u.OrgName,
 			Code:     u.Code,
 			Nickname: u.Nickname,
 			RealName: u.RealName,
@@ -137,11 +252,15 @@ func (s *Service) UpdateStatus(ctx context.Context, tenantID, userID uint, statu
 func (s *Service) Update(ctx context.Context, tenantID, userID uint, req updateUserRequest) (*UserInfo, error) {
 	var info *UserInfo
 	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		if err := s.validateOrg(ctx, tenantID, req.OrgID); err != nil {
+			return err
+		}
 		u, err := s.userRepo.Update(ctx, userID, UpdateUserRepoReq{
 			Nickname: req.Nickname,
 			RealName: req.RealName,
 			Avatar:   req.Avatar,
 			Status:   req.Status,
+			OrgID:    req.OrgID,
 		})
 		if err != nil {
 			return err
@@ -154,6 +273,8 @@ func (s *Service) Update(ctx context.Context, tenantID, userID uint, req updateU
 			ID:        u.ID,
 			TenantID:  u.TenantID,
 			AccountID: u.AccountID,
+			OrgID:     u.OrgID,
+			OrgName:   u.OrgName,
 			Code:      u.Code,
 			Nickname:  u.Nickname,
 			RealName:  u.RealName,
@@ -178,11 +299,15 @@ func (s *Service) Update(ctx context.Context, tenantID, userID uint, req updateU
 func (s *Service) Patch(ctx context.Context, tenantID, userID uint, req patchUserRequest) (*UserInfo, error) {
 	var info *UserInfo
 	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		if err := s.validateOrg(ctx, tenantID, req.OrgID); err != nil {
+			return err
+		}
 		u, err := s.userRepo.Patch(ctx, userID, PatchUserRepoReq{
 			Nickname: req.Nickname,
 			RealName: req.RealName,
 			Avatar:   req.Avatar,
 			Status:   req.Status,
+			OrgID:    req.OrgID,
 		})
 		if err != nil {
 			return err
@@ -195,6 +320,8 @@ func (s *Service) Patch(ctx context.Context, tenantID, userID uint, req patchUse
 			ID:        u.ID,
 			TenantID:  u.TenantID,
 			AccountID: u.AccountID,
+			OrgID:     u.OrgID,
+			OrgName:   u.OrgName,
 			Code:      u.Code,
 			Nickname:  u.Nickname,
 			RealName:  u.RealName,
@@ -234,6 +361,8 @@ func (s *Service) Profile(ctx context.Context, tenantID, userID uint) (*UserInfo
 			ID:        u.ID,
 			TenantID:  u.TenantID,
 			AccountID: u.AccountID,
+			OrgID:     u.OrgID,
+			OrgName:   u.OrgName,
 			Code:      u.Code,
 			Nickname:  u.Nickname,
 			RealName:  u.RealName,
@@ -334,10 +463,17 @@ func (s *Service) Create(ctx context.Context, tenantID, creatorID uint, req crea
 			return fmt.Errorf("get querier: %w", err)
 		}
 
+		if err := s.validateOrg(ctx, tenantID, req.OrgID); err != nil {
+			return err
+		}
+		var orgIDArg interface{}
+		if req.OrgID != nil {
+			orgIDArg = *req.OrgID
+		}
 		err = querier.QueryRow(ctx, `
-			INSERT INTO users (tenant_id, account_id, code, status, created_by)
-			VALUES ($1, $2, '', $3, $4)
-			RETURNING id`, tenantID, newAccount.ID, status, creatorID).Scan(&newUserID)
+			INSERT INTO users (tenant_id, account_id, code, status, org_id, created_by)
+			VALUES ($1, $2, '', $3, $4, $5)
+			RETURNING id`, tenantID, newAccount.ID, status, orgIDArg, creatorID).Scan(&newUserID)
 		if err != nil {
 			return fmt.Errorf("create user: %w", err)
 		}
@@ -371,6 +507,15 @@ func (s *Service) Create(ctx context.Context, tenantID, creatorID uint, req crea
 		return nil, err
 	}
 
+	// 补一次 org_name（不入主路径，写在事务外）
+	var orgName string
+	if req.OrgID != nil && *req.OrgID != 0 {
+		if s.orgRepo != nil {
+			if org, err := s.orgRepo.GetByIDScoped(ctx, *req.OrgID); err == nil && org.TenantID == tenantID {
+				orgName = org.Name
+			}
+		}
+	}
 	return &createResponse{
 		ID:       newUserID,
 		TenantID: tenantID,
@@ -378,6 +523,8 @@ func (s *Service) Create(ctx context.Context, tenantID, creatorID uint, req crea
 		Username: newAccount.Username,
 		RealName: newAccount.RealName,
 		Phone:    newAccount.Phone,
+		OrgID:    req.OrgID,
+		OrgName:  orgName,
 		Status:   newAccount.Status,
 	}, nil
 }

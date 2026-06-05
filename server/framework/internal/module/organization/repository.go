@@ -190,6 +190,37 @@ func (r *PostgresOrganizationRepository) GetByTenantScoped(ctx context.Context, 
 	return orgs, nil
 }
 
+// CountChildren 统计 parentID 下未删子组织数（不含自己）。
+// CountUsersInOrgTree 统计本组织及其所有后代下的未删除用户数。
+// 用 ancestors 字符串前缀匹配才能一次扫到后代，不依赖 ltree 扩展。
+func (r *PostgresOrganizationRepository) CountUsersInOrgTree(ctx context.Context, orgID uint) (int64, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	var n int64
+	// o.ancestors 存的是"父轨迹"，如 "0.1.2"；orgID 本身需额外匹配。
+	err = q.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM users u
+		JOIN organizations o ON o.id = u.org_id AND o.is_deleted = FALSE
+		WHERE u.is_deleted = FALSE
+		  AND (o.id = $1 OR o.ancestors LIKE $2)`,
+		orgID, fmt.Sprintf("%d.", orgID)).Scan(&n)
+	return n, err
+}
+
+func (r *PostgresOrganizationRepository) CountChildren(ctx context.Context, parentID uint) (int64, error) {
+	q, err := db.GetQuerier(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var n int64
+	err = q.QueryRow(ctx, `SELECT COUNT(*) FROM organizations WHERE is_deleted = FALSE AND parent_id = $1`, parentID).Scan(&n)
+	return n, err
+}
+
 func (r *PostgresOrganizationRepository) GetChildren(ctx context.Context, parentID uint) ([]Organization, error) {
 	q, err := db.GetQuerier(ctx)
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/internal/module/asset"
 	"gx1727.com/xin/framework/internal/module/auth"
+	"gx1727.com/xin/framework/internal/module/organization"
 	"gx1727.com/xin/framework/internal/module/role"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/db"
@@ -41,6 +42,7 @@ func Module() plugin.Module {
 		h := NewHandler(NewService(
 			NewUserRepository(db.Get()),
 			role.NewRoleRepository(db.Get()),
+			organization.NewOrganizationRepository(db.Get()),
 			assetSvc,
 			auth.NewAccountRepository(db.Get()),
 		))

@@ -1,190 +1,231 @@
+// Package dict ?? handler
 package dict
 
 import (
+	"errors"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/pkg/context"
-	dictpkg "gx1727.com/xin/framework/pkg/dict"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
 type Handler struct {
-	repo *DictRepository
+	svc *Service
 }
 
-func NewHandler(repo *DictRepository) *Handler {
-	return &Handler{repo: repo}
+func NewHandler(svc *Service) *Handler {
+	return &Handler{svc: svc}
 }
 
-type listResponse struct {
-	List  []dictpkg.Dict `json:"list"`
-	Total int64          `json:"total"`
-}
-
+// List ????????
 func (h *Handler) List(c *gin.Context) {
 	ctx := context.New(c)
 	tenantID := ctx.GetTenantID()
 
-	list, total, err := h.repo.List(c.Request.Context(), tenantID)
+	var req listRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		resp.BadRequest(c, "????????")
+		return
+	}
+
+	list, total, err := h.svc.List(c.Request.Context(), tenantID, req)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
 	}
 
-	resp.Success(c, listResponse{List: list, Total: total})
+	resp.Success(c, listResponse{
+		List:  list,
+		Total: total,
+		Page:  req.Page,
+		Size:  req.Size,
+	})
 }
 
+// Get ????
 func (h *Handler) Get(c *gin.Context) {
 	ctx := context.New(c)
 	tenantID := ctx.GetTenantID()
-	dictCode := c.Param("code")
 
-	d, ok := dictpkg.Get(tenantID, dictCode)
-	if !ok {
-		resp.NotFound(c, "字典不存在")
+	id, err := parseUint(c.Param("id"))
+	if err != nil {
+		resp.BadRequest(c, "?????ID")
 		return
 	}
 
+	d, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
 	resp.Success(c, d)
 }
 
-// Create 创建字典数据
-//
-// 接收HTTP请求，解析JSON参数，调用仓储层创建字典，
-// 刷新字典缓存并返回创建结果
+// Create ????
 func (h *Handler) Create(c *gin.Context) {
 	ctx := context.New(c)
 	tenantID := ctx.GetTenantID()
 
-	var req DictCreate
+	var req createRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, "????????")
 		return
 	}
 
-	d, err := h.repo.Create(c.Request.Context(), tenantID, req)
+	d, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
+		if errors.Is(err, ErrDictCodeExists) {
+			resp.Error(c, 409, "???????")
+			return
+		}
 		resp.HandleError(c, err)
 		return
 	}
-
-	dictpkg.RefreshDict(c.Request.Context(), tenantID, d.Code)
 	resp.Success(c, d)
 }
 
+// Update ????
 func (h *Handler) Update(c *gin.Context) {
 	ctx := context.New(c)
 	tenantID := ctx.GetTenantID()
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 64)
+
+	id, err := parseUint(c.Param("id"))
 	if err != nil {
-		resp.BadRequest(c, "无效的字典ID")
+		resp.BadRequest(c, "?????ID")
 		return
 	}
 
-	var req struct {
-		Name   string                 `json:"name"`
-		Extend map[string]interface{} `json:"extend"`
-	}
+	var req updateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, "????????")
 		return
 	}
 
-	if err := h.repo.Update(c.Request.Context(), tenantID, uint(id), req.Name, req.Extend); err != nil {
+	d, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	if err != nil {
 		resp.HandleError(c, err)
 		return
 	}
-
-	resp.Success(c, gin.H{"ok": true})
+	resp.Success(c, d)
 }
 
+// Delete ??????????????????????
 func (h *Handler) Delete(c *gin.Context) {
 	ctx := context.New(c)
 	tenantID := ctx.GetTenantID()
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 64)
+
+	id, err := parseUint(c.Param("id"))
 	if err != nil {
-		resp.BadRequest(c, "无效的字典ID")
+		resp.BadRequest(c, "?????ID")
 		return
 	}
 
-	if err := h.repo.Delete(c.Request.Context(), tenantID, uint(id)); err != nil {
+	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+		if errors.Is(err, ErrDictHasItems) {
+			resp.Error(c, 409, err.Error())
+			return
+		}
 		resp.HandleError(c, err)
 		return
 	}
-
 	resp.Success(c, gin.H{"ok": true})
 }
 
+// ListItems ???????????
+func (h *Handler) ListItems(c *gin.Context) {
+	ctx := context.New(c)
+	tenantID := ctx.GetTenantID()
+
+	var req listItemsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		resp.BadRequest(c, "????????")
+		return
+	}
+
+	items, err := h.svc.ListItems(c.Request.Context(), tenantID, req.DictID)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+	resp.Success(c, gin.H{"list": items, "total": int64(len(items))})
+}
+
+// CreateItem ?????????
 func (h *Handler) CreateItem(c *gin.Context) {
 	ctx := context.New(c)
 	tenantID := ctx.GetTenantID()
-	idStr := c.Param("id")
-	dictID, err := strconv.ParseUint(idStr, 10, 64)
+
+	dictID, err := parseUint(c.Param("id"))
 	if err != nil {
-		resp.BadRequest(c, "无效的字典ID")
+		resp.BadRequest(c, "?????ID")
 		return
 	}
 
-	var req DictItemCreate
+	var req createItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, "????????")
 		return
 	}
 
-	item, err := h.repo.CreateItem(c.Request.Context(), tenantID, uint(dictID), req)
+	item, err := h.svc.CreateItem(c.Request.Context(), tenantID, dictID, req)
 	if err != nil {
+		if errors.Is(err, ErrDictItemCodeExists) {
+			resp.Error(c, 409, "????????")
+			return
+		}
 		resp.HandleError(c, err)
 		return
 	}
-
 	resp.Success(c, item)
 }
 
+// UpdateItem ?????
 func (h *Handler) UpdateItem(c *gin.Context) {
 	ctx := context.New(c)
 	tenantID := ctx.GetTenantID()
-	idStr := c.Param("item_id")
-	id, err := strconv.ParseUint(idStr, 10, 64)
+
+	itemID, err := parseUint(c.Param("item_id"))
 	if err != nil {
-		resp.BadRequest(c, "无效的字典项ID")
+		resp.BadRequest(c, "??????ID")
 		return
 	}
 
-	var req struct {
-		Name   string                 `json:"name"`
-		Sort   int                    `json:"sort"`
-		Extend map[string]interface{} `json:"extend"`
-	}
+	var req updateItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.BadRequest(c, "请求参数格式错误")
+		resp.BadRequest(c, "????????")
 		return
 	}
 
-	if err := h.repo.UpdateItem(c.Request.Context(), tenantID, uint(id), req.Name, req.Sort, req.Extend); err != nil {
+	if err := h.svc.UpdateItem(c.Request.Context(), tenantID, itemID, req); err != nil {
 		resp.HandleError(c, err)
 		return
 	}
-
 	resp.Success(c, gin.H{"ok": true})
 }
 
+// DeleteItem ?????
 func (h *Handler) DeleteItem(c *gin.Context) {
 	ctx := context.New(c)
 	tenantID := ctx.GetTenantID()
-	idStr := c.Param("item_id")
-	id, err := strconv.ParseUint(idStr, 10, 64)
+
+	itemID, err := parseUint(c.Param("item_id"))
 	if err != nil {
-		resp.BadRequest(c, "无效的字典项ID")
+		resp.BadRequest(c, "??????ID")
 		return
 	}
 
-	if err := h.repo.DeleteItem(c.Request.Context(), tenantID, uint(id)); err != nil {
+	if err := h.svc.DeleteItem(c.Request.Context(), tenantID, itemID); err != nil {
 		resp.HandleError(c, err)
 		return
 	}
-
 	resp.Success(c, gin.H{"ok": true})
+}
+
+func parseUint(s string) (uint, error) {
+	v, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return uint(v), nil
 }

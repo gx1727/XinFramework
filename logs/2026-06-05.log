@@ -124,3 +124,147 @@
 [xin] 2026/06/05 11:00:15 [INFO] [cb243367-866f-468f-b177-42a80f9dd832] GET /api/v1/menus/tree | 200 | 4.419ms | ::1
 [xin] 2026/06/05 11:00:15 [INFO] [5e4f65c8-c322-4525-9976-a9e09b636b23] GET /api/v1/roles?page=1&size=100 | 200 | 6.1171ms | ::1
 [xin] 2026/06/05 11:00:15 [INFO] [6001fbe6-df58-4984-b741-c906d8838081] GET /api/v1/users?keyword=undefined&page=1&size=100 | 200 | 6.7925ms | ::1
+[xin] 2026/06/05 11:07:18 [INFO] [678c7a7f-eff3-42c8-b39e-15a3dc0f78e9] GET /api/v1/menus/tree | 200 | 8.2528ms | ::1
+[xin] 2026/06/05 11:07:18 [INFO] [0f4e5a59-aa8a-4996-9933-a9991f5125f7] GET /api/v1/roles?page=1&size=100 | 200 | 9.8983ms | ::1
+[xin] 2026/06/05 11:07:18 [INFO] [25ddfb37-7ec9-4a98-ba10-eb590454b0af] GET /api/v1/users?keyword=undefined&page=1&size=100 | 200 | 11.3886ms | ::1
+[xin] 2026/06/05 11:11:06 [INFO] [a3e49a30-4e47-40b2-a609-0bb14143900b] GET /api/v1/menus/tree | 200 | 8.9148ms | ::1
+[xin] 2026/06/05 11:11:06 [INFO] [5d60da26-c4f3-4ba9-88cc-bff50d74ff87] GET /api/v1/organizations/tree | 200 | 8.9353ms | ::1
+[xin] 2026/06/05 11:11:06 [INFO] [d913feba-8bfb-4bec-91aa-1cc6b2b3a1ab] GET /api/v1/roles?page=1&size=100 | 200 | 10.5008ms | ::1
+[xin] 2026/06/05 11:11:06 [INFO] [2475c04c-f5c4-4509-8537-333fabdb646f] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 200 | 10.466ms | ::1
+[xin] 2026/06/05 11:12:47 [INFO] [61b4998f-c7e2-467f-a708-a4bfe0d92857] GET /api/v1/menus/tree | 200 | 8.6904ms | ::1
+[xin] 2026/06/05 11:12:47 [INFO] [cc64fa47-b4ec-4df4-b545-9b8781c5b63a] GET /api/v1/organizations/tree | 200 | 8.8241ms | ::1
+[xin] 2026/06/05 11:12:47 [INFO] [c57514aa-36f3-4eda-a6d3-090997666d14] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 200 | 11.6984ms | ::1
+[xin] 2026/06/05 11:14:03 [INFO] [6c48b439-6d99-4495-84b3-9d06146ae6d0] GET /api/v1/organizations/tree | 200 | 8.4854ms | ::1
+[xin] 2026/06/05 11:14:03 [INFO] [818ae614-a7c4-4aa5-8f01-2e089b3a9f75] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 200 | 10.5266ms | ::1
+[xin] 2026/06/05 11:15:27 [INFO] [71efba31-60be-489c-a9ba-39a56d292d01] GET /api/v1/menus/tree | 200 | 7.2489ms | ::1
+[xin] 2026/06/05 11:15:27 [INFO] [0a6d2709-1f8d-4654-9060-d6168ce5277c] GET /api/v1/organizations/tree | 200 | 7.926ms | ::1
+[xin] 2026/06/05 11:15:27 [INFO] [f1df084c-53a4-4258-8538-f13801ea9d1b] GET /api/v1/menus/tree | 200 | 4.6293ms | ::1
+[xin] 2026/06/05 11:15:27 [INFO] [acd8bb8a-ff1f-47fd-b578-bdd81ee80306] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 200 | 13.0997ms | ::1
+[xin] 2026/06/05 11:15:27 [INFO] [46d424fb-fb6e-4de9-852b-55b5781b7e41] GET /api/v1/organizations/tree | 200 | 5.1081ms | ::1
+[xin] 2026/06/05 11:15:27 [INFO] [d7012922-a824-43ad-93ba-4d6f2df4639f] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 200 | 6.4195ms | ::1
+[xin] 2026/06/05 11:15:29 [INFO] [b2adada2-2d81-400b-b4b4-b67b66f53165] GET /api/v1/users?keyword=undefined&org_id=2&page=1&size=100 | 200 | 6.2988ms | ::1
+[xin] 2026/06/05 11:15:30 [INFO] [105ae92c-d29b-4c37-ae0f-b1e6c53f6130] GET /api/v1/users?keyword=undefined&org_id=1&page=1&size=100 | 200 | 7.4658ms | ::1
+[xin] 2026/06/05 11:15:31 [INFO] [288d78f4-4ed7-4487-80af-9ba8287ffbb3] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 200 | 5.6948ms | ::1
+[xin] 2026/06/05 11:15:34 [INFO] [f8a7e4aa-b77d-4119-8768-8a204ab8d77a] GET /api/v1/users?keyword=undefined&org_id=2&page=1&size=100 | 200 | 4.8994ms | ::1
+[xin] 2026/06/05 11:15:35 [INFO] [e766f337-52be-4932-abfe-7bf3c5fe51a3] GET /api/v1/users?keyword=undefined&org_id=1&page=1&size=100 | 200 | 5.5302ms | ::1
+[xin] 2026/06/05 11:15:37 [INFO] [5f9f6bec-082d-474e-9012-ccf9d441e607] GET /api/v1/users?keyword=undefined&org_id=2&page=1&size=100 | 200 | 6.4954ms | ::1
+[xin] 2026/06/05 11:15:38 [INFO] [a10297e8-3936-43ae-b810-572bd5cd1781] GET /api/v1/users?keyword=undefined&org_id=1&page=1&size=100 | 200 | 5.4546ms | ::1
+[xin] 2026/06/05 11:15:39 [INFO] [b808ab23-9e30-4ca5-a163-1dde8a1ed15f] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 200 | 5.4857ms | ::1
+[xin] 2026/06/05 11:43:57 [WARN] [bc731c60-1b6d-45e9-b4e4-18173bafa0c0] GET /api/v1/users | 401 | invalid token
+[xin] 2026/06/05 11:43:57 [WARN] [544c91e1-6cdb-4fe6-ac6a-e0eeb4da8e2d] GET /api/v1/organizations/tree | 401 | invalid token
+[xin] 2026/06/05 11:43:57 [WARN] [bc731c60-1b6d-45e9-b4e4-18173bafa0c0] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 401 | 507µs | ::1
+[xin] 2026/06/05 11:43:57 [WARN] [544c91e1-6cdb-4fe6-ac6a-e0eeb4da8e2d] GET /api/v1/organizations/tree | 401 | 507µs | ::1
+[xin] 2026/06/05 11:43:57 [INFO] [6c970445-ada5-45e4-8309-f18bffe3c586] POST /api/v1/auth/refresh | 200 | 3.4251ms | ::1
+[xin] 2026/06/05 11:43:57 [INFO] [e3160a09-ad2c-4f95-9b4f-fbf76d6c1774] GET /api/v1/organizations/tree | 200 | 10.314ms | ::1
+[xin] 2026/06/05 11:43:57 [INFO] [79720193-a6f7-49be-9a35-9b515b12216d] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 200 | 12.7519ms | ::1
+[xin] 2026/06/05 11:45:43 [INFO] [052795d0-a9d2-49a6-8ee0-35f5dbacc46b] GET /api/v1/organizations/tree | 200 | 5.1384ms | ::1
+[xin] 2026/06/05 11:45:43 [INFO] [467e5068-2571-4700-ad19-5c4f774ffb70] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 200 | 6.7105ms | ::1
+[xin] 2026/06/05 11:46:05 [INFO] [463d2de9-20cb-49ac-a02e-7a0f556357b8] GET /api/v1/organizations/tree | 200 | 5.5726ms | ::1
+[xin] 2026/06/05 11:46:05 [INFO] [1d567d10-8ec2-44f8-bbea-d3dad06daa48] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 200 | 8.2391ms | ::1
+[xin] 2026/06/05 11:46:39 [INFO] [7fa9dc24-e371-499b-bb60-4215207c1592] GET /api/v1/organizations/tree | 200 | 9.6406ms | ::1
+[xin] 2026/06/05 11:46:39 [INFO] [baf0893d-1374-4138-9d0a-3a36437bf0d4] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 200 | 11.5806ms | ::1
+[xin] 2026/06/05 11:49:48 [INFO] [ec7b9008-d767-405c-b493-6198c4374a3f] GET /api/v1/organizations/tree | 200 | 8.3796ms | ::1
+[xin] 2026/06/05 11:49:48 [INFO] [7bfac707-af93-4104-850d-54cce87281a5] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 200 | 10.2858ms | ::1
+[xin] 2026/06/05 11:50:02 [INFO] [3d20b843-ee50-42aa-8e8b-228fa8172353] GET /api/v1/organizations/tree | 200 | 6.6703ms | ::1
+[xin] 2026/06/05 11:50:02 [INFO] [89e32dda-bbe0-41e2-8d92-b3a800ea5918] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 200 | 8.707ms | ::1
+[xin] 2026/06/05 11:50:28 [INFO] [1237eb90-b311-4c7a-b692-9e0ffe1f1417] GET /api/v1/menus/tree | 200 | 10.0606ms | ::1
+[xin] 2026/06/05 11:50:28 [INFO] [342ec7cc-ee36-436e-80e3-9e194b632bad] GET /api/v1/organizations/tree | 200 | 11.0429ms | ::1
+[xin] 2026/06/05 11:50:28 [INFO] [9b6d512e-7ae0-4b0e-9c45-80167debc320] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 200 | 13.8225ms | ::1
+2026/06/05 11:58:05 Received signal: interrupt
+2026/06/05 11:58:10 [bootstrap] bootstrap account "root" already exists (id=2)
+2026/06/05 11:58:10 [bootstrap] failed: ERROR: constraint "uk_account_role" for table "account_roles" does not exist (SQLSTATE 42704)
+2026/06/05 11:58:10 builtin module system initialized
+2026/06/05 11:58:10 builtin module menu initialized
+2026/06/05 11:58:10 builtin module tenant initialized
+2026/06/05 11:58:10 builtin module user initialized
+2026/06/05 11:58:10 builtin module role initialized
+2026/06/05 11:58:10 builtin module resource initialized
+2026/06/05 11:58:10 builtin module organization initialized
+2026/06/05 11:58:10 builtin module dict initialized
+2026/06/05 11:58:10 builtin module permission initialized
+2026/06/05 11:58:10 builtin module auth initialized
+2026/06/05 11:58:10 builtin module asset initialized
+2026/06/05 11:58:10 builtin module weixin initialized
+2026/06/05 11:58:10 module cms initialized
+2026/06/05 11:58:10 module flag initialized
+2026/06/05 11:58:10 server starting on 0.0.0.0:8080
+2026/06/05 12:52:27 Received signal: interrupt
+2026/06/05 12:54:10 [bootstrap] bootstrap account "root" already exists (id=2)
+2026/06/05 12:54:10 [bootstrap] failed: ERROR: constraint "uk_account_role" for table "account_roles" does not exist (SQLSTATE 42704)
+2026/06/05 12:54:10 builtin module system initialized
+2026/06/05 12:54:10 builtin module menu initialized
+2026/06/05 12:54:10 builtin module tenant initialized
+2026/06/05 12:54:10 builtin module user initialized
+2026/06/05 12:54:10 builtin module role initialized
+2026/06/05 12:54:10 builtin module resource initialized
+2026/06/05 12:54:10 builtin module organization initialized
+2026/06/05 12:54:10 builtin module dict initialized
+2026/06/05 12:54:10 builtin module permission initialized
+2026/06/05 12:54:10 builtin module auth initialized
+2026/06/05 12:54:10 builtin module asset initialized
+2026/06/05 12:54:10 builtin module weixin initialized
+2026/06/05 12:54:10 module cms initialized
+2026/06/05 12:54:10 module flag initialized
+2026/06/05 12:54:10 server starting on 0.0.0.0:8080
+[xin] 2026/06/05 12:55:54 [WARN] [af645338-6744-49b8-824a-0e21c4865fb5] GET /api/v1/users | 401 | invalid token
+[xin] 2026/06/05 12:55:54 [WARN] [af645338-6744-49b8-824a-0e21c4865fb5] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 401 | 521.9µs | ::1
+[xin] 2026/06/05 12:55:54 [WARN] [61fb2e82-c7ce-4b04-8b04-c4b01106de14] GET /api/v1/users | 401 | invalid token
+[xin] 2026/06/05 12:55:54 [WARN] [61fb2e82-c7ce-4b04-8b04-c4b01106de14] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 401 | 0s | ::1
+[xin] 2026/06/05 12:55:54 [WARN] [e82b4f7e-5eb0-4960-89f1-58fdae7d893f] GET /api/v1/menus/tree | 401 | invalid token
+[xin] 2026/06/05 12:55:54 [WARN] [e82b4f7e-5eb0-4960-89f1-58fdae7d893f] GET /api/v1/menus/tree | 401 | 521.7µs | ::1
+[xin] 2026/06/05 12:55:54 [WARN] [e72bf9e7-6205-4cd1-9568-3367e54a482c] GET /api/v1/organizations/tree | 401 | invalid token
+[xin] 2026/06/05 12:55:54 [WARN] [e72bf9e7-6205-4cd1-9568-3367e54a482c] GET /api/v1/organizations/tree | 401 | 0s | ::1
+[xin] 2026/06/05 12:55:54 [WARN] [8f31c68c-bed2-404f-b47c-0d9f072ff932] GET /api/v1/menus/tree | 401 | invalid token
+[xin] 2026/06/05 12:55:54 [WARN] [8f31c68c-bed2-404f-b47c-0d9f072ff932] GET /api/v1/menus/tree | 401 | 0s | ::1
+[xin] 2026/06/05 12:55:54 [WARN] [01ab904c-5ee8-4493-a279-603048f7a23c] GET /api/v1/organizations/tree | 401 | invalid token
+[xin] 2026/06/05 12:55:54 [WARN] [01ab904c-5ee8-4493-a279-603048f7a23c] GET /api/v1/organizations/tree | 401 | 0s | ::1
+[xin] 2026/06/05 12:55:54 [INFO] [393ea72c-bba4-44a3-a6f0-47308aba9296] POST /api/v1/auth/refresh | 200 | 2.6092ms | ::1
+[xin] 2026/06/05 12:55:54 [WARN] [2910025f-9d04-4bb3-9473-551ef2d58430] GET /api/v1/users | 400 | 请求参数格式错误
+[xin] 2026/06/05 12:55:54 [WARN] [2910025f-9d04-4bb3-9473-551ef2d58430] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 400 | 8.8055ms | ::1
+[xin] 2026/06/05 12:55:54 [INFO] [98050b0a-f0fc-466d-8f5a-8e67ffd65bc0] GET /api/v1/menus/tree | 200 | 9.3284ms | ::1
+[xin] 2026/06/05 12:55:54 [INFO] [792c213e-319b-4272-973a-fb589a2a8ada] GET /api/v1/organizations/tree | 200 | 9.8494ms | ::1
+[xin] 2026/06/05 12:55:54 [WARN] [f6164fd9-3e78-4498-ab28-7a6a77c57b14] GET /api/v1/users | 400 | 请求参数格式错误
+[xin] 2026/06/05 12:55:54 [WARN] [f6164fd9-3e78-4498-ab28-7a6a77c57b14] GET /api/v1/users?keyword=undefined&org_id=undefined&page=1&size=100 | 400 | 3.3851ms | ::1
+[xin] 2026/06/05 12:55:54 [INFO] [390c9d78-f6c4-4379-8290-fdfaeab71c50] GET /api/v1/menus/tree | 200 | 3.3875ms | ::1
+[xin] 2026/06/05 12:55:54 [INFO] [9d812b4d-a8a7-4d43-b60e-da0ead4ef9a0] GET /api/v1/organizations/tree | 200 | 4.4568ms | ::1
+[xin] 2026/06/05 12:56:25 [INFO] [36de8bd2-a739-424d-b23a-7c0c37007232] POST /api/v1/auth/login | 200 | 26.1017ms | ::1
+[xin] 2026/06/05 12:56:26 [INFO] [87c23b57-678b-4bf7-88ed-7eaa6189cfe0] GET /api/v1/menus/tree | 200 | 6.7329ms | ::1
+[xin] 2026/06/05 12:56:26 [INFO] [e29757d4-4aff-40ea-97dc-cb51bb32d6fe] GET /api/v1/menus/tree | 200 | 3.5277ms | ::1
+[xin] 2026/06/05 12:56:39 [INFO] [70285ef7-9fc9-47f2-877a-6e0624e27692] GET /api/v1/menus/tree | 200 | 4.1748ms | ::1
+[xin] 2026/06/05 12:56:39 [INFO] [8f326dee-4fde-4d03-9a54-501550ecd183] GET /api/v1/menus/tree | 200 | 3.4089ms | ::1
+[xin] 2026/06/05 12:56:39 [ERROR] [d1fc9f5f-4aef-423f-9ab9-549ac8b1ee58] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 12:56:39 [ERROR] [d1fc9f5f-4aef-423f-9ab9-549ac8b1ee58] GET /api/v1/dicts?page=1&size=200 | 500 | 8.8129ms | ::1
+[xin] 2026/06/05 12:56:39 [ERROR] [2efc1392-7871-4f70-9abe-6b2c54e8702c] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 12:56:39 [ERROR] [2efc1392-7871-4f70-9abe-6b2c54e8702c] GET /api/v1/dicts?page=1&size=200 | 500 | 3.4715ms | ::1
+[xin] 2026/06/05 12:56:39 [WARN] [2fb4bf2f-ebd1-4fc8-8399-b4a4aee401fa] GET /api/v1/dicts/1/items | 400 | ????????
+[xin] 2026/06/05 12:56:39 [WARN] [2fb4bf2f-ebd1-4fc8-8399-b4a4aee401fa] GET /api/v1/dicts/1/items | 400 | 3.8582ms | ::1
+[xin] 2026/06/05 13:01:37 [WARN] [d9fda64e-76cd-4509-a5b1-fdf6ef134011] GET /api/v1/dicts/1/items | 400 | ????????
+[xin] 2026/06/05 13:01:37 [WARN] [d9fda64e-76cd-4509-a5b1-fdf6ef134011] GET /api/v1/dicts/1/items | 400 | 6.2496ms | ::1
+[xin] 2026/06/05 13:18:09 [INFO] [b0fbab62-78cb-4c51-80cb-a7609c75c466] GET /api/v1/menus/tree | 200 | 9.4834ms | ::1
+[xin] 2026/06/05 13:18:09 [ERROR] [4317ca10-e905-41b3-ae5e-f8c1f2e7bcc9] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 13:18:09 [ERROR] [4317ca10-e905-41b3-ae5e-f8c1f2e7bcc9] GET /api/v1/dicts?page=1&size=200 | 500 | 9.4834ms | ::1
+[xin] 2026/06/05 13:18:09 [INFO] [d2ca0b4e-69d0-4a50-92e4-c87af82b9dcb] GET /api/v1/menus/tree | 200 | 4.338ms | ::1
+[xin] 2026/06/05 13:18:09 [ERROR] [e4b62976-b4f8-4f5e-9e91-a533495be869] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 13:18:09 [ERROR] [e4b62976-b4f8-4f5e-9e91-a533495be869] GET /api/v1/dicts?page=1&size=200 | 500 | 4.3373ms | ::1
+[xin] 2026/06/05 13:18:09 [WARN] [39085139-dc15-40a2-9b4b-79fc4f4e0e18] GET /api/v1/dicts/1/items | 400 | ????????
+[xin] 2026/06/05 13:18:09 [WARN] [39085139-dc15-40a2-9b4b-79fc4f4e0e18] GET /api/v1/dicts/1/items | 400 | 4.2756ms | ::1
+[xin] 2026/06/05 13:18:12 [WARN] [63fae616-deba-45f5-a12a-bc912a53f12c] GET /api/v1/dicts/2/items | 400 | ????????
+[xin] 2026/06/05 13:18:12 [WARN] [63fae616-deba-45f5-a12a-bc912a53f12c] GET /api/v1/dicts/2/items | 400 | 7.5837ms | ::1
+[xin] 2026/06/05 13:18:12 [WARN] [75227461-bb37-41a1-835e-c9d253de12e1] GET /api/v1/dicts/3/items | 400 | ????????
+[xin] 2026/06/05 13:18:12 [WARN] [75227461-bb37-41a1-835e-c9d253de12e1] GET /api/v1/dicts/3/items | 400 | 2.8282ms | ::1
+[xin] 2026/06/05 13:18:13 [WARN] [f3879ba2-4db7-4ca9-92c7-7710dfde15f9] GET /api/v1/dicts/2/items | 400 | ????????
+[xin] 2026/06/05 13:18:13 [WARN] [f3879ba2-4db7-4ca9-92c7-7710dfde15f9] GET /api/v1/dicts/2/items | 400 | 4.1698ms | ::1
+[xin] 2026/06/05 13:18:13 [WARN] [9f6bc3eb-58ca-4c55-9bf5-3b4756883ad1] GET /api/v1/dicts/1/items | 400 | ????????
+[xin] 2026/06/05 13:18:13 [WARN] [9f6bc3eb-58ca-4c55-9bf5-3b4756883ad1] GET /api/v1/dicts/1/items | 400 | 3.7267ms | ::1
+[xin] 2026/06/05 13:18:14 [WARN] [e4589109-81cc-4b4b-8be2-f791c0d4b223] GET /api/v1/dicts/2/items | 400 | ????????
+[xin] 2026/06/05 13:18:14 [WARN] [e4589109-81cc-4b4b-8be2-f791c0d4b223] GET /api/v1/dicts/2/items | 400 | 3.5437ms | ::1
+[xin] 2026/06/05 13:18:15 [WARN] [70310d15-d1e6-4210-8b12-e5eb973d11c8] GET /api/v1/dicts/1/items | 400 | ????????
+[xin] 2026/06/05 13:18:15 [WARN] [70310d15-d1e6-4210-8b12-e5eb973d11c8] GET /api/v1/dicts/1/items | 400 | 3.1662ms | ::1
+[xin] 2026/06/05 13:18:15 [WARN] [3ab7c9c0-05e0-4109-8edf-eecea0d2fca2] GET /api/v1/dicts/2/items | 400 | ????????
+[xin] 2026/06/05 13:18:15 [WARN] [3ab7c9c0-05e0-4109-8edf-eecea0d2fca2] GET /api/v1/dicts/2/items | 400 | 3.3204ms | ::1
+[xin] 2026/06/05 13:18:15 [WARN] [200cd77b-5987-41be-8637-bf0553c73f50] GET /api/v1/dicts/3/items | 400 | ????????
+[xin] 2026/06/05 13:18:15 [WARN] [200cd77b-5987-41be-8637-bf0553c73f50] GET /api/v1/dicts/3/items | 400 | 3.185ms | ::1
+[xin] 2026/06/05 13:18:16 [WARN] [2e977b22-e280-435c-adc7-89a37203d42d] GET /api/v1/dicts/2/items | 400 | ????????
+[xin] 2026/06/05 13:18:16 [WARN] [2e977b22-e280-435c-adc7-89a37203d42d] GET /api/v1/dicts/2/items | 400 | 3.325ms | ::1
+[xin] 2026/06/05 13:18:16 [WARN] [08a543b5-d9d8-4bff-b164-02007471e13e] GET /api/v1/dicts/1/items | 400 | ????????
+[xin] 2026/06/05 13:18:16 [WARN] [08a543b5-d9d8-4bff-b164-02007471e13e] GET /api/v1/dicts/1/items | 400 | 2.9685ms | ::1

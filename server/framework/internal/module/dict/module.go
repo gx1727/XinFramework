@@ -1,3 +1,4 @@
+// Package dict ????
 package dict
 
 import (
@@ -6,10 +7,9 @@ import (
 	"gx1727.com/xin/framework/pkg/plugin"
 )
 
-// Module 返回 dict 模块的完整定义
 func Module() plugin.Module {
 	return plugin.NewModule("dict", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
-		h := NewHandler(NewDictRepository(db.Get()))
+		h := NewHandler(NewService(NewPostgresDictRepository(db.Get())))
 		Register(protected, h)
 	})
 }
