@@ -28,13 +28,48 @@ go.work.sum
 .env
 
 # logs
-logs/
+server/logs/
 
 # Editor/IDE
 .idea/
 .vscode/
 
-out/
-uploads/
-.gocache/
-_tmpgen/
+server/out/
+server/uploads/
+server/.gocache/
+server/_tmpgen/
+
+
+# Dependencies
+UI/node_modules/
+
+# Build output
+UI/dist/
+UI/dist-ssr/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# IDE
+UI/.vscode/
+UI/.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testing
+UI/coverage/
+
+# Misc
+*.local

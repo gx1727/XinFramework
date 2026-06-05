@@ -1,0 +1,126 @@
+2026/06/05 10:31:55 boot init failed: db init failed: ping db: failed to connect to `user=postgres database=xin`:
+	[::1]:5432 (localhost): dial error: dial tcp [::1]:5432: connectex: No connection could be made because the target machine actively refused it.
+	127.0.0.1:5432 (localhost): dial error: dial tcp 127.0.0.1:5432: connectex: No connection could be made because the target machine actively refused it.
+2026/06/05 10:38:16 builtin module system initialized
+2026/06/05 10:38:16 builtin module menu initialized
+2026/06/05 10:38:16 builtin module tenant initialized
+2026/06/05 10:38:16 builtin module user initialized
+2026/06/05 10:38:16 builtin module role initialized
+2026/06/05 10:38:16 builtin module resource initialized
+2026/06/05 10:38:16 builtin module organization initialized
+2026/06/05 10:38:16 builtin module dict initialized
+2026/06/05 10:38:16 builtin module permission initialized
+2026/06/05 10:38:16 builtin module auth initialized
+2026/06/05 10:38:16 builtin module asset initialized
+2026/06/05 10:38:16 server starting on 0.0.0.0:8080
+[xin] 2026/06/05 10:38:38 [WARN] [36094d43-a6ec-45c4-983f-4ee0af14fa96] GET /api/v1/menus/tree | 401 | invalid token
+[xin] 2026/06/05 10:38:38 [WARN] [36094d43-a6ec-45c4-983f-4ee0af14fa96] GET /api/v1/menus/tree | 401 | 0s | ::1
+[xin] 2026/06/05 10:38:38 [WARN] [c8968770-d2f5-44da-94d6-180e7e1f526d] GET /api/v1/menus/tree | 401 | invalid token
+[xin] 2026/06/05 10:38:38 [WARN] [c8968770-d2f5-44da-94d6-180e7e1f526d] GET /api/v1/menus/tree | 401 | 0s | ::1
+[xin] 2026/06/05 10:38:38 [WARN] [af64ba5d-50c7-4d1a-842c-f913fd416746] POST /api/v1/auth/refresh | 1014 | 无效的刷新令牌
+[xin] 2026/06/05 10:38:38 [INFO] [af64ba5d-50c7-4d1a-842c-f913fd416746] POST /api/v1/auth/refresh | 200 | 0s | ::1
+[xin] 2026/06/05 10:38:43 [WARN] [5b8ce487-8d20-4125-b9ba-8140c039e2bf] POST /api/v1/auth/login | 1006 | 创建会话失败
+[xin] 2026/06/05 10:38:43 [INFO] [5b8ce487-8d20-4125-b9ba-8140c039e2bf] POST /api/v1/auth/login | 200 | 47.5803ms | ::1
+[xin] 2026/06/05 10:38:50 [WARN] [16face68-ab41-479f-af38-df509aab80a6] POST /api/v1/auth/login | 1006 | 创建会话失败
+[xin] 2026/06/05 10:38:50 [INFO] [16face68-ab41-479f-af38-df509aab80a6] POST /api/v1/auth/login | 200 | 18.3009ms | ::1
+[xin] 2026/06/05 10:39:04 [WARN] [bbc3fe4f-bf30-4ab3-b7e3-acd936233e1e] POST /api/v1/auth/login | 1006 | 创建会话失败
+[xin] 2026/06/05 10:39:04 [INFO] [bbc3fe4f-bf30-4ab3-b7e3-acd936233e1e] POST /api/v1/auth/login | 200 | 17.315ms | ::1
+2026/06/05 10:40:10 Received signal: interrupt
+2026/06/05 10:40:11 [bootstrap] bootstrap account "root" already exists (id=2)
+2026/06/05 10:40:11 [bootstrap] failed: ERROR: constraint "uk_account_role" for table "account_roles" does not exist (SQLSTATE 42704)
+2026/06/05 10:40:11 builtin module system initialized
+2026/06/05 10:40:11 builtin module menu initialized
+2026/06/05 10:40:11 builtin module tenant initialized
+2026/06/05 10:40:11 builtin module user initialized
+2026/06/05 10:40:11 builtin module role initialized
+2026/06/05 10:40:11 builtin module resource initialized
+2026/06/05 10:40:11 builtin module organization initialized
+2026/06/05 10:40:11 builtin module dict initialized
+2026/06/05 10:40:11 builtin module permission initialized
+2026/06/05 10:40:11 builtin module auth initialized
+2026/06/05 10:40:11 builtin module asset initialized
+2026/06/05 10:40:11 server starting on 0.0.0.0:8080
+[xin] 2026/06/05 10:40:13 [WARN] [ae147873-e0b1-4c04-a6de-e16f79aefbb6] POST /api/v1/auth/login | 1006 | 创建会话失败
+[xin] 2026/06/05 10:40:13 [INFO] [ae147873-e0b1-4c04-a6de-e16f79aefbb6] POST /api/v1/auth/login | 200 | 19.334ms | ::1
+[xin] 2026/06/05 10:40:14 [WARN] [fe1168c9-f624-4154-b621-baf43053e390] POST /api/v1/auth/login | 1006 | 创建会话失败
+[xin] 2026/06/05 10:40:14 [INFO] [fe1168c9-f624-4154-b621-baf43053e390] POST /api/v1/auth/login | 200 | 17.2906ms | ::1
+[xin] 2026/06/05 10:40:15 [WARN] [130f31ce-be3a-4acf-88fc-f1be7a398a0a] POST /api/v1/auth/login | 1006 | 创建会话失败
+[xin] 2026/06/05 10:40:15 [INFO] [130f31ce-be3a-4acf-88fc-f1be7a398a0a] POST /api/v1/auth/login | 200 | 17.1627ms | ::1
+2026/06/05 10:40:20 Received signal: interrupt
+2026/06/05 10:40:26 [bootstrap] bootstrap account "root" already exists (id=2)
+2026/06/05 10:40:26 [bootstrap] failed: ERROR: constraint "uk_account_role" for table "account_roles" does not exist (SQLSTATE 42704)
+2026/06/05 10:40:26 builtin module system initialized
+2026/06/05 10:40:26 builtin module menu initialized
+2026/06/05 10:40:26 builtin module tenant initialized
+2026/06/05 10:40:26 builtin module user initialized
+2026/06/05 10:40:26 builtin module role initialized
+2026/06/05 10:40:26 builtin module resource initialized
+2026/06/05 10:40:26 builtin module organization initialized
+2026/06/05 10:40:26 builtin module dict initialized
+2026/06/05 10:40:26 builtin module permission initialized
+2026/06/05 10:40:26 builtin module auth initialized
+2026/06/05 10:40:26 builtin module asset initialized
+2026/06/05 10:40:26 server starting on 0.0.0.0:8080
+[xin] 2026/06/05 10:40:28 [WARN] [104165b1-e76c-4c40-8635-18d02671ae8e] POST /api/v1/auth/login | 1006 | 创建会话失败
+[xin] 2026/06/05 10:40:28 [INFO] [104165b1-e76c-4c40-8635-18d02671ae8e] POST /api/v1/auth/login | 200 | 19.3794ms | ::1
+2026/06/05 10:41:08 Received signal: interrupt
+2026/06/05 10:41:09 [bootstrap] bootstrap account "root" already exists (id=2)
+2026/06/05 10:41:09 [bootstrap] failed: ERROR: constraint "uk_account_role" for table "account_roles" does not exist (SQLSTATE 42704)
+2026/06/05 10:41:09 builtin module system initialized
+2026/06/05 10:41:09 builtin module menu initialized
+2026/06/05 10:41:09 builtin module tenant initialized
+2026/06/05 10:41:09 builtin module user initialized
+2026/06/05 10:41:09 builtin module role initialized
+2026/06/05 10:41:09 builtin module resource initialized
+2026/06/05 10:41:09 builtin module organization initialized
+2026/06/05 10:41:09 builtin module dict initialized
+2026/06/05 10:41:09 builtin module permission initialized
+2026/06/05 10:41:09 builtin module auth initialized
+2026/06/05 10:41:09 builtin module asset initialized
+2026/06/05 10:41:09 builtin module weixin initialized
+2026/06/05 10:41:09 module cms initialized
+2026/06/05 10:41:09 module flag initialized
+2026/06/05 10:41:09 server starting on 0.0.0.0:8080
+[xin] 2026/06/05 10:41:11 [INFO] [646dba47-273b-404e-8f2e-c2fe0c92df7c] POST /api/v1/auth/login | 200 | 24.0391ms | ::1
+[xin] 2026/06/05 10:41:11 [INFO] [7a374e34-e763-4722-a154-0a54a36159f2] GET /api/v1/menus/tree | 200 | 13.6521ms | ::1
+[xin] 2026/06/05 10:41:11 [INFO] [f05fe4e6-a731-4b51-8464-851e6db2896d] GET /api/v1/menus/tree | 200 | 3.44ms | ::1
+[xin] 2026/06/05 10:41:15 [INFO] [3513e15d-95dc-4357-aff7-5df175bfea7a] GET /api/v1/menus/tree | 200 | 4.8773ms | ::1
+[xin] 2026/06/05 10:41:15 [INFO] [9add02de-4c18-4d06-85a5-6d1bfe3c9c6b] GET /api/v1/menus/tree | 200 | 3.2643ms | ::1
+[xin] 2026/06/05 10:41:15 [INFO] [45dddf43-1dca-4837-af7e-fcedab151019] GET /api/v1/organizations/tree | 200 | 7.5326ms | ::1
+[xin] 2026/06/05 10:41:15 [INFO] [8af4d6b3-7680-4e79-8457-6e8928f11974] GET /api/v1/organizations/tree | 200 | 3.9709ms | ::1
+[xin] 2026/06/05 10:41:15 [INFO] [3759df78-4c40-4325-977a-7bc28e62e72b] GET /api/v1/menus/tree | 200 | 3.785ms | ::1
+[xin] 2026/06/05 10:41:15 [INFO] [4f07127e-c373-41c6-bf76-403f986a867d] GET /api/v1/resources?page=1&size=500 | 200 | 3.8329ms | ::1
+[xin] 2026/06/05 10:41:15 [INFO] [7cc95b37-7c60-420c-9837-379fae772a6c] GET /api/v1/menus/tree | 200 | 3.0689ms | ::1
+[xin] 2026/06/05 10:41:15 [INFO] [19f9fc2d-c942-49c0-931a-4d9f9be52677] GET /api/v1/resources?page=1&size=500 | 200 | 3.3664ms | ::1
+[xin] 2026/06/05 10:41:15 [INFO] [eb6bb286-fe29-42bc-852a-e5274b7bfa9f] GET /api/v1/menus/tree | 200 | 3.3595ms | ::1
+[xin] 2026/06/05 10:41:15 [INFO] [02136556-e649-4e68-bcc4-2dd2b286303f] GET /api/v1/menus/tree | 200 | 3.2716ms | ::1
+[xin] 2026/06/05 10:41:16 [INFO] [7aed0cf2-92ae-4c83-8f17-d4bc731491e8] GET /api/v1/menus/tree | 200 | 3.5602ms | ::1
+[xin] 2026/06/05 10:41:16 [INFO] [2739959d-2e22-4947-a2ab-d914e49a54ae] GET /api/v1/menus/tree | 200 | 3.1264ms | ::1
+[xin] 2026/06/05 10:41:16 [INFO] [44db4c7d-2a2b-4037-91c4-e4a7dfffc362] GET /api/v1/menus/tree | 200 | 3.1457ms | ::1
+[xin] 2026/06/05 10:41:16 [INFO] [b75bb7cd-3522-45e5-ae61-6c095f5171e7] GET /api/v1/menus/tree | 200 | 2.5896ms | ::1
+[xin] 2026/06/05 10:41:16 [INFO] [020600e5-6fe0-4bfc-8aa1-fa45d6145c9c] GET /api/v1/menus/tree | 200 | 3.2189ms | ::1
+[xin] 2026/06/05 10:41:16 [INFO] [dc5f1401-354d-4898-8199-fb480d7cad12] GET /api/v1/menus/tree | 200 | 2.7151ms | ::1
+[xin] 2026/06/05 10:41:16 [INFO] [e594c2f5-b4e0-4f1f-8250-812e61076ef1] GET /api/v1/roles?page=1&size=100 | 200 | 6.2023ms | ::1
+[xin] 2026/06/05 10:41:16 [INFO] [d09d7dbd-26e1-41ca-9137-6a089a0ccda9] GET /api/v1/roles?page=1&size=100 | 200 | 6.8364ms | ::1
+[xin] 2026/06/05 10:41:16 [INFO] [cb0769a3-0ef5-4917-bdfb-08ccb86504ff] GET /api/v1/menus/tree | 200 | 3.1106ms | ::1
+[xin] 2026/06/05 10:41:16 [INFO] [8c62f241-7ba8-4af8-99eb-e62eface132d] GET /api/v1/roles?page=1&size=100 | 200 | 4.8435ms | ::1
+[xin] 2026/06/05 10:41:16 [INFO] [1f9b547b-1d82-4e88-99a9-d91164ea85b6] GET /api/v1/menus/tree | 200 | 3.4176ms | ::1
+[xin] 2026/06/05 10:41:16 [INFO] [c50c31b3-e30c-415a-abd5-fc9aef8f1268] GET /api/v1/roles?page=1&size=100 | 200 | 3.8165ms | ::1
+[xin] 2026/06/05 10:41:16 [INFO] [a12b15c1-ce14-46d2-af9b-2cab4ecf2e13] GET /api/v1/users?keyword=undefined&page=1&size=100 | 200 | 9.2536ms | ::1
+[xin] 2026/06/05 10:41:16 [INFO] [52239b7b-2216-4b63-92fa-771deca01026] GET /api/v1/users?keyword=undefined&page=1&size=100 | 200 | 4.7094ms | ::1
+[xin] 2026/06/05 11:00:03 [INFO] [085b27ef-df02-4f2c-9a10-7e9d48e814fe] GET /api/v1/menus/tree | 200 | 21.2268ms | ::1
+[xin] 2026/06/05 11:00:03 [INFO] [1166aa7e-2917-429b-b0a9-8353f571de90] GET /api/v1/roles?page=1&size=100 | 200 | 21.5598ms | ::1
+[xin] 2026/06/05 11:00:03 [INFO] [f7278395-9c99-44fe-9739-dcf0ec822a68] GET /api/v1/users?keyword=undefined&page=1&size=100 | 200 | 23.7104ms | ::1
+[xin] 2026/06/05 11:00:03 [INFO] [2d0fc589-929b-41ff-94a2-8a782eab3d20] GET /api/v1/menus/tree | 200 | 4.1973ms | ::1
+[xin] 2026/06/05 11:00:03 [INFO] [d2558e0a-de94-44df-b988-a7560c26a799] GET /api/v1/roles?page=1&size=100 | 200 | 5.3899ms | ::1
+[xin] 2026/06/05 11:00:03 [INFO] [59863a93-77cd-40b5-8e87-93c3568bff94] GET /api/v1/users?keyword=undefined&page=1&size=100 | 200 | 7.1774ms | ::1
+[xin] 2026/06/05 11:00:09 [INFO] [f480b05e-9e36-4107-9402-660ede0607f7] GET /api/v1/menus/tree | 200 | 5.1144ms | ::1
+[xin] 2026/06/05 11:00:09 [INFO] [507ce001-ff53-4873-8f74-4dea9ec41744] GET /api/v1/organizations/tree | 200 | 5.8525ms | ::1
+[xin] 2026/06/05 11:00:09 [INFO] [ce40687e-33b3-4403-ac24-5c3cdbd4b947] GET /api/v1/menus/tree | 200 | 4.1957ms | ::1
+[xin] 2026/06/05 11:00:09 [INFO] [a1627e31-370b-4f21-8138-1dfffc984306] GET /api/v1/organizations/tree | 200 | 5.8268ms | ::1
+[xin] 2026/06/05 11:00:15 [INFO] [64201855-4825-4dbd-ac17-2ce615d209f8] GET /api/v1/menus/tree | 200 | 8.2963ms | ::1
+[xin] 2026/06/05 11:00:15 [INFO] [cafb22cb-815b-4394-affd-1f119bee20fe] GET /api/v1/roles?page=1&size=100 | 200 | 9.5261ms | ::1
+[xin] 2026/06/05 11:00:15 [INFO] [d78343f8-7004-482b-9f79-558c1c495e8b] GET /api/v1/users?keyword=undefined&page=1&size=100 | 200 | 11.5522ms | ::1
+[xin] 2026/06/05 11:00:15 [INFO] [cb243367-866f-468f-b177-42a80f9dd832] GET /api/v1/menus/tree | 200 | 4.419ms | ::1
+[xin] 2026/06/05 11:00:15 [INFO] [5e4f65c8-c322-4525-9976-a9e09b636b23] GET /api/v1/roles?page=1&size=100 | 200 | 6.1171ms | ::1
+[xin] 2026/06/05 11:00:15 [INFO] [6001fbe6-df58-4984-b741-c906d8838081] GET /api/v1/users?keyword=undefined&page=1&size=100 | 200 | 6.7925ms | ::1

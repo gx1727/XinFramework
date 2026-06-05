@@ -1,0 +1,284 @@
+import { useEffect, useState } from "react"
+import { PageLayout } from "@/components/page-layout"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { systemApi, type CacheInfo, type CacheValue } from "@/api"
+import { SearchIcon, TrashIcon, RefreshCw, EyeIcon, DatabaseIcon, ServerIcon, ActivityIcon, ClockIcon, UsersIcon } from "lucide-react"
+
+export default function Cache() {
+  const [cacheInfo, setCacheInfo] = useState<CacheInfo | null>(null)
+  const [isLoadingInfo, setIsLoadingInfo] = useState(false)
+  
+  const [pattern, setPattern] = useState("*")
+  const [keys, setKeys] = useState<string[]>([])
+  const [isLoadingKeys, setIsLoadingKeys] = useState(false)
+  
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [keyValue, setKeyValue] = useState<CacheValue | null>(null)
+  const [isLoadingValue, setIsLoadingValue] = useState(false)
+  const [detailOpen, setDetailOpen] = useState(false)
+
+  const fetchCacheInfo = async () => {
+    setIsLoadingInfo(true)
+    try {
+      const res = await systemApi.getCacheInfo()
+      setCacheInfo(res)
+    } catch (error: any) {
+      console.error("获取缓存信息失败", error)
+    } finally {
+      setIsLoadingInfo(false)
+    }
+  }
+
+  const fetchKeys = async () => {
+    setIsLoadingKeys(true)
+    try {
+      const res = await systemApi.getCacheKeys(pattern || "*")
+      setKeys(res || [])
+    } catch (error: any) {
+      console.error("获取缓存键失败", error)
+    } finally {
+      setIsLoadingKeys(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchCacheInfo()
+    fetchKeys()
+  }, [])
+
+  const handleSearch = () => {
+    fetchKeys()
+  }
+
+  const handleView = async (key: string) => {
+    setSelectedKey(key)
+    setDetailOpen(true)
+    setIsLoadingValue(true)
+    setKeyValue(null)
+    try {
+      const res = await systemApi.getCacheValue(key)
+      setKeyValue(res)
+    } catch (error: any) {
+      console.error("获取缓存值失败", error)
+      setDetailOpen(false)
+    } finally {
+      setIsLoadingValue(false)
+    }
+  }
+
+  const handleDelete = async (key: string) => {
+    if (!window.confirm(`确定要删除缓存键 ${key} 吗？`)) return
+    
+    try {
+      await systemApi.deleteCacheKey(key)
+      alert(`已删除缓存键: ${key}`)
+      if (selectedKey === key) {
+        setDetailOpen(false)
+      }
+      fetchKeys()
+      fetchCacheInfo()
+    } catch (error: any) {
+      console.error("删除失败", error)
+      alert(`删除失败: ${error.message}`)
+    }
+  }
+
+  // Parses info object for quick stats if it exists
+  const getParsedInfo = () => {
+    if (!cacheInfo?.info) return {}
+    if (typeof cacheInfo.info === 'object') {
+      return cacheInfo.info
+    }
+    return {}
+  }
+  
+  const parsedInfo = getParsedInfo() as any
+
+  return (
+    <PageLayout>
+      <div className="px-4 lg:px-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">缓存管理</h1>
+            <p className="text-sm text-muted-foreground">管理系统 Redis 缓存数据</p>
+          </div>
+          <Button variant="outline" onClick={() => { fetchCacheInfo(); fetchKeys(); }} disabled={isLoadingInfo || isLoadingKeys}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${isLoadingInfo || isLoadingKeys ? "animate-spin" : ""}`} />
+            刷新
+          </Button>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Redis 版本</CardTitle>
+              <ServerIcon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{parsedInfo.redis_version || "-"}</div>
+              <p className="text-xs text-muted-foreground">运行天数: {parsedInfo.uptime_in_days || "-"} 天</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">客户端连接数</CardTitle>
+              <UsersIcon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{parsedInfo.connected_clients || "-"}</div>
+              <p className="text-xs text-muted-foreground">当前连接的客户端数量</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">内存使用</CardTitle>
+              <ActivityIcon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{parsedInfo.used_memory_human || "-"}</div>
+              <p className="text-xs text-muted-foreground">峰值: {parsedInfo.used_memory_peak_human || "-"}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Key 总数</CardTitle>
+              <DatabaseIcon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{cacheInfo?.dbSize || 0}</div>
+              <p className="text-xs text-muted-foreground">当前数据库键数量</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-12">
+          <Card className="md:col-span-12">
+            <CardHeader>
+              <CardTitle>缓存键列表</CardTitle>
+              <CardDescription>使用通配符搜索缓存键，例如：user:*</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="relative flex-1 max-w-sm">
+                  <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="匹配模式 (例如: *)"
+                    className="pl-8"
+                    value={pattern}
+                    onChange={(e) => setPattern(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  />
+                </div>
+                <Button onClick={handleSearch} disabled={isLoadingKeys}>搜索</Button>
+              </div>
+
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-16">序号</TableHead>
+                      <TableHead>缓存键名</TableHead>
+                      <TableHead className="text-right">操作</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {keys.map((key, index) => (
+                      <TableRow key={key}>
+                        <TableCell className="text-muted-foreground">{index + 1}</TableCell>
+                        <TableCell className="font-mono text-sm">{key}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleView(key)} title="查看">
+                              <EyeIcon className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(key)} title="删除">
+                              <TrashIcon className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {keys.length === 0 && !isLoadingKeys && (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                          未找到匹配的缓存键
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+                {isLoadingKeys && (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-sm text-muted-foreground">加载中...</div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="break-all pr-6">缓存详情</DialogTitle>
+          </DialogHeader>
+          {isLoadingValue ? (
+            <div className="py-8 text-center text-muted-foreground">加载中...</div>
+          ) : keyValue ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">键名</p>
+                  <p className="font-mono text-sm break-all">{keyValue.key}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">数据类型</p>
+                  <div className="flex items-center">
+                    <DatabaseIcon className="w-3.5 h-3.5 mr-1.5 text-primary" />
+                    <span className="font-mono text-sm uppercase">{keyValue.type}</span>
+                  </div>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <p className="text-sm font-medium text-muted-foreground">过期时间 (TTL)</p>
+                  <div className="flex items-center">
+                    <ClockIcon className="w-3.5 h-3.5 mr-1.5 text-orange-500" />
+                    <span className="font-mono text-sm">
+                      {keyValue.ttl === -1 ? "永久有效 (-1)" : keyValue.ttl === -2 ? "已过期 (-2)" : `${keyValue.ttl} 秒`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">缓存内容</p>
+                <div className="h-[250px] w-full rounded-md border p-4 bg-muted/30 overflow-auto">
+                  <pre className="text-xs font-mono whitespace-pre-wrap break-all">
+                    {typeof keyValue.value === 'object' 
+                      ? JSON.stringify(keyValue.value, null, 2) 
+                      : String(keyValue.value)}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="py-8 text-center text-muted-foreground">无法获取缓存详情</div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="destructive" onClick={() => { if(selectedKey) handleDelete(selectedKey); }}>
+              删除此键
+            </Button>
+            <Button variant="outline" onClick={() => setDetailOpen(false)}>
+              关闭
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </PageLayout>
+  )
+}

@@ -32,6 +32,28 @@
 
 ---
 
+## 用户信息响应字段
+
+`GET /user/profile`、`GET /users/:id`、`GET /users`、`PUT /users/:id`、`PATCH /users/:id` 五个接口返回的用户对象字段如下：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | uint | 用户ID |
+| tenant_id | uint | 租户ID |
+| account_id | uint | 关联的全局账号ID（0=未绑定） |
+| code | string | 用户编码 |
+| nickname | string | 昵称 |
+| real_name | string | 真实姓名 |
+| avatar | string | 头像URL |
+| phone | string | 手机号（来自 accounts JOIN，未绑定时为空） |
+| email | string | 邮箱（同上） |
+| role | string | 主角色 code |
+| status | int8 | 状态：0/2=禁用，1=正常 |
+
+> `POST /users`（创建）的响应是 `createResponse`，只含 `id / tenant_id / code / username / real_name / phone / status`，**没有** `account_id / nickname / avatar / email / role`——按需查询上面那五个接口。
+
+---
+
 ## 1. 获取当前用户资料
 
 获取已登录用户的信息。
@@ -60,7 +82,8 @@ Authorization: Bearer <token>
     "avatar": "",
     "phone": "13800138000",
     "email": "admin@example.com",
-    "role": "admin"
+    "role": "admin",
+    "status": 1
   }
 }
 ```
@@ -166,13 +189,15 @@ Authorization: Bearer <token>
       {
         "id": 1,
         "tenant_id": 1,
+        "account_id": 1,
         "code": "U0000001",
         "nickname": "",
         "real_name": "管理员",
         "avatar": "",
         "phone": "13800138000",
         "email": "admin@example.com",
-        "role": "admin"
+        "role": "admin",
+        "status": 1
       }
     ],
     "total": 1,
@@ -205,13 +230,15 @@ Authorization: Bearer <token>
   "data": {
     "id": 1,
     "tenant_id": 1,
+    "account_id": 1,
     "code": "U0000001",
     "nickname": "",
     "real_name": "管理员",
     "avatar": "",
     "phone": "13800138000",
     "email": "admin@example.com",
-    "role": "admin"
+    "role": "admin",
+    "status": 1
   }
 }
 ```
@@ -251,7 +278,7 @@ Content-Type: application/json
 | email    | string | 否   | 邮箱                         |
 | real_name| string | 是   | 真实姓名                     |
 | password | string | 是   | 密码（至少6位）              |
-| status   | int    | 否   | 状态：1正常，2禁用，默认1    |
+| status   | int    | 否   | 1=正常，2=禁用，默认 1        |
 
 **响应示例**:
 ```json
@@ -283,7 +310,7 @@ Content-Type: application/json
 
 ## 7. 更新用户状态
 
-启用或禁用用户账号。
+启用或禁用用户账号（仅修改 status 字段的快捷接口）。
 
 **接口**: `PUT /api/v1/users/:id/status`
 
@@ -305,8 +332,10 @@ Content-Type: application/json
 
 | 字段  | 类型 | 必填 | 说明                    |
 |-------|------|------|------------------------|
-| id    | int  | 是   | 用户ID                 |
-| status| int  | 是   | 1-正常，2-禁用         |
+| id    | int  | 是   | 用户ID（与 URL `:id` 一致） |
+| status| int  | 是   | 1=正常，2=禁用         |
+
+> 历史接口：`status` 只接受 1/2，无法直接置 0。如需 `status=0` 请用第 9 节 `PATCH /users/:id`。
 
 **响应示例**:
 ```json
@@ -321,17 +350,93 @@ Content-Type: application/json
 
 ---
 
+## 8. 更新用户（全量替换）
+
+修改指定用户的昵称/真实姓名/头像/状态。一次提交即覆盖所有字段，未提供的字段会被置零/空字符串（status 除外）。
+
+**接口**: `PUT /api/v1/users/:id`
+
+**权限**: `user:update`
+
+**路径参数**:
+| 参数 | 类型    | 必填 | 说明   |
+|------|---------|------|--------|
+| id   | integer | 是   | 用户ID |
+
+**请求体**:
+```json
+{
+  "nickname": "新昵称",
+  "real_name": "张三",
+  "avatar": "https://example.com/avatar.jpg",
+  "status": 1
+}
+```
+
+| 字段      | 类型   | 必填 | 说明                          |
+|-----------|--------|------|------------------------------|
+| nickname  | string | 否   | 昵称                          |
+| real_name | string | 否   | 真实姓名                      |
+| avatar    | string | 否   | 头像URL                       |
+| status    | int    | 否   | 0/1/2；0=禁用，1=正常，2=禁用 |
+
+> **重要**：本接口**不修改** `phone` / `email`——这两个字段在 `accounts` 表上，且涉及唯一性约束与换绑验证流程，应走专门的"换绑手机/邮箱"接口（待提供）。
+
+**响应示例**: 用户信息对象，参考"用户信息响应字段"一节。
+
+---
+
+## 9. 更新用户（局部更新）
+
+只修改 body 中显式给出的字段，未提供的字段保持原值。空 body 等价于 GET，不写脏。
+
+**接口**: `PATCH /api/v1/users/:id`
+
+**权限**: `user:update`
+
+**路径参数**: 同上节
+
+**请求体**（任选字段子集）:
+```json
+{
+  "status": 0
+}
+```
+
+或一次改多个：
+```json
+{
+  "nickname": "新昵称",
+  "avatar": "https://example.com/avatar.jpg"
+}
+```
+
+| 字段      | 类型   | 必填 | 说明                          |
+|-----------|--------|------|------------------------------|
+| nickname  | string | 否   | 同上                          |
+| real_name | string | 否   | 同上                          |
+| avatar    | string | 否   | 同上                          |
+| status    | int    | 否   | 同上；本接口支持 0=禁用       |
+
+> 指针字段语义：`{"status": 0}` 真的会把用户禁用；body 不带 `status` 字段则完全不动。
+
+**响应示例**: 用户信息对象，参考"用户信息响应字段"一节。
+
+---
+
 ## 权限说明
 
-| 接口                     | 需要的权限    | 说明             |
-|--------------------------|---------------|------------------|
-| GET /user/profile        | 仅需登录       | 获取当前用户信息  |
-| PUT /user/profile        | 仅需登录       | 更新当前用户资料  |
-| POST /user/avatar        | 仅需登录       | 上传当前用户头像  |
-| GET /users               | user:list     | 用户列表          |
-| GET /users/:id           | user:list     | 用户详情          |
-| POST /users              | user:create   | 创建用户          |
-| PUT /users/:id/status    | user:update   | 更新用户状态      |
+| 接口                     | 需要的权限    | 说明                          |
+|--------------------------|---------------|------------------------------|
+| GET /user/profile        | 仅需登录       | 获取当前用户信息              |
+| PUT /user/profile        | 仅需登录       | 更新当前用户资料              |
+| POST /user/avatar        | 仅需登录       | 上传当前用户头像              |
+| GET /users               | user:list     | 用户列表                      |
+| GET /users/:id           | user:list     | 用户详情                      |
+| POST /users              | user:create   | 创建用户                      |
+| PUT /users/:id           | user:update   | 全量更新用户（昵称/姓名/头像/状态） |
+| PATCH /users/:id         | user:update   | 局部更新用户（任意字段子集）  |
+| PUT /users/:id/status    | user:update   | 仅修改 status 的快捷接口      |
 
 ---
 
