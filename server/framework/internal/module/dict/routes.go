@@ -1,4 +1,4 @@
-// Package dict ??????
+// Package dict 字典路由注册
 package dict
 
 import (
@@ -16,7 +16,7 @@ func Register(protected *gin.RouterGroup, h *Handler) {
 		d.PUT("/:id", middleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.Update)
 		d.DELETE("/:id", middleware.Require(permission.P(permission.ResDict, permission.ActDelete)), h.Delete)
 
-		// ????????????????
+		// 字典项：写在同一资源下；权限同上
 		d.GET("/:id/items", middleware.Require(permission.P(permission.ResDict, permission.ActList)), h.ListItems)
 		d.POST("/:id/items", middleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.CreateItem)
 		d.PUT("/:id/items/:item_id", middleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.UpdateItem)

@@ -1,4 +1,4 @@
-// Package dict ??????
+// Package dict 数据字典仓储
 package dict
 
 import (
@@ -121,7 +121,7 @@ func (r *PostgresDictRepository) Create(ctx context.Context, tenantID uint, req 
 		tenantID, req.Code, req.Name, req.Sort, req.Status, extendJSON)
 	d, err := scanDict(row)
 	if err != nil {
-		// ?????
+		// 唯一键冲突
 		if isUniqueViolation(err) {
 			return nil, ErrDictCodeExists
 		}
@@ -178,7 +178,7 @@ func (r *PostgresDictRepository) CountItems(ctx context.Context, dictID uint) (i
 	return n, nil
 }
 
-// ========== ??? ==========
+// ========== 字典项 ==========
 
 func (r *PostgresDictRepository) ListItems(ctx context.Context, dictID uint) ([]DictItem, error) {
 	q, err := db.GetQuerier(ctx)
@@ -308,7 +308,7 @@ func scanDictItem(row rowScanner) (DictItem, error) {
 	return it, nil
 }
 
-// isUniqueViolation ???? pgx unique_violation
+// isUniqueViolation 简化判断 pgx 唯一键冲突（SQLSTATE 23505）
 func isUniqueViolation(err error) bool {
 	if err == nil {
 		return false

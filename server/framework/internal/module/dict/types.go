@@ -1,14 +1,14 @@
-// Package dict ????
+// Package dict 数据字典 - 请求/响应类型
 package dict
 
-// listRequest ??????
+// listRequest 字典列表请求
 type listRequest struct {
 	Keyword string `form:"keyword"`
 	Page    int    `form:"page,default=1"`
 	Size    int    `form:"size,default=20"`
 }
 
-// listResponse ??????
+// listResponse 字典列表响应
 type listResponse struct {
 	List  []Dict `json:"list"`
 	Total int64  `json:"total"`
@@ -16,7 +16,7 @@ type listResponse struct {
 	Size  int    `json:"size"`
 }
 
-// createRequest ????
+// createRequest 创建字典
 type createRequest struct {
 	Code   string                 `json:"code" binding:"required,max=32"`
 	Name   string                 `json:"name" binding:"required,max=64"`
@@ -24,7 +24,7 @@ type createRequest struct {
 	Extend map[string]interface{} `json:"extend"`
 }
 
-// updateRequest ??????????? code?code ??????????
+// updateRequest 更新字典基础信息（不含 code；code 是主键语义的一部分）
 type updateRequest struct {
 	Name   string                 `json:"name" binding:"required,max=64"`
 	Sort   int                    `json:"sort"`
@@ -32,7 +32,7 @@ type updateRequest struct {
 	Extend map[string]interface{} `json:"extend"`
 }
 
-// createItemRequest ???????????
+// createItemRequest 在指定字典下创建字典项
 type createItemRequest struct {
 	Code   string                 `json:"code" binding:"required,max=64"`
 	Name   string                 `json:"name" binding:"required,max=128"`
@@ -40,7 +40,7 @@ type createItemRequest struct {
 	Extend map[string]interface{} `json:"extend"`
 }
 
-// updateItemRequest ?????
+// updateItemRequest 更新字典项
 type updateItemRequest struct {
 	Name   string                 `json:"name" binding:"required,max=128"`
 	Sort   int                    `json:"sort"`
@@ -48,7 +48,7 @@ type updateItemRequest struct {
 	Extend map[string]interface{} `json:"extend"`
 }
 
-// listItemsRequest ????????? dict_id ???
+// listItemsRequest 字典项列表请求（按 dict_id 过滤）
 type listItemsRequest struct {
 	DictID uint `form:"dict_id" binding:"required"`
 }

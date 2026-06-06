@@ -1,10 +1,9 @@
-// Package dict ?????
+// Package dict 数据字典服务层
 package dict
 
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"gx1727.com/xin/framework/pkg/audit"
 	"gx1727.com/xin/framework/pkg/db"
@@ -19,14 +18,34 @@ func NewService(repo DictRepository) *Service {
 	return &Service{repo: repo}
 }
 
-// ========== ???? ==========
+// ========== 字典主表 ==========
 
-// List ????
+// List 字典列表（按租户过滤 + 关键字模糊匹配 code/name）
 func (s *Service) List(ctx context.Context, tenantID uint, req listRequest) ([]Dict, int64, error) {
-	return s.repo.List(ctx, tenantID, strings.TrimSpace(req.Keyword), req.Page, req.Size)
+	return s.repo.List(ctx, tenantID, trimKeyword(req.Keyword), req.Page, req.Size)
 }
 
-// Get ??????
+// trimKeyword 修剪前后空白；JS 序列化的 "undefined"/"null" 视作空
+func trimKeyword(s string) string {
+	s2 := s
+	if len(s2) > 0 && (s2[0] == ' ' || s2[len(s2)-1] == ' ') {
+		// 简单 trim
+		start, end := 0, len(s2)
+		for start < end && s2[start] == ' ' {
+			start++
+		}
+		for end > start && s2[end-1] == ' ' {
+			end--
+		}
+		s2 = s2[start:end]
+	}
+	if s2 == "undefined" || s2 == "null" {
+		return ""
+	}
+	return s2
+}
+
+// Get 获取单个字典（跨租户校验）
 func (s *Service) Get(ctx context.Context, tenantID uint, id uint) (*Dict, error) {
 	d, err := s.repo.GetByID(ctx, id)
 	if err != nil {
@@ -38,7 +57,7 @@ func (s *Service) Get(ctx context.Context, tenantID uint, id uint) (*Dict, error
 	return d, nil
 }
 
-// Create ????
+// Create 新建字典
 func (s *Service) Create(ctx context.Context, tenantID uint, req createRequest) (*Dict, error) {
 	return s.repo.Create(ctx, tenantID, CreateDictRepoReq{
 		Code:   req.Code,
@@ -49,7 +68,7 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req createRequest) 
 	})
 }
 
-// Update ????
+// Update 更新字典
 func (s *Service) Update(ctx context.Context, tenantID, id uint, req updateRequest) (*Dict, error) {
 	d, err := s.repo.GetByID(ctx, id)
 	if err != nil {
@@ -72,7 +91,7 @@ func (s *Service) Update(ctx context.Context, tenantID, id uint, req updateReque
 	})
 }
 
-// Delete ???????????????????????
+// Delete 删除字典前先检查字典项是否还有未删的；通过后写审计。
 func (s *Service) Delete(ctx context.Context, tenantID, id uint) error {
 	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
 		d, err := s.repo.GetByID(ctx, id)
@@ -88,14 +107,14 @@ func (s *Service) Delete(ctx context.Context, tenantID, id uint) error {
 			return fmt.Errorf("count items: %w", err)
 		}
 		if n > 0 {
-			return fmt.Errorf("%w (????=%d)", ErrDictHasItems, n)
+			return fmt.Errorf("%w (字典项数=%d)", ErrDictHasItems, n)
 		}
 
 		if err := s.repo.Delete(ctx, id); err != nil {
 			return err
 		}
 
-		// ???????
+		// 审计：删除字典
 		audit.Log(ctx, audit.Entry{
 			Action:    "dict:delete",
 			TableName: "dicts",
@@ -111,9 +130,9 @@ func (s *Service) Delete(ctx context.Context, tenantID, id uint) error {
 	})
 }
 
-// ========== ??? ==========
+// ========== 字典项 ==========
 
-// ListItems ????????????
+// ListItems 列出某字典下的所有字典项
 func (s *Service) ListItems(ctx context.Context, tenantID, dictID uint) ([]DictItem, error) {
 	d, err := s.repo.GetByID(ctx, dictID)
 	if err != nil {
@@ -125,7 +144,7 @@ func (s *Service) ListItems(ctx context.Context, tenantID, dictID uint) ([]DictI
 	return s.repo.ListItems(ctx, dictID)
 }
 
-// CreateItem ????????????? + ????
+// CreateItem 在字典下新增字典项；成功后刷缓存
 func (s *Service) CreateItem(ctx context.Context, tenantID, dictID uint, req createItemRequest) (*DictItem, error) {
 	d, err := s.repo.GetByID(ctx, dictID)
 	if err != nil {
@@ -150,7 +169,7 @@ func (s *Service) CreateItem(ctx context.Context, tenantID, dictID uint, req cre
 	return item, nil
 }
 
-// UpdateItem ????????? + ????
+// UpdateItem 更新字典项；写审计 + 刷缓存
 func (s *Service) UpdateItem(ctx context.Context, tenantID, itemID uint, req updateItemRequest) error {
 	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
 		old, err := s.repo.GetItemByID(ctx, itemID)
@@ -203,7 +222,7 @@ func (s *Service) UpdateItem(ctx context.Context, tenantID, itemID uint, req upd
 	})
 }
 
-// DeleteItem ????????? + ????
+// DeleteItem 软删字典项；写审计 + 刷缓存
 func (s *Service) DeleteItem(ctx context.Context, tenantID, itemID uint) error {
 	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
 		old, err := s.repo.GetItemByID(ctx, itemID)
@@ -240,8 +259,8 @@ func (s *Service) DeleteItem(ctx context.Context, tenantID, itemID uint) error {
 	})
 }
 
-// refreshDictCache ??/???????????
-// ??? ctx ?? cancel??? detach ??????????
+// refreshDictCache 失效/重建某字典的内存缓存
+// ctx 走 WithoutCancel detach，避免调用方 cancel 阻断缓存重建
 func refreshDictCache(parent context.Context, tenantID uint, code string) {
 	if code == "" {
 		return

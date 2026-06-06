@@ -268,3 +268,169 @@
 [xin] 2026/06/05 13:18:16 [WARN] [2e977b22-e280-435c-adc7-89a37203d42d] GET /api/v1/dicts/2/items | 400 | 3.325ms | ::1
 [xin] 2026/06/05 13:18:16 [WARN] [08a543b5-d9d8-4bff-b164-02007471e13e] GET /api/v1/dicts/1/items | 400 | ????????
 [xin] 2026/06/05 13:18:16 [WARN] [08a543b5-d9d8-4bff-b164-02007471e13e] GET /api/v1/dicts/1/items | 400 | 2.9685ms | ::1
+[xin] 2026/06/05 14:45:59 [WARN] [9bc2ab8f-381c-402d-8d75-ab5ae4afe787] GET /api/v1/dicts/2/items | 401 | invalid token
+[xin] 2026/06/05 14:45:59 [WARN] [9bc2ab8f-381c-402d-8d75-ab5ae4afe787] GET /api/v1/dicts/2/items | 401 | 0s | ::1
+[xin] 2026/06/05 14:45:59 [INFO] [1d19375f-9475-4d7c-a037-64140112cad2] POST /api/v1/auth/refresh | 200 | 6.2594ms | ::1
+[xin] 2026/06/05 14:45:59 [WARN] [611e0a7a-ef82-47c8-b6db-94a1c773490d] GET /api/v1/dicts/2/items | 400 | ????????
+[xin] 2026/06/05 14:45:59 [WARN] [611e0a7a-ef82-47c8-b6db-94a1c773490d] GET /api/v1/dicts/2/items | 400 | 9.5534ms | ::1
+[xin] 2026/06/05 14:46:05 [INFO] [dbb64a98-4e19-41e5-a1e3-92c9e08cfaf9] POST /api/v1/auth/login | 200 | 20.8733ms | ::1
+[xin] 2026/06/05 14:46:05 [INFO] [b0817003-d7e5-49a6-bd39-0bc3dcb40d16] GET /api/v1/menus/tree | 200 | 4.9929ms | ::1
+[xin] 2026/06/05 14:46:05 [INFO] [827cc50f-1659-4bb0-9894-780550ce1347] GET /api/v1/menus/tree | 200 | 3.6379ms | ::1
+[xin] 2026/06/05 14:46:33 [INFO] [7c00e3cb-9a2f-4c3e-a424-376c57202ed4] GET /api/v1/menus/tree | 200 | 7.3098ms | ::1
+[xin] 2026/06/05 14:46:34 [ERROR] [17c76623-6e16-4bb5-a329-dbeb2c42b153] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 14:46:34 [ERROR] [17c76623-6e16-4bb5-a329-dbeb2c42b153] GET /api/v1/dicts?page=1&size=200 | 500 | 7.966ms | ::1
+[xin] 2026/06/05 14:46:34 [INFO] [701d64ea-3741-4b08-ae89-952d9aed39c8] GET /api/v1/menus/tree | 200 | 4.9005ms | ::1
+[xin] 2026/06/05 14:46:34 [ERROR] [3f6143d7-e103-477d-9ab0-c7ddfe7ac9b4] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 14:46:34 [ERROR] [3f6143d7-e103-477d-9ab0-c7ddfe7ac9b4] GET /api/v1/dicts?page=1&size=200 | 500 | 4.2278ms | ::1
+[xin] 2026/06/05 14:46:34 [WARN] [7d2bfb13-09a4-436e-bebc-1784fd71a4f1] GET /api/v1/dicts/1/items | 400 | ????????
+[xin] 2026/06/05 14:46:34 [WARN] [7d2bfb13-09a4-436e-bebc-1784fd71a4f1] GET /api/v1/dicts/1/items | 400 | 3.4641ms | ::1
+[xin] 2026/06/05 14:46:35 [WARN] [22e1e180-5983-471c-b05b-3fe85485aab5] GET /api/v1/dicts/2/items | 400 | ????????
+[xin] 2026/06/05 14:46:35 [WARN] [22e1e180-5983-471c-b05b-3fe85485aab5] GET /api/v1/dicts/2/items | 400 | 4.3534ms | ::1
+[xin] 2026/06/05 14:46:35 [WARN] [b119f55b-6078-4589-b2ef-a6af661fdbce] GET /api/v1/dicts/3/items | 400 | ????????
+[xin] 2026/06/05 14:46:35 [WARN] [b119f55b-6078-4589-b2ef-a6af661fdbce] GET /api/v1/dicts/3/items | 400 | 3.5047ms | ::1
+[xin] 2026/06/05 14:50:07 [INFO] [a252e232-80be-4187-a3e2-2d2d1a450aec] GET /api/v1/menus/tree | 200 | 9.647ms | ::1
+[xin] 2026/06/05 14:50:07 [ERROR] [52cbd3a4-f41b-42d3-80ad-b3b10927d983] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 14:50:07 [ERROR] [52cbd3a4-f41b-42d3-80ad-b3b10927d983] GET /api/v1/dicts?page=1&size=200 | 500 | 10.2067ms | ::1
+[xin] 2026/06/05 14:51:45 [INFO] [e88f3f67-4baa-4b5a-92a8-e94969e32192] GET /api/v1/menus/tree | 200 | 4.4472ms | ::1
+[xin] 2026/06/05 14:51:45 [ERROR] [dbdb2e27-b8e9-4ce9-9153-658cf83922a1] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 14:51:45 [ERROR] [dbdb2e27-b8e9-4ce9-9153-658cf83922a1] GET /api/v1/dicts?page=1&size=200 | 500 | 5.6282ms | ::1
+[xin] 2026/06/05 14:51:45 [INFO] [bad5dbc0-907d-49b9-9ca1-4b4a2d9262f5] GET /api/v1/menus/tree | 200 | 4.6122ms | ::1
+[xin] 2026/06/05 14:51:45 [ERROR] [7eea487d-a8f1-4230-849a-9e9fb3d908ee] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 14:51:45 [ERROR] [7eea487d-a8f1-4230-849a-9e9fb3d908ee] GET /api/v1/dicts?page=1&size=200 | 500 | 4.6082ms | ::1
+[xin] 2026/06/05 16:14:34 [WARN] [e00dec93-cd33-480e-85c2-4f4293c44c96] GET /api/v1/menus/tree | 401 | invalid token
+[xin] 2026/06/05 16:14:34 [WARN] [3b0ae203-4427-450a-825f-96cfc69bc760] GET /api/v1/dicts | 401 | invalid token
+[xin] 2026/06/05 16:14:34 [WARN] [e00dec93-cd33-480e-85c2-4f4293c44c96] GET /api/v1/menus/tree | 401 | 539.5µs | ::1
+[xin] 2026/06/05 16:14:34 [WARN] [3b0ae203-4427-450a-825f-96cfc69bc760] GET /api/v1/dicts?page=1&size=200 | 401 | 0s | ::1
+[xin] 2026/06/05 16:14:34 [WARN] [517a29b8-1bae-4bac-b630-d008a61e5b9d] GET /api/v1/menus/tree | 401 | invalid token
+[xin] 2026/06/05 16:14:34 [WARN] [517a29b8-1bae-4bac-b630-d008a61e5b9d] GET /api/v1/menus/tree | 401 | 0s | ::1
+[xin] 2026/06/05 16:14:34 [WARN] [20a7fec7-95ea-4abb-83c6-4e796476aaff] GET /api/v1/dicts | 401 | invalid token
+[xin] 2026/06/05 16:14:34 [WARN] [20a7fec7-95ea-4abb-83c6-4e796476aaff] GET /api/v1/dicts?page=1&size=200 | 401 | 0s | ::1
+[xin] 2026/06/05 16:14:34 [INFO] [beceeb41-4e4f-4030-8dde-affeb825c825] POST /api/v1/auth/refresh | 200 | 5.7593ms | ::1
+[xin] 2026/06/05 16:14:34 [INFO] [e33157fe-9d57-4ca6-8b0e-90330f53ed31] GET /api/v1/menus/tree | 200 | 11.6111ms | ::1
+[xin] 2026/06/05 16:14:34 [ERROR] [b9db6a15-8d4f-495f-88ff-af086cda8e25] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:14:34 [ERROR] [b9db6a15-8d4f-495f-88ff-af086cda8e25] GET /api/v1/dicts?page=1&size=200 | 500 | 12.3823ms | ::1
+[xin] 2026/06/05 16:14:34 [INFO] [1ee440f8-c430-4831-a3ad-8259a6fac842] GET /api/v1/menus/tree | 200 | 5.3973ms | ::1
+[xin] 2026/06/05 16:14:34 [ERROR] [b736bf4f-eabf-40c3-a5da-ff3ecadd730d] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:14:34 [ERROR] [b736bf4f-eabf-40c3-a5da-ff3ecadd730d] GET /api/v1/dicts?page=1&size=200 | 500 | 5.3152ms | ::1
+[xin] 2026/06/05 16:14:38 [INFO] [e66608d5-9f67-49cd-936c-61531489e74d] POST /api/v1/auth/login | 200 | 27.3543ms | ::1
+[xin] 2026/06/05 16:14:38 [INFO] [501352bf-927a-47cd-bdc5-e1990d51d085] GET /api/v1/menus/tree | 200 | 3.744ms | ::1
+[xin] 2026/06/05 16:14:38 [INFO] [d221bf74-dc8e-4726-8d90-3602bf6e7135] GET /api/v1/menus/tree | 200 | 3.4134ms | ::1
+[xin] 2026/06/05 16:14:45 [INFO] [35bc6830-100f-4875-a8e4-faf73052007b] GET /api/v1/menus/tree | 200 | 4.0831ms | ::1
+[xin] 2026/06/05 16:14:45 [ERROR] [a1493c2a-b883-40ce-99b1-2a83890a7f14] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:14:45 [ERROR] [a1493c2a-b883-40ce-99b1-2a83890a7f14] GET /api/v1/dicts?page=1&size=200 | 500 | 4.0831ms | ::1
+[xin] 2026/06/05 16:14:45 [INFO] [efd928ed-23b0-41a6-ae71-624f29d76786] GET /api/v1/menus/tree | 200 | 4.2351ms | ::1
+[xin] 2026/06/05 16:14:45 [ERROR] [ed0ec033-db8d-4cb2-9e20-0923b8b3b3e4] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:14:45 [ERROR] [ed0ec033-db8d-4cb2-9e20-0923b8b3b3e4] GET /api/v1/dicts?page=1&size=200 | 500 | 4.2405ms | ::1
+[xin] 2026/06/05 16:14:52 [ERROR] [55da0df2-517b-4db2-9276-245c9e2f7a90] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:14:52 [ERROR] [55da0df2-517b-4db2-9276-245c9e2f7a90] GET /api/v1/dicts?page=1&size=200 | 500 | 4.1824ms | ::1
+[xin] 2026/06/05 16:14:52 [INFO] [528d6244-8696-4e0f-9c0a-95b77f6e2530] GET /api/v1/menus/tree | 200 | 4.7271ms | ::1
+[xin] 2026/06/05 16:14:52 [INFO] [0740f643-89c9-4dce-8230-1ea77f2a93ac] GET /api/v1/menus/tree | 200 | 2.9655ms | ::1
+[xin] 2026/06/05 16:14:52 [ERROR] [dff4a6c1-e599-4178-a9b7-24b9c7bc44ae] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:14:52 [ERROR] [dff4a6c1-e599-4178-a9b7-24b9c7bc44ae] GET /api/v1/dicts?page=1&size=200 | 500 | 4.2104ms | ::1
+[xin] 2026/06/05 16:15:00 [ERROR] [3a7f0750-c5c9-47c5-9f85-e4c912e7340a] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:15:00 [ERROR] [3a7f0750-c5c9-47c5-9f85-e4c912e7340a] GET /api/v1/dicts?page=1&size=200 | 500 | 3.8053ms | ::1
+[xin] 2026/06/05 16:15:00 [WARN] [675e72b8-e5a9-443e-a175-78fc8e5a976a] GET /api/v1/dicts/1/items | 400 | ????????
+[xin] 2026/06/05 16:15:00 [WARN] [675e72b8-e5a9-443e-a175-78fc8e5a976a] GET /api/v1/dicts/1/items | 400 | 3.1274ms | ::1
+[xin] 2026/06/05 16:15:01 [WARN] [3d9a2b18-7c01-4be9-b905-add477c92986] GET /api/v1/dicts/1/items | 400 | ????????
+[xin] 2026/06/05 16:15:01 [WARN] [3d9a2b18-7c01-4be9-b905-add477c92986] GET /api/v1/dicts/1/items | 400 | 3.4892ms | ::1
+[xin] 2026/06/05 16:15:02 [WARN] [f8dd1ba1-5248-4a16-961c-6484df7a5fa1] GET /api/v1/dicts/1/items | 400 | ????????
+[xin] 2026/06/05 16:15:02 [WARN] [f8dd1ba1-5248-4a16-961c-6484df7a5fa1] GET /api/v1/dicts/1/items | 400 | 3.8033ms | ::1
+[xin] 2026/06/05 16:15:02 [ERROR] [b09c6775-3a19-400d-b2b3-7197bf88512f] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:15:02 [ERROR] [b09c6775-3a19-400d-b2b3-7197bf88512f] GET /api/v1/dicts?page=1&size=200 | 500 | 3.8033ms | ::1
+[xin] 2026/06/05 16:15:02 [WARN] [762187ec-3979-4602-b2b9-c706aa5084ac] GET /api/v1/dicts/1/items | 400 | ????????
+[xin] 2026/06/05 16:15:02 [WARN] [762187ec-3979-4602-b2b9-c706aa5084ac] GET /api/v1/dicts/1/items | 400 | 3.476ms | ::1
+[xin] 2026/06/05 16:15:03 [WARN] [074965a9-1fcc-4796-be61-918e70f316d6] GET /api/v1/dicts/1/items | 400 | ????????
+[xin] 2026/06/05 16:15:03 [WARN] [074965a9-1fcc-4796-be61-918e70f316d6] GET /api/v1/dicts/1/items | 400 | 3.4703ms | ::1
+[xin] 2026/06/05 16:15:03 [ERROR] [5176d3dd-1602-4a95-b9ad-9a8bd8dfaad5] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:15:03 [ERROR] [5176d3dd-1602-4a95-b9ad-9a8bd8dfaad5] GET /api/v1/dicts?page=1&size=200 | 500 | 3.9865ms | ::1
+[xin] 2026/06/05 16:15:04 [WARN] [6039d287-9295-446b-8462-6f0e708b0d2b] GET /api/v1/dicts/1/items | 400 | ????????
+[xin] 2026/06/05 16:15:04 [WARN] [6039d287-9295-446b-8462-6f0e708b0d2b] GET /api/v1/dicts/1/items | 400 | 3.206ms | ::1
+[xin] 2026/06/05 16:15:06 [WARN] [f65a5a51-1b90-4245-a435-e8bf4cdfb015] GET /api/v1/dicts/1/items | 400 | ????????
+[xin] 2026/06/05 16:15:06 [WARN] [f65a5a51-1b90-4245-a435-e8bf4cdfb015] GET /api/v1/dicts/1/items | 400 | 3.8657ms | ::1
+[xin] 2026/06/05 16:15:06 [ERROR] [158476c5-5111-4b82-8e87-85615b878754] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:15:06 [ERROR] [158476c5-5111-4b82-8e87-85615b878754] GET /api/v1/dicts?page=1&size=200 | 500 | 4.3881ms | ::1
+[xin] 2026/06/05 16:15:10 [ERROR] [5630eb86-0ad0-4a28-8603-5dff703de6d8] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:15:10 [ERROR] [5630eb86-0ad0-4a28-8603-5dff703de6d8] GET /api/v1/dicts?page=1&size=200 | 500 | 7.8973ms | ::1
+[xin] 2026/06/05 16:15:11 [ERROR] [3e3092bf-1122-44ee-8ba5-98a91fbaedcb] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:15:11 [ERROR] [3e3092bf-1122-44ee-8ba5-98a91fbaedcb] GET /api/v1/dicts?page=1&size=200 | 500 | 4.9ms | ::1
+[xin] 2026/06/05 16:15:11 [ERROR] [04eecd0e-a16f-43d6-a172-cbb706ea2ef8] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:15:11 [ERROR] [04eecd0e-a16f-43d6-a172-cbb706ea2ef8] GET /api/v1/dicts?page=1&size=200 | 500 | 3.7663ms | ::1
+[xin] 2026/06/05 16:15:20 [INFO] [2d6bb3b4-94f1-4d87-948d-11030a64ffdd] GET /api/v1/menus/tree | 200 | 5.5839ms | ::1
+[xin] 2026/06/05 16:15:20 [ERROR] [71b57fe0-3340-4e7f-aca6-ef3608fcb038] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:15:20 [ERROR] [71b57fe0-3340-4e7f-aca6-ef3608fcb038] GET /api/v1/dicts?page=1&size=200 | 500 | 7.3353ms | ::1
+[xin] 2026/06/05 16:15:20 [INFO] [bb5317f5-6a23-4afb-9afa-03193dc4f90f] GET /api/v1/menus/tree | 200 | 3.6165ms | ::1
+[xin] 2026/06/05 16:15:20 [ERROR] [8a8a16a5-073c-4ed9-96af-78c5a3147ec6] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:15:20 [ERROR] [8a8a16a5-073c-4ed9-96af-78c5a3147ec6] GET /api/v1/dicts?page=1&size=200 | 500 | 3.7819ms | ::1
+[xin] 2026/06/05 16:15:20 [ERROR] [c8e721f6-e1bc-4d41-825e-aaadebfff60e] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:15:20 [ERROR] [c8e721f6-e1bc-4d41-825e-aaadebfff60e] GET /api/v1/dicts?page=1&size=200 | 500 | 3.9682ms | ::1
+[xin] 2026/06/05 16:15:20 [ERROR] [e0fb90bd-e857-4052-9fd5-c6597a1ce822] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:15:20 [ERROR] [e0fb90bd-e857-4052-9fd5-c6597a1ce822] GET /api/v1/dicts?page=1&size=200 | 500 | 3.8771ms | ::1
+[xin] 2026/06/05 16:15:20 [WARN] [7e65f2cd-0936-493b-abdb-adb5280f7edb] GET /api/v1/dicts/1/items | 400 | ????????
+[xin] 2026/06/05 16:15:20 [WARN] [7e65f2cd-0936-493b-abdb-adb5280f7edb] GET /api/v1/dicts/1/items | 400 | 3.4917ms | ::1
+[xin] 2026/06/05 16:28:17 [INFO] [19976754-f683-436f-babd-7e25f2d6c2b1] GET /api/v1/menus/tree | 200 | 9.0763ms | ::1
+[xin] 2026/06/05 16:28:17 [ERROR] [75ba22d2-dd4f-4aae-8571-6432af9c28ca] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:17 [ERROR] [75ba22d2-dd4f-4aae-8571-6432af9c28ca] GET /api/v1/dicts?page=1&size=200 | 500 | 8.8987ms | ::1
+[xin] 2026/06/05 16:28:17 [INFO] [b882f697-017c-44d4-abd9-8caea1833d57] GET /api/v1/menus/tree | 200 | 4.0467ms | ::1
+[xin] 2026/06/05 16:28:17 [ERROR] [a634337b-e8b5-4d14-9bb6-57d2816755ce] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:17 [ERROR] [a634337b-e8b5-4d14-9bb6-57d2816755ce] GET /api/v1/dicts?page=1&size=200 | 500 | 4.0467ms | ::1
+[xin] 2026/06/05 16:28:17 [ERROR] [a285516f-193a-4c9f-bdd9-9ebe9ee0e319] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:17 [ERROR] [a285516f-193a-4c9f-bdd9-9ebe9ee0e319] GET /api/v1/dicts?page=1&size=200 | 500 | 4.0037ms | ::1
+[xin] 2026/06/05 16:28:17 [ERROR] [35b3aeb3-2911-42f0-9bb8-36fc8867be2d] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:17 [ERROR] [35b3aeb3-2911-42f0-9bb8-36fc8867be2d] GET /api/v1/dicts?page=1&size=200 | 500 | 3.915ms | ::1
+[xin] 2026/06/05 16:28:18 [WARN] [0fcaaf52-b2db-4525-b40a-ef261d26dc36] GET /api/v1/dicts/1/items | 400 | ????????
+[xin] 2026/06/05 16:28:18 [WARN] [0fcaaf52-b2db-4525-b40a-ef261d26dc36] GET /api/v1/dicts/1/items | 400 | 3.912ms | ::1
+[xin] 2026/06/05 16:28:20 [INFO] [d36f0432-5b44-490f-98a7-d217364c0fdb] GET /api/v1/menus/tree | 200 | 5.3665ms | ::1
+[xin] 2026/06/05 16:28:20 [ERROR] [4739cf7a-2f7e-4ea4-88c8-6a0ffaaef9d0] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:20 [ERROR] [4739cf7a-2f7e-4ea4-88c8-6a0ffaaef9d0] GET /api/v1/dicts?page=1&size=200 | 500 | 5.3665ms | ::1
+[xin] 2026/06/05 16:28:20 [INFO] [1b39fe07-dcaa-4fd3-8c7c-28c83a1d86ed] GET /api/v1/menus/tree | 200 | 4.2897ms | ::1
+[xin] 2026/06/05 16:28:20 [ERROR] [2e893f84-be2a-44f2-8737-f7b7b164a713] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:20 [ERROR] [2e893f84-be2a-44f2-8737-f7b7b164a713] GET /api/v1/dicts?page=1&size=200 | 500 | 4.3089ms | ::1
+[xin] 2026/06/05 16:28:20 [ERROR] [9faa193b-3b36-46dd-90b0-61912f3d77a9] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:20 [ERROR] [9faa193b-3b36-46dd-90b0-61912f3d77a9] GET /api/v1/dicts?page=1&size=200 | 500 | 4.1486ms | ::1
+[xin] 2026/06/05 16:28:20 [ERROR] [6b6609fc-104b-41fb-be16-06fe6335ee7f] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:20 [ERROR] [6b6609fc-104b-41fb-be16-06fe6335ee7f] GET /api/v1/dicts?page=1&size=200 | 500 | 5.2986ms | ::1
+[xin] 2026/06/05 16:28:20 [WARN] [83f004e5-2281-4ccb-a61f-33069b40e4a8] GET /api/v1/dicts/1/items | 400 | ????????
+[xin] 2026/06/05 16:28:20 [WARN] [83f004e5-2281-4ccb-a61f-33069b40e4a8] GET /api/v1/dicts/1/items | 400 | 2.9347ms | ::1
+2026/06/05 16:28:31 Received signal: interrupt
+2026/06/05 16:28:41 [bootstrap] bootstrap account "root" already exists (id=2)
+2026/06/05 16:28:41 [bootstrap] failed: ERROR: constraint "uk_account_role" for table "account_roles" does not exist (SQLSTATE 42704)
+2026/06/05 16:28:41 builtin module system initialized
+2026/06/05 16:28:41 builtin module menu initialized
+2026/06/05 16:28:41 builtin module tenant initialized
+2026/06/05 16:28:41 builtin module user initialized
+2026/06/05 16:28:41 builtin module role initialized
+2026/06/05 16:28:41 builtin module resource initialized
+2026/06/05 16:28:41 builtin module organization initialized
+2026/06/05 16:28:41 builtin module dict initialized
+2026/06/05 16:28:41 builtin module permission initialized
+2026/06/05 16:28:41 builtin module auth initialized
+2026/06/05 16:28:41 builtin module asset initialized
+2026/06/05 16:28:41 builtin module weixin initialized
+2026/06/05 16:28:41 module cms initialized
+2026/06/05 16:28:41 module flag initialized
+2026/06/05 16:28:41 server starting on 0.0.0.0:8080
+[xin] 2026/06/05 16:28:43 [ERROR] [1ca921c7-0d66-43bd-827a-2a11d94b7242] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:43 [ERROR] [1ca921c7-0d66-43bd-827a-2a11d94b7242] GET /api/v1/dicts?page=1&size=200 | 500 | 7.369ms | ::1
+[xin] 2026/06/05 16:28:43 [INFO] [0e55cbc4-5388-46d9-be18-5cc9140dc7bb] GET /api/v1/menus/tree | 200 | 7.369ms | ::1
+[xin] 2026/06/05 16:28:43 [INFO] [ff3c7a07-e834-4798-83d8-741db0ea242f] GET /api/v1/menus/tree | 200 | 4.4445ms | ::1
+[xin] 2026/06/05 16:28:43 [ERROR] [faccc947-d554-4006-9e83-1e0e84c27698] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:43 [ERROR] [faccc947-d554-4006-9e83-1e0e84c27698] GET /api/v1/dicts?page=1&size=200 | 500 | 5.7537ms | ::1
+[xin] 2026/06/05 16:28:43 [ERROR] [7508cb77-1fdc-4f14-a849-aa3f892e7b2e] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:43 [ERROR] [7508cb77-1fdc-4f14-a849-aa3f892e7b2e] GET /api/v1/dicts?page=1&size=200 | 500 | 4.9222ms | ::1
+[xin] 2026/06/05 16:28:43 [ERROR] [6ed7f0b5-bb4f-442a-83ed-6ecc18cc76d4] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:43 [ERROR] [6ed7f0b5-bb4f-442a-83ed-6ecc18cc76d4] GET /api/v1/dicts?page=1&size=200 | 500 | 3.9962ms | ::1
+[xin] 2026/06/05 16:28:43 [ERROR] [f2f4c01b-6807-4e90-a38b-b03df7861f58] GET /api/v1/dicts/1/items | 500 | ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:43 [ERROR] [f2f4c01b-6807-4e90-a38b-b03df7861f58] GET /api/v1/dicts/1/items | 500 | 3.6565ms | ::1
+[xin] 2026/06/05 16:28:45 [INFO] [cbc1b1a1-3fa3-4a4f-8ef8-43d15dbebed7] GET /api/v1/menus/tree | 200 | 4.5756ms | ::1
+[xin] 2026/06/05 16:28:45 [ERROR] [803cdc7c-4171-4058-a772-edc6c4d01c0f] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:45 [ERROR] [803cdc7c-4171-4058-a772-edc6c4d01c0f] GET /api/v1/dicts?page=1&size=200 | 500 | 4.5756ms | ::1
+[xin] 2026/06/05 16:28:45 [INFO] [3d0c012e-f56c-4d6d-8159-a3be508fc073] GET /api/v1/menus/tree | 200 | 4.4191ms | ::1
+[xin] 2026/06/05 16:28:45 [ERROR] [8886cf41-69ff-4a15-8110-1c151d616fc0] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:45 [ERROR] [8886cf41-69ff-4a15-8110-1c151d616fc0] GET /api/v1/dicts?page=1&size=200 | 500 | 3.1956ms | ::1
+[xin] 2026/06/05 16:28:45 [ERROR] [82b50197-6373-43aa-9c58-9d24cfb396ed] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:45 [ERROR] [82b50197-6373-43aa-9c58-9d24cfb396ed] GET /api/v1/dicts?page=1&size=200 | 500 | 4.1688ms | ::1
+[xin] 2026/06/05 16:28:45 [ERROR] [c270ef28-7fcc-4b89-80ef-746a9d86ea48] GET /api/v1/dicts | 500 | list dicts: ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:45 [ERROR] [c270ef28-7fcc-4b89-80ef-746a9d86ea48] GET /api/v1/dicts?page=1&size=200 | 500 | 4.3468ms | ::1
+[xin] 2026/06/05 16:28:45 [ERROR] [54802225-63ef-478c-bbb5-a1f70a896a33] GET /api/v1/dicts/1/items | 500 | ERROR: column "extend" does not exist (SQLSTATE 42703)
+[xin] 2026/06/05 16:28:45 [ERROR] [54802225-63ef-478c-bbb5-a1f70a896a33] GET /api/v1/dicts/1/items | 500 | 4.5037ms | ::1
+2026/06/05 16:59:38 Received signal: interrupt
