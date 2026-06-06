@@ -22,7 +22,14 @@ func NewService(repo DictRepository) *Service {
 
 // List 字典列表（按租户过滤 + 关键字模糊匹配 code/name）
 func (s *Service) List(ctx context.Context, tenantID uint, req listRequest) ([]Dict, int64, error) {
-	return s.repo.List(ctx, tenantID, trimKeyword(req.Keyword), req.Page, req.Size)
+	var list []Dict
+	var total int64
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		var err error
+		list, total, err = s.repo.List(ctx, tenantID, trimKeyword(req.Keyword), req.Page, req.Size)
+		return err
+	})
+	return list, total, err
 }
 
 // trimKeyword 修剪前后空白；JS 序列化的 "undefined"/"null" 视作空
@@ -47,48 +54,71 @@ func trimKeyword(s string) string {
 
 // Get 获取单个字典（跨租户校验）
 func (s *Service) Get(ctx context.Context, tenantID uint, id uint) (*Dict, error) {
-	d, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if d.TenantID != tenantID {
-		return nil, ErrDictNotFound
-	}
-	return d, nil
+	var d *Dict
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		got, err := s.repo.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if got.TenantID != tenantID {
+			return ErrDictNotFound
+		}
+		d = got
+		return nil
+	})
+	return d, err
 }
 
 // Create 新建字典
 func (s *Service) Create(ctx context.Context, tenantID uint, req createRequest) (*Dict, error) {
-	return s.repo.Create(ctx, tenantID, CreateDictRepoReq{
-		Code:   req.Code,
-		Name:   req.Name,
-		Sort:   req.Sort,
-		Status: 1,
-		Extend: req.Extend,
+	var d *Dict
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		got, err := s.repo.Create(ctx, tenantID, CreateDictRepoReq{
+			Code:   req.Code,
+			Name:   req.Name,
+			Sort:   req.Sort,
+			Status: 1,
+			Extend: req.Extend,
+		})
+		if err != nil {
+			return err
+		}
+		d = got
+		return nil
 	})
+	return d, err
 }
 
 // Update 更新字典
 func (s *Service) Update(ctx context.Context, tenantID, id uint, req updateRequest) (*Dict, error) {
-	d, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if d.TenantID != tenantID {
-		return nil, ErrDictNotFound
-	}
+	var d *Dict
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		old, err := s.repo.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if old.TenantID != tenantID {
+			return ErrDictNotFound
+		}
 
-	status := req.Status
-	if status == 0 {
-		status = 1
-	}
+		status := req.Status
+		if status == 0 {
+			status = 1
+		}
 
-	return s.repo.Update(ctx, id, UpdateDictRepoReq{
-		Name:   req.Name,
-		Sort:   req.Sort,
-		Status: status,
-		Extend: req.Extend,
+		updated, err := s.repo.Update(ctx, id, UpdateDictRepoReq{
+			Name:   req.Name,
+			Sort:   req.Sort,
+			Status: status,
+			Extend: req.Extend,
+		})
+		if err != nil {
+			return err
+		}
+		d = updated
+		return nil
 	})
+	return d, err
 }
 
 // Delete 删除字典前先检查字典项是否还有未删的；通过后写审计。
@@ -134,38 +164,53 @@ func (s *Service) Delete(ctx context.Context, tenantID, id uint) error {
 
 // ListItems 列出某字典下的所有字典项
 func (s *Service) ListItems(ctx context.Context, tenantID, dictID uint) ([]DictItem, error) {
-	d, err := s.repo.GetByID(ctx, dictID)
-	if err != nil {
-		return nil, err
-	}
-	if d.TenantID != tenantID {
-		return nil, ErrDictNotFound
-	}
-	return s.repo.ListItems(ctx, dictID)
+	var items []DictItem
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		d, err := s.repo.GetByID(ctx, dictID)
+		if err != nil {
+			return err
+		}
+		if d.TenantID != tenantID {
+			return ErrDictNotFound
+		}
+		items, err = s.repo.ListItems(ctx, dictID)
+		return err
+	})
+	return items, err
 }
 
 // CreateItem 在字典下新增字典项；成功后刷缓存
 func (s *Service) CreateItem(ctx context.Context, tenantID, dictID uint, req createItemRequest) (*DictItem, error) {
-	d, err := s.repo.GetByID(ctx, dictID)
-	if err != nil {
-		return nil, err
-	}
-	if d.TenantID != tenantID {
-		return nil, ErrDictNotFound
-	}
+	var item *DictItem
+	var dictCode string
+	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+		d, err := s.repo.GetByID(ctx, dictID)
+		if err != nil {
+			return err
+		}
+		if d.TenantID != tenantID {
+			return ErrDictNotFound
+		}
 
-	item, err := s.repo.CreateItem(ctx, tenantID, dictID, CreateDictItemRepoReq{
-		Code:   req.Code,
-		Name:   req.Name,
-		Sort:   req.Sort,
-		Status: 1,
-		Extend: req.Extend,
+		it, err := s.repo.CreateItem(ctx, tenantID, dictID, CreateDictItemRepoReq{
+			Code:   req.Code,
+			Name:   req.Name,
+			Sort:   req.Sort,
+			Status: 1,
+			Extend: req.Extend,
+		})
+		if err != nil {
+			return err
+		}
+		item = it
+		dictCode = d.Code
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	refreshDictCache(ctx, tenantID, d.Code)
+	refreshDictCache(ctx, tenantID, dictCode)
 	return item, nil
 }
 

@@ -29,6 +29,7 @@ go.work.sum
 
 # logs
 server/logs/
+logs/
 
 # Editor/IDE
 .idea/
