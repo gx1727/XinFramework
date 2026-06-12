@@ -36,7 +36,7 @@ func (r *PostgresDictRepository) List(ctx context.Context, tenantID uint, keywor
 	offset := (page - 1) * size
 
 	args := []any{tenantID}
-	where := "is_deleted = FALSE AND tenant_id = $1"
+	where := "is_deleted = FALSE AND tenant_id IN (0, $1)"
 	if keyword != "" {
 		where += " AND (code ILIKE $2 OR name ILIKE $2)"
 		args = append(args, "%"+keyword+"%")
@@ -97,7 +97,7 @@ func (r *PostgresDictRepository) GetByCode(ctx context.Context, tenantID uint, c
 	}
 	row := q.QueryRow(ctx, `
 		SELECT id, tenant_id, code, name, sort, status, COALESCE(extend, '{}') AS extend, created_at, updated_at
-		FROM dicts WHERE is_deleted = FALSE AND tenant_id = $1 AND code = $2`, tenantID, code)
+		FROM dicts WHERE is_deleted = FALSE AND tenant_id IN (0, $1) AND code = $2 ORDER BY tenant_id DESC LIMIT 1`, tenantID, code)
 	d, err := scanDict(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

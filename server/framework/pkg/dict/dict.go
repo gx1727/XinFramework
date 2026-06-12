@@ -29,6 +29,7 @@ type Dict struct {
 type Cache struct {
 	mu sync.RWMutex
 	// tenantID -> dictCode -> Dict
+	// 缓存的是"该租户视角下"看到的最终 Dict（含平台项 + 租户覆盖项）
 	data map[uint]map[string]*Dict
 }
 
@@ -48,6 +49,7 @@ func GetPool() *pgxpool.Pool {
 	return dbPool
 }
 
+// LoadTenant 加载（平台 + 租户）的字典到缓存，按 code 项级合并：租户项覆盖平台项
 func LoadTenant(ctx context.Context, tenantID uint) error {
 	globalCache.mu.Lock()
 	defer globalCache.mu.Unlock()
@@ -66,17 +68,14 @@ func LoadTenant(ctx context.Context, tenantID uint) error {
 		       COALESCE(di.name, '') as item_name,
 		       COALESCE(di.sort, 0) as item_sort,
 		       COALESCE(di.extend, '{}') as item_extend
-		FROM (SELECT * FROM dicts WHERE tenant_id = $1 AND is_deleted = FALSE) d
+		FROM (SELECT * FROM dicts WHERE tenant_id IN (0, $1) AND is_deleted = FALSE) d
 		LEFT JOIN dict_items di ON di.dict_id = d.id AND di.is_deleted = FALSE
-		ORDER BY d.code, item_sort, item_id
+		ORDER BY d.code, d.tenant_id ASC, item_sort, item_id
 	`, tenantID)
 	if err != nil {
 		return fmt.Errorf("load dicts: %w", err)
 	}
 	defer rows.Close()
-
-	currentCode := ""
-	currentDict := (*Dict)(nil)
 
 	for rows.Next() {
 		var d struct {
@@ -90,16 +89,13 @@ func LoadTenant(ctx context.Context, tenantID uint) error {
 			Extend     []byte
 		}
 
-		err := rows.Scan(&d.ID, &d.TenantID, &d.Code, &d.Name, &d.Extend, &item.ID, &item.Code, &item.Name, &item.Sort, &item.Extend)
-		if err != nil {
+		if err := rows.Scan(&d.ID, &d.TenantID, &d.Code, &d.Name, &d.Extend, &item.ID, &item.Code, &item.Name, &item.Sort, &item.Extend); err != nil {
 			return fmt.Errorf("scan dict row: %w", err)
 		}
 
-		if d.Code != currentCode {
-			if currentDict != nil {
-				globalCache.data[tenantID][currentCode] = currentDict
-			}
-			currentDict = &Dict{
+		merged := globalCache.data[tenantID][d.Code]
+		if merged == nil {
+			merged = &Dict{
 				ID:       d.ID,
 				TenantID: d.TenantID,
 				Code:     d.Code,
@@ -107,25 +103,60 @@ func LoadTenant(ctx context.Context, tenantID uint) error {
 				Items:    []DictItem{},
 			}
 			if len(d.Extend) > 0 {
-				json.Unmarshal(d.Extend, &currentDict.Extend)
+				_ = json.Unmarshal(d.Extend, &merged.Extend)
 			}
-			currentCode = d.Code
+			globalCache.data[tenantID][d.Code] = merged
+		} else {
+			// 后续出现的 dict 行：租户的覆盖平台的元数据
+			if d.TenantID != 0 {
+				merged.ID = d.ID
+				merged.TenantID = d.TenantID
+				merged.Name = d.Name
+				if len(d.Extend) > 0 {
+					_ = json.Unmarshal(d.Extend, &merged.Extend)
+				}
+			}
 		}
 
 		if item.ID > 0 {
-			di := DictItem{ID: item.ID, Code: item.Code, Name: item.Name, Sort: int(item.Sort)}
+			merged.Items = append(merged.Items, DictItem{
+				ID:     item.ID,
+				Code:   item.Code,
+				Name:   item.Name,
+				Sort:   int(item.Sort),
+				Extend: nil,
+			})
 			if len(item.Extend) > 0 {
-				json.Unmarshal(item.Extend, &di.Extend)
+				last := &merged.Items[len(merged.Items)-1]
+				_ = json.Unmarshal(item.Extend, &last.Extend)
 			}
-			currentDict.Items = append(currentDict.Items, di)
 		}
 	}
 
-	if currentDict != nil {
-		globalCache.data[tenantID][currentCode] = currentDict
+	// 同一 code 下的 items 按 code 去重：后者（租户）覆盖前者（平台）
+	for _, merged := range globalCache.data[tenantID] {
+		merged.Items = dedupItemsByCode(merged.Items)
 	}
 
 	return nil
+}
+
+// dedupItemsByCode 按 code 去重，保留最后一次出现（租户覆盖平台）
+func dedupItemsByCode(items []DictItem) []DictItem {
+	if len(items) <= 1 {
+		return items
+	}
+	idxByCode := make(map[string]int, len(items))
+	out := make([]DictItem, 0, len(items))
+	for _, it := range items {
+		if existing, ok := idxByCode[it.Code]; ok {
+			out[existing] = it
+		} else {
+			idxByCode[it.Code] = len(out)
+			out = append(out, it)
+		}
+	}
+	return out
 }
 
 func Get(tenantID uint, dictCode string) (*Dict, bool) {
@@ -168,9 +199,13 @@ func RefreshTenant(ctx context.Context, tenantID uint) error {
 	return LoadTenant(ctx, tenantID)
 }
 
+// RefreshDict 重新加载（平台 + 租户）该 code 字典到该租户的缓存槽
+// 当前所有调用都是租户改自己字典的场景；平台字典修改尚未开放
 func RefreshDict(ctx context.Context, tenantID uint, dictCode string) error {
 	globalCache.mu.Lock()
-	delete(globalCache.data[tenantID], dictCode)
+	if globalCache.data[tenantID] != nil {
+		delete(globalCache.data[tenantID], dictCode)
+	}
 	globalCache.mu.Unlock()
 
 	rows, err := dbPool.Query(ctx, `
@@ -181,21 +216,18 @@ func RefreshDict(ctx context.Context, tenantID uint, dictCode string) error {
 		       COALESCE(di.name, '') as item_name,
 		       COALESCE(di.sort, 0) as item_sort,
 		       COALESCE(di.extend, '{}') as item_extend
-		FROM (SELECT * FROM dicts WHERE tenant_id = $1 AND code = $2 AND is_deleted = FALSE) d
+		FROM (SELECT * FROM dicts WHERE tenant_id IN (0, $1) AND code = $2 AND is_deleted = FALSE) d
 		LEFT JOIN dict_items di ON di.dict_id = d.id AND di.is_deleted = FALSE
-		ORDER BY item_sort, item_id
+		ORDER BY d.tenant_id ASC, item_sort, item_id
 	`, tenantID, dictCode)
 	if err != nil {
 		return fmt.Errorf("refresh dict query: %w", err)
 	}
 	defer rows.Close()
 
-	var d *Dict
+	var merged *Dict
 	for rows.Next() {
-		if d == nil {
-			d = &Dict{Items: []DictItem{}}
-		}
-		var dd struct {
+		var d struct {
 			ID, TenantID uint
 			Code, Name   string
 			Extend       []byte
@@ -206,36 +238,53 @@ func RefreshDict(ctx context.Context, tenantID uint, dictCode string) error {
 			Extend     []byte
 		}
 
-		err := rows.Scan(&dd.ID, &dd.TenantID, &dd.Code, &dd.Name, &dd.Extend, &item.ID, &item.Code, &item.Name, &item.Sort, &item.Extend)
-		if err != nil {
+		if err := rows.Scan(&d.ID, &d.TenantID, &d.Code, &d.Name, &d.Extend, &item.ID, &item.Code, &item.Name, &item.Sort, &item.Extend); err != nil {
 			return fmt.Errorf("refresh scan: %w", err)
 		}
 
-		if d.Code == "" {
-			d.ID = dd.ID
-			d.TenantID = dd.TenantID
-			d.Code = dd.Code
-			d.Name = dd.Name
-			if len(dd.Extend) > 0 {
-				json.Unmarshal(dd.Extend, &d.Extend)
+		if merged == nil {
+			merged = &Dict{
+				ID:       d.ID,
+				TenantID: d.TenantID,
+				Code:     d.Code,
+				Name:     d.Name,
+				Items:    []DictItem{},
+			}
+			if len(d.Extend) > 0 {
+				_ = json.Unmarshal(d.Extend, &merged.Extend)
+			}
+		} else if d.TenantID != 0 {
+			// 租户的 dict 元数据覆盖平台
+			merged.ID = d.ID
+			merged.TenantID = d.TenantID
+			merged.Name = d.Name
+			if len(d.Extend) > 0 {
+				_ = json.Unmarshal(d.Extend, &merged.Extend)
 			}
 		}
 
 		if item.ID > 0 {
-			di := DictItem{ID: item.ID, Code: item.Code, Name: item.Name, Sort: int(item.Sort)}
+			merged.Items = append(merged.Items, DictItem{
+				ID:     item.ID,
+				Code:   item.Code,
+				Name:   item.Name,
+				Sort:   int(item.Sort),
+				Extend: nil,
+			})
 			if len(item.Extend) > 0 {
-				json.Unmarshal(item.Extend, &di.Extend)
+				last := &merged.Items[len(merged.Items)-1]
+				_ = json.Unmarshal(item.Extend, &last.Extend)
 			}
-			d.Items = append(d.Items, di)
 		}
 	}
 
-	if d != nil {
+	if merged != nil {
+		merged.Items = dedupItemsByCode(merged.Items)
 		globalCache.mu.Lock()
 		if globalCache.data[tenantID] == nil {
 			globalCache.data[tenantID] = make(map[string]*Dict)
 		}
-		globalCache.data[tenantID][dictCode] = d
+		globalCache.data[tenantID][dictCode] = merged
 		globalCache.mu.Unlock()
 	}
 

@@ -506,13 +506,13 @@ POLICY tenant_isolation_policy ON role_resources USING (tenant_id = NULLIF(curre
 DROP
 POLICY IF EXISTS tenant_isolation_policy ON dicts;
 CREATE
-POLICY tenant_isolation_policy ON dicts USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+POLICY tenant_isolation_policy ON dicts USING (tenant_id = 0 OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 
 -- dict_items
 DROP
 POLICY IF EXISTS tenant_isolation_policy ON dict_items;
 CREATE
-POLICY tenant_isolation_policy ON dict_items USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+POLICY tenant_isolation_policy ON dict_items USING (tenant_id = 0 OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 
 -- ============================================
 -- 初始化数据
@@ -601,12 +601,12 @@ VALUES (1, 1, (SELECT id FROM resources WHERE code = '*'), 1);
 
 -- 字典示例数据
 INSERT INTO dicts (tenant_id, code, name, sort, status)
-VALUES (1, 'gender', '性别', 1, 1),
-       (1, 'user_status', '用户状态', 2, 1),
-       (1, 'education', '学历', 3, 1);
+VALUES (0, 'gender', '性别', 1, 1),
+       (0, 'user_status', '用户状态', 2, 1),
+       (0, 'education', '学历', 3, 1);
 
 INSERT INTO dict_items (tenant_id, dict_id, code, name, sort, status)
-SELECT 1, d.id, x.code, x.name, x.sort, 1
+SELECT 0, d.id, x.code, x.name, x.sort, 1
 FROM dicts d
 JOIN (VALUES
   ('gender', 'male', '男', 1),

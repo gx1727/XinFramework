@@ -60,7 +60,7 @@ func (s *Service) Get(ctx context.Context, tenantID uint, id uint) (*Dict, error
 		if err != nil {
 			return err
 		}
-		if got.TenantID != tenantID {
+		if got.TenantID != 0 && got.TenantID != tenantID {
 			return ErrDictNotFound
 		}
 		d = got
@@ -170,7 +170,7 @@ func (s *Service) ListItems(ctx context.Context, tenantID, dictID uint) ([]DictI
 		if err != nil {
 			return err
 		}
-		if d.TenantID != tenantID {
+		if d.TenantID != 0 && d.TenantID != tenantID {
 			return ErrDictNotFound
 		}
 		items, err = s.repo.ListItems(ctx, dictID)
