@@ -213,6 +213,7 @@ async function buildUrl(endpoint: string, params?: Record<string, string | numbe
   const url = new URL(`${API_BASE_URL}${endpoint}`, window.location.origin)
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null) return
       url.searchParams.append(key, String(value))
     })
   }

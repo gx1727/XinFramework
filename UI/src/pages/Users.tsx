@@ -650,48 +650,7 @@ export function UsersPage() {
                 </span>
               </div>
             )}
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {selectedOrgId === ALL_ORG_ID
-                      ? (t.pages.users?.totalUsers || "总用户数")
-                      : (t.pages.users?.currentUsers || "当前用户")}
-                  </CardTitle>
-                  <UsersIcon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{filteredUsers.length}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t.pages.users?.total || "总计"} {total}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {t.pages.users?.active || "启用"}
-                  </CardTitle>
-                  <UsersIcon className="h-4 w-4 text-green-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">{activeCount}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {t.pages.users?.inactive || "停用"}
-                  </CardTitle>
-                  <UsersIcon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-muted-foreground">{disabledCount}</div>
-                </CardContent>
-              </Card>
-            </div>
-
+            
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">

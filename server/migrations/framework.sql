@@ -534,7 +534,7 @@ VALUES (1, 1, 'admin', NULL, '系统管理员', 1, 0, 0);
 
 -- 角色
 INSERT INTO roles (tenant_id, code, name, description, data_scope, is_default, sort, status, created_by, updated_by)
-VALUES (1, 'admin', '管理员', '系统管理员', 5, FALSE, 1, 1, 0, 0),
+VALUES (1, 'admin', '管理员', '系统管理员', 1, FALSE, 1, 1, 0, 0),
        (1, 'user', '普通用户', '普通用户', 4, TRUE, 2, 1, 0, 0);
 
 -- 用户角色
