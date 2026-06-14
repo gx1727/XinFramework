@@ -15,6 +15,9 @@ export const zhCN = {
     success: "操作成功",
     failed: "操作失败",
     saving: "保存中...",
+    status: "状态",
+    enable: "启用",
+    disable: "禁用",
   },
   auth: {
     loginTitle: "登录到您的账户",
@@ -226,6 +229,7 @@ export const zhCN = {
       deleteMenu: "删除菜单",
       parentMenu: "父菜单",
       visible: "显示",
+      refresh: "刷新列表",
     },
     frames: {
       title: "相框管理",
@@ -260,22 +264,8 @@ export const zhCN = {
       editResource: "编辑资源",
       deleteResource: "删除资源",
       refresh: "刷新列表",
-      allUsers: "全部用户",
-      orgTree: "组织",
-      searchOrgPlaceholder: "搜索组织...",
-      matchedUsers: "个匹配用户",
-      totalUsers: "总用户数",
-      currentUsers: "当前用户",
-      total: "共",
-      disabled: "停用",
-      orgId: "所属组织",
-      orgName: "所属组织",
-      orgPlaceholder: "不指定",
-      orgNone: "不指定",
     },
-    organizations: {
-      title: "组织管理",
-          dicts: {
+    dicts: {
       title: "数据字典",
       subtitle: "维护系统下拉/枚举等数据字典及其字典项",
       searchPlaceholder: "搜索字典编码或名称...",
@@ -301,7 +291,9 @@ export const zhCN = {
       itemCode: "字典项编码",
       itemName: "字典项名称",
     },
-    subtitle: "管理租户组织树结构与数据范围",
+    organizations: {
+      title: "组织管理",
+      subtitle: "管理租户组织树结构与数据范围",
       searchPlaceholder: "搜索组织名称或编码...",
       totalOrgs: "共",
       orgs: "个组织",

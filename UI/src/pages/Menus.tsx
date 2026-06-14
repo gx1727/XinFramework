@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback, useMemo } from "react"
 import { PageLayout } from "@/components/page-layout"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { PlusIcon, SearchIcon, EditIcon, TrashIcon, ChevronRightIcon, ChevronDownIcon, MenuIcon, RefreshCw } from "lucide-react"
+import { PlusIcon, SearchIcon, EditIcon, TrashIcon, ChevronRightIcon, ChevronDownIcon, RefreshCw } from "lucide-react"
 import { useTranslation } from "@/locales"
 import { menuApi, type MenuItem } from "@/api"
 import { FormDialog } from "@/components/schema/DynamicForm"
@@ -174,10 +174,10 @@ export function MenusPage() {
         field: "visible",
         label: t.pages.menus?.visible || "是否显示",
         type: "radio",
-        defaultValue: true,
+        defaultValue: "true",
         options: [
-          { label: "显示", value: true },
-          { label: "隐藏", value: false },
+          { label: "显示", value: "true" },
+          { label: "隐藏", value: "false" },
         ],
       },
     ],
@@ -229,7 +229,7 @@ export function MenusPage() {
         icon: (values.icon as string) || "",
         sort: typeof values.sort === 'number' ? values.sort : parseInt(String(values.sort), 10) || 1,
         parent_id: parentId,
-        visible: Boolean(values.visible),
+        visible: values.visible === "true" || values.visible === true,
       }
       if (dialogMode === "add") {
         await menuApi.create(menuData)
@@ -258,7 +258,7 @@ export function MenusPage() {
         visible: currentMenu.visible !== false,
       }
     }
-    return { parent_id: 0, sort: 1, visible: true }
+    return { parent_id: 0, sort: 1, visible: "true" }
   }
 
   const toggleExpand = (id: number) => {

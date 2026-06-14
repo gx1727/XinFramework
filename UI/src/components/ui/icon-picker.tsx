@@ -227,7 +227,7 @@ export function IconPicker({ value, onChange, placeholder = "选择图标", disa
   }, [searchTerm, activeCategory])
 
   const renderIcon = (iconName: string, size: number = 20) => {
-    const IconComponent = (LucideIcons as Record<string, React.ComponentType<{ size?: number; className?: string }>>)[iconName]
+    const IconComponent = (LucideIcons as unknown as Record<string, React.ComponentType<{ size?: number; className?: string }>>)[iconName]
     if (IconComponent) {
       return <IconComponent size={size} className="text-foreground" />
     }

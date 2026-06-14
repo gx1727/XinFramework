@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1"
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8087/api/v1"
 
 interface ApiOptions extends RequestInit {
   params?: Record<string, string | number | boolean>
@@ -305,8 +305,8 @@ export async function api<T = unknown>(
 
   const url = await buildUrl(endpoint, params)
 
-  const headers: HeadersInit = {
-    ...(options.headers || {}),
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string> | undefined || {}),
   }
   if (!(options.body instanceof FormData) && !headers["Content-Type"]) {
     headers["Content-Type"] = "application/json"
@@ -314,7 +314,7 @@ export async function api<T = unknown>(
 
   const token = getToken()
   if (token) {
-    (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`
+    headers["Authorization"] = `Bearer ${token}`
   }
 
   let lastError: Error | null = null
@@ -717,7 +717,8 @@ export const tenantApi = {
       method: "DELETE",
     }),
 }
-
+
+
 
 export const resourceApi = {
   list: (params?: { menu_id?: number; action?: string; page?: number; size?: number }) =>

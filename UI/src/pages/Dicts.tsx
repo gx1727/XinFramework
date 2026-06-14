@@ -206,7 +206,7 @@ export function DictsPage() {
     } finally {
       setDicts((prev) => prev.filter((d) => d.id !== dictToDelete.id))
       if (selectedId === dictToDelete.id) {
-        setSelectedId((prev) => {
+        setSelectedId(() => {
           const remaining = dicts.filter((d) => d.id !== dictToDelete.id)
           return remaining.length > 0 ? remaining[0].id : null
         })
@@ -470,7 +470,7 @@ export function DictsPage() {
               <div className="font-medium text-destructive">接口调用失败</div>
               <div className="text-muted-foreground text-xs mt-0.5 break-all">{error}</div>
               <div className="text-muted-foreground text-xs mt-1">
-                提示：请确认后端服务已启动（<code className="text-xs">http://localhost:8080</code>），
+                提示：请确认后端服务已启动（<code className="text-xs">http://localhost:8087</code>），
                 且当前用户拥有 <code className="text-xs">dict:list</code> 权限。
                 开启「失败时使用 mock」可在后端未启时继续演示。
               </div>

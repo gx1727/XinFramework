@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { PlusIcon, ShieldIcon, UsersIcon, LayoutDashboardIcon, EditIcon, TrashIcon, RefreshCw, CheckSquare, Square, CheckIcon, ChevronDown, ChevronRight, KeyIcon } from "lucide-react"
+import { PlusIcon, ShieldIcon, UsersIcon, LayoutDashboardIcon, EditIcon, TrashIcon, RefreshCw, CheckSquare, Square, ChevronDown, ChevronRight } from "lucide-react"
 import { useTranslation } from "@/locales"
 import { roleApi, menuApi, resourceApi, organizationApi, type RoleItem, type MenuItem, type ResourceItem, type OrganizationItem } from "@/api"
 import { FormDialog } from "@/components/schema/DynamicForm"
@@ -22,7 +22,6 @@ import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -757,8 +756,7 @@ function MenuPermissionNode({
   if (hasChildren) {
     collectChildIds(menu.children!)
   }
-  
-  const allChildrenSelected = childIds.length > 0 && childIds.every(id => selectedMenus.includes(id))
+
   const someChildrenSelected = childIds.length > 0 && childIds.some(id => selectedMenus.includes(id))
   
   const handleCheckedChange = (checked: boolean | "indeterminate") => {

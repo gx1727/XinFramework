@@ -17,6 +17,9 @@ export const enUS: LocaleKeys = {
     success: "Success",
     failed: "Failed",
     saving: "Saving...",
+    status: "Status",
+    enable: "Enable",
+    disable: "Disable",
   },
   auth: {
     loginTitle: "Login to your account",
@@ -229,6 +232,7 @@ export const enUS: LocaleKeys = {
       deleteMenu: "Delete Menu",
       parentMenu: "Parent Menu",
       visible: "Visible",
+      refresh: "Refresh List",
     },
     frames: {
       title: "Frame Management",
@@ -264,9 +268,7 @@ export const enUS: LocaleKeys = {
       deleteResource: "Delete Resource",
       refresh: "Refresh List",
     },
-    organizations: {
-      title: "Organization Management",
-          dicts: {
+    dicts: {
       title: "Data Dictionaries",
       subtitle: "Maintain system dropdown/enum data dictionaries and their items",
       searchPlaceholder: "Search by code or name...",
@@ -292,7 +294,9 @@ export const enUS: LocaleKeys = {
       itemCode: "Item Code",
       itemName: "Item Name",
     },
-    subtitle: "Manage tenant organization tree and data scope",
+    organizations: {
+      title: "Organization Management",
+      subtitle: "Manage tenant organization tree and data scope",
       searchPlaceholder: "Search by name or code...",
       totalOrgs: "Total",
       orgs: "organizations",
