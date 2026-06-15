@@ -1,7 +1,0 @@
-app:
-  env: prod
-  port: 80
-
-database:
-  host: postgres
-  sslmode: require

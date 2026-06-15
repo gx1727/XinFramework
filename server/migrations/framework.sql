@@ -454,65 +454,112 @@ ALTER TABLE role_resources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dicts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dict_items ENABLE ROW LEVEL SECURITY;
 
+-- RLS policy 表达式（bypass_rls-aware）：
+--   tenant_id 匹配 app.tenant_id  OR  app.bypass_rls = 'on'
+-- 这样 RunInPlatformTx 设置 app.bypass_rls='on' 后能真正跨租户访问，
+-- 业务请求走 RunInTenantTx 仍然只看到自己租户的数据。
+
 -- users
 DROP
 POLICY IF EXISTS tenant_isolation_policy ON users;
 CREATE
-POLICY tenant_isolation_policy ON users USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+POLICY tenant_isolation_policy ON users
+USING (
+    tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
+    OR NULLIF(current_setting('app.bypass_rls', true), 'off') = 'on'
+);
 
 -- roles
 DROP
 POLICY IF EXISTS tenant_isolation_policy ON roles;
 CREATE
-POLICY tenant_isolation_policy ON roles USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+POLICY tenant_isolation_policy ON roles
+USING (
+    tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
+    OR NULLIF(current_setting('app.bypass_rls', true), 'off') = 'on'
+);
 
 -- role_data_scopes
 DROP
 POLICY IF EXISTS tenant_isolation_policy ON role_data_scopes;
 CREATE
-POLICY tenant_isolation_policy ON role_data_scopes USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+POLICY tenant_isolation_policy ON role_data_scopes
+USING (
+    tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
+    OR NULLIF(current_setting('app.bypass_rls', true), 'off') = 'on'
+);
 
 -- user_roles
 DROP
 POLICY IF EXISTS tenant_isolation_policy ON user_roles;
 CREATE
-POLICY tenant_isolation_policy ON user_roles USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+POLICY tenant_isolation_policy ON user_roles
+USING (
+    tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
+    OR NULLIF(current_setting('app.bypass_rls', true), 'off') = 'on'
+);
 
 -- organizations
 DROP
 POLICY IF EXISTS tenant_isolation_policy ON organizations;
 CREATE
-POLICY tenant_isolation_policy ON organizations USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+POLICY tenant_isolation_policy ON organizations
+USING (
+    tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
+    OR NULLIF(current_setting('app.bypass_rls', true), 'off') = 'on'
+);
 
 -- tenant_user_seq
 DROP
 POLICY IF EXISTS tenant_isolation_policy ON tenant_user_seq;
 CREATE
-POLICY tenant_isolation_policy ON tenant_user_seq USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+POLICY tenant_isolation_policy ON tenant_user_seq
+USING (
+    tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
+    OR NULLIF(current_setting('app.bypass_rls', true), 'off') = 'on'
+);
 
 -- role_menus
 DROP
 POLICY IF EXISTS tenant_isolation_policy ON role_menus;
 CREATE
-POLICY tenant_isolation_policy ON role_menus USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+POLICY tenant_isolation_policy ON role_menus
+USING (
+    tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
+    OR NULLIF(current_setting('app.bypass_rls', true), 'off') = 'on'
+);
 
 -- role_resources
 DROP
 POLICY IF EXISTS tenant_isolation_policy ON role_resources;
 CREATE
-POLICY tenant_isolation_policy ON role_resources USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+POLICY tenant_isolation_policy ON role_resources
+USING (
+    tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
+    OR NULLIF(current_setting('app.bypass_rls', true), 'off') = 'on'
+);
 
--- dicts
+-- dicts（保留 tenant_id=0 短路：系统级字典跨租户共享）
 DROP
 POLICY IF EXISTS tenant_isolation_policy ON dicts;
 CREATE
-POLICY tenant_isolation_policy ON dicts USING (tenant_id = 0 OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+POLICY tenant_isolation_policy ON dicts
+USING (
+    tenant_id = 0
+    OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
+    OR NULLIF(current_setting('app.bypass_rls', true), 'off') = 'on'
+);
 
--- dict_items
+-- dict_items（保留 tenant_id=0 短路）
 DROP
 POLICY IF EXISTS tenant_isolation_policy ON dict_items;
 CREATE
-POLICY tenant_isolation_policy ON dict_items USING (tenant_id = 0 OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
+POLICY tenant_isolation_policy ON dict_items
+USING (
+    tenant_id = 0
+    OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT
+    OR NULLIF(current_setting('app.bypass_rls', true), 'off') = 'on'
+);
 
 -- ============================================
 -- 初始化数据
@@ -617,3 +664,107 @@ JOIN (VALUES
   ('education', 'master', '硕士', 2),
   ('education', 'doctor', '博士', 3)
 ) AS x(dict_code, code, name, sort) ON x.dict_code = d.code;
+
+-- ============================================
+-- 📦 模板租户（__template__）—— 所有新建租户的首装源
+-- ============================================
+-- 设计意图：通过 API 创建租户时，tenant.Service.Create → first_install
+-- 从本租户复制 menus / resources / dicts。后续运维只需在 __template__
+-- 内追加一次，新租户自动获得。
+--
+-- 包含的表：menus / resources（含 *:*）/ dicts / dict_items
+-- 不包含的表：users / organizations / user_roles / role_data_scopes / tenant_user_seq
+-- （这些是租户级独有，每次首装独立创建）
+
+-- 1) 模板租户本身
+-- status=0：不参与业务；is_deleted=FALSE：必须存活的"源"
+INSERT INTO tenants (code, name, status, created_by, updated_by)
+VALUES ('__template__', '[系统] 租户模板', 0, 0, 0)
+ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
+
+-- 2) 复制 menus：从 default 租户（用 code 查源，比硬编码 tenant_id=1 更稳健）
+-- 2a) 根菜单（parent_id=0）
+INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
+SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+       code, name, subtitle, url, path, icon, sort, 0, '', visible, enabled
+FROM menus
+WHERE tenant_id = (SELECT id FROM tenants WHERE code = 'default' AND is_deleted = FALSE)
+  AND parent_id = 0
+  AND is_deleted = FALSE;
+
+-- 2b) 子菜单：用 code 重新映射 parent_id 到新租户同 code 菜单
+INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
+SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+       m.code, m.name, m.subtitle, m.url, m.path, m.icon, m.sort,
+       new_p.id, '', m.visible, m.enabled
+FROM menus m
+JOIN menus old_p ON old_p.id = m.parent_id
+                 AND old_p.tenant_id = (SELECT id FROM tenants WHERE code = 'default' AND is_deleted = FALSE)
+                 AND old_p.is_deleted = FALSE
+JOIN menus new_p ON new_p.code = old_p.code
+                AND new_p.tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE)
+                AND new_p.is_deleted = FALSE
+WHERE m.tenant_id = (SELECT id FROM tenants WHERE code = 'default' AND is_deleted = FALSE)
+  AND m.parent_id > 0
+  AND m.is_deleted = FALSE;
+
+-- 2c) 重建 ancestors（用 parent_id::text 表达层级路径）
+UPDATE menus SET ancestors = parent_id::text
+WHERE tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE)
+  AND parent_id > 0;
+
+-- 3) 复制 resources：从 default 租户
+-- 用 code 重新映射 menu_id（resources.menu_id 是 BIGINT，无显式 FK，跨租户 NULL 安全）
+INSERT INTO resources (tenant_id, menu_id, code, name, action, description, sort, status)
+SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+       new_m.id, r.code, r.name, r.action, r.description, r.sort, r.status
+FROM resources r
+LEFT JOIN menus new_m ON new_m.code = (
+        SELECT code FROM menus WHERE id = r.menu_id
+            AND tenant_id = (SELECT id FROM tenants WHERE code = 'default' AND is_deleted = FALSE)
+            AND is_deleted = FALSE
+    ) AND new_m.tenant_id = (
+        SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE
+    ) AND new_m.is_deleted = FALSE
+WHERE r.tenant_id = (SELECT id FROM tenants WHERE code = 'default' AND is_deleted = FALSE)
+  AND r.is_deleted = FALSE;
+
+-- 4) 复制 dicts：从系统级（tenant_id=0）
+INSERT INTO dicts (tenant_id, code, name, sort, status, extend)
+SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+       code, name, sort, status, extend
+FROM dicts
+WHERE tenant_id = 0 AND is_deleted = FALSE;
+
+-- 5) 复制 dict_items：用 code 重新映射 dict_id
+INSERT INTO dict_items (tenant_id, dict_id, code, name, sort, status, extend)
+SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+       new_d.id, di.code, di.name, di.sort, di.status, di.extend
+FROM dict_items di
+JOIN dicts old_d ON old_d.id = di.dict_id AND old_d.tenant_id = 0 AND old_d.is_deleted = FALSE
+JOIN dicts new_d ON new_d.code = old_d.code
+                AND new_d.tenant_id = (
+                    SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE
+                ) AND new_d.is_deleted = FALSE
+WHERE di.tenant_id = 0 AND di.is_deleted = FALSE;
+
+-- 6) 推 sequence（避免新租户 first_install 时 id 撞 default 1~300 区间）
+SELECT setval('menus_id_seq', GREATEST(
+    (SELECT COALESCE(MAX(id), 0) FROM menus),
+    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) * 1000
+), true);
+
+SELECT setval('resources_id_seq', GREATEST(
+    (SELECT COALESCE(MAX(id), 0) FROM resources),
+    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) * 1000
+), true);
+
+SELECT setval('dicts_id_seq', GREATEST(
+    (SELECT COALESCE(MAX(id), 0) FROM dicts),
+    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) * 1000
+), true);
+
+SELECT setval('dict_items_id_seq', GREATEST(
+    (SELECT COALESCE(MAX(id), 0) FROM dict_items),
+    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) * 1000
+), true);

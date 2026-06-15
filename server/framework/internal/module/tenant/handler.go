@@ -48,6 +48,26 @@ func (h *Handler) Update(c *gin.Context) {
 	resp.Success(c, result)
 }
 
+// UpdateStatus 启用 / 禁用租户。状态字段独立接口，权限可细分到 ActUpdate。
+func (h *Handler) UpdateStatus(c *gin.Context) {
+	id, err := parseIDParam(c, "id")
+	if err != nil {
+		resp.BadRequest(c, "无效的ID参数")
+		return
+	}
+	var req UpdateTenantStatusReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.BadRequest(c, "请求参数格式错误")
+		return
+	}
+	result, err := h.svc.UpdateStatus(c.Request.Context(), id, req.Status)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+	resp.Success(c, result)
+}
+
 func (h *Handler) Delete(c *gin.Context) {
 	id, err := parseIDParam(c, "id")
 	if err != nil {
@@ -59,6 +79,27 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 	resp.Success(c, gin.H{"ok": true})
+}
+
+// Purge 硬删租户。不可逆操作，必须先 Delete 再 Purge。
+// 审计会自动写 db_logs，无需手动调用。
+func (h *Handler) Purge(c *gin.Context) {
+	id, err := parseIDParam(c, "id")
+	if err != nil {
+		resp.BadRequest(c, "无效的ID参数")
+		return
+	}
+	result, err := h.svc.Purge(c.Request.Context(), id)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+	resp.Success(c, gin.H{
+		"tenant_id":     result.TenantID,
+		"code":          result.Code,
+		"tables_purged": len(result.Tables),
+		"tables":        result.Tables,
+	})
 }
 
 func (h *Handler) Get(c *gin.Context) {

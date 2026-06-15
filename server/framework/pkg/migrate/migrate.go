@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/db"
 )
 
@@ -118,12 +119,15 @@ func Run(dir string) error {
 		}
 
 		fmt.Printf("[migrate] applying %s ...\n", m.Version)
-		// 执行SQL迁移
-		if _, err := pool.Exec(ctx, m.SQL); err != nil {
+		// 在事务内执行迁移 SQL，开头 SET LOCAL row_security = off 关闭 RLS。
+		// 原因：migrations 可能跨租户/系统级 INSERT（如 framework_002_template_tenant.sql
+		// 的 __template__ 租户 + menus / dicts 复制），RLS policy 会拦截非 owner 连接。
+		// 关闭 RLS 是迁移期的合理行为——业务层仍由 app.bypass_rls（policy 需识别）+ tenant_id 控制。
+		if err := runMigration(ctx, pool, m.SQL); err != nil {
 			return fmt.Errorf("migration %s failed: %w", m.Version, err)
 		}
 
-		// 标记为已应用
+		// 标记为已应用（事务已提交，再走普通连接）
 		if err := markApplied(ctx, m.Version); err != nil {
 			return fmt.Errorf("mark %s applied failed: %w", m.Version, err)
 		}
@@ -131,4 +135,24 @@ func Run(dir string) error {
 	}
 
 	return nil
+}
+
+// runMigration 在 RunInTx 内执行单条迁移，开头关闭 RLS。
+// 失败自动回滚（RunInTx 内部 defer Rollback），保证不会留下半成品。
+func runMigration(ctx context.Context, pool *pgxpool.Pool, sql string) error {
+	return db.RunInTx(ctx, pool, func(ctx context.Context) error {
+		q, err := db.GetQuerier(ctx)
+		if err != nil {
+			return err
+		}
+		// SET LOCAL 仅在本事务内生效，事务结束自动失效，不污染连接池。
+		// row_security = off 等价于该 session 内 RLS 完全不参与检查。
+		if _, err := q.Exec(ctx, "SET LOCAL row_security = off"); err != nil {
+			return fmt.Errorf("set row_security off: %w", err)
+		}
+		if _, err := q.Exec(ctx, sql); err != nil {
+			return err
+		}
+		return nil
+	})
 }
