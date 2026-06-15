@@ -1,14 +1,6 @@
 package weixin
 
 import (
-	"gx1727.com/xin/framework/internal/module/tenant"
-
-	"gx1727.com/xin/framework/internal/module/auth"
-
-	"gx1727.com/xin/framework/internal/module/role"
-
-	"gx1727.com/xin/framework/internal/module/user"
-
 	"context"
 	"encoding/json"
 	"errors"
@@ -21,10 +13,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	pkgauth "gx1727.com/xin/framework/pkg/auth"
 	"gx1727.com/xin/framework/pkg/config"
 	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
+	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
+
+	"gx1727.com/xin/framework/internal/module/role"
+	"gx1727.com/xin/framework/internal/module/user"
 )
 
 const (
@@ -34,9 +31,9 @@ const (
 type Service struct {
 	db              *pgxpool.Pool
 	session         SessionManager
-	accountAuthRepo auth.AccountAuthRepository
-	accountRepo     auth.AccountRepository
-	tenantRepo      tenant.TenantRepository
+	accountAuthRepo pkgauth.AccountAuthRepository
+	accountRepo     pkgauth.AccountRepository
+	tenantRepo      pkgtenant.TenantRepository
 	roleRepo        role.RoleRepository
 	userRepo        user.UserRepository
 }
@@ -50,9 +47,9 @@ type SessionManager interface {
 func NewService(
 	db *pgxpool.Pool,
 	session SessionManager,
-	accountAuthRepo auth.AccountAuthRepository,
-	accountRepo auth.AccountRepository,
-	tenantRepo tenant.TenantRepository,
+	accountAuthRepo pkgauth.AccountAuthRepository,
+	accountRepo pkgauth.AccountRepository,
+	tenantRepo pkgtenant.TenantRepository,
 	roleRepo role.RoleRepository,
 	userRepo user.UserRepository,
 ) *Service {
@@ -339,13 +336,13 @@ func (s *Service) LoginByWeChat(ctx context.Context, code string) (*LoginResult,
 	}, nil
 }
 
-func (s *Service) getOrCreateDefaultTenant(ctx context.Context) (*tenant.Tenant, error) {
+func (s *Service) getOrCreateDefaultTenant(ctx context.Context) (*tenantLocal, error) {
 	q, err := db.GetQuerier(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var tenant tenant.Tenant
+	var tenant tenantLocal
 	err = q.QueryRow(ctx, `
 		SELECT id, code, name, status
 		FROM tenants
@@ -523,4 +520,15 @@ func (s *Service) UpdatePhoneByWeChat(ctx context.Context, userID uint, code str
 	}
 
 	return phone, nil
+}
+
+
+// tenantLocal mirrors the subset of apps/boot/tenant.Tenant fields that
+// weixin reads in getOrCreateDefaultTenant. Local definition keeps
+// framework/internal from depending on apps/.
+type tenantLocal struct {
+	ID     uint
+	Code   string
+	Name   string
+	Status int16
 }

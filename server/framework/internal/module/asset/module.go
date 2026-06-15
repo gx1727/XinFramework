@@ -12,6 +12,12 @@ import (
 	storage_local "gx1727.com/xin/framework/pkg/storage/local"
 )
 
+// init 在包加载时自动注册到 plugin.Apps()。cmd/xin 通过 side-effect
+// import 引入此包，避免 framework.go 中维护硬编码列表。
+func init() {
+	plugin.Register(Module())
+}
+
 // Module 返回 asset 模块的完整定义
 func Module() plugin.Module {
 	return plugin.NewModule("asset", func(public *gin.RouterGroup, protected *gin.RouterGroup) {

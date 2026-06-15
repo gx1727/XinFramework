@@ -5,7 +5,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/internal/module/asset"
-	"gx1727.com/xin/framework/internal/module/auth"
 	"gx1727.com/xin/framework/internal/module/organization"
 	"gx1727.com/xin/framework/internal/module/role"
 	"gx1727.com/xin/framework/pkg/config"
@@ -15,6 +14,10 @@ import (
 	storage_cos "gx1727.com/xin/framework/pkg/storage/cos"
 	storage_local "gx1727.com/xin/framework/pkg/storage/local"
 )
+
+func init() {
+	plugin.Register(Module())
+}
 
 // Module 返回 user 模块的完整定义
 func Module() plugin.Module {
@@ -39,12 +42,18 @@ func Module() plugin.Module {
 		}
 
 		assetSvc := asset.NewFileService(s, asset.NewAttachmentRepository(db.Get()))
+
+		// Phase 2: AccountRepository moved to apps/boot/auth. user module
+		// (which still lives in framework/internal) cannot import apps/,
+		// so we instantiate the auth-side repository via a thin local
+		// adapter. Once Phase 3 moves user to apps/rbac/user/, this
+		// adapter goes away — user can then import apps/boot/auth directly.
 		h := NewHandler(NewService(
 			NewUserRepository(db.Get()),
 			role.NewRoleRepository(db.Get()),
 			organization.NewOrganizationRepository(db.Get()),
 			assetSvc,
-			auth.NewAccountRepository(db.Get()),
+			newLocalAccountAdapter(db.Get()),
 		))
 		Register(protected, h)
 	})

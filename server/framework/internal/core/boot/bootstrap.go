@@ -8,7 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	authmodule "gx1727.com/xin/framework/internal/module/auth"
+	pkgauth "gx1727.com/xin/framework/pkg/auth"
 	"gx1727.com/xin/framework/pkg/db"
 )
 
@@ -185,7 +185,7 @@ func upsertBootstrapUser(ctx context.Context, pool *pgxpool.Pool, accountID uint
 }
 
 func upsertBootstrapAccount(ctx context.Context, pool *pgxpool.Pool, cfg BootstrapConfig) (uint, bool, error) {
-	passwordHash, err := authmodule.HashPassword(cfg.Password)
+	passwordHash, err := pkgauth.HashPassword(cfg.Password)
 	if err != nil {
 		return 0, false, err
 	}

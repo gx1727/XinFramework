@@ -1,271 +1,55 @@
-# XinFramework
+# XinFramework Server
 
-<div align="center">
+> Go 1.25 + Gin + pgx + PostgreSQL。多租户 / RBAC / 插件化。
 
-**轻量的 Go SaaS 基础框架** — 不用 ORM，手写 SQL 的企业级开发框架
+## 目录
 
-[![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat-square&logo=go)](https://golang.org/)
-[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
+- [架构总览](file:///d:\work\xin\XinFramework\server\doc\architecture.md) — Go module 切分、模块注册流程、Phase 1-5 重构
+- [快速开始](file:///d:\work\xin\XinFramework\server\doc\quickstart.md) — 安装、配置、首次启动
+- [模块清单](file:///d:\work\xin\XinFramework\server\doc\modules.md) — 内置模块 + apps 列表
+- [API 参考](file:///d:\work\xin\XinFramework\server\doc\api.md) — HTTP 端点
+- [数据库](file:///d:\work\xin\XinFramework\server\doc\database.md) — 表结构、迁移
+- [权限](file:///d:\work\xin\XinFramework\server\doc\permissions.md) — RBAC、数据范围、平台角色
+- [开发指南](file:///d:\work\xin\XinFramework\server\doc\developing.md) — 新增模块
+- [部署](file:///d:\work\xin\XinFramework\server\doc\deployment.md) — 编译、systemd
+- [AGENTS.md](file:///d:\work\xin\XinFramework\server\AGENTS.md) — 给 AI agent 的高密度参考
 
-</div>
-
----
-
-## ✨ 为什么选择 XinFramework
-
-| 特性 | 说明 |
-|------|------|
-| 🚫 **无 ORM** | 直接使用 `pgx/v5`，完全掌控 SQL |
-| 🔐 **安全认证** | Argon2id 密码加密 + JWT + Session 双层校验 |
-| 🏢 **多租户** | 完整的租户隔离，支持行级安全策略 (RLS) |
-| 📝 **轻量日志** | 按天分割，自动归档，支持模块分离 |
-| 🌐 **跨平台** | Windows / Linux / macOS 全平台兼容 |
-| 🧩 **插件架构** | 业务模块热插拔，按需启用 |
-| ⚡ **高性能** | pgx 连接池 + Redis 连接池优化 |
-
----
-
-## 🛠️ 技术栈
-
-| 领域 | 技术 | 版本 |
-|------|------|------|
-| Web 框架 | [Gin](https://github.com/gin-gonic/gin) | v1.12.0 |
-| 数据库驱动 | [pgx/v5](https://github.com/jackc/pgx) | v5.9.0 |
-| Redis 客户端 | [go-redis/redis](https://github.com/go-redis/redis) | v8.11.5 |
-| JWT | [golang-jwt/jwt](https://github.com/golang-jwt/jwt) | v5.2.3 |
-| 密码加密 | Argon2id | golang.org/x/crypto |
-| 配置解析 | yaml.v3 | gopkg.in/yaml.v3 |
-
----
-
-## 📂 项目结构
+## 一句话概览
 
 ```
-xin/
-├── cmd/xin/                     # 程序入口
-│   └── main.go                   # 启动入口、插件注册
-│
-├── framework/                    # 框架核心
-│   ├── framework.go              # Run() 主函数
-│   ├── cmd.go                    # 命令控制 (start/stop/restart)
-│   ├── signal.go                  # 信号处理 (优雅关闭)
-│   │
-│   ├── pkg/                      # 公共包
-│   │   ├── config/               # 配置加载 (YAML + env)
-│   │   ├── db/                    # PostgreSQL (pgx) + 租户会话
-│   │   ├── cache/                # Redis 客户端
-│   │   ├── logger/               # 日志 (按天分割)
-│   │   ├── session/              # Session 管理 (Redis/DB)
-│   │   ├── jwt/                  # Token 工具
-│   │   ├── migrate/              # SQL 迁移
-│   │   ├── plugin/               # 插件注册机制
-│   │   └── resp/                 # 统一响应封装
-│   │
-│   ├── internal/
-│   │   ├── core/                 # 核心组件
-│   │   │   ├── boot/             # 初始化流程
-│   │   │   ├── server/           # HTTP Server + 优雅关闭
-│   │   │   ├── middleware/        # 中间件栈
-│   │   │   └── context/          # 请求上下文 (租户/用户)
-│   │   │
-│   │   └── module/               # 内置模块
-│   │       ├── user/             # 用户认证
-│   │       ├── tenant/           # 租户管理
-│   │       ├── system/           # 系统模块
-│   │       └── weixin/           # 微信模块
-│   │
-│   └── api/v1/                   # API 路由注册
-│
-├── apps/                         # 外部插件 (可扩展)
-│   └── cms/
-│
-├── config/                       # 配置文件
-│   ├── config.yaml
-│   ├── config.dev.yaml
-│   └── config.prod.yaml
-│
-└── migrations/                   # SQL 迁移脚本
+启动 → 配置加载 → DB 池化 → 注册模块（side-effect import）→ 拓扑排序 →
+执行 Init → 跑迁移 → 注册全局中间件（recovery / CORS / logger）→ 暴露
+/api/v1/{public,protected} 两个 gin.RouterGroup → 各模块 Register 路由 →
+监听端口 + 优雅退出。
 ```
 
----
+## 关键约定
 
-## 🚀 快速开始
+1. **统一响应**：所有 handler 用 `resp.OK(c, data)` / `resp.Fail(c, code, msg)` 返回 `{code, msg, data}`
+2. **认证中间件**：`middleware.OptionalAuth`（public 组）和 `middleware.Auth`（protected 组）按顺序挂载
+3. **权限中间件**：`middleware.Require(spec)` / `RequireAll(specs)` / `RequireAny(specs)` 装饰具体路由
+4. **平台角色中间件**：`middleware.RequirePlatformRole("super_admin", ...)` 装饰跨租户操作
+5. **审计**：业务关键操作走 `audit.WithContext(c)` 在中间件里捕获
+6. **错误**：业务错误用 `resp.ErrXxx`（如 `resp.ErrUserNotFound`），系统错误用 `fmt.Errorf` 包上下文
 
-### 前置要求
+## 命令行
 
-- Go 1.25+ (见 go.work)
-- PostgreSQL 15+
-- Redis (可选)
+```
+xin start          # 守护进程启动
+xin stop           # 停止
+xin restart        # 重启
+xin reload         # 平滑重载
+xin run            # 前台运行（开发用）
+xin status         # 查看状态
+```
 
-### 1. 克隆项目
-
+构建：
 ```bash
-git clone https://github.com/gx1727/XinFramework.git
-cd XinFramework
+go build -ldflags="-s -w" -o bin/xin ./cmd/xin
 ```
 
-### 2. 配置环境
+## 平台支持
 
-```bash
-cp framework/.env.example framework/.env
-# 编辑 framework/.env 配置数据库等信息
-```
-
-### 3. 初始化数据库
-
-```bash
-psql -U xin_user -d xin -f migrations/framework.sql
-# 启动时由框架自动执行 migrate.Run('migrations/') 依次应用 cms.sql / flag.sql
-```
-
-### 4. 启动服务
-
-```bash
-# 开发模式
-go run ./cmd/xin run
-
-# 编译运行
-go build -o xin ./cmd/xin
-./xin start
-```
-
-服务默认监听：`0.0.0.0:8080`
-
----
-
-## 📋 服务管理命令
-
-| 命令 | 说明 |
-|------|------|
-| `run` | 前台运行 |
-| `start` | 后台启动 |
-| `stop` | 停止服务 |
-| `restart` | 重启服务 |
-| `reload` | 热加载配置 (Unix) |
-| `hot-restart` | 零停时张压动 (启动新进程并关闭旧进程) |
-| `status` | 查看运行状态 |
-
----
-
-## 🌐 API 路由
-
-### 公开路由
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/v1/health` | 健康检查 |
-| POST | `/api/v1/auth/login` | 用户登录 |
-| POST | `/api/v1/auth/register` | 用户注册 |
-| POST | `/api/v1/auth/logout` | 用户登出 |
-| POST | `/api/v1/auth/refresh` | 刷新 Token |
-
-### 租户管理
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/v1/tenants` | 获取租户列表 |
-| POST | `/api/v1/tenants` | 创建租户 |
-| PUT | `/api/v1/tenants/:id` | 更新租户 |
-| DELETE | `/api/v1/tenants/:id` | 删除租户 |
-
----
-
-## 🏢 多租户
-
-租户 ID 两种亲取：
-
-```bash
-# 主路径：请求带 Authorization: Bearer <jwt> 头，租户 ID 从 JWT claims.tenantID 读取
-curl -H "Authorization: Bearer <jwt>" http://localhost:8080/api/v1/users
-
-# 公开路由的 OptionalAuth 中，如果没有 Token 仍可以通过 X-Tenant-ID 000
-curl -H "X-Tenant-ID: 1" http://localhost:8080/api/v1/health
-```
-
-实现机制：通过 PostgreSQL `SET app.tenant_id = $1` 设置会话变量，配合行级安全策略 (RLS) 实现租户隔离。
-
----
-
-## 🔐 认证机制
-
-```
-用户登录
-    ↓
-验证账号密码 (Argon2id)
-    ↓
-生成 Session (Redis 优先, DB 兜底)
-    ↓
-签发 JWT (含 sid)
-    ↓
-后续请求携带 JWT
-    ↓
-中间件校验 sid 有效性
-    ↓
-登出: 撤销 Session
-```
-
----
-
-## 🧩 插件开发
-
-### 1. 创建插件
-
-```go
-// apps/myplugin/myplugin.go
-package myplugin
-
-import (
-    "github.com/gin-gonic/gin"
-    "gx1727.com/xin/framework/pkg/plugin"
-)
-
-type Module struct{}
-
-func (m *Module) Name() string           { return "myplugin" }
-func (m *Module) Init() error            { return nil }
-func (m *Module) Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
-    protected.GET("/data", func(c *gin.Context) {
-        c.JSON(200, gin.H{"message": "myplugin"})
-    })
-}
-
-var _ plugin.Module = (*Module)(nil)
-```
-
-### 2. 注册插件
-
-```go
-// cmd/xin/main.go
-if cfg.AppEnabled("myplugin") {
-    framework.RegisterModule(&myplugin.Module{})
-}
-```
-
-### 3. 启用插件
-
-```yaml
-# config.yaml
-apps:
-  - myplugin
-```
-
----
-
-## 📖 文档
-
-- [开发指南](doc/developer-guide.md) — 框架使用详解
-- [数据库规范](doc/database-conventions.md) — 表设计规范
-- [API 调试示例](doc/api.http) — HTTP 调试文件
-
----
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
----
-
-## 📄 License
-
-MIT License
+- Linux（systemd）：[framework/xin-server.service](file:///d:\work\xin\XinFramework\server\framework\xin-server.service) + [build.sh](file:///d:\work\xin\XinFramework\server\build.sh)
+- Windows：[build.ps1](file:///d:\work\xin\XinFramework\server\build.ps1)
+- macOS / Linux：[build.sh](file:///d:\work\xin\XinFramework\server\build.sh)

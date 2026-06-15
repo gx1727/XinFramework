@@ -28,3 +28,7 @@ func (m *module) Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
 func Module() plugin.Module {
 	return &module{name: "flag"}
 }
+
+func init() {
+	plugin.Register(Module())
+}

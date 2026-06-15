@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"gx1727.com/xin/framework/internal/module/tenant"
+	"gx1727.com/xin/apps/boot/tenant"
 
 	"context"
 	"errors"

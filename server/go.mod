@@ -3,9 +3,8 @@ module gx1727.com/xin
 go 1.25.0
 
 require (
-	gx1727.com/xin/apps/flag v0.0.0
+	gx1727.com/xin/apps v0.0.0
 	gx1727.com/xin/framework v0.0.0
-	gx1727.com/xin/module/cms v0.0.0
 )
 
 require (
@@ -59,7 +58,6 @@ require (
 )
 
 replace (
-	gx1727.com/xin/apps/flag => ./apps/flag
+	gx1727.com/xin/apps => ./apps
 	gx1727.com/xin/framework => ./framework
-	gx1727.com/xin/module/cms => ./apps/cms
 )

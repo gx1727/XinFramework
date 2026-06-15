@@ -31,6 +31,43 @@ func RequireAll(specs ...permission.Spec) gin.HandlerFunc {
 	return requireWithSpecs("all", specs...)
 }
 
+// RequirePlatformRole 校验当前登录账号是否携带指定的平台级角色（如 super_admin）。
+//
+// 设计意图：跨租户 / 平台级操作（如租户管理、计费管理、平台字典）必须显式校验
+// 平台角色，不能仅依赖资源权限码——因为资源权限是租户内的 RBAC，无法表达
+// "跨越所有租户"的特权。
+//
+// 注意：该中间件依赖 Auth 中间件先注入 XinContext.PlatformRoles。
+// 使用方式：在 protected 路由分组之后链式追加，或在单条路由上叠加。
+//
+// 此函数从 framework/internal/core/middleware/auth.go 提升而来，
+// 因为 apps/boot/tenant 等外部业务模块需要使用它，而 internal/
+// 不允许跨 module 导入。
+func RequirePlatformRole(roles ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if len(roles) == 0 {
+			c.Next()
+			return
+		}
+		xc := xinContext.New(c)
+		if xc == nil || len(xc.PlatformRoles) == 0 {
+			resp.Forbidden(c, "需要平台级角色")
+			c.Abort()
+			return
+		}
+		for _, need := range roles {
+			for _, have := range xc.PlatformRoles {
+				if have == need {
+					c.Next()
+					return
+				}
+			}
+		}
+		resp.Forbidden(c, "平台角色不足")
+		c.Abort()
+	}
+}
+
 func requireWithSpecs(mode string, specs ...permission.Spec) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		uc := xinContext.MustNewUserContext(c)

@@ -66,15 +66,28 @@ func NewModuleWithOpts(name string, register ModuleFunc, opts ...ModuleOption) M
 }
 
 // apps 存储通过 plugin.Register() 注册的外部应用模块
-// 不包含框架内置模块(如 auth、user、menu 等)
+//
+// 历史上框架内置模块通过 framework.go 中的 builtinMap 注册，外部
+// app 通过 init() 中的 plugin.Register() 注册。这种双轨制让 main.go
+// 不得不硬编码所有内置模块名。
+//
+// 重构后所有模块（内置 + 外部）一律通过 plugin.Register() 注册。
+// builtinMap 已删除；原先的"内置"模块在各自包内通过 init() 调用
+// plugin.Register(self) 完成注册，与外部 app 走完全相同的路径。
 var apps []Module
 
-// Register 将外部应用模块注册到全局列表
+// Register 将模块注册到全局列表。
+// 重复注册同名模块将被忽略（保护措施，避免 main.go 多次 import 同一模块）。
 func Register(m Module) {
+	for _, existing := range apps {
+		if existing.Name() == m.Name() {
+			return
+		}
+	}
 	apps = append(apps, m)
 }
 
-// Apps 返回所有已注册的外部应用模块
+// Apps 返回所有已注册的模块（顺序为注册顺序）。
 func Apps() []Module {
 	return apps
 }

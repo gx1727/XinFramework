@@ -7,9 +7,9 @@ import (
 	"mime/multipart"
 
 	"gx1727.com/xin/framework/internal/module/asset"
-	"gx1727.com/xin/framework/internal/module/auth"
 	"gx1727.com/xin/framework/internal/module/organization"
 	"gx1727.com/xin/framework/internal/module/role"
+	pkgauth "gx1727.com/xin/framework/pkg/auth"
 	"gx1727.com/xin/framework/pkg/audit"
 	"gx1727.com/xin/framework/pkg/db"
 )
@@ -19,7 +19,7 @@ type Service struct {
 	roleRepo    role.RoleRepository
 	orgRepo     organization.OrganizationRepository
 	assetSvc    *asset.FileService
-	accountRepo auth.AccountRepository
+	accountRepo pkgauth.AccountRepository
 }
 
 // validateOrg 校验主组织 ID 是否存在且与租户一致。nil 表示允许"未指定"。
@@ -128,7 +128,7 @@ func NewService(
 	roleRepo role.RoleRepository,
 	orgRepo organization.OrganizationRepository,
 	assetSvc *asset.FileService,
-	accountRepo auth.AccountRepository,
+	accountRepo pkgauth.AccountRepository,
 ) *Service {
 	return &Service{
 		userRepo:    userRepo,
@@ -429,7 +429,7 @@ func (s *Service) Create(ctx context.Context, tenantID, creatorID uint, req crea
 	var (
 		newUserID   uint
 		newUserCode string
-		newAccount  *auth.Account
+		newAccount  *pkgauth.Account
 	)
 
 	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
@@ -448,7 +448,7 @@ func (s *Service) Create(ctx context.Context, tenantID, creatorID uint, req crea
 			status = 1
 		}
 
-		passwordHash, err := auth.HashPassword(req.Password)
+		passwordHash, err := pkgauth.HashPassword(req.Password)
 		if err != nil {
 			return fmt.Errorf("hash password: %w", err)
 		}

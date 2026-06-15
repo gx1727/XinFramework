@@ -6,6 +6,10 @@ import (
 	"gx1727.com/xin/framework/pkg/plugin"
 )
 
+func init() {
+	plugin.Register(Module())
+}
+
 // Module 返回 organization 模块的完整定义
 func Module() plugin.Module {
 	return plugin.NewModule("organization", func(public *gin.RouterGroup, protected *gin.RouterGroup) {

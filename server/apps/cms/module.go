@@ -22,3 +22,7 @@ func (m *module) Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
 func Module() plugin.Module {
 	return &module{name: "cms"}
 }
+
+func init() {
+	plugin.Register(Module())
+}

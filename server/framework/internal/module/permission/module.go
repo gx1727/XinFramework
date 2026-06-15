@@ -6,6 +6,10 @@ import (
 	"gx1727.com/xin/framework/pkg/plugin"
 )
 
+func init() {
+	plugin.Register(Module())
+}
+
 // Module 返回 permission 模块的完整定义
 // 管理角色-资源（按钮/API）权限，通过 role_resources 表
 // 菜单权限管理已迁移到 role 模块

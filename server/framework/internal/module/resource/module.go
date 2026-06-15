@@ -6,6 +6,10 @@ import (
 	"gx1727.com/xin/framework/pkg/plugin"
 )
 
+func init() {
+	plugin.Register(Module())
+}
+
 func Module() plugin.Module {
 	return plugin.NewModule("resource", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
 		h := NewHandler(NewService(NewResourceRepository(db.Get())))

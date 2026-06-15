@@ -8,18 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/internal/core/boot"
 	"gx1727.com/xin/framework/internal/core/middleware"
-	assetModule "gx1727.com/xin/framework/internal/module/asset"
-	authModule "gx1727.com/xin/framework/internal/module/auth"
-	dictModule "gx1727.com/xin/framework/internal/module/dict"
-	menuModule "gx1727.com/xin/framework/internal/module/menu"
-	orgModule "gx1727.com/xin/framework/internal/module/organization"
-	permModule "gx1727.com/xin/framework/internal/module/permission"
-	resourceModule "gx1727.com/xin/framework/internal/module/resource"
-	roleModule "gx1727.com/xin/framework/internal/module/role"
-	systemModule "gx1727.com/xin/framework/internal/module/system"
-	tenantModule "gx1727.com/xin/framework/internal/module/tenant"
-	userModule "gx1727.com/xin/framework/internal/module/user"
-	weixinModule "gx1727.com/xin/framework/internal/module/weixin"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/migrate"
 	"gx1727.com/xin/framework/pkg/plugin"
@@ -30,22 +18,11 @@ const (
 	logFile = "./xin.log" // 日志文件路径
 )
 
-var builtinMap = map[string]plugin.Module{
-	"asset":        assetModule.Module(),
-	"auth":         authModule.Module(),
-	"tenant":       tenantModule.Module(),
-	"user":         userModule.Module(),
-	"menu":         menuModule.Module(),
-	"dict":         dictModule.Module(),
-	"role":         roleModule.Module(),
-	"resource":     resourceModule.Module(),
-	"organization": orgModule.Module(),
-	"permission":   permModule.Module(),
-	"system":       systemModule.Module(),
-	"weixin":       weixinModule.Module(),
-}
-
-// RegisterModule 注册插件模块到框架
+// RegisterModule registers a module with the framework. This is now a
+// thin wrapper around plugin.Register — there is no longer a separate
+// "builtin" list. All modules, regardless of whether they ship with
+// the framework or live under apps/, register through this single
+// entry point.
 func RegisterModule(m plugin.Module) {
 	plugin.Register(m)
 }
@@ -85,8 +62,10 @@ func runServer(cfg *config.Config) {
 		log.Fatalf("boot init failed: %v", err)
 	}
 
-	// 初始化所有模块（内置 + 外部）
-	initModules(cfg)
+	// 初始化所有模块（统一列表，不再区分 builtin / external）
+	if err := initModules(cfg); err != nil {
+		log.Fatalf("module init failed: %v", err)
+	}
 
 	// 执行数据迁移
 	runMigrations()
@@ -114,25 +93,28 @@ func runServer(cfg *config.Config) {
 	waitForSignal(app.Server, app)
 }
 
-func initModules(cfg *config.Config) {
+// initModules iterates through every registered module.
+//
+// 之前内置模块在 builtinMap 中查找、外部 app 走 plugin.Apps()，现在
+// 两者合二为一。cfg.Module 控制加载哪些模块；未在配置中启用的模块
+// 也会注册但跳过 Init / Register，避免误启用。
+func initModules(cfg *config.Config) error {
+	enabled := make(map[string]bool, len(cfg.Module))
 	for _, name := range cfg.Module {
-		if m, ok := builtinMap[name]; ok {
-			if err := m.Init(); err != nil {
-				log.Fatalf("builtin module %s init failed: %v", name, err)
-			}
-			log.Printf("builtin module %s initialized", name)
-		} else {
-			log.Fatalf("configured builtin module %s not found", name)
-		}
+		enabled[name] = true
 	}
 
-	// 初始化外部插件模块
 	for _, m := range plugin.Apps() {
+		if !enabled[m.Name()] {
+			log.Printf("module %s registered but not enabled (skip)", m.Name())
+			continue
+		}
 		if err := m.Init(); err != nil {
-			log.Fatalf("module %s init failed: %v", m.Name(), err)
+			return fmt.Errorf("module %s init failed: %w", m.Name(), err)
 		}
 		log.Printf("module %s initialized", m.Name())
 	}
+	return nil
 }
 
 func runMigrations() {
@@ -152,11 +134,11 @@ func setupRouter(app *boot.App) {
 	srv.Engine.Use(middleware.ClientIP())      // 4. 客户端 IP 注入 ctx（供 audit 使用）
 	srv.Engine.Use(middleware.Logger())        // 5. 日志（依赖 RequestID）
 
-	// 注册内置模块和外部插件
+	// 注册所有模块的路由
 	registerModules(srv.Engine, cfg, app)
 }
 
-// registerModules 注册内置模块和外部插件的路由
+// registerModules 注册已启用模块的路由（所有模块统一处理，无内置/外部之分）。
 func registerModules(r *gin.Engine, cfg *config.Config, app *boot.App) {
 	v1 := r.Group("/api/v1")
 	public := v1.Group("")
@@ -165,15 +147,15 @@ func registerModules(r *gin.Engine, cfg *config.Config, app *boot.App) {
 	protected := v1.Group("")
 	protected.Use(middleware.Auth(&cfg.JWT, app.SessionMgr, app.Authz))
 
-	// 注册内置模块路由
+	enabled := make(map[string]bool, len(cfg.Module))
 	for _, name := range cfg.Module {
-		if m, ok := builtinMap[name]; ok {
-			m.Register(public, protected)
-		}
+		enabled[name] = true
 	}
 
-	// 注册外部插件路由
 	for _, m := range plugin.Apps() {
+		if !enabled[m.Name()] {
+			continue
+		}
 		m.Register(public, protected)
 	}
 }
