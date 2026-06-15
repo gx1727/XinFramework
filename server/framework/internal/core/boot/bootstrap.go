@@ -69,10 +69,12 @@ func RunBootstrap(ctx context.Context, pool *pgxpool.Pool, cfg BootstrapConfig) 
 	}
 
 	// 2. account_roles：授予平台角色（幂等）
+	// 注意：migrations 里用的是 CREATE UNIQUE INDEX，PG 的 ON CONFLICT ON CONSTRAINT
+	// 只认 UNIQUE / PRIMARY KEY / EXCLUSION 约束，纯唯一索引必须用列名形式。
 	if _, err := pool.Exec(ctx, `
 		INSERT INTO account_roles (account_id, role)
 		VALUES ($1, $2)
-		ON CONFLICT ON CONSTRAINT uk_account_role DO NOTHING
+		ON CONFLICT (account_id, role) DO NOTHING
 	`, accountID, cfg.Role); err != nil {
 		return err
 	}
@@ -154,10 +156,12 @@ func upsertBootstrapUser(ctx context.Context, pool *pgxpool.Pool, accountID uint
 			LIMIT 1
 		`, tenantID).Scan(&roleID)
 		if err == nil {
+			// uk_ur_unique 是部分唯一索引（WHERE is_deleted = FALSE），
+			// ON CONFLICT ON CONSTRAINT 不认 index 形式的 arbiter，必须显式列名 + WHERE。
 			if _, err := querier.Exec(ctx, `
 				INSERT INTO user_roles (tenant_id, user_id, role_id)
 				VALUES ($1, $2, $3)
-				ON CONFLICT ON CONSTRAINT uk_ur_unique DO NOTHING
+				ON CONFLICT (user_id, role_id) WHERE is_deleted = FALSE DO NOTHING
 			`, tenantID, userID, roleID); err != nil {
 				return err
 			}
