@@ -9,6 +9,7 @@ import (
 	"gx1727.com/xin/framework/internal/core/ext_impl"
 	"gx1727.com/xin/framework/internal/core/server"
 	"gx1727.com/xin/framework/internal/service"
+	"gx1727.com/xin/framework/pkg/authz"
 	"gx1727.com/xin/framework/pkg/cache"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/db"
@@ -65,6 +66,9 @@ func Init(cfg *config.Config) (*App, error) {
 	)
 	authzService := service.NewAuthorizationService(permService)
 	service.SetGlobalAuthorizationService(authzService)
+	// Phase 3: also expose the authz service through the public pkg
+	// hook so apps/rbac/* can consume it without importing internal/.
+	authz.Set(authz.Wrap(authzService))
 
 	globalApp = &App{
 		Config:      cfg,

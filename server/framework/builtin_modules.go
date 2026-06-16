@@ -13,26 +13,28 @@
 // registered through the same plugin.Apps() list as external apps.
 //
 // Refactor roadmap:
-//   Phase 2: auth + tenant have moved out to apps/boot/.
-//   Phase 3: RBAC (user/role/menu/resource/permission/organization)
-//            will move to apps/rbac/.
-//   Phase 3: dict/asset/weixin will move to apps/reference/.
-//   When Phase 3 is done this file should be empty and removable.
+//   Phase 1: ✅ unified registration (built-in + external via plugin.Apps())
+//   Phase 2: ✅ auth + tenant moved to apps/boot/
+//   Phase 3: ✅ RBAC (user/role/menu/resource/permission/organization)
+//              moved to apps/rbac/
+//   Phase 4: ✅ dict/asset/weixin still in framework — Phase 3b will
+//              move them to apps/reference/
+//
+// Remaining framework/internal/module/ entries are still required
+// because weixin (still framework-internal) depends on them transitively
+// at startup, and Phase 3b has not yet moved weixin out.
 package framework
 
 import (
-	// Side-effect imports: each module's init() registers itself.
-	_ "gx1727.com/xin/framework/internal/module/asset"
+	// Built-in modules still living in framework/internal/module.
+	// Each module's init() registers itself through plugin.Register.
 	_ "gx1727.com/xin/framework/internal/module/dict"
-	_ "gx1727.com/xin/framework/internal/module/menu"
-	_ "gx1727.com/xin/framework/internal/module/organization"
-	_ "gx1727.com/xin/framework/internal/module/permission"
-	_ "gx1727.com/xin/framework/internal/module/resource"
-	_ "gx1727.com/xin/framework/internal/module/role"
 	_ "gx1727.com/xin/framework/internal/module/system"
-	_ "gx1727.com/xin/framework/internal/module/user"
 	_ "gx1727.com/xin/framework/internal/module/weixin"
 
-	// Phase 2: auth + tenant moved to apps/boot/. They are imported
-	// through cmd/xin/main.go via the apps module, NOT here.
+	// Phase 3: auth, tenant, RBAC, asset have all moved to apps/.
+	// Imported via cmd/xin/main.go side-effect:
+	//   apps/boot/{auth,tenant}      — framework startup required
+	//   apps/rbac/{user,role,...}    — RBAC suite
+	//   apps/reference/asset         — file storage
 )

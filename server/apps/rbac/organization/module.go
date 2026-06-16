@@ -1,0 +1,25 @@
+package organization
+
+import (
+	"github.com/gin-gonic/gin"
+	pkgrbac "gx1727.com/xin/framework/pkg/rbac"
+	"gx1727.com/xin/framework/pkg/db"
+	"gx1727.com/xin/framework/pkg/plugin"
+)
+
+func init() {
+	plugin.Register(Module())
+
+	// Phase 3: register with framework/pkg/rbac.
+	pkgrbac.RegisterOrganizationRepository(func() pkgrbac.OrganizationRepository {
+		return NewOrganizationRepository(db.Get())
+	})
+}
+
+// Module 返回 organization 模块的完整定义
+func Module() plugin.Module {
+	return plugin.NewModule("organization", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
+		h := NewHandler(NewService(NewOrganizationRepository(db.Get())))
+		Register(protected, h)
+	})
+}

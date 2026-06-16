@@ -6,15 +6,19 @@ import (
 	"gx1727.com/xin/framework"
 	"gx1727.com/xin/framework/pkg/config"
 
-	// External apps + Phase 2 boot modules. Each module's init()
-	// registers itself through plugin.Register. main.go no longer
-	// maintains a hardcoded map of every module.
-	//
-	// Phase 2 status: auth + tenant have moved to apps/boot/.
-	// Phase 3 will move RBAC (user/role/menu/...) to apps/rbac/.
+	// Phase 2: boot modules
 	_ "gx1727.com/xin/apps/boot/auth"
 	_ "gx1727.com/xin/apps/boot/tenant"
 
+	// Phase 3: RBAC suite
+	_ "gx1727.com/xin/apps/rbac/menu"
+	_ "gx1727.com/xin/apps/rbac/resource"
+	_ "gx1727.com/xin/apps/rbac/organization"
+	_ "gx1727.com/xin/apps/rbac/permission"
+	_ "gx1727.com/xin/apps/rbac/role"
+	_ "gx1727.com/xin/apps/rbac/user"
+
+	// External apps
 	_ "gx1727.com/xin/apps/cms"
 	_ "gx1727.com/xin/apps/flag"
 )
