@@ -182,6 +182,9 @@ func Load(path string) (*Config, error) {
 	if err := validateModules(cfg); err != nil {
 		return nil, err
 	}
+	if err := validateJWTSecret(cfg); err != nil {
+		return nil, err
+	}
 
 	return cfg, nil
 }
@@ -305,39 +308,112 @@ func envCSV(key string, target *[]string) {
 	}
 }
 
+// alwaysOnModules 启动必需，配置无法禁用。
+//
+// 这些模块要么承载进程级基础设施（system 提供 health/cache stats），
+// 要么被 auth 中间件或框架其它部分隐式依赖（auth / tenant）。
+// 关闭它们会导致框架不可用，因此不允许在 module: 里"删一行"就关掉。
+var alwaysOnModules = []string{
+	"system",
+	"auth",
+	"tenant",
+}
+
+// optOutModules 默认启用，但用户在 module: 中显式列出模块时，改为白名单语义。
+//
+// 这些是"基础业务套件"——绝大多数部署都会用到，框架帮用户开了；
+// 一旦用户写 module:，就视为"我只想要这些"，optOut 全部退出。
+// 这样 developing.md 承诺的"module: 删一行就能关掉"才真的成立。
+var optOutModules = []string{
+	"menu",
+	"user",
+	"role",
+	"resource",
+	"organization",
+	"dict",
+	"asset",
+	"permission",
+}
+
 func validateModules(c *Config) error {
-	core := []string{
-		"system",
-		"menu",
-		"tenant",
-		"user",
-		"role",
-		"resource",
-		"organization",
-		"dict",
-		"permission",
-		"auth",
-		"asset"}
 	seen := map[string]struct{}{}
 	var merged []string
-
-	for _, m := range core {
-		seen[m] = struct{}{}
-		merged = append(merged, m)
+	add := func(name string) {
+		if _, ok := seen[name]; ok {
+			return
+		}
+		seen[name] = struct{}{}
+		merged = append(merged, name)
 	}
 
-	for i := range c.Module {
-		d := strings.ToLower(strings.TrimSpace(c.Module[i]))
-		if d == "" {
+	// 1. alwaysOn 永远在
+	for _, m := range alwaysOnModules {
+		add(m)
+	}
+
+	// 2. 归一用户列表
+	userList := make([]string, 0, len(c.Module))
+	for _, raw := range c.Module {
+		m := strings.ToLower(strings.TrimSpace(raw))
+		if m == "" {
 			continue
 		}
-		if _, ok := seen[d]; !ok {
-			seen[d] = struct{}{}
-			merged = append(merged, d)
+		userList = append(userList, m)
+	}
+
+	if len(userList) == 0 {
+		// 用户没写 module: → optOut 全部默认启用
+		for _, m := range optOutModules {
+			add(m)
+		}
+	} else {
+		// 用户写了 module: → 白名单语义：alwaysOn + 用户列表
+		for _, m := range userList {
+			add(m)
 		}
 	}
 
 	c.Module = merged
+	return nil
+}
+
+// jwtSecretPlaceholders 启动时拒绝的占位符。
+// 在 prod 环境下 secret 等于其中任一值时，配置加载直接失败。
+var jwtSecretPlaceholders = map[string]struct{}{
+	"":                 {},
+	"your-secret-key":  {},
+	"changeme":         {},
+	"please-change-me": {},
+	"secret":           {},
+	"12345678":         {},
+}
+
+// validateJWTSecret 在 prod 环境强制要求 jwt.secret 配置正确。
+//
+// 校验项：
+//  1. 不能为空
+//  2. 不能是常见占位符（防开发者忘记改）
+//  3. 长度必须 ≥ 32 字节（保证 HS256 签名强度，避免短 secret 被爆破）
+//
+// 失败直接返回 error，由 config.Load 的调用方（main.go）log.Fatalf 退出。
+// 之所以在 Load 阶段 fail-fast 而不是启动后 panic，是为了让 CI / docker
+// entrypoint 在早期就拿到明确错误信息。
+func validateJWTSecret(c *Config) error {
+	if c.App.Env != "prod" {
+		return nil
+	}
+	if _, isPlaceholder := jwtSecretPlaceholders[c.JWT.Secret]; isPlaceholder {
+		return fmt.Errorf(
+			"FATAL: jwt.secret 未配置或仍是占位符 (got=%q); prod 环境要求配置一个 ≥32 字节的随机串",
+			c.JWT.Secret,
+		)
+	}
+	if len(c.JWT.Secret) < 32 {
+		return fmt.Errorf(
+			"FATAL: jwt.secret 长度 %d 字节 < 32; prod 环境要求 ≥32 字节随机串以保证 HS256 签名强度",
+			len(c.JWT.Secret),
+		)
+	}
 	return nil
 }
 

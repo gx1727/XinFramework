@@ -5,3 +5,25 @@ app:
 database:
   host: postgres
   sslmode: require
+
+# 强制要求 prod 环境显式声明 module 列表。
+# 不写这段会从 config.yaml 继承，可能引入 dev 才需要的模块（如 debug/seed）。
+# 部署前请审一遍：每多一个模块 = 多一份攻击面。
+module:
+  - menu
+  - user
+  - role
+  - resource
+  - organization
+  - dict
+  - asset
+  - permission
+  - weixin
+  - cms
+  - flag
+
+# jwt 段在 config.yaml 里默认为占位值 "your-secret-key"；
+# prod 环境 config.Load 会直接拒绝启动，必须用环境变量覆盖：
+#   XIN_JWT_SECRET=$(openssl rand -base64 48)  xin start
+jwt:
+  secret: ""  # ← 留空表示强制走环境变量；config.Load 见到此值会报错

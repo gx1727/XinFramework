@@ -34,6 +34,9 @@ redis:
   max_conn_age_sec: 0
 
 jwt:
+  # 开发环境可保留占位值；prod 环境 config.Load 会拒绝占位 / 空 / < 32 字节。
+  # 生产部署务必通过 XIN_JWT_SECRET 环境变量注入一个 ≥32 字节的随机串。
+  # 生成示例：openssl rand -base64 48
   secret: your-secret-key
   expire: 3600
   refresh_expire: 86400
@@ -51,10 +54,24 @@ log:
   dir: logs
   level: info # debug | info | warn | error
 
+# module: 白名单 —— 列出本部署需要启用的全部业务模块。
+# 实际启动列表 = alwaysOn（system/auth/tenant，自动启用、不可关） + 本列表。
+# "module: 删一行" 即可关闭对应模块（除 alwaysOn 外）。
+# 可选范围（与 cmd/xin/main.go 的 side-effect import 对齐）：
+#   boot/      : auth, tenant
+#   rbac/      : menu, user, role, resource, organization, permission
+#   reference/ : dict, asset, weixin
+#   apps/      : system, cms, flag
 module:
+  - menu
+  - user
+  - role
+  - resource
+  - organization
+  - dict
+  - asset
+  - permission
   - weixin
-
-apps:
   - cms
   - flag
 
@@ -90,5 +107,8 @@ user:
 
 
 weixin:
+  # ⚠️  仅供 dev 调试。生产部署务必清空下面两个值，改用环境变量：
+  #     XIN_WEIXIN_APPID / XIN_WEIXIN_APPSECRET
+  # 该段被 apps/reference/weixin 通过 config.LoadModule("weixin", ...) 读取。
   appid: wx3e18aa16ef3c9ea9
   appsecret: 87cbb533602cde12e30094df147783fb
