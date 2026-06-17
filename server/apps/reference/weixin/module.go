@@ -2,55 +2,53 @@ package weixin
 
 import (
 	"github.com/gin-gonic/gin"
-	pkgauth "gx1727.com/xin/framework/pkg/auth"
+
 	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/plugin"
-	pkgrbac "gx1727.com/xin/framework/pkg/rbac"
 	"gx1727.com/xin/framework/pkg/session"
-	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
 )
 
 func init() {
 	plugin.Register(Module())
 }
 
-// Module returns the weixin module.
+// Module returns the weixin module as a BaseModule.
 //
-// weixin now lives under apps/reference/weixin (Phase 3b). It depends
-// on apps/boot/{auth,tenant} and apps/rbac/{user,role} — but instead
-// of importing them directly, it goes through the public pkg/{auth,
-// tenant, rbac} registries. This keeps weixin's compile-time imports
-// limited to the framework module, matching the convention used by
-// every other app.
+// weixin depends on apps/boot/{auth,tenant} and apps/rbac/{user,role}.
+// Phase 3 changes the lookup from the legacy pkgauth.Get/pkgtenant.Get
+// globals to AppContext.Reader. The Init phase runs once at boot and
+// calls InitConfig(); downstream dependencies are resolved lazily on
+// first request through the closed-over reader.
 func Module() plugin.Module {
-	return plugin.NewModuleWithOpts("weixin",
-		func(public *gin.RouterGroup, protected *gin.RouterGroup) {
-			accountAuthFactory := pkgauth.GetAccountAuthRepository()
-			accountFactory := pkgauth.Get()
-			tenantFactory := pkgtenant.Get()
-			roleFactory := pkgrbac.GetRoleRepository()
-			userFactory := pkgrbac.GetUserRepository()
+	return &plugin.BaseModule{
+		NameStr: "weixin",
+		InitFn: func(_ plugin.Reader, _ plugin.Writer) error {
+			return InitConfig()
+		},
+		RegFn: func(ctx plugin.Reader, public *gin.RouterGroup, protected *gin.RouterGroup) {
+			accountRepo := ctx.AccountRepo()
+			accountAuthRepo := ctx.AccountAuthRepo()
+			tenantRepo := ctx.TenantRepo()
+			roleRepo := ctx.RoleRepo()
+			userRepo := ctx.UserRepo()
 
-			if accountAuthFactory == nil || accountFactory == nil ||
-				tenantFactory == nil || roleFactory == nil || userFactory == nil {
-				// 必装模块未加载：拒绝注册路由
+			if accountRepo == nil || accountAuthRepo == nil ||
+				tenantRepo == nil || roleRepo == nil || userRepo == nil {
+				// Required modules not loaded: refuse to register routes.
 				return
 			}
 
 			svc := NewService(
 				db.Get(),
 				session.Manager(),
-				accountAuthFactory(),
-				accountFactory(),
-				tenantFactory(),
-				roleFactory(),
-				userFactory(),
+				accountAuthRepo,
+				accountRepo,
+				tenantRepo,
+				roleRepo,
+				userRepo,
 			)
 			h := NewHandler(svc)
 			Register(public, protected, h)
 		},
-		plugin.WithInit(func() error {
-			return InitConfig()
-		}),
-	)
+	}
 }

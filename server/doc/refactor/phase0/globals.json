@@ -1,0 +1,2443 @@
+[
+    {
+        "Name":  "globalAccountFactory",
+        "Category":  "remove",
+        "Package":  "framework/pkg/auth",
+        "DefinitionFile":  "(not found)",
+        "DefinitionLine":  0,
+        "Definition":  "",
+        "TotalUsages":  0,
+        "WriteCount":  0,
+        "ReadCount":  0,
+        "Usages":  [
+
+                   ]
+    },
+    {
+        "Name":  "globalAccountAuthFactory",
+        "Category":  "remove",
+        "Package":  "framework/pkg/auth",
+        "DefinitionFile":  "(not found)",
+        "DefinitionLine":  0,
+        "Definition":  "",
+        "TotalUsages":  0,
+        "WriteCount":  0,
+        "ReadCount":  0,
+        "Usages":  [
+
+                   ]
+    },
+    {
+        "Name":  "globalFactory",
+        "Category":  "remove",
+        "Package":  "framework/pkg/tenant",
+        "DefinitionFile":  "(not found)",
+        "DefinitionLine":  0,
+        "Definition":  "",
+        "TotalUsages":  0,
+        "WriteCount":  0,
+        "ReadCount":  0,
+        "Usages":  [
+
+                   ]
+    },
+    {
+        "Name":  "globalUserFactory",
+        "Category":  "remove",
+        "Package":  "framework/pkg/rbac",
+        "DefinitionFile":  "framework/pkg/rbac/user.go",
+        "DefinitionLine":  59,
+        "Definition":  "var globalUserFactory func() UserRepository",
+        "TotalUsages":  4,
+        "WriteCount":  0,
+        "ReadCount":  4,
+        "Usages":  [
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\user.go",
+                           "Line":  58,
+                           "Snippet":  "// globalUserFactory is set by apps/rbac/user\u0027s init()."
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\user.go",
+                           "Line":  59,
+                           "Snippet":  "var globalUserFactory func() UserRepository"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\user.go",
+                           "Line":  64,
+                           "Snippet":  "globalUserFactory = f"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\user.go",
+                           "Line":  70,
+                           "Snippet":  "return globalUserFactory"
+                       }
+                   ]
+    },
+    {
+        "Name":  "globalRoleFactory",
+        "Category":  "remove",
+        "Package":  "framework/pkg/rbac",
+        "DefinitionFile":  "framework/pkg/rbac/role.go",
+        "DefinitionLine":  34,
+        "Definition":  "var globalRoleFactory func() RoleRepository",
+        "TotalUsages":  4,
+        "WriteCount":  0,
+        "ReadCount":  4,
+        "Usages":  [
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\role.go",
+                           "Line":  33,
+                           "Snippet":  "// globalRoleFactory is set by apps/rbac/role\u0027s init()."
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\role.go",
+                           "Line":  34,
+                           "Snippet":  "var globalRoleFactory func() RoleRepository"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\role.go",
+                           "Line":  38,
+                           "Snippet":  "globalRoleFactory = f"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\role.go",
+                           "Line":  43,
+                           "Snippet":  "return globalRoleFactory"
+                       }
+                   ]
+    },
+    {
+        "Name":  "globalOrganizationFactory",
+        "Category":  "remove",
+        "Package":  "framework/pkg/rbac",
+        "DefinitionFile":  "framework/pkg/rbac/organization.go",
+        "DefinitionLine":  36,
+        "Definition":  "var globalOrganizationFactory func() OrganizationRepository",
+        "TotalUsages":  4,
+        "WriteCount":  0,
+        "ReadCount":  4,
+        "Usages":  [
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\organization.go",
+                           "Line":  35,
+                           "Snippet":  "// globalOrganizationFactory is set by apps/rbac/organization\u0027s init()."
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\organization.go",
+                           "Line":  36,
+                           "Snippet":  "var globalOrganizationFactory func() OrganizationRepository"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\organization.go",
+                           "Line":  40,
+                           "Snippet":  "globalOrganizationFactory = f"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\organization.go",
+                           "Line":  45,
+                           "Snippet":  "return globalOrganizationFactory"
+                       }
+                   ]
+    },
+    {
+        "Name":  "globalPermissionFactory",
+        "Category":  "remove",
+        "Package":  "framework/pkg/rbac",
+        "DefinitionFile":  "framework/pkg/rbac/permission.go",
+        "DefinitionLine":  25,
+        "Definition":  "var globalPermissionFactory func() RoleResourceRepository",
+        "TotalUsages":  3,
+        "WriteCount":  0,
+        "ReadCount":  3,
+        "Usages":  [
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\permission.go",
+                           "Line":  25,
+                           "Snippet":  "var globalPermissionFactory func() RoleResourceRepository"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\permission.go",
+                           "Line":  29,
+                           "Snippet":  "globalPermissionFactory = f"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\permission.go",
+                           "Line":  34,
+                           "Snippet":  "return globalPermissionFactory"
+                       }
+                   ]
+    },
+    {
+        "Name":  "globalProvider",
+        "Category":  "remove",
+        "Package":  "framework/pkg/extapi",
+        "DefinitionFile":  "framework/pkg/extapi/provider.go",
+        "DefinitionLine":  3,
+        "Definition":  "var globalProvider Provider",
+        "TotalUsages":  4,
+        "WriteCount":  0,
+        "ReadCount":  4,
+        "Usages":  [
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\extapi\\provider.go",
+                           "Line":  3,
+                           "Snippet":  "var globalProvider Provider"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\extapi\\provider.go",
+                           "Line":  6,
+                           "Snippet":  "if globalProvider == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\extapi\\provider.go",
+                           "Line":  9,
+                           "Snippet":  "return globalProvider"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\extapi\\provider.go",
+                           "Line":  13,
+                           "Snippet":  "globalProvider = p"
+                       }
+                   ]
+    },
+    {
+        "Name":  "global",
+        "Category":  "remove",
+        "Package":  "framework/pkg/authz",
+        "DefinitionFile":  "framework/pkg/authz/authz.go",
+        "DefinitionLine":  50,
+        "Definition":  "var global Authorization",
+        "TotalUsages":  14,
+        "WriteCount":  0,
+        "ReadCount":  14,
+        "Usages":  [
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\menu\\service.go",
+                           "Line":  181,
+                           "Snippet":  "// Phase 2: break all cycles using DFS with a global visited set"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\ext_impl\\provider.go",
+                           "Line":  107,
+                           "Snippet":  "// facade can resolve the repository without a global lookup."
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\ext_impl\\registry.go",
+                           "Line":  145,
+                           "Snippet":  "// Phase 3: replaced the previous pkgtenant.Get() global lookup with"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\auth\\types.go",
+                           "Line":  20,
+                           "Snippet":  "// Account is the global (cross-tenant) account record. Same struct"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\authz\\authz.go",
+                           "Line":  1,
+                           "Snippet":  "// Package authz exposes the global AuthorizationService used by"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\authz\\authz.go",
+                           "Line":  9,
+                           "Snippet":  "// exposes the global accessor with a thin type-erased interface —"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\authz\\authz.go",
+                           "Line":  50,
+                           "Snippet":  "var global Authorization"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\authz\\authz.go",
+                           "Line":  52,
+                           "Snippet":  "// Set wires the global Authorization. Called from boot.Init."
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\authz\\authz.go",
+                           "Line":  54,
+                           "Snippet":  "global = a"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\authz\\authz.go",
+                           "Line":  57,
+                           "Snippet":  "// Get returns the global Authorization, or nil if not loaded."
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\authz\\authz.go",
+                           "Line":  59,
+                           "Snippet":  "return global"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\permission\\types.go",
+                           "Line":  51,
+                           "Snippet":  "// Check global wildcard (super admin)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\plugin.go",
+                           "Line":  10,
+                           "Snippet":  "//                            The module is appended to the global list."
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\tenant\\tenant.go",
+                           "Line":  6,
+                           "Snippet":  "// Phase 3 cleanup: the historical Register/Get global variables"
+                       }
+                   ]
+    },
+    {
+        "Name":  "globalAuthorizationService",
+        "Category":  "remove",
+        "Package":  "framework/internal/service",
+        "DefinitionFile":  "framework/internal/service/authorization_service.go",
+        "DefinitionLine":  15,
+        "Definition":  "var globalAuthorizationService *AuthorizationService",
+        "TotalUsages":  5,
+        "WriteCount":  0,
+        "ReadCount":  5,
+        "Usages":  [
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\service\\authorization_service.go",
+                           "Line":  15,
+                           "Snippet":  "var globalAuthorizationService *AuthorizationService"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\service\\authorization_service.go",
+                           "Line":  22,
+                           "Snippet":  "globalAuthorizationService = s"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\service\\authorization_service.go",
+                           "Line":  25,
+                           "Snippet":  "func GlobalAuthorizationService() *AuthorizationService {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\service\\authorization_service.go",
+                           "Line":  26,
+                           "Snippet":  "return globalAuthorizationService"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\authz\\authz.go",
+                           "Line":  6,
+                           "Snippet":  "// need to call GlobalAuthorizationService() at request time. The"
+                       }
+                   ]
+    },
+    {
+        "Name":  "globalApp",
+        "Category":  "remove",
+        "Package":  "framework/internal/core/boot",
+        "DefinitionFile":  "framework/internal/core/boot/boot.go",
+        "DefinitionLine":  32,
+        "Definition":  "var globalApp *App",
+        "TotalUsages":  4,
+        "WriteCount":  0,
+        "ReadCount":  4,
+        "Usages":  [
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
+                           "Line":  32,
+                           "Snippet":  "var globalApp *App"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
+                           "Line":  74,
+                           "Snippet":  "globalApp = \u0026App{"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
+                           "Line":  90,
+                           "Snippet":  "return globalApp, nil"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
+                           "Line":  94,
+                           "Snippet":  "return globalApp"
+                       }
+                   ]
+    },
+    {
+        "Name":  "globalCache",
+        "Category":  "remove",
+        "Package":  "framework/pkg/dict",
+        "DefinitionFile":  "(not found)",
+        "DefinitionLine":  0,
+        "Definition":  "",
+        "TotalUsages":  32,
+        "WriteCount":  2,
+        "ReadCount":  30,
+        "Usages":  [
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  37,
+                           "Snippet":  "globalCache = \u0026Cache{"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  54,
+                           "Snippet":  "globalCache.mu.Lock()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  55,
+                           "Snippet":  "defer globalCache.mu.Unlock()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  57,
+                           "Snippet":  "if globalCache.data[tenantID] == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  58,
+                           "Snippet":  "globalCache.data[tenantID] = make(map[string]*Dict)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  60,
+                           "Snippet":  "globalCache.data[tenantID] = make(map[string]*Dict)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  96,
+                           "Snippet":  "merged := globalCache.data[tenantID][d.Code]"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  108,
+                           "Snippet":  "globalCache.data[tenantID][d.Code] = merged"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  137,
+                           "Snippet":  "for _, merged := range globalCache.data[tenantID] {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  163,
+                           "Snippet":  "globalCache.mu.RLock()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  164,
+                           "Snippet":  "defer globalCache.mu.RUnlock()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  166,
+                           "Snippet":  "if globalCache.data[tenantID] == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  169,
+                           "Snippet":  "d, ok := globalCache.data[tenantID][dictCode]"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  195,
+                           "Snippet":  "globalCache.mu.Lock()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  196,
+                           "Snippet":  "delete(globalCache.data, tenantID)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  197,
+                           "Snippet":  "globalCache.mu.Unlock()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  205,
+                           "Snippet":  "globalCache.mu.Lock()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  206,
+                           "Snippet":  "if globalCache.data[tenantID] != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  207,
+                           "Snippet":  "delete(globalCache.data[tenantID], dictCode)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  209,
+                           "Snippet":  "globalCache.mu.Unlock()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  283,
+                           "Snippet":  "globalCache.mu.Lock()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  284,
+                           "Snippet":  "if globalCache.data[tenantID] == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  285,
+                           "Snippet":  "globalCache.data[tenantID] = make(map[string]*Dict)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  287,
+                           "Snippet":  "globalCache.data[tenantID][dictCode] = merged"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  288,
+                           "Snippet":  "globalCache.mu.Unlock()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  295,
+                           "Snippet":  "globalCache.mu.Lock()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  296,
+                           "Snippet":  "defer globalCache.mu.Unlock()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  298,
+                           "Snippet":  "if globalCache.data[tenantID] != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  299,
+                           "Snippet":  "delete(globalCache.data[tenantID], dictCode)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  304,
+                           "Snippet":  "globalCache.mu.Lock()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  305,
+                           "Snippet":  "defer globalCache.mu.Unlock()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  307,
+                           "Snippet":  "delete(globalCache.data, tenantID)"
+                       }
+                   ]
+    },
+    {
+        "Name":  "Pool",
+        "Category":  "keep",
+        "Package":  "framework/pkg/db",
+        "DefinitionFile":  "framework/pkg/db/db.go",
+        "DefinitionLine":  15,
+        "Definition":  "var Pool *pgxpool.Pool",
+        "TotalUsages":  153,
+        "WriteCount":  9,
+        "ReadCount":  144,
+        "Usages":  [
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\account_auth_repository.go",
+                           "Line":  15,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\account_auth_repository.go",
+                           "Line":  18,
+                           "Snippet":  "func NewAccountAuthRepository(db *pgxpool.Pool) AccountAuthRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\account_repository.go",
+                           "Line":  15,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\account_repository.go",
+                           "Line":  18,
+                           "Snippet":  "func NewAccountRepository(db *pgxpool.Pool) AccountRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\deps.go",
+                           "Line":  24,
+                           "Snippet":  "DB           *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\deps.go",
+                           "Line":  42,
+                           "Snippet":  "func DefaultDependencies(cfg *config.Config, db *pgxpool.Pool, repos Repositories) Dependencies {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\module.go",
+                           "Line":  30,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\module.go",
+                           "Line":  31,
+                           "Snippet":  "w.SetAccountRepo(NewAccountRepository(pool))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\module.go",
+                           "Line":  32,
+                           "Snippet":  "w.SetAccountAuthRepo(NewAccountAuthRepository(pool))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\module.go",
+                           "Line":  36,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\module.go",
+                           "Line":  39,
+                           "Snippet":  "pool = p"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\module.go",
+                           "Line":  43,
+                           "Snippet":  "tenantRepo := tenant.NewTenantRepository(pool)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\module.go",
+                           "Line":  56,
+                           "Snippet":  "Account:  NewAccountRepository(pool),"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\module.go",
+                           "Line":  58,
+                           "Snippet":  "Platform: permission.NewPlatformRoleRepository(pool),"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\module.go",
+                           "Line":  60,
+                           "Snippet":  "deps := DefaultDependencies(config.Get(), pool, repos)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\service.go",
+                           "Line":  31,
+                           "Snippet":  "func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, tenantID uint) (*LoginIdentity, error) {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\service.go",
+                           "Line":  131,
+                           "Snippet":  "db          *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\usercode.go",
+                           "Line":  68,
+                           "Snippet":  "func SetUserCodeFormat(ctx context.Context, db *pgxpool.Pool, tenantID uint, format UserCodeFormat) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\usercode.go",
+                           "Line":  79,
+                           "Snippet":  "func GetUserCodeFormat(ctx context.Context, db *pgxpool.Pool, tenantID uint) (UserCodeFormat, error) {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\tenant\\module.go",
+                           "Line":  27,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\tenant\\module.go",
+                           "Line":  28,
+                           "Snippet":  "w.SetTenantRepo(\u0026tenantPkgAdapter{repo: NewTenantRepository(pool)})"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\tenant\\module.go",
+                           "Line":  32,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\tenant\\module.go",
+                           "Line":  33,
+                           "Snippet":  "h := NewHandler(NewService(NewTenantRepository(pool)))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\tenant\\repository.go",
+                           "Line":  16,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\tenant\\repository.go",
+                           "Line":  19,
+                           "Snippet":  "func NewTenantRepository(db *pgxpool.Pool) TenantRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\cms\\module.go",
+                           "Line":  15,
+                           "Snippet":  "// construction to reading its DB pool off the AppContext.Reader."
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\cms\\repository.go",
+                           "Line":  13,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\cms\\repository.go",
+                           "Line":  16,
+                           "Snippet":  "func NewCmsPostRepository(db *pgxpool.Pool) CmsPostRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\avatar_category_repository.go",
+                           "Line":  15,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\avatar_category_repository.go",
+                           "Line":  18,
+                           "Snippet":  "func NewAvatarCategoryRepository(pool *pgxpool.Pool) *AvatarCategoryRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\avatar_category_repository.go",
+                           "Line":  19,
+                           "Snippet":  "return \u0026AvatarCategoryRepository{db: pool}"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\avatar_repository.go",
+                           "Line":  15,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\avatar_repository.go",
+                           "Line":  18,
+                           "Snippet":  "func NewAvatarRepository(pool *pgxpool.Pool) *AvatarRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\avatar_repository.go",
+                           "Line":  19,
+                           "Snippet":  "return \u0026AvatarRepository{db: pool}"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\frame_category_repository.go",
+                           "Line":  15,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\frame_category_repository.go",
+                           "Line":  18,
+                           "Snippet":  "func NewFrameCategoryRepository(pool *pgxpool.Pool) *FrameCategoryRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\frame_category_repository.go",
+                           "Line":  19,
+                           "Snippet":  "return \u0026FrameCategoryRepository{db: pool}"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\frame_repository.go",
+                           "Line":  15,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\frame_repository.go",
+                           "Line":  18,
+                           "Snippet":  "func NewFrameRepository(pool *pgxpool.Pool) *FrameRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\frame_repository.go",
+                           "Line":  19,
+                           "Snippet":  "return \u0026FrameRepository{db: pool}"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\init.go",
+                           "Line":  16,
+                           "Snippet":  "func InitRepositories(pool *pgxpool.Pool) {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\init.go",
+                           "Line":  17,
+                           "Snippet":  "frameRepo = NewFrameRepository(pool)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\init.go",
+                           "Line":  18,
+                           "Snippet":  "avatarRepo = NewAvatarRepository(pool)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\init.go",
+                           "Line":  19,
+                           "Snippet":  "frameCatRepo = NewFrameCategoryRepository(pool)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\init.go",
+                           "Line":  20,
+                           "Snippet":  "avatarCatRepo = NewAvatarCategoryRepository(pool)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\module.go",
+                           "Line":  21,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\module.go",
+                           "Line":  24,
+                           "Snippet":  "pool = p"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\flag\\module.go",
+                           "Line":  27,
+                           "Snippet":  "InitRepositories(pool)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\menu\\repository.go",
+                           "Line":  15,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\menu\\repository.go",
+                           "Line":  18,
+                           "Snippet":  "func NewMenuRepository(db *pgxpool.Pool) MenuRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\organization\\repository.go",
+                           "Line":  17,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\organization\\repository.go",
+                           "Line":  20,
+                           "Snippet":  "func NewOrganizationRepository(db *pgxpool.Pool) OrganizationRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\permission\\role_resource_repository.go",
+                           "Line":  20,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\permission\\role_resource_repository.go",
+                           "Line":  23,
+                           "Snippet":  "func NewRoleResourceRepository(db *pgxpool.Pool) RoleResourceRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\permission\\service.go",
+                           "Line":  16,
+                           "Snippet":  "db               *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\permission\\service.go",
+                           "Line":  20,
+                           "Snippet":  "func NewService(db *pgxpool.Pool, roleResourceRepo RoleResourceRepository) *Service {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\resource\\repository.go",
+                           "Line":  15,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\resource\\repository.go",
+                           "Line":  18,
+                           "Snippet":  "func NewResourceRepository(db *pgxpool.Pool) ResourceRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\role\\repository.go",
+                           "Line":  17,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\role\\repository.go",
+                           "Line":  20,
+                           "Snippet":  "func NewRoleRepository(db *pgxpool.Pool) RoleRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\role\\role_menu_repository.go",
+                           "Line":  20,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\role\\role_menu_repository.go",
+                           "Line":  23,
+                           "Snippet":  "func NewRoleMenuRepository(db *pgxpool.Pool) RoleMenuRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\repository.go",
+                           "Line":  18,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\repository.go",
+                           "Line":  21,
+                           "Snippet":  "func NewUserRepository(db *pgxpool.Pool) UserRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\reference\\asset\\repository.go",
+                           "Line":  14,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\reference\\asset\\repository.go",
+                           "Line":  17,
+                           "Snippet":  "func NewAttachmentRepository(db *pgxpool.Pool) *PostgresAttachmentRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\reference\\dict\\repository.go",
+                           "Line":  17,
+                           "Snippet":  "pool *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\reference\\dict\\repository.go",
+                           "Line":  20,
+                           "Snippet":  "func NewPostgresDictRepository(pool *pgxpool.Pool) *PostgresDictRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\reference\\dict\\repository.go",
+                           "Line":  21,
+                           "Snippet":  "return \u0026PostgresDictRepository{pool: pool}"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\reference\\weixin\\service.go",
+                           "Line":  30,
+                           "Snippet":  "db              *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\reference\\weixin\\service.go",
+                           "Line":  46,
+                           "Snippet":  "db *pgxpool.Pool,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  125,
+                           "Snippet":  "// Phase 3 will wire this to a real AppContext with the DB pool, cache,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\cmd\\dict_e2e\\main.go",
+                           "Line":  15,
+                           "Snippet":  "pool, err := pgxpool.New(context.Background(), dsn)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\cmd\\dict_e2e\\main.go",
+                           "Line":  17,
+                           "Snippet":  "fmt.Println(\"pool:\", err)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\cmd\\dict_e2e\\main.go",
+                           "Line":  20,
+                           "Snippet":  "defer pool.Close()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\cmd\\dict_e2e\\main.go",
+                           "Line":  23,
+                           "Snippet":  "pool.QueryRow(ctx, \"SELECT current_user\").Scan(\u0026u)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\cmd\\dict_e2e\\main.go",
+                           "Line":  26,
+                           "Snippet":  "repo := dict.NewPostgresDictRepository(pool)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\cmd\\dict_e2e\\main.go",
+                           "Line":  33,
+                           "Snippet":  "err := db.RunInTenantTx(ctx, pool, tid, func(ctx context.Context) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\cmd\\dict_e2e\\main.go",
+                           "Line":  67,
+                           "Snippet":  "err = db.RunInTenantTx(ctx, pool, 1, func(ctx context.Context) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\cmd\\dict_e2e\\main.go",
+                           "Line":  92,
+                           "Snippet":  "err = db.RunInTenantTx(ctx, pool, 2, func(ctx context.Context) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\cmd\\dict_e2e\\main.go",
+                           "Line":  95,
+                           "Snippet":  "err := db.RunInTenantTx(ctx, pool, 0, func(ctx context.Context) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
+                           "Line":  25,
+                           "Snippet":  "DB          *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  50,
+                           "Snippet":  "func RunBootstrap(ctx context.Context, pool *pgxpool.Pool, cfg BootstrapConfig) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  61,
+                           "Snippet":  "accountID, created, err := upsertBootstrapAccount(ctx, pool, cfg)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  74,
+                           "Snippet":  "if _, err := pool.Exec(ctx, `"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  84,
+                           "Snippet":  "if err := upsertBootstrapUser(ctx, pool, accountID, cfg); err != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  94,
+                           "Snippet":  "func upsertBootstrapUser(ctx context.Context, pool *pgxpool.Pool, accountID uint, cfg BootstrapConfig) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  98,
+                           "Snippet":  "err := pool.QueryRow(ctx, `"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  116,
+                           "Snippet":  "err = db.RunInTenantTx(ctx, pool, tenantID, func(ctx context.Context) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  187,
+                           "Snippet":  "func upsertBootstrapAccount(ctx context.Context, pool *pgxpool.Pool, cfg BootstrapConfig) (uint, bool, error) {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  193,
+                           "Snippet":  "tx, err := pool.Begin(ctx)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\ext_impl\\registry.go",
+                           "Line":  42,
+                           "Snippet":  "type userRepoAdapter struct{ db *pgxpool.Pool }"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\ext_impl\\registry.go",
+                           "Line":  44,
+                           "Snippet":  "func newUserRepoAdapter(pool *pgxpool.Pool) userRepoRef {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\ext_impl\\registry.go",
+                           "Line":  45,
+                           "Snippet":  "return \u0026userRepoAdapter{db: pool}"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  15,
+                           "Snippet":  "var Pool *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  39,
+                           "Snippet":  "Pool, err = pgxpool.NewWithConfig(ctx, poolConfig)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  41,
+                           "Snippet":  "return fmt.Errorf(\"create pool: %w\", err)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  44,
+                           "Snippet":  "if err := Pool.Ping(ctx); err != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  51,
+                           "Snippet":  "func Get() *pgxpool.Pool {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  52,
+                           "Snippet":  "return Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  56,
+                           "Snippet":  "if Pool != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  57,
+                           "Snippet":  "Pool.Close()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  75,
+                           "Snippet":  "func RunInTx(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context) error) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  80,
+                           "Snippet":  "if pool == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  81,
+                           "Snippet":  "return fmt.Errorf(\"db pool is not initialized\")"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  84,
+                           "Snippet":  "tx, err := pool.Begin(ctx)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  98,
+                           "Snippet":  "func RunInTenantTx(ctx context.Context, pool *pgxpool.Pool, tenantID uint, fn func(ctx context.Context) error) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  99,
+                           "Snippet":  "return RunInTx(ctx, pool, func(ctx context.Context) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  120,
+                           "Snippet":  "func RunInPlatformTx(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context) error) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  121,
+                           "Snippet":  "return RunInTx(ctx, pool, func(ctx context.Context) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  138,
+                           "Snippet":  "if Pool == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  139,
+                           "Snippet":  "return nil, fmt.Errorf(\"db pool is not initialized\")"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  142,
+                           "Snippet":  "return Pool, nil"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  40,
+                           "Snippet":  "dbPool *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  43,
+                           "Snippet":  "func Init(pool *pgxpool.Pool) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  44,
+                           "Snippet":  "dbPool = pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\dict\\dict.go",
+                           "Line":  48,
+                           "Snippet":  "func GetPool() *pgxpool.Pool {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\migrate\\migrate.go",
+                           "Line":  17,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\migrate\\migrate.go",
+                           "Line":  18,
+                           "Snippet":  "if pool == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\migrate\\migrate.go",
+                           "Line":  22,
+                           "Snippet":  "_, _ = pool.Exec(ctx, `"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\migrate\\migrate.go",
+                           "Line":  31,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\migrate\\migrate.go",
+                           "Line":  32,
+                           "Snippet":  "if pool == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\migrate\\migrate.go",
+                           "Line":  36,
+                           "Snippet":  "_ = pool.QueryRow(ctx, \"SELECT EXISTS(SELECT 1 FROM _schema_migrations WHERE version = $1)\", version).Scan(\u0026exists)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\migrate\\migrate.go",
+                           "Line":  42,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\migrate\\migrate.go",
+                           "Line":  43,
+                           "Snippet":  "if pool == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\migrate\\migrate.go",
+                           "Line":  46,
+                           "Snippet":  "_, err := pool.Exec(ctx, \"INSERT INTO _schema_migrations (version) VALUES ($1)\", version)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\migrate\\migrate.go",
+                           "Line":  94,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\migrate\\migrate.go",
+                           "Line":  95,
+                           "Snippet":  "if pool == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\migrate\\migrate.go",
+                           "Line":  126,
+                           "Snippet":  "if err := runMigration(ctx, pool, m.SQL); err != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\migrate\\migrate.go",
+                           "Line":  142,
+                           "Snippet":  "func runMigration(ctx context.Context, pool *pgxpool.Pool, sql string) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\migrate\\migrate.go",
+                           "Line":  143,
+                           "Snippet":  "return db.RunInTx(ctx, pool, func(ctx context.Context) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\permission\\permission_impl.go",
+                           "Line":  13,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\permission\\permission_impl.go",
+                           "Line":  16,
+                           "Snippet":  "func NewPermissionRepository(db *pgxpool.Pool) *PostgresPermissionRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\permission\\permission_impl.go",
+                           "Line":  156,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\permission\\permission_impl.go",
+                           "Line":  159,
+                           "Snippet":  "func NewDataScopeRepository(db *pgxpool.Pool) *PostgresDataScopeRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\permission\\platform_role.go",
+                           "Line":  26,
+                           "Snippet":  "db *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\permission\\platform_role.go",
+                           "Line":  29,
+                           "Snippet":  "func NewPlatformRoleRepository(pool *pgxpool.Pool) *PostgresPlatformRoleRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\permission\\platform_role.go",
+                           "Line":  30,
+                           "Snippet":  "return \u0026PostgresPlatformRoleRepository{db: pool}"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  42,
+                           "Snippet":  "//   - Infrastructure: DB pool, Redis client, Config, Session manager."
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  58,
+                           "Snippet":  "DB() *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  107,
+                           "Snippet":  "db      *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  126,
+                           "Snippet":  "// Both the db pool and the config must be non-nil. cache and session"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  130,
+                           "Snippet":  "db *pgxpool.Pool,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  136,
+                           "Snippet":  "panic(\"NewAppContext: db pool must not be nil\")"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  157,
+                           "Snippet":  "func (a *AppContext) DB() *pgxpool.Pool             { return a.db }"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  106,
+                           "Snippet":  "pool      *pgxpool.Pool"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  112,
+                           "Snippet":  "_, _ = m.pool.Exec(ctx, `"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  121,
+                           "Snippet":  "_, _ = m.pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at ON auth_sessions (expires_at)`)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  136,
+                           "Snippet":  "_, err := m.pool.Exec(ctx, `"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  153,
+                           "Snippet":  "err := m.pool.QueryRow(ctx, `"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  171,
+                           "Snippet":  "_, err := m.pool.Exec(ctx, `DELETE FROM auth_sessions WHERE session_id = $1`, sessionID)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  181,
+                           "Snippet":  "func NewDBSessionManager(pool *pgxpool.Pool) SessionManager {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  182,
+                           "Snippet":  "return \u0026dbSessionManager{pool: pool}"
+                       }
+                   ]
+    },
+    {
+        "Name":  "Client",
+        "Category":  "keep",
+        "Package":  "framework/pkg/cache",
+        "DefinitionFile":  "framework/pkg/cache/cache.go",
+        "DefinitionLine":  12,
+        "Definition":  "var Client *redis.Client",
+        "TotalUsages":  43,
+        "WriteCount":  15,
+        "ReadCount":  28,
+        "Usages":  [
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  14,
+                           "Snippet":  "client := cache.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  15,
+                           "Snippet":  "if client == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  23,
+                           "Snippet":  "infoStr, err := client.Info(ctx).Result()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  44,
+                           "Snippet":  "dbSize, _ := client.DBSize(ctx).Result()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  47,
+                           "Snippet":  "cmdStatsStr, _ := client.Info(ctx, \"commandstats\").Result()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  78,
+                           "Snippet":  "client := cache.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  79,
+                           "Snippet":  "if client == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  86,
+                           "Snippet":  "keys, err := client.Keys(ctx, pattern).Result()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  103,
+                           "Snippet":  "client := cache.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  104,
+                           "Snippet":  "if client == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  112,
+                           "Snippet":  "keyType, err := client.Type(ctx, key).Result()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  126,
+                           "Snippet":  "value, _ = client.Get(ctx, key).Result()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  128,
+                           "Snippet":  "value, _ = client.HGetAll(ctx, key).Result()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  130,
+                           "Snippet":  "value, _ = client.LRange(ctx, key, 0, -1).Result()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  132,
+                           "Snippet":  "value, _ = client.SMembers(ctx, key).Result()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  134,
+                           "Snippet":  "value, _ = client.ZRange(ctx, key, 0, -1).Result()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  139,
+                           "Snippet":  "ttl, _ := client.TTL(ctx, key).Result()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  157,
+                           "Snippet":  "client := cache.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  158,
+                           "Snippet":  "if client == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\cache_handler.go",
+                           "Line":  164,
+                           "Snippet":  "err := client.Del(ctx, key).Err()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\handler.go",
+                           "Line":  73,
+                           "Snippet":  "client := cache.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\handler.go",
+                           "Line":  74,
+                           "Snippet":  "if client == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\system\\handler.go",
+                           "Line":  80,
+                           "Snippet":  "err := client.FlushDB(context.Background()).Err()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  12,
+                           "Snippet":  "var Client *redis.Client"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  16,
+                           "Snippet":  "Client = nil"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  40,
+                           "Snippet":  "Client = redis.NewClient(opts)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  44,
+                           "Snippet":  "if err := Client.Ping(ctx).Err(); err != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  48,
+                           "Snippet":  "Client = nil"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  53,
+                           "Snippet":  "func Get() *redis.Client {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  54,
+                           "Snippet":  "return Client"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  58,
+                           "Snippet":  "if Client == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  61,
+                           "Snippet":  "err := Client.Close()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  62,
+                           "Snippet":  "Client = nil"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  42,
+                           "Snippet":  "//   - Infrastructure: DB pool, Redis client, Config, Session manager."
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  59,
+                           "Snippet":  "Cache() *redis.Client // may return nil if Redis is disabled"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  108,
+                           "Snippet":  "cache   *redis.Client"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  131,
+                           "Snippet":  "cache *redis.Client,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  158,
+                           "Snippet":  "func (a *AppContext) Cache() *redis.Client             { return a.cache }"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\storage\\cos\\cos.go",
+                           "Line":  17,
+                           "Snippet":  "client  *cos.Client"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\storage\\cos\\cos.go",
+                           "Line":  35,
+                           "Snippet":  "client := cos.NewClient(b, \u0026http.Client{"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\storage\\cos\\cos.go",
+                           "Line":  50,
+                           "Snippet":  "client:  client,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\storage\\cos\\cos.go",
+                           "Line":  56,
+                           "Snippet":  "_, err := s.client.Object.Put(ctx, key, file, nil)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\storage\\cos\\cos.go",
+                           "Line":  65,
+                           "Snippet":  "_, err := s.client.Object.Delete(ctx, key)"
+                       }
+                   ]
+    },
+    {
+        "Name":  "cfg",
+        "Category":  "keep",
+        "Package":  "framework/pkg/config",
+        "DefinitionFile":  "framework/pkg/config/config.go",
+        "DefinitionLine":  108,
+        "Definition":  "var cfg *Config",
+        "TotalUsages":  164,
+        "WriteCount":  7,
+        "ReadCount":  157,
+        "Usages":  [
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\deps.go",
+                           "Line":  42,
+                           "Snippet":  "func DefaultDependencies(cfg *config.Config, db *pgxpool.Pool, repos Repositories) Dependencies {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\deps.go",
+                           "Line":  45,
+                           "Snippet":  "Config:       cfg,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\config.go",
+                           "Line":  19,
+                           "Snippet":  "func Cfg() *AuthConfig {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\reference\\weixin\\config.go",
+                           "Line":  16,
+                           "Snippet":  "func Cfg() *WxxcxConfig {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\reference\\weixin\\service.go",
+                           "Line":  67,
+                           "Snippet":  "if Cfg().AppID == \"\" || Cfg().AppSecret == \"\" {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\reference\\weixin\\service.go",
+                           "Line":  73,
+                           "Snippet":  "Cfg().AppID,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\reference\\weixin\\service.go",
+                           "Line":  74,
+                           "Snippet":  "Cfg().AppSecret,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\reference\\weixin\\service.go",
+                           "Line":  122,
+                           "Snippet":  "if Cfg().AppID == \"\" || Cfg().AppSecret == \"\" {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\reference\\weixin\\service.go",
+                           "Line":  180,
+                           "Snippet":  "Cfg().AppID,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\reference\\weixin\\service.go",
+                           "Line":  181,
+                           "Snippet":  "Cfg().AppSecret,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\cmd\\xin\\main.go",
+                           "Line":  33,
+                           "Snippet":  "cfg, err := config.Load(\"config/config.yaml\")"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\cmd\\xin\\main.go",
+                           "Line":  42,
+                           "Snippet":  "framework.Run(cfg)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  31,
+                           "Snippet":  "func Run(cfg *config.Config) {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  33,
+                           "Snippet":  "runServer(cfg)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  51,
+                           "Snippet":  "runServer(cfg)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  59,
+                           "Snippet":  "func runServer(cfg *config.Config) {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  60,
+                           "Snippet":  "app, err := boot.Init(cfg)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  66,
+                           "Snippet":  "if err := initModules(cfg); err != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  77,
+                           "Snippet":  "addr := fmt.Sprintf(\"%s:%d\", cfg.App.Host, cfg.App.Port)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  99,
+                           "Snippet":  "// 两者合二为一。cfg.Module 控制加载哪些模块；未在配置中启用的模块"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  101,
+                           "Snippet":  "func initModules(cfg *config.Config) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  102,
+                           "Snippet":  "enabled := make(map[string]bool, len(cfg.Module))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  103,
+                           "Snippet":  "for _, name := range cfg.Module {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  115,
+                           "Snippet":  "ctx, w := buildAppContextForModule(m.Name(), cfg)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  128,
+                           "Snippet":  "func buildAppContextForModule(name string, cfg *config.Config) (plugin.Reader, plugin.Writer) {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  140,
+                           "Snippet":  "cfg := app.Config"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  145,
+                           "Snippet":  "srv.Engine.Use(middleware.CORS(\u0026cfg.CORS)) // 3. CORS 预检请求处理"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  150,
+                           "Snippet":  "registerModules(srv.Engine, cfg, app)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  154,
+                           "Snippet":  "func registerModules(r *gin.Engine, cfg *config.Config, app *boot.App) {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  157,
+                           "Snippet":  "public.Use(middleware.OptionalAuth(\u0026cfg.JWT, app.SessionMgr, app.Authz))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  160,
+                           "Snippet":  "protected.Use(middleware.Auth(\u0026cfg.JWT, app.SessionMgr, app.Authz))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  162,
+                           "Snippet":  "enabled := make(map[string]bool, len(cfg.Module))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\framework.go",
+                           "Line":  163,
+                           "Snippet":  "for _, name := range cfg.Module {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
+                           "Line":  34,
+                           "Snippet":  "func Init(cfg *config.Config) (*App, error) {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
+                           "Line":  35,
+                           "Snippet":  "logger.Init(cfg.Log.Dir, cfg.Log.Level)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
+                           "Line":  36,
+                           "Snippet":  "if err := db.Init(\u0026cfg.Database); err != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
+                           "Line":  42,
+                           "Snippet":  "if err := cache.Init(\u0026cfg.Redis); err != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
+                           "Line":  59,
+                           "Snippet":  "ext_impl.InitExtApi(plugin.NewAppContext(db.Get(), cache.Get(), cfg, sm))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
+                           "Line":  60,
+                           "Snippet":  "ext_impl.UpdateTenantCtx(plugin.NewAppContext(db.Get(), cache.Get(), cfg, sm))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
+                           "Line":  75,
+                           "Snippet":  "Config:      cfg,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
+                           "Line":  78,
+                           "Snippet":  "Server:      server.New(cfg),"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  29,
+                           "Snippet":  "cfg := BootstrapConfig{"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  37,
+                           "Snippet":  "if cfg.Role == \"\" {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  38,
+                           "Snippet":  "cfg.Role = \"super_admin\""
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  40,
+                           "Snippet":  "if cfg.TenantCode == \"\" {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  41,
+                           "Snippet":  "cfg.TenantCode = \"default\""
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  43,
+                           "Snippet":  "cfg.Enabled = cfg.Token != \"\" \u0026\u0026 cfg.Account != \"\" \u0026\u0026 cfg.Password != \"\""
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  44,
+                           "Snippet":  "return cfg"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  48,
+                           "Snippet":  "// 调用条件：cfg.Enabled == true"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  50,
+                           "Snippet":  "func RunBootstrap(ctx context.Context, pool *pgxpool.Pool, cfg BootstrapConfig) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  51,
+                           "Snippet":  "if !cfg.Enabled {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  56,
+                           "Snippet":  "if len(cfg.Token) \u003c 16 {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  61,
+                           "Snippet":  "accountID, created, err := upsertBootstrapAccount(ctx, pool, cfg)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  66,
+                           "Snippet":  "log.Printf(\"[bootstrap] created bootstrap account %q (id=%d)\", cfg.Account, accountID)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  68,
+                           "Snippet":  "log.Printf(\"[bootstrap] bootstrap account %q already exists (id=%d)\", cfg.Account, accountID)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  78,
+                           "Snippet":  "`, accountID, cfg.Role); err != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  81,
+                           "Snippet":  "log.Printf(\"[bootstrap] granted platform role %q to account %d\", cfg.Role, accountID)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  84,
+                           "Snippet":  "if err := upsertBootstrapUser(ctx, pool, accountID, cfg); err != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  91,
+                           "Snippet":  "// upsertBootstrapUser 把 account 绑定到 cfg.TenantCode 租户。"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  94,
+                           "Snippet":  "func upsertBootstrapUser(ctx context.Context, pool *pgxpool.Pool, accountID uint, cfg BootstrapConfig) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  102,
+                           "Snippet":  "`, cfg.TenantCode).Scan(\u0026tenantID, \u0026tenantStatus)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  105,
+                           "Snippet":  "return errors.New(\"XIN_BOOTSTRAP_TENANT_CODE=\" + cfg.TenantCode + \" 的租户不存在\")"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  110,
+                           "Snippet":  "return errors.New(\"租户 \" + cfg.TenantCode + \" 已禁用\")"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  133,
+                           "Snippet":  "`, cfg.RealName, userID); err != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  145,
+                           "Snippet":  "`, tenantID, accountID, cfg.Account, cfg.RealName).Scan(\u0026userID); err != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  179,
+                           "Snippet":  "log.Printf(\"[bootstrap] created user binding account %d -\u003e tenant %q (user_id=%d)\", accountID, cfg.TenantCode, userID)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  187,
+                           "Snippet":  "func upsertBootstrapAccount(ctx context.Context, pool *pgxpool.Pool, cfg BootstrapConfig) (uint, bool, error) {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  188,
+                           "Snippet":  "passwordHash, err := pkgauth.HashPassword(cfg.Password)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  206,
+                           "Snippet":  "`, cfg.Account).Scan(\u0026accountID)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  212,
+                           "Snippet":  "`, passwordHash, cfg.RealName, accountID); err != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
+                           "Line":  229,
+                           "Snippet":  "`, cfg.Account, cfg.RealName, passwordHash).Scan(\u0026accountID)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\auth.go",
+                           "Line":  26,
+                           "Snippet":  "func processAuthToken(c *gin.Context, cfg *config.JWTConfig, sm session.SessionManager) (*jwtpkg.Claims, error) {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\auth.go",
+                           "Line":  35,
+                           "Snippet":  "return []byte(cfg.Secret), nil"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\auth.go",
+                           "Line":  110,
+                           "Snippet":  "func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityContextLoader) gin.HandlerFunc {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\auth.go",
+                           "Line":  112,
+                           "Snippet":  "claims, err := processAuthToken(c, cfg, sm)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\auth.go",
+                           "Line":  138,
+                           "Snippet":  "func AuthLite(cfg *config.JWTConfig, sm session.SessionManager) gin.HandlerFunc {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\auth.go",
+                           "Line":  140,
+                           "Snippet":  "claims, err := processAuthToken(c, cfg, sm)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\auth.go",
+                           "Line":  181,
+                           "Snippet":  "func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityContextLoader) gin.HandlerFunc {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\auth.go",
+                           "Line":  183,
+                           "Snippet":  "claims, err := processAuthToken(c, cfg, sm)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\cors.go",
+                           "Line":  12,
+                           "Snippet":  "func CORS(cfg *config.CORSConfig) gin.HandlerFunc {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\cors.go",
+                           "Line":  13,
+                           "Snippet":  "if cfg == nil || !cfg.Enabled || len(cfg.AllowOrigins) == 0 {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\cors.go",
+                           "Line":  24,
+                           "Snippet":  "for _, o := range cfg.AllowOrigins {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\cors.go",
+                           "Line":  42,
+                           "Snippet":  "c.Header(\"Access-Control-Allow-Methods\", cfg.AllowMethods)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\cors.go",
+                           "Line":  43,
+                           "Snippet":  "c.Header(\"Access-Control-Allow-Headers\", cfg.AllowHeaders)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\cors.go",
+                           "Line":  44,
+                           "Snippet":  "c.Header(\"Access-Control-Max-Age\", strconv.Itoa(cfg.MaxAge))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\cors.go",
+                           "Line":  46,
+                           "Snippet":  "if cfg.AllowCredentials {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\server\\server.go",
+                           "Line":  19,
+                           "Snippet":  "func New(cfg *config.Config) *XinServer {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\server\\server.go",
+                           "Line":  20,
+                           "Snippet":  "if cfg.App.Env == \"prod\" {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\server\\server.go",
+                           "Line":  26,
+                           "Snippet":  "engine.Static(cfg.Storage.LocalBaseURL, cfg.Storage.LocalDir)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  14,
+                           "Snippet":  "func Init(cfg *config.RedisConfig) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  15,
+                           "Snippet":  "if !cfg.Enabled {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  21,
+                           "Snippet":  "Addr:     cfg.Addr(),"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  22,
+                           "Snippet":  "Password: cfg.Password,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  23,
+                           "Snippet":  "DB:       cfg.DB,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  25,
+                           "Snippet":  "if cfg.PoolSize \u003e 0 {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  26,
+                           "Snippet":  "opts.PoolSize = cfg.PoolSize"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  28,
+                           "Snippet":  "if cfg.MinIdleConns \u003e 0 {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  29,
+                           "Snippet":  "opts.MinIdleConns = cfg.MinIdleConns"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  31,
+                           "Snippet":  "if cfg.PoolTimeoutSec \u003e 0 {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  32,
+                           "Snippet":  "opts.PoolTimeout = time.Duration(cfg.PoolTimeoutSec) * time.Second"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  34,
+                           "Snippet":  "if cfg.IdleTimeoutSec \u003e 0 {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  35,
+                           "Snippet":  "opts.IdleTimeout = time.Duration(cfg.IdleTimeoutSec) * time.Second"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  37,
+                           "Snippet":  "if cfg.MaxConnAgeSec \u003e 0 {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  38,
+                           "Snippet":  "opts.MaxConnAge = time.Duration(cfg.MaxConnAgeSec) * time.Second"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\cache\\cache.go",
+                           "Line":  45,
+                           "Snippet":  "if cfg.Required {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config.go",
+                           "Line":  108,
+                           "Snippet":  "var cfg *Config"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config.go",
+                           "Line":  168,
+                           "Snippet":  "cfg = defaults()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config.go",
+                           "Line":  176,
+                           "Snippet":  "if err := yaml.Unmarshal(data, cfg); err != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config.go",
+                           "Line":  181,
+                           "Snippet":  "overrideWithEnv(cfg)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config.go",
+                           "Line":  182,
+                           "Snippet":  "if err := validateModules(cfg); err != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config.go",
+                           "Line":  185,
+                           "Snippet":  "if err := validateJWTSecret(cfg); err != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config.go",
+                           "Line":  189,
+                           "Snippet":  "return cfg, nil"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config.go",
+                           "Line":  441,
+                           "Snippet":  "return cfg"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config_load_test.go",
+                           "Line":  11,
+                           "Snippet":  "// cfg.Module 列表与本次\"显式白名单\"预期一致。"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config_load_test.go",
+                           "Line":  27,
+                           "Snippet":  "cfg, err := Load(cfgPath)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config_load_test.go",
+                           "Line":  43,
+                           "Snippet":  "got := append([]string{}, cfg.Module...)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config_load_test.go",
+                           "Line":  49,
+                           "Snippet":  "t.Fatalf(\"cfg.Module mismatch\\n  got:  %v\\n  want: %v\", got, wantSorted)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config_load_test.go",
+                           "Line":  54,
+                           "Snippet":  "if cfg.Module[i] != m {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config_load_test.go",
+                           "Line":  55,
+                           "Snippet":  "t.Errorf(\"cfg.Module[%d]: got %q, want %q (full: %v)\", i, cfg.Module[i], m, cfg.Module)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config_load_test.go",
+                           "Line":  89,
+                           "Snippet":  "cfg, err := Load(filepath.Join(tmpDir, \"config.yaml\"))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config_load_test.go",
+                           "Line":  93,
+                           "Snippet":  "if cfg.App.Env != \"dev\" {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config_load_test.go",
+                           "Line":  94,
+                           "Snippet":  "t.Fatalf(\"expected env=dev, got %q\", cfg.App.Env)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config_load_test.go",
+                           "Line":  98,
+                           "Snippet":  "cfg.App.Env = \"prod\""
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config_load_test.go",
+                           "Line":  99,
+                           "Snippet":  "if err := validateJWTSecret(cfg); err == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config_load_test.go",
+                           "Line":  109,
+                           "Snippet":  "cfg, err := Load(filepath.Join(t.TempDir(), \"missing.yaml\"))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config_load_test.go",
+                           "Line":  113,
+                           "Snippet":  "if cfg.App.Env != \"prod\" {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config_load_test.go",
+                           "Line":  114,
+                           "Snippet":  "t.Fatalf(\"expected env=prod, got %q\", cfg.App.Env)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\config\\config_load_test.go",
+                           "Line":  116,
+                           "Snippet":  "if err := validateJWTSecret(cfg); err != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  17,
+                           "Snippet":  "func Init(cfg *config.DatabaseConfig) error {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  21,
+                           "Snippet":  "poolConfig, err := pgxpool.ParseConfig(cfg.DSN())"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  26,
+                           "Snippet":  "if cfg.MaxOpenConns \u003e 0 {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  27,
+                           "Snippet":  "poolConfig.MaxConns = int32(cfg.MaxOpenConns)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  29,
+                           "Snippet":  "if cfg.MaxIdleConns \u003e 0 {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  30,
+                           "Snippet":  "poolConfig.MinConns = int32(cfg.MaxIdleConns)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  32,
+                           "Snippet":  "if cfg.ConnMaxLifetimeSec \u003e 0 {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  33,
+                           "Snippet":  "poolConfig.MaxConnLifetime = time.Duration(cfg.ConnMaxLifetimeSec) * time.Second"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  35,
+                           "Snippet":  "if cfg.ConnMaxIdleTimeSec \u003e 0 {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
+                           "Line":  36,
+                           "Snippet":  "poolConfig.MaxConnIdleTime = time.Duration(cfg.ConnMaxIdleTimeSec) * time.Second"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\jwt\\jwt.go",
+                           "Line":  30,
+                           "Snippet":  "func Generate(cfg *config.JWTConfig, userID, tenantID uint, role, sessionID string) (string, error) {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\jwt\\jwt.go",
+                           "Line":  31,
+                           "Snippet":  "return GenerateWithType(cfg, userID, tenantID, role, sessionID, TokenTypeAccess)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\jwt\\jwt.go",
+                           "Line":  34,
+                           "Snippet":  "func GenerateWithType(cfg *config.JWTConfig, userID, tenantID uint, role, sessionID string, tokenType string) (string, error) {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\jwt\\jwt.go",
+                           "Line":  35,
+                           "Snippet":  "return GenerateWithPlatformRoles(cfg, userID, tenantID, role, sessionID, nil, tokenType)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\jwt\\jwt.go",
+                           "Line":  40,
+                           "Snippet":  "func GenerateWithPlatformRoles(cfg *config.JWTConfig, userID, tenantID uint, role, sessionID string, platformRoles []string, tokenType string) (string, error) {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\jwt\\jwt.go",
+                           "Line":  41,
+                           "Snippet":  "expire := cfg.Expire"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\jwt\\jwt.go",
+                           "Line":  43,
+                           "Snippet":  "expire = cfg.RefreshExpire"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\jwt\\jwt.go",
+                           "Line":  59,
+                           "Snippet":  "return token.SignedString([]byte(cfg.Secret))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\jwt\\jwt.go",
+                           "Line":  75,
+                           "Snippet":  "func Validate(tokenString string, cfg *config.JWTConfig) (*Claims, error) {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\jwt\\jwt.go",
+                           "Line":  77,
+                           "Snippet":  "return []byte(cfg.Secret), nil"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\jwt\\jwt.go",
+                           "Line":  91,
+                           "Snippet":  "func ValidateRefresh(tokenString string, cfg *config.JWTConfig) (*Claims, error) {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\jwt\\jwt.go",
+                           "Line":  92,
+                           "Snippet":  "claims, err := Validate(tokenString, cfg)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  47,
+                           "Snippet":  "// corresponding module was not enabled in cfg.Module. Modules must"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  67,
+                           "Snippet":  "// when the producing module was not enabled in cfg.Module."
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  109,
+                           "Snippet":  "cfg     *config.Config"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  132,
+                           "Snippet":  "cfg *config.Config,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  138,
+                           "Snippet":  "if cfg == nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  144,
+                           "Snippet":  "cfg:     cfg,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\appcontext.go",
+                           "Line":  159,
+                           "Snippet":  "func (a *AppContext) Config() *config.Config        { return a.cfg }"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\plugin\\plugin.go",
+                           "Line":  14,
+                           "Snippet":  "//                            name is in cfg.Module. The module MUST"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\storage\\cos\\cos.go",
+                           "Line":  28,
+                           "Snippet":  "func NewCosStorage(cfg Config) (storage.Storage, error) {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\storage\\cos\\cos.go",
+                           "Line":  29,
+                           "Snippet":  "u, err := url.Parse(cfg.URL)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\storage\\cos\\cos.go",
+                           "Line":  38,
+                           "Snippet":  "SecretID:  cfg.SecretID,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\storage\\cos\\cos.go",
+                           "Line":  39,
+                           "Snippet":  "SecretKey: cfg.SecretKey,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\storage\\cos\\cos.go",
+                           "Line":  43,
+                           "Snippet":  "baseURL := cfg.BaseURL"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\storage\\cos\\cos.go",
+                           "Line":  45,
+                           "Snippet":  "baseURL = cfg.URL"
+                       }
+                   ]
+    },
+    {
+        "Name":  "defaultManager",
+        "Category":  "keep",
+        "Package":  "framework/pkg/session",
+        "DefinitionFile":  "framework/pkg/session/session.go",
+        "DefinitionLine":  29,
+        "Definition":  "var defaultManager SessionManager",
+        "TotalUsages":  12,
+        "WriteCount":  0,
+        "ReadCount":  12,
+        "Usages":  [
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  29,
+                           "Snippet":  "var defaultManager SessionManager"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  32,
+                           "Snippet":  "defaultManager = manager"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  36,
+                           "Snippet":  "return defaultManager"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  185,
+                           "Snippet":  "// Create delegates to defaultManager if available, otherwise returns error"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  187,
+                           "Snippet":  "if defaultManager != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  188,
+                           "Snippet":  "return defaultManager.Create(sessionID, userID, tenantID, role, ttl)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  193,
+                           "Snippet":  "// Validate delegates to defaultManager if available, otherwise returns error"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  195,
+                           "Snippet":  "if defaultManager != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  196,
+                           "Snippet":  "return defaultManager.Validate(sessionID)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  201,
+                           "Snippet":  "// Revoke delegates to defaultManager if available, otherwise returns error"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  203,
+                           "Snippet":  "if defaultManager != nil {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\session\\session.go",
+                           "Line":  204,
+                           "Snippet":  "return defaultManager.Revoke(sessionID)"
+                       }
+                   ]
+    }
+]

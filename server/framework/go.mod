@@ -1,6 +1,8 @@
 module gx1727.com/xin/framework
 
-go 1.25.0
+go 1.23.0
+
+toolchain go1.23.4
 
 require (
 	github.com/gin-gonic/gin v1.12.0

@@ -5,24 +5,20 @@ import (
 	"gx1727.com/xin/framework/pkg/plugin"
 )
 
-type module struct {
-	name string
-}
-
-func (m *module) Name() string    { return m.name }
-func (m *module) Init() error     { return nil }
-func (m *module) Shutdown() error { return nil }
-
-func (m *module) Register(public *gin.RouterGroup, protected *gin.RouterGroup) {
-	// 创建 Handler（直接调用 pkg/repository 提供的核心接口）
-	h := NewHandler()
-	Register(h, public, protected)
-}
-
-func Module() plugin.Module {
-	return &module{name: "cms"}
-}
-
 func init() {
 	plugin.Register(Module())
+}
+
+// Module returns the cms module as a BaseModule.
+//
+// Migration note (Phase 5): cms will move from direct Repository
+// construction to reading its DB pool off the AppContext.Reader.
+func Module() plugin.Module {
+	return &plugin.BaseModule{
+		NameStr: "cms",
+		RegFn: func(_ plugin.Reader, public *gin.RouterGroup, protected *gin.RouterGroup) {
+			h := NewHandler()
+			Register(h, public, protected)
+		},
+	}
 }

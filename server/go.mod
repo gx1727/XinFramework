@@ -1,6 +1,8 @@
 module gx1727.com/xin
 
-go 1.25.0
+go 1.23.0
+
+toolchain go1.23.4
 
 require (
 	gx1727.com/xin/apps v0.0.0
@@ -64,6 +66,13 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
+// The root module requires the in-repo workspace modules with a
+// v0.0.0 pseudo-version. Without replace, Go would try to fetch
+// them from the public module proxy. The workspace go.work file
+// ALSO has matching `use` entries, which is sufficient in Go 1.18+
+// workspace mode; the replace below is a safety net for non-workspace
+// consumers (e.g. someone running `go build` from a downstream
+// project that does not have go.work in scope).
 replace (
 	gx1727.com/xin/apps => ./apps
 	gx1727.com/xin/framework => ./framework

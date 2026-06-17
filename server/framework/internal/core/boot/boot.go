@@ -13,10 +13,10 @@ import (
 	"gx1727.com/xin/framework/pkg/cache"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/db"
+	"gx1727.com/xin/framework/pkg/plugin"
 	"gx1727.com/xin/framework/pkg/dict"
 	"gx1727.com/xin/framework/pkg/logger"
 	"gx1727.com/xin/framework/pkg/permission"
-	"gx1727.com/xin/framework/pkg/plugin"
 	"gx1727.com/xin/framework/pkg/session"
 )
 
@@ -56,7 +56,8 @@ func Init(cfg *config.Config) (*App, error) {
 		permCache = permission.NewRedisPermissionCache()
 	}
 
-	ext_impl.InitExtApi()
+	ext_impl.InitExtApi(plugin.NewAppContext(db.Get(), cache.Get(), cfg, sm))
+	ext_impl.UpdateTenantCtx(plugin.NewAppContext(db.Get(), cache.Get(), cfg, sm))
 
 	permService := service.NewPermissionService(
 		permission.NewPermissionRepository(db.Get()),
@@ -94,8 +95,11 @@ func AppInstance() *App {
 }
 
 func Shutdown(app *App) {
+	// Phase 3 will pass app.ContextReader here. For now Shutdown
+	// only does connection close, so a nil Reader is fine.
+	var reader plugin.Reader
 	for _, m := range plugin.Apps() {
-		if err := m.Shutdown(); err != nil {
+		if err := m.Shutdown(reader); err != nil {
 			log.Printf("module %s shutdown failed: %v", m.Name(), err)
 		}
 	}

@@ -1,6 +1,8 @@
 module gx1727.com/xin/apps
 
-go 1.25.0
+go 1.23.0
+
+toolchain go1.23.4
 
 require (
 	github.com/gin-gonic/gin v1.12.0
@@ -50,4 +52,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
+// The framework dependency is a v0.0.0 pseudo-version. Without
+// replace, Go would try to fetch it from the public module proxy.
+// `go.work use ./framework` handles this in workspace mode; the
+// replace below is a safety net for non-workspace builds.
 replace gx1727.com/xin/framework => ../framework

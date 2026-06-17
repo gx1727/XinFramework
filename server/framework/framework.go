@@ -109,12 +109,24 @@ func initModules(cfg *config.Config) error {
 			log.Printf("module %s registered but not enabled (skip)", m.Name())
 			continue
 		}
-		if err := m.Init(); err != nil {
+		// Phase 2 builds the AppContext and passes it as Reader/Writer.
+		// During Phase 3-5 migration ctx is nil for modules that have not
+		// yet been ported (legacy modules swallow it).
+		ctx, w := buildAppContextForModule(m.Name(), cfg)
+		if err := m.Init(ctx, w); err != nil {
 			return fmt.Errorf("module %s init failed: %w", m.Name(), err)
 		}
 		log.Printf("module %s initialized", m.Name())
 	}
 	return nil
+}
+
+// buildAppContextForModule constructs (Reader, Writer) for a module.
+// Phase 3 will wire this to a real AppContext with the DB pool, cache,
+// config and cross-module repositories. Today it returns (nil, nil)
+// because all legacy modules ignore the Reader/Writer argument.
+func buildAppContextForModule(name string, cfg *config.Config) (plugin.Reader, plugin.Writer) {
+	return nil, nil
 }
 
 func runMigrations() {
@@ -156,6 +168,9 @@ func registerModules(r *gin.Engine, cfg *config.Config, app *boot.App) {
 		if !enabled[m.Name()] {
 			continue
 		}
-		m.Register(public, protected)
+		// Phase 2: legacy modules ignore Reader. Phase 3 will pass
+		// the populated AppContext.Reader here.
+		var ctx plugin.Reader
+		m.Register(ctx, public, protected)
 	}
 }

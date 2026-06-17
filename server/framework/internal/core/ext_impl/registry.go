@@ -8,6 +8,7 @@ import (
 
 	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
 	"gx1727.com/xin/framework/pkg/db"
+	"gx1727.com/xin/framework/pkg/plugin"
 )
 
 // userRepoRef is the minimal user repository shape extapi needs.
@@ -138,14 +139,48 @@ type tenantRecord struct {
 	UpdatedAt time.Time
 }
 
-// pkgTenantGet returns the registered tenant repository factory, or
-// nil if apps/boot/tenant is not loaded. Looked up lazily per request.
+// pkgTenantGet returns a TenantRepoRef backed by the AppContext's
+// TenantRepository. Returns nil if apps/boot/tenant is not loaded.
+//
+// Phase 3: replaced the previous pkgtenant.Get() global lookup with
+// a closed-over ctx. The defaultProvider in provider.go populates
+// pkgTenantGetCtx during boot.
+var pkgTenantGetCtx plugin.Reader
+
+func setTenantCtx(ctx plugin.Reader) { pkgTenantGetCtx = ctx }
+
 func pkgTenantGet() TenantRepoRef {
-	f := pkgtenant.Get()
-	if f == nil {
+	if pkgTenantGetCtx == nil {
 		return nil
 	}
-	return &tenantPkgAdapter{factory: f}
+	repo := pkgTenantGetCtx.TenantRepo()
+	if repo == nil {
+		return nil
+	}
+	return &tenantCtxAdapter{repo: repo}
+}
+
+// tenantCtxAdapter bridges pkg/tenant.TenantRepository to the local
+// TenantRepoRef (same GetByID shape, different return type). Phase 6
+// deletes this when ext_impl/registry.go is retired.
+type tenantCtxAdapter struct {
+	repo pkgtenant.TenantRepository
+}
+
+func (a *tenantCtxAdapter) GetByID(ctx context.Context, id uint) (*tenantRecord, error) {
+	t, err := a.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	createdAt, _ := t.CreatedAt.(time.Time)
+	updatedAt, _ := t.UpdatedAt.(time.Time)
+	return &tenantRecord{
+		ID: t.ID, Code: t.Code, Name: t.Name, Status: t.Status,
+		Contact: t.Contact, Phone: t.Phone, Email: t.Email,
+		Province: t.Province, City: t.City, Area: t.Area, Address: t.Address,
+		Config: t.Config, Dashboard: t.Dashboard,
+		CreatedAt: createdAt, UpdatedAt: updatedAt,
+	}, nil
 }
 
 // TenantRepoRef is the local minimal interface ext_impl uses.
