@@ -13,10 +13,16 @@ type Service struct {
 	roleRepo RoleRepository
 	dsRepo   permission.DataScopeRepository
 	menuRepo RoleMenuRepository
+	authz    authz.Authorization
 }
 
-func NewService(roleRepo RoleRepository, dsRepo permission.DataScopeRepository, menuRepo RoleMenuRepository) *Service {
-	return &Service{roleRepo: roleRepo, dsRepo: dsRepo, menuRepo: menuRepo}
+func NewService(roleRepo RoleRepository, dsRepo permission.DataScopeRepository, menuRepo RoleMenuRepository, authzSvc authz.Authorization) *Service {
+	return &Service{
+		roleRepo: roleRepo,
+		dsRepo:   dsRepo,
+		menuRepo: menuRepo,
+		authz:    authzSvc,
+	}
 }
 
 func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]RoleResp, int64, error) {
@@ -104,8 +110,8 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*RoleResp
 		return nil, err
 	}
 
-	if authz := authz.Get(); authz != nil {
-		_ = authz.InvalidateRole(context.Background(), id)
+	if s.authz != nil {
+		_ = s.authz.InvalidateRole(context.Background(), id)
 	}
 
 	resp := toResp(*role)
@@ -132,8 +138,8 @@ func (s *Service) Patch(ctx context.Context, id uint, req PatchReq) (*RoleResp, 
 		return nil, err
 	}
 
-	if authz := authz.Get(); authz != nil {
-		_ = authz.InvalidateRole(context.Background(), id)
+	if s.authz != nil {
+		_ = s.authz.InvalidateRole(context.Background(), id)
 	}
 
 	resp := toResp(*role)
@@ -144,7 +150,7 @@ func (s *Service) Delete(ctx context.Context, id uint) error {
 	tenantID, _ := xincontext.TenantIDFrom(ctx)
 
 	var userIDs []uint
-	if authz := authz.Get(); authz != nil {
+	if s.authz != nil {
 		permRepo := permission.NewPermissionRepository(db.Get())
 		userIDs, _ = permRepo.GetUserIDsByRole(ctx, id)
 	}
@@ -163,9 +169,9 @@ func (s *Service) Delete(ctx context.Context, id uint) error {
 		return err
 	}
 
-	if authz := authz.Get(); authz != nil && len(userIDs) > 0 {
+	if s.authz != nil && len(userIDs) > 0 {
 		for _, uid := range userIDs {
-			_ = authz.InvalidateUser(context.Background(), uid)
+			_ = s.authz.InvalidateUser(context.Background(), uid)
 		}
 	}
 
@@ -195,8 +201,8 @@ func (s *Service) UpdateDataScopes(ctx context.Context, roleID uint, req UpdateD
 		return err
 	}
 
-	if authz := authz.Get(); authz != nil {
-		_ = authz.InvalidateRole(context.Background(), roleID)
+	if s.authz != nil {
+		_ = s.authz.InvalidateRole(context.Background(), roleID)
 	}
 
 	return nil

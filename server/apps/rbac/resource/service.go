@@ -8,10 +8,14 @@ import (
 
 type Service struct {
 	resourceRepo ResourceRepository
+	authz        authz.Authorization
 }
 
-func NewService(resourceRepo ResourceRepository) *Service {
-	return &Service{resourceRepo: resourceRepo}
+func NewService(resourceRepo ResourceRepository, authzSvc authz.Authorization) *Service {
+	return &Service{
+		resourceRepo: resourceRepo,
+		authz:        authzSvc,
+	}
 }
 
 func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]ResourceResp, int64, error) {
@@ -87,8 +91,8 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*Resource
 		return nil, err
 	}
 
-	if authz := authz.Get(); authz != nil {
-		_ = authz.InvalidateResource(context.Background(), id)
+	if s.authz != nil {
+		_ = s.authz.InvalidateResource(context.Background(), id)
 	}
 
 	resp := toResp(*r)
@@ -96,8 +100,8 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*Resource
 }
 
 func (s *Service) Delete(ctx context.Context, id uint) error {
-	if authz := authz.Get(); authz != nil {
-		_ = authz.InvalidateResource(context.Background(), id)
+	if s.authz != nil {
+		_ = s.authz.InvalidateResource(context.Background(), id)
 	}
 
 	return s.resourceRepo.Delete(ctx, id)

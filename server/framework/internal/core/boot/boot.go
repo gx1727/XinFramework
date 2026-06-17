@@ -58,7 +58,6 @@ func Init(cfg *config.Config) (*App, error) {
 	// more slots on this instance as each module's Init runs.
 	appCtx := plugin.NewAppContext(db.Get(), cache.Get(), cfg, sm)
 	ext_impl.InitExtApi(appCtx)
-	ext_impl.UpdateTenantCtx(appCtx)
 
 	permService := service.NewPermissionService(
 		permission.NewPermissionRepository(db.Get()),
@@ -67,14 +66,12 @@ func Init(cfg *config.Config) (*App, error) {
 		permission.NewPlatformRoleRepository(db.Get()),
 	)
 	authzService := service.NewAuthorizationService(permService)
-	// Phase 3: expose the authz service through the public pkg hook
-	// so apps/rbac/* can consume it without importing internal/.
-	authz.Set(authz.Wrap(authzService))
-
-	// Phase 5 Step 1: publish the same Authorization onto AppContext
-	// so apps can migrate from authz.Get() to ctx.Authz() in Steps 5-7.
-	// Coexists with authz.Set above until Step 2 deletes the global.
-	appCtx.SetAuthz(authz.Wrap(authzService))
+	// Publish the Authorization onto AppContext so apps can consume it
+	// via ctx.Authz() in their module's Register phase. The concrete
+	// *service.AuthorizationService lives in framework/internal/, so
+	// we wrap it through authz.Wrap() to expose the public interface.
+	authzSvc := authz.Wrap(authzService)
+	appCtx.SetAuthz(authzSvc)
 
 	app := &App{
 		Config:      cfg,

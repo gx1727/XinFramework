@@ -4,7 +4,7 @@
 
 - Repo root: `d:/work/xin/XinFramework/server`
 - Tracked globals: **16**
-- Total usages: **454**
+- Total usages: **442**
 
 ## 1. Cross-module globals (Phase B must remove)
 
@@ -18,8 +18,8 @@
 | `globalOrganizationFactory` | `framework/pkg/rbac` | (not found):0 | 0 | 0 |
 | `globalPermissionFactory` | `framework/pkg/rbac` | (not found):0 | 0 | 0 |
 | `globalProvider` | `framework/pkg/extapi` | framework/pkg/extapi/provider.go:3 | 0 | 4 |
-| `global` | `framework/pkg/authz` | framework/pkg/authz/authz.go:50 | 0 | 15 |
-| `globalAuthorizationService` | `framework/internal/service` | (not found):0 | 0 | 1 |
+| `global` | `framework/pkg/authz` | (not found):0 | 0 | 5 |
+| `globalAuthorizationService` | `framework/internal/service` | (not found):0 | 0 | 0 |
 | `globalApp` | `framework/internal/core/boot` | (not found):0 | 0 | 0 |
 | `globalCache` | `framework/pkg/dict` | (not found):0 | 2 | 30 |
 
@@ -27,7 +27,7 @@
 
 | Variable | Package | Defined at | Reads |
 |---|---|---|---:|
-| `Pool` | `framework/pkg/db` | framework/pkg/db/db.go:15 | 167 |
+| `Pool` | `framework/pkg/db` | framework/pkg/db/db.go:15 | 166 |
 | `Client` | `framework/pkg/cache` | framework/pkg/cache/cache.go:12 | 28 |
 | `cfg` | `framework/pkg/config` | framework/pkg/config/config.go:108 | 164 |
 | `defaultManager` | `framework/pkg/session` | framework/pkg/session/session.go:29 | 12 |
@@ -113,23 +113,13 @@
 ### `global`
 
 - Package: `framework/pkg/authz`
-- Definition: `framework/pkg/authz/authz.go:50`
-- Usages: 15 total (write 0 / read 15)
+- Definition: `(not found):0`
+- Usages: 5 total (write 0 / read 5)
 
 | File | Line | Snippet |
 |---|---:|---|
 | `D:\work\xin\XinFramework\server\apps\rbac\menu\service.go` | 181 | `// Phase 2: break all cycles using DFS with a global visited set` |
-| `D:\work\xin\XinFramework\server\framework\internal\core\boot\boot.go` | 76 | `// Coexists with authz.Set above until Step 2 deletes the global.` |
-| `D:\work\xin\XinFramework\server\framework\internal\core\ext_impl\provider.go` | 107 | `// facade can resolve the repository without a global lookup.` |
-| `D:\work\xin\XinFramework\server\framework\internal\core\ext_impl\registry.go` | 145 | `// Phase 3: replaced the previous pkgtenant.Get() global lookup with` |
 | `D:\work\xin\XinFramework\server\framework\pkg\auth\types.go` | 20 | `// Account is the global (cross-tenant) account record. Same struct` |
-| `D:\work\xin\XinFramework\server\framework\pkg\authz\authz.go` | 1 | `// Package authz exposes the global AuthorizationService used by` |
-| `D:\work\xin\XinFramework\server\framework\pkg\authz\authz.go` | 9 | `// exposes the global accessor with a thin type-erased interface —` |
-| `D:\work\xin\XinFramework\server\framework\pkg\authz\authz.go` | 50 | `var global Authorization` |
-| `D:\work\xin\XinFramework\server\framework\pkg\authz\authz.go` | 52 | `// Set wires the global Authorization. Called from boot.Init.` |
-| `D:\work\xin\XinFramework\server\framework\pkg\authz\authz.go` | 54 | `global = a` |
-| `D:\work\xin\XinFramework\server\framework\pkg\authz\authz.go` | 57 | `// Get returns the global Authorization, or nil if not loaded.` |
-| `D:\work\xin\XinFramework\server\framework\pkg\authz\authz.go` | 59 | `return global` |
 | `D:\work\xin\XinFramework\server\framework\pkg\permission\types.go` | 51 | `// Check global wildcard (super admin)` |
 | `D:\work\xin\XinFramework\server\framework\pkg\plugin\plugin.go` | 10 | `// The module is appended to the global list.` |
 | `D:\work\xin\XinFramework\server\framework\pkg\tenant\tenant.go` | 6 | `// Phase 3 cleanup: the historical Register/Get global variables` |
@@ -138,11 +128,10 @@
 
 - Package: `framework/internal/service`
 - Definition: `(not found):0`
-- Usages: 1 total (write 0 / read 1)
+- Usages: 0 total (write 0 / read 0)
 
 | File | Line | Snippet |
 |---|---:|---|
-| `D:\work\xin\XinFramework\server\framework\pkg\authz\authz.go` | 6 | `// need to call GlobalAuthorizationService() at request time. The` |
 
 ### `globalApp`
 
@@ -198,7 +187,7 @@
 
 - Package: `framework/pkg/db`
 - Definition: `framework/pkg/db/db.go:15`
-- Usages: 176 total (write 9 / read 167)
+- Usages: 175 total (write 9 / read 166)
 
 | File | Line | Snippet |
 |---|---:|---|
@@ -258,23 +247,25 @@
 | `D:\work\xin\XinFramework\server\apps\rbac\organization\module.go` | 27 | `h := NewHandler(NewService(NewOrganizationRepository(pool)))` |
 | `D:\work\xin\XinFramework\server\apps\rbac\organization\repository.go` | 17 | `db *pgxpool.Pool` |
 | `D:\work\xin\XinFramework\server\apps\rbac\organization\repository.go` | 20 | `func NewOrganizationRepository(db *pgxpool.Pool) OrganizationRepository {` |
-| `D:\work\xin\XinFramework\server\apps\rbac\permission\module.go` | 23 | `pool := db.Get()` |
-| `D:\work\xin\XinFramework\server\apps\rbac\permission\module.go` | 24 | `w.SetPermRepo(NewRoleResourceRepository(pool))` |
-| `D:\work\xin\XinFramework\server\apps\rbac\permission\module.go` | 28 | `pool := db.Get()` |
-| `D:\work\xin\XinFramework\server\apps\rbac\permission\module.go` | 29 | `roleResourceRepo := NewRoleResourceRepository(pool)` |
-| `D:\work\xin\XinFramework\server\apps\rbac\permission\module.go` | 30 | `h := NewHandler(NewService(pool, roleResourceRepo))` |
+| `D:\work\xin\XinFramework\server\apps\rbac\permission\module.go` | 26 | `pool := db.Get()` |
+| `D:\work\xin\XinFramework\server\apps\rbac\permission\module.go` | 27 | `w.SetPermRepo(NewRoleResourceRepository(pool))` |
+| `D:\work\xin\XinFramework\server\apps\rbac\permission\module.go` | 31 | `pool := db.Get()` |
+| `D:\work\xin\XinFramework\server\apps\rbac\permission\module.go` | 32 | `roleResourceRepo := NewRoleResourceRepository(pool)` |
+| `D:\work\xin\XinFramework\server\apps\rbac\permission\module.go` | 34 | `h := NewHandler(NewService(pool, roleResourceRepo, authzSvc))` |
 | `D:\work\xin\XinFramework\server\apps\rbac\permission\role_resource_repository.go` | 20 | `db *pgxpool.Pool` |
 | `D:\work\xin\XinFramework\server\apps\rbac\permission\role_resource_repository.go` | 23 | `func NewRoleResourceRepository(db *pgxpool.Pool) RoleResourceRepository {` |
 | `D:\work\xin\XinFramework\server\apps\rbac\permission\service.go` | 16 | `db *pgxpool.Pool` |
-| `D:\work\xin\XinFramework\server\apps\rbac\permission\service.go` | 20 | `func NewService(db *pgxpool.Pool, roleResourceRepo RoleResourceRepository) *Service {` |
+| `D:\work\xin\XinFramework\server\apps\rbac\permission\service.go` | 21 | `func NewService(db *pgxpool.Pool, roleResourceRepo RoleResourceRepository, authzSvc authz.Authorization) *Service {` |
+| `D:\work\xin\XinFramework\server\apps\rbac\resource\module.go` | 25 | `pool := db.Get()` |
+| `D:\work\xin\XinFramework\server\apps\rbac\resource\module.go` | 27 | `h := NewHandler(NewService(NewResourceRepository(pool), authzSvc))` |
 | `D:\work\xin\XinFramework\server\apps\rbac\resource\repository.go` | 15 | `db *pgxpool.Pool` |
 | `D:\work\xin\XinFramework\server\apps\rbac\resource\repository.go` | 18 | `func NewResourceRepository(db *pgxpool.Pool) ResourceRepository {` |
 | `D:\work\xin\XinFramework\server\apps\rbac\role\module.go` | 22 | `pool := db.Get()` |
 | `D:\work\xin\XinFramework\server\apps\rbac\role\module.go` | 23 | `w.SetRoleRepo(NewRoleRepository(pool))` |
 | `D:\work\xin\XinFramework\server\apps\rbac\role\module.go` | 27 | `pool := db.Get()` |
-| `D:\work\xin\XinFramework\server\apps\rbac\role\module.go` | 29 | `NewRoleRepository(pool),` |
-| `D:\work\xin\XinFramework\server\apps\rbac\role\module.go` | 30 | `permission.NewDataScopeRepository(pool),` |
-| `D:\work\xin\XinFramework\server\apps\rbac\role\module.go` | 31 | `NewRoleMenuRepository(pool),` |
+| `D:\work\xin\XinFramework\server\apps\rbac\role\module.go` | 30 | `NewRoleRepository(pool),` |
+| `D:\work\xin\XinFramework\server\apps\rbac\role\module.go` | 31 | `permission.NewDataScopeRepository(pool),` |
+| `D:\work\xin\XinFramework\server\apps\rbac\role\module.go` | 32 | `NewRoleMenuRepository(pool),` |
 | `D:\work\xin\XinFramework\server\apps\rbac\role\repository.go` | 17 | `db *pgxpool.Pool` |
 | `D:\work\xin\XinFramework\server\apps\rbac\role\repository.go` | 20 | `func NewRoleRepository(db *pgxpool.Pool) RoleRepository {` |
 | `D:\work\xin\XinFramework\server\apps\rbac\role\role_menu_repository.go` | 20 | `db *pgxpool.Pool` |
@@ -316,9 +307,6 @@
 | `D:\work\xin\XinFramework\server\framework\internal\core\boot\bootstrap.go` | 116 | `err = db.RunInTenantTx(ctx, pool, tenantID, func(ctx context.Context) error {` |
 | `D:\work\xin\XinFramework\server\framework\internal\core\boot\bootstrap.go` | 187 | `func upsertBootstrapAccount(ctx context.Context, pool *pgxpool.Pool, cfg BootstrapConfig) (uint, bool, error) {` |
 | `D:\work\xin\XinFramework\server\framework\internal\core\boot\bootstrap.go` | 193 | `tx, err := pool.Begin(ctx)` |
-| `D:\work\xin\XinFramework\server\framework\internal\core\ext_impl\registry.go` | 42 | `type userRepoAdapter struct{ db *pgxpool.Pool }` |
-| `D:\work\xin\XinFramework\server\framework\internal\core\ext_impl\registry.go` | 44 | `func newUserRepoAdapter(pool *pgxpool.Pool) userRepoRef {` |
-| `D:\work\xin\XinFramework\server\framework\internal\core\ext_impl\registry.go` | 45 | `return &userRepoAdapter{db: pool}` |
 | `D:\work\xin\XinFramework\server\framework\pkg\db\db.go` | 15 | `var Pool *pgxpool.Pool` |
 | `D:\work\xin\XinFramework\server\framework\pkg\db\db.go` | 39 | `Pool, err = pgxpool.NewWithConfig(ctx, poolConfig)` |
 | `D:\work\xin\XinFramework\server\framework\pkg\db\db.go` | 41 | `return fmt.Errorf("create pool: %w", err)` |
@@ -485,8 +473,8 @@
 | `D:\work\xin\XinFramework\server\framework\internal\core\boot\boot.go` | 34 | `if err := db.Init(&cfg.Database); err != nil {` |
 | `D:\work\xin\XinFramework\server\framework\internal\core\boot\boot.go` | 40 | `if err := cache.Init(&cfg.Redis); err != nil {` |
 | `D:\work\xin\XinFramework\server\framework\internal\core\boot\boot.go` | 59 | `appCtx := plugin.NewAppContext(db.Get(), cache.Get(), cfg, sm)` |
-| `D:\work\xin\XinFramework\server\framework\internal\core\boot\boot.go` | 80 | `Config: cfg,` |
-| `D:\work\xin\XinFramework\server\framework\internal\core\boot\boot.go` | 83 | `Server: server.New(cfg),` |
+| `D:\work\xin\XinFramework\server\framework\internal\core\boot\boot.go` | 77 | `Config: cfg,` |
+| `D:\work\xin\XinFramework\server\framework\internal\core\boot\boot.go` | 80 | `Server: server.New(cfg),` |
 | `D:\work\xin\XinFramework\server\framework\internal\core\boot\bootstrap.go` | 29 | `cfg := BootstrapConfig{` |
 | `D:\work\xin\XinFramework\server\framework\internal\core\boot\bootstrap.go` | 37 | `if cfg.Role == "" {` |
 | `D:\work\xin\XinFramework\server\framework\internal\core\boot\bootstrap.go` | 38 | `cfg.Role = "super_admin"` |

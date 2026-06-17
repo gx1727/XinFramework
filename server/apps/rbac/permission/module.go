@@ -16,6 +16,9 @@ func init() {
 // Phase 4: publishes RoleResourceRepository onto the AppContext.Writer.
 // The Auth middleware (framework/pkg/middleware) consumes it via
 // ctx.PermRepo() when resolving effective permissions.
+//
+// Phase 5 Step 7: pulls Authorization from AppContext.Reader to
+// invalidate user permission cache after role-resource changes.
 func Module() plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "permission",
@@ -24,10 +27,11 @@ func Module() plugin.Module {
 			w.SetPermRepo(NewRoleResourceRepository(pool))
 			return nil
 		},
-		RegFn: func(_ plugin.Reader, _ *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(ctx plugin.Reader, _ *gin.RouterGroup, protected *gin.RouterGroup) {
 			pool := db.Get()
 			roleResourceRepo := NewRoleResourceRepository(pool)
-			h := NewHandler(NewService(pool, roleResourceRepo))
+			authzSvc := ctx.Authz()
+			h := NewHandler(NewService(pool, roleResourceRepo, authzSvc))
 			Register(protected, h)
 		},
 	}

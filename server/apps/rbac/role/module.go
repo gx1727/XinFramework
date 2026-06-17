@@ -23,12 +23,14 @@ func Module() plugin.Module {
 			w.SetRoleRepo(NewRoleRepository(pool))
 			return nil
 		},
-		RegFn: func(_ plugin.Reader, _ *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(ctx plugin.Reader, _ *gin.RouterGroup, protected *gin.RouterGroup) {
 			pool := db.Get()
+			authzSvc := ctx.Authz()
 			h := NewHandler(NewService(
 				NewRoleRepository(pool),
 				permission.NewDataScopeRepository(pool),
 				NewRoleMenuRepository(pool),
+				authzSvc,
 			))
 			Register(protected, h)
 		},

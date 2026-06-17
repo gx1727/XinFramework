@@ -134,12 +134,12 @@
         "Name":  "global",
         "Category":  "remove",
         "Package":  "framework/pkg/authz",
-        "DefinitionFile":  "framework/pkg/authz/authz.go",
-        "DefinitionLine":  50,
-        "Definition":  "var global Authorization",
-        "TotalUsages":  15,
+        "DefinitionFile":  "(not found)",
+        "DefinitionLine":  0,
+        "Definition":  "",
+        "TotalUsages":  5,
         "WriteCount":  0,
-        "ReadCount":  15,
+        "ReadCount":  5,
         "Usages":  [
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\menu\\service.go",
@@ -147,59 +147,9 @@
                            "Snippet":  "// Phase 2: break all cycles using DFS with a global visited set"
                        },
                        {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
-                           "Line":  76,
-                           "Snippet":  "// Coexists with authz.Set above until Step 2 deletes the global."
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\ext_impl\\provider.go",
-                           "Line":  107,
-                           "Snippet":  "// facade can resolve the repository without a global lookup."
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\ext_impl\\registry.go",
-                           "Line":  145,
-                           "Snippet":  "// Phase 3: replaced the previous pkgtenant.Get() global lookup with"
-                       },
-                       {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\auth\\types.go",
                            "Line":  20,
                            "Snippet":  "// Account is the global (cross-tenant) account record. Same struct"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\authz\\authz.go",
-                           "Line":  1,
-                           "Snippet":  "// Package authz exposes the global AuthorizationService used by"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\authz\\authz.go",
-                           "Line":  9,
-                           "Snippet":  "// exposes the global accessor with a thin type-erased interface —"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\authz\\authz.go",
-                           "Line":  50,
-                           "Snippet":  "var global Authorization"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\authz\\authz.go",
-                           "Line":  52,
-                           "Snippet":  "// Set wires the global Authorization. Called from boot.Init."
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\authz\\authz.go",
-                           "Line":  54,
-                           "Snippet":  "global = a"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\authz\\authz.go",
-                           "Line":  57,
-                           "Snippet":  "// Get returns the global Authorization, or nil if not loaded."
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\authz\\authz.go",
-                           "Line":  59,
-                           "Snippet":  "return global"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\permission\\types.go",
@@ -225,15 +175,11 @@
         "DefinitionFile":  "(not found)",
         "DefinitionLine":  0,
         "Definition":  "",
-        "TotalUsages":  1,
+        "TotalUsages":  0,
         "WriteCount":  0,
-        "ReadCount":  1,
+        "ReadCount":  0,
         "Usages":  [
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\authz\\authz.go",
-                           "Line":  6,
-                           "Snippet":  "// need to call GlobalAuthorizationService() at request time. The"
-                       }
+
                    ]
     },
     {
@@ -430,9 +376,9 @@
         "DefinitionFile":  "framework/pkg/db/db.go",
         "DefinitionLine":  15,
         "Definition":  "var Pool *pgxpool.Pool",
-        "TotalUsages":  176,
+        "TotalUsages":  175,
         "WriteCount":  9,
-        "ReadCount":  167,
+        "ReadCount":  166,
         "Usages":  [
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\account_auth_repository.go",
@@ -716,28 +662,28 @@
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\permission\\module.go",
-                           "Line":  23,
+                           "Line":  26,
                            "Snippet":  "pool := db.Get()"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\permission\\module.go",
-                           "Line":  24,
+                           "Line":  27,
                            "Snippet":  "w.SetPermRepo(NewRoleResourceRepository(pool))"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\permission\\module.go",
-                           "Line":  28,
+                           "Line":  31,
                            "Snippet":  "pool := db.Get()"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\permission\\module.go",
-                           "Line":  29,
+                           "Line":  32,
                            "Snippet":  "roleResourceRepo := NewRoleResourceRepository(pool)"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\permission\\module.go",
-                           "Line":  30,
-                           "Snippet":  "h := NewHandler(NewService(pool, roleResourceRepo))"
+                           "Line":  34,
+                           "Snippet":  "h := NewHandler(NewService(pool, roleResourceRepo, authzSvc))"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\permission\\role_resource_repository.go",
@@ -756,8 +702,18 @@
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\permission\\service.go",
-                           "Line":  20,
-                           "Snippet":  "func NewService(db *pgxpool.Pool, roleResourceRepo RoleResourceRepository) *Service {"
+                           "Line":  21,
+                           "Snippet":  "func NewService(db *pgxpool.Pool, roleResourceRepo RoleResourceRepository, authzSvc authz.Authorization) *Service {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\resource\\module.go",
+                           "Line":  25,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\resource\\module.go",
+                           "Line":  27,
+                           "Snippet":  "h := NewHandler(NewService(NewResourceRepository(pool), authzSvc))"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\resource\\repository.go",
@@ -786,17 +742,17 @@
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\role\\module.go",
-                           "Line":  29,
+                           "Line":  30,
                            "Snippet":  "NewRoleRepository(pool),"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\role\\module.go",
-                           "Line":  30,
+                           "Line":  31,
                            "Snippet":  "permission.NewDataScopeRepository(pool),"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\role\\module.go",
-                           "Line":  31,
+                           "Line":  32,
                            "Snippet":  "NewRoleMenuRepository(pool),"
                        },
                        {
@@ -1003,21 +959,6 @@
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\bootstrap.go",
                            "Line":  193,
                            "Snippet":  "tx, err := pool.Begin(ctx)"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\ext_impl\\registry.go",
-                           "Line":  42,
-                           "Snippet":  "type userRepoAdapter struct{ db *pgxpool.Pool }"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\ext_impl\\registry.go",
-                           "Line":  44,
-                           "Snippet":  "func newUserRepoAdapter(pool *pgxpool.Pool) userRepoRef {"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\ext_impl\\registry.go",
-                           "Line":  45,
-                           "Snippet":  "return \u0026userRepoAdapter{db: pool}"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\db\\db.go",
@@ -1787,12 +1728,12 @@
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
-                           "Line":  80,
+                           "Line":  77,
                            "Snippet":  "Config:      cfg,"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
-                           "Line":  83,
+                           "Line":  80,
                            "Snippet":  "Server:      server.New(cfg),"
                        },
                        {

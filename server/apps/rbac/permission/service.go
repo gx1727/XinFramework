@@ -15,12 +15,14 @@ import (
 type Service struct {
 	db               *pgxpool.Pool
 	roleResourceRepo RoleResourceRepository
+	authz            authz.Authorization
 }
 
-func NewService(db *pgxpool.Pool, roleResourceRepo RoleResourceRepository) *Service {
+func NewService(db *pgxpool.Pool, roleResourceRepo RoleResourceRepository, authzSvc authz.Authorization) *Service {
 	return &Service{
 		db:               db,
 		roleResourceRepo: roleResourceRepo,
+		authz:            authzSvc,
 	}
 }
 
@@ -39,8 +41,8 @@ func (s *Service) AssignPermissions(ctx context.Context, tenantID, roleID uint, 
 	}
 
 	// 使关联该角色的用户缓存失效
-	if authz := authz.Get(); authz != nil {
-		_ = authz.InvalidateRole(context.Background(), roleID)
+	if s.authz != nil {
+		_ = s.authz.InvalidateRole(context.Background(), roleID)
 	}
 
 	return nil
