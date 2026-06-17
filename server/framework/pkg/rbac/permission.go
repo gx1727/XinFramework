@@ -21,15 +21,3 @@ type RoleResourceRepository interface {
 	// DeleteByRoleID removes all resource bindings for a role.
 	DeleteByRoleID(ctx context.Context, roleID uint) error
 }
-
-var globalPermissionFactory func() RoleResourceRepository
-
-// Register wires a RoleResourceRepository factory.
-func RegisterPermissionRepository(f func() RoleResourceRepository) {
-	globalPermissionFactory = f
-}
-
-// GetPermissionRepository returns the registered factory, or nil.
-func GetPermissionRepository() func() RoleResourceRepository {
-	return globalPermissionFactory
-}

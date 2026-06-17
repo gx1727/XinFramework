@@ -2,7 +2,7 @@ package role
 
 import (
 	"github.com/gin-gonic/gin"
-	pkgrbac "gx1727.com/xin/framework/pkg/rbac"
+
 	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/plugin"
@@ -10,23 +10,27 @@ import (
 
 func init() {
 	plugin.Register(Module())
-
-	// Phase 3: register with framework/pkg/rbac so cross-module
-	// consumers (framework/internal) can resolve role data without
-	// importing apps/.
-	pkgrbac.RegisterRoleRepository(func() pkgrbac.RoleRepository {
-		return NewRoleRepository(db.Get())
-	})
 }
 
-// Module 返回 role 模块的完整定义
+// Module returns the role module as a BaseModule.
+//
+// Phase 4: publishes RoleRepository onto the AppContext.Writer.
 func Module() plugin.Module {
-	return plugin.NewModule("role", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
-		h := NewHandler(NewService(
-			NewRoleRepository(db.Get()),
-			permission.NewDataScopeRepository(db.Get()),
-			NewRoleMenuRepository(db.Get()),
-		))
-		Register(protected, h)
-	})
+	return &plugin.BaseModule{
+		NameStr: "role",
+		InitFn: func(_ plugin.Reader, w plugin.Writer) error {
+			pool := db.Get()
+			w.SetRoleRepo(NewRoleRepository(pool))
+			return nil
+		},
+		RegFn: func(_ plugin.Reader, _ *gin.RouterGroup, protected *gin.RouterGroup) {
+			pool := db.Get()
+			h := NewHandler(NewService(
+				NewRoleRepository(pool),
+				permission.NewDataScopeRepository(pool),
+				NewRoleMenuRepository(pool),
+			))
+			Register(protected, h)
+		},
+	}
 }

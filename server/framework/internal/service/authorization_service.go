@@ -12,18 +12,8 @@ type AuthorizationService struct {
 	perm *PermissionService
 }
 
-var globalAuthorizationService *AuthorizationService
-
 func NewAuthorizationService(perm *PermissionService) *AuthorizationService {
 	return &AuthorizationService{perm: perm}
-}
-
-func SetGlobalAuthorizationService(s *AuthorizationService) {
-	globalAuthorizationService = s
-}
-
-func GlobalAuthorizationService() *AuthorizationService {
-	return globalAuthorizationService
 }
 
 func (s *AuthorizationService) PermissionService() *PermissionService {

@@ -45,127 +45,56 @@
         "Name":  "globalUserFactory",
         "Category":  "remove",
         "Package":  "framework/pkg/rbac",
-        "DefinitionFile":  "framework/pkg/rbac/user.go",
-        "DefinitionLine":  59,
-        "Definition":  "var globalUserFactory func() UserRepository",
-        "TotalUsages":  4,
+        "DefinitionFile":  "(not found)",
+        "DefinitionLine":  0,
+        "Definition":  "",
+        "TotalUsages":  0,
         "WriteCount":  0,
-        "ReadCount":  4,
+        "ReadCount":  0,
         "Usages":  [
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\user.go",
-                           "Line":  58,
-                           "Snippet":  "// globalUserFactory is set by apps/rbac/user\u0027s init()."
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\user.go",
-                           "Line":  59,
-                           "Snippet":  "var globalUserFactory func() UserRepository"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\user.go",
-                           "Line":  64,
-                           "Snippet":  "globalUserFactory = f"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\user.go",
-                           "Line":  70,
-                           "Snippet":  "return globalUserFactory"
-                       }
+
                    ]
     },
     {
         "Name":  "globalRoleFactory",
         "Category":  "remove",
         "Package":  "framework/pkg/rbac",
-        "DefinitionFile":  "framework/pkg/rbac/role.go",
-        "DefinitionLine":  34,
-        "Definition":  "var globalRoleFactory func() RoleRepository",
-        "TotalUsages":  4,
+        "DefinitionFile":  "(not found)",
+        "DefinitionLine":  0,
+        "Definition":  "",
+        "TotalUsages":  0,
         "WriteCount":  0,
-        "ReadCount":  4,
+        "ReadCount":  0,
         "Usages":  [
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\role.go",
-                           "Line":  33,
-                           "Snippet":  "// globalRoleFactory is set by apps/rbac/role\u0027s init()."
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\role.go",
-                           "Line":  34,
-                           "Snippet":  "var globalRoleFactory func() RoleRepository"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\role.go",
-                           "Line":  38,
-                           "Snippet":  "globalRoleFactory = f"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\role.go",
-                           "Line":  43,
-                           "Snippet":  "return globalRoleFactory"
-                       }
+
                    ]
     },
     {
         "Name":  "globalOrganizationFactory",
         "Category":  "remove",
         "Package":  "framework/pkg/rbac",
-        "DefinitionFile":  "framework/pkg/rbac/organization.go",
-        "DefinitionLine":  36,
-        "Definition":  "var globalOrganizationFactory func() OrganizationRepository",
-        "TotalUsages":  4,
+        "DefinitionFile":  "(not found)",
+        "DefinitionLine":  0,
+        "Definition":  "",
+        "TotalUsages":  0,
         "WriteCount":  0,
-        "ReadCount":  4,
+        "ReadCount":  0,
         "Usages":  [
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\organization.go",
-                           "Line":  35,
-                           "Snippet":  "// globalOrganizationFactory is set by apps/rbac/organization\u0027s init()."
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\organization.go",
-                           "Line":  36,
-                           "Snippet":  "var globalOrganizationFactory func() OrganizationRepository"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\organization.go",
-                           "Line":  40,
-                           "Snippet":  "globalOrganizationFactory = f"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\organization.go",
-                           "Line":  45,
-                           "Snippet":  "return globalOrganizationFactory"
-                       }
+
                    ]
     },
     {
         "Name":  "globalPermissionFactory",
         "Category":  "remove",
         "Package":  "framework/pkg/rbac",
-        "DefinitionFile":  "framework/pkg/rbac/permission.go",
-        "DefinitionLine":  25,
-        "Definition":  "var globalPermissionFactory func() RoleResourceRepository",
-        "TotalUsages":  3,
+        "DefinitionFile":  "(not found)",
+        "DefinitionLine":  0,
+        "Definition":  "",
+        "TotalUsages":  0,
         "WriteCount":  0,
-        "ReadCount":  3,
+        "ReadCount":  0,
         "Usages":  [
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\permission.go",
-                           "Line":  25,
-                           "Snippet":  "var globalPermissionFactory func() RoleResourceRepository"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\permission.go",
-                           "Line":  29,
-                           "Snippet":  "globalPermissionFactory = f"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\rbac\\permission.go",
-                           "Line":  34,
-                           "Snippet":  "return globalPermissionFactory"
-                       }
+
                    ]
     },
     {
@@ -208,14 +137,19 @@
         "DefinitionFile":  "framework/pkg/authz/authz.go",
         "DefinitionLine":  50,
         "Definition":  "var global Authorization",
-        "TotalUsages":  14,
+        "TotalUsages":  15,
         "WriteCount":  0,
-        "ReadCount":  14,
+        "ReadCount":  15,
         "Usages":  [
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\menu\\service.go",
                            "Line":  181,
                            "Snippet":  "// Phase 2: break all cycles using DFS with a global visited set"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
+                           "Line":  76,
+                           "Snippet":  "// Coexists with authz.Set above until Step 2 deletes the global."
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\ext_impl\\provider.go",
@@ -288,33 +222,13 @@
         "Name":  "globalAuthorizationService",
         "Category":  "remove",
         "Package":  "framework/internal/service",
-        "DefinitionFile":  "framework/internal/service/authorization_service.go",
-        "DefinitionLine":  15,
-        "Definition":  "var globalAuthorizationService *AuthorizationService",
-        "TotalUsages":  5,
+        "DefinitionFile":  "(not found)",
+        "DefinitionLine":  0,
+        "Definition":  "",
+        "TotalUsages":  1,
         "WriteCount":  0,
-        "ReadCount":  5,
+        "ReadCount":  1,
         "Usages":  [
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\service\\authorization_service.go",
-                           "Line":  15,
-                           "Snippet":  "var globalAuthorizationService *AuthorizationService"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\service\\authorization_service.go",
-                           "Line":  22,
-                           "Snippet":  "globalAuthorizationService = s"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\service\\authorization_service.go",
-                           "Line":  25,
-                           "Snippet":  "func GlobalAuthorizationService() *AuthorizationService {"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\service\\authorization_service.go",
-                           "Line":  26,
-                           "Snippet":  "return globalAuthorizationService"
-                       },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\pkg\\authz\\authz.go",
                            "Line":  6,
@@ -326,33 +240,14 @@
         "Name":  "globalApp",
         "Category":  "remove",
         "Package":  "framework/internal/core/boot",
-        "DefinitionFile":  "framework/internal/core/boot/boot.go",
-        "DefinitionLine":  32,
-        "Definition":  "var globalApp *App",
-        "TotalUsages":  4,
+        "DefinitionFile":  "(not found)",
+        "DefinitionLine":  0,
+        "Definition":  "",
+        "TotalUsages":  0,
         "WriteCount":  0,
-        "ReadCount":  4,
+        "ReadCount":  0,
         "Usages":  [
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
-                           "Line":  32,
-                           "Snippet":  "var globalApp *App"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
-                           "Line":  74,
-                           "Snippet":  "globalApp = \u0026App{"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
-                           "Line":  90,
-                           "Snippet":  "return globalApp, nil"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
-                           "Line":  94,
-                           "Snippet":  "return globalApp"
-                       }
+
                    ]
     },
     {
@@ -535,9 +430,9 @@
         "DefinitionFile":  "framework/pkg/db/db.go",
         "DefinitionLine":  15,
         "Definition":  "var Pool *pgxpool.Pool",
-        "TotalUsages":  153,
+        "TotalUsages":  176,
         "WriteCount":  9,
-        "ReadCount":  144,
+        "ReadCount":  167,
         "Usages":  [
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\account_auth_repository.go",
@@ -790,6 +685,26 @@
                            "Snippet":  "func NewMenuRepository(db *pgxpool.Pool) MenuRepository {"
                        },
                        {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\organization\\module.go",
+                           "Line":  21,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\organization\\module.go",
+                           "Line":  22,
+                           "Snippet":  "w.SetOrgRepo(NewOrganizationRepository(pool))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\organization\\module.go",
+                           "Line":  26,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\organization\\module.go",
+                           "Line":  27,
+                           "Snippet":  "h := NewHandler(NewService(NewOrganizationRepository(pool)))"
+                       },
+                       {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\organization\\repository.go",
                            "Line":  17,
                            "Snippet":  "db *pgxpool.Pool"
@@ -798,6 +713,31 @@
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\organization\\repository.go",
                            "Line":  20,
                            "Snippet":  "func NewOrganizationRepository(db *pgxpool.Pool) OrganizationRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\permission\\module.go",
+                           "Line":  23,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\permission\\module.go",
+                           "Line":  24,
+                           "Snippet":  "w.SetPermRepo(NewRoleResourceRepository(pool))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\permission\\module.go",
+                           "Line":  28,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\permission\\module.go",
+                           "Line":  29,
+                           "Snippet":  "roleResourceRepo := NewRoleResourceRepository(pool)"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\permission\\module.go",
+                           "Line":  30,
+                           "Snippet":  "h := NewHandler(NewService(pool, roleResourceRepo))"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\permission\\role_resource_repository.go",
@@ -830,6 +770,36 @@
                            "Snippet":  "func NewResourceRepository(db *pgxpool.Pool) ResourceRepository {"
                        },
                        {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\role\\module.go",
+                           "Line":  22,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\role\\module.go",
+                           "Line":  23,
+                           "Snippet":  "w.SetRoleRepo(NewRoleRepository(pool))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\role\\module.go",
+                           "Line":  27,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\role\\module.go",
+                           "Line":  29,
+                           "Snippet":  "NewRoleRepository(pool),"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\role\\module.go",
+                           "Line":  30,
+                           "Snippet":  "permission.NewDataScopeRepository(pool),"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\role\\module.go",
+                           "Line":  31,
+                           "Snippet":  "NewRoleMenuRepository(pool),"
+                       },
+                       {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\role\\repository.go",
                            "Line":  17,
                            "Snippet":  "db *pgxpool.Pool"
@@ -848,6 +818,46 @@
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\role\\role_menu_repository.go",
                            "Line":  23,
                            "Snippet":  "func NewRoleMenuRepository(db *pgxpool.Pool) RoleMenuRepository {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\module.go",
+                           "Line":  36,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\module.go",
+                           "Line":  37,
+                           "Snippet":  "w.SetUserRepo(NewUserRepository(pool))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\module.go",
+                           "Line":  41,
+                           "Snippet":  "pool := db.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\module.go",
+                           "Line":  44,
+                           "Snippet":  "pool = p"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\module.go",
+                           "Line":  68,
+                           "Snippet":  "assetSvc := asset.NewFileService(s, asset.NewAttachmentRepository(pool))"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\module.go",
+                           "Line":  79,
+                           "Snippet":  "NewUserRepository(pool),"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\module.go",
+                           "Line":  80,
+                           "Snippet":  "role.NewRoleRepository(pool),"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\module.go",
+                           "Line":  81,
+                           "Snippet":  "organization.NewOrganizationRepository(pool),"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\repository.go",
@@ -1541,9 +1551,9 @@
         "DefinitionFile":  "framework/pkg/config/config.go",
         "DefinitionLine":  108,
         "Definition":  "var cfg *Config",
-        "TotalUsages":  164,
+        "TotalUsages":  171,
         "WriteCount":  7,
-        "ReadCount":  157,
+        "ReadCount":  164,
         "Usages":  [
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\boot\\auth\\deps.go",
@@ -1559,6 +1569,46 @@
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\config.go",
                            "Line":  19,
                            "Snippet":  "func Cfg() *AuthConfig {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\module.go",
+                           "Line":  49,
+                           "Snippet":  "cfg := config.Get()"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\module.go",
+                           "Line":  50,
+                           "Snippet":  "if cfg.Storage.Provider == \"cos\" {"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\module.go",
+                           "Line":  52,
+                           "Snippet":  "URL:       cfg.Storage.CosURL,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\module.go",
+                           "Line":  53,
+                           "Snippet":  "SecretID:  cfg.Storage.CosSecretID,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\module.go",
+                           "Line":  54,
+                           "Snippet":  "SecretKey: cfg.Storage.CosSecretKey,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\module.go",
+                           "Line":  55,
+                           "Snippet":  "BaseURL:   cfg.Storage.CosBaseURL,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\module.go",
+                           "Line":  63,
+                           "Snippet":  "cfg.Storage.LocalDir,"
+                       },
+                       {
+                           "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\rbac\\user\\module.go",
+                           "Line":  64,
+                           "Snippet":  "cfg.Storage.LocalBaseURL,"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\apps\\reference\\weixin\\config.go",
@@ -1712,42 +1762,37 @@
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
-                           "Line":  34,
+                           "Line":  32,
                            "Snippet":  "func Init(cfg *config.Config) (*App, error) {"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
-                           "Line":  35,
+                           "Line":  33,
                            "Snippet":  "logger.Init(cfg.Log.Dir, cfg.Log.Level)"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
-                           "Line":  36,
+                           "Line":  34,
                            "Snippet":  "if err := db.Init(\u0026cfg.Database); err != nil {"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
-                           "Line":  42,
+                           "Line":  40,
                            "Snippet":  "if err := cache.Init(\u0026cfg.Redis); err != nil {"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
                            "Line":  59,
-                           "Snippet":  "ext_impl.InitExtApi(plugin.NewAppContext(db.Get(), cache.Get(), cfg, sm))"
+                           "Snippet":  "appCtx := plugin.NewAppContext(db.Get(), cache.Get(), cfg, sm)"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
-                           "Line":  60,
-                           "Snippet":  "ext_impl.UpdateTenantCtx(plugin.NewAppContext(db.Get(), cache.Get(), cfg, sm))"
-                       },
-                       {
-                           "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
-                           "Line":  75,
+                           "Line":  80,
                            "Snippet":  "Config:      cfg,"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\boot\\boot.go",
-                           "Line":  78,
+                           "Line":  83,
                            "Snippet":  "Server:      server.New(cfg),"
                        },
                        {

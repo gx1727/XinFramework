@@ -31,16 +31,3 @@ type OrganizationRepository interface {
 	GetTree(ctx context.Context, tenantID uint) ([]Organization, error)
 	CountUsersInOrgTree(ctx context.Context, orgID uint) (int64, error)
 }
-
-// globalOrganizationFactory is set by apps/rbac/organization's init().
-var globalOrganizationFactory func() OrganizationRepository
-
-// Register wires an OrganizationRepository factory.
-func RegisterOrganizationRepository(f func() OrganizationRepository) {
-	globalOrganizationFactory = f
-}
-
-// GetOrganizationRepository returns the registered factory, or nil.
-func GetOrganizationRepository() func() OrganizationRepository {
-	return globalOrganizationFactory
-}

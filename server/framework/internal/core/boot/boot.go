@@ -29,8 +29,6 @@ type App struct {
 	Authz       *service.AuthorizationService
 }
 
-var globalApp *App
-
 func Init(cfg *config.Config) (*App, error) {
 	logger.Init(cfg.Log.Dir, cfg.Log.Level)
 	if err := db.Init(&cfg.Database); err != nil {
@@ -56,8 +54,11 @@ func Init(cfg *config.Config) (*App, error) {
 		permCache = permission.NewRedisPermissionCache()
 	}
 
-	ext_impl.InitExtApi(plugin.NewAppContext(db.Get(), cache.Get(), cfg, sm))
-	ext_impl.UpdateTenantCtx(plugin.NewAppContext(db.Get(), cache.Get(), cfg, sm))
+	// Construct one AppContext and share it. Phase 5 will populate
+	// more slots on this instance as each module's Init runs.
+	appCtx := plugin.NewAppContext(db.Get(), cache.Get(), cfg, sm)
+	ext_impl.InitExtApi(appCtx)
+	ext_impl.UpdateTenantCtx(appCtx)
 
 	permService := service.NewPermissionService(
 		permission.NewPermissionRepository(db.Get()),
@@ -66,12 +67,16 @@ func Init(cfg *config.Config) (*App, error) {
 		permission.NewPlatformRoleRepository(db.Get()),
 	)
 	authzService := service.NewAuthorizationService(permService)
-	service.SetGlobalAuthorizationService(authzService)
-	// Phase 3: also expose the authz service through the public pkg
-	// hook so apps/rbac/* can consume it without importing internal/.
+	// Phase 3: expose the authz service through the public pkg hook
+	// so apps/rbac/* can consume it without importing internal/.
 	authz.Set(authz.Wrap(authzService))
 
-	globalApp = &App{
+	// Phase 5 Step 1: publish the same Authorization onto AppContext
+	// so apps can migrate from authz.Get() to ctx.Authz() in Steps 5-7.
+	// Coexists with authz.Set above until Step 2 deletes the global.
+	appCtx.SetAuthz(authz.Wrap(authzService))
+
+	app := &App{
 		Config:      cfg,
 		DB:          db.Get(),
 		SessionMgr:  sm,
@@ -87,11 +92,7 @@ func Init(cfg *config.Config) (*App, error) {
 		}
 	}
 
-	return globalApp, nil
-}
-
-func AppInstance() *App {
-	return globalApp
+	return app, nil
 }
 
 func Shutdown(app *App) {

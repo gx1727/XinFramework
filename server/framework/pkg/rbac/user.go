@@ -5,9 +5,13 @@
 // Phase 3 rationale: the 6 RBAC modules have moved from
 // framework/internal/module/* to apps/rbac/*. framework's own
 // weixin module (still in framework/internal) and any future
-// framework-internal consumer must depend only on this pkg, not
-// on apps/. The concrete implementations (PostgresUserRepository,
+// framework-internal consumer must depend only on this pkg, not on
+// apps/. The concrete implementations (PostgresUserRepository,
 // PostgresRoleRepository, …) live in apps/rbac/<name>/.
+//
+// Phase 4 cleanup: the historical RegisterUserRepository / GetUserRepository
+// globals are gone. Modules exchange repositories through the
+// AppContext (plugin.Reader / plugin.Writer).
 package rbac
 
 import (
@@ -53,19 +57,4 @@ type UserRepository interface {
 // non-RBAC apps need user operations beyond raw CRUD.
 type UserService interface {
 	GetByID(ctx context.Context, tenantID, id uint) (*User, error)
-}
-
-// globalUserFactory is set by apps/rbac/user's init().
-var globalUserFactory func() UserRepository
-
-// Register wires an UserRepository factory. Typically called from
-// apps/rbac/user's package init().
-func RegisterUserRepository(f func() UserRepository) {
-	globalUserFactory = f
-}
-
-// GetUserRepository returns the registered factory, or nil if user
-// is not loaded.
-func GetUserRepository() func() UserRepository {
-	return globalUserFactory
 }

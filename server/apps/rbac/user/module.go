@@ -4,10 +4,10 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/apps/reference/asset"
+
 	"gx1727.com/xin/apps/rbac/organization"
 	"gx1727.com/xin/apps/rbac/role"
-	pkgrbac "gx1727.com/xin/framework/pkg/rbac"
+	"gx1727.com/xin/apps/reference/asset"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/plugin"
@@ -18,49 +18,71 @@ import (
 
 func init() {
 	plugin.Register(Module())
-
-	// Phase 3: register this module's UserRepository with the framework's
-	// public pkg/rbac registry so that framework/internal consumers
-	// (e.g. weixin) can resolve user data without importing apps/.
-	pkgrbac.RegisterUserRepository(func() pkgrbac.UserRepository {
-		return NewUserRepository(db.Get())
-	})
 }
 
-// Module 返回 user 模块的完整定义
+// Module returns the user module as a BaseModule.
+//
+// Phase 4 changes:
+//   - Init publishes UserRepository onto the AppContext.Writer for
+//     framework-internal consumers (weixin).
+//   - Register consumes AccountRepo from AppContext.Reader (cross-
+//     framework-boundary dep). apps-internal deps (role, org) are
+//     constructed directly because the framework-side interfaces are
+//     narrower (subset of operations) than what user.Service requires.
 func Module() plugin.Module {
-	return plugin.NewModule("user", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
-		var s storage.Storage
-		if config.Get().Storage.Provider == "cos" {
-			cosStorage, err := storage_cos.NewCosStorage(storage_cos.Config{
-				URL:       config.Get().Storage.CosURL,
-				SecretID:  config.Get().Storage.CosSecretID,
-				SecretKey: config.Get().Storage.CosSecretKey,
-				BaseURL:   config.Get().Storage.CosBaseURL,
-			})
-			if err != nil {
-				log.Fatalf("failed to init cos storage for user: %v", err)
+	return &plugin.BaseModule{
+		NameStr: "user",
+		InitFn: func(_ plugin.Reader, w plugin.Writer) error {
+			pool := db.Get()
+			w.SetUserRepo(NewUserRepository(pool))
+			return nil
+		},
+		RegFn: func(ctx plugin.Reader, _ *gin.RouterGroup, protected *gin.RouterGroup) {
+			pool := db.Get()
+			if ctx != nil {
+				if p := ctx.DB(); p != nil {
+					pool = p
+				}
 			}
-			s = cosStorage
-		} else {
-			s = storage_local.NewLocalStorage(
-				config.Get().Storage.LocalDir,
-				config.Get().Storage.LocalBaseURL,
-			)
-		}
 
-		assetSvc := asset.NewFileService(s, asset.NewAttachmentRepository(db.Get()))
+			var s storage.Storage
+			cfg := config.Get()
+			if cfg.Storage.Provider == "cos" {
+				cosStorage, err := storage_cos.NewCosStorage(storage_cos.Config{
+					URL:       cfg.Storage.CosURL,
+					SecretID:  cfg.Storage.CosSecretID,
+					SecretKey: cfg.Storage.CosSecretKey,
+					BaseURL:   cfg.Storage.CosBaseURL,
+				})
+				if err != nil {
+					log.Fatalf("failed to init cos storage for user: %v", err)
+				}
+				s = cosStorage
+			} else {
+				s = storage_local.NewLocalStorage(
+					cfg.Storage.LocalDir,
+					cfg.Storage.LocalBaseURL,
+				)
+			}
 
-		// Phase 3: user is now in apps/rbac/, so it can import
-		// apps/boot/auth directly — the Phase 2 framework-side
-		// adapter (newLocalAccountAdapter) is no longer needed.
-		h := NewHandler(NewService(
-			NewUserRepository(db.Get()),
-			role.NewRoleRepository(db.Get()),
-			organization.NewOrganizationRepository(db.Get()),
-			assetSvc,
-			newAccountAdapter(),
-		))
-		Register(protected, h)
-	})
+			assetSvc := asset.NewFileService(s, asset.NewAttachmentRepository(pool))
+
+			// Cross-framework-boundary dep: account lives in
+			// apps/boot/auth and is published via AppContext.
+			accountRepo := ctx.AccountRepo()
+			if accountRepo == nil {
+				log.Printf("user: apps/boot/auth not loaded, skipping")
+				return
+			}
+
+			h := NewHandler(NewService(
+				NewUserRepository(pool),
+				role.NewRoleRepository(pool),
+				organization.NewOrganizationRepository(pool),
+				assetSvc,
+				accountRepo,
+			))
+			Register(protected, h)
+		},
+	}
 }
