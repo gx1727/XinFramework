@@ -18,10 +18,8 @@ import (
 	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
+	pkgrbac "gx1727.com/xin/framework/pkg/rbac"
 	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
-
-	"gx1727.com/xin/framework/internal/module/role"
-	"gx1727.com/xin/framework/internal/module/user"
 )
 
 const (
@@ -34,8 +32,8 @@ type Service struct {
 	accountAuthRepo pkgauth.AccountAuthRepository
 	accountRepo     pkgauth.AccountRepository
 	tenantRepo      pkgtenant.TenantRepository
-	roleRepo        role.RoleRepository
-	userRepo        user.UserRepository
+	roleRepo        pkgrbac.RoleRepository
+	userRepo        pkgrbac.UserRepository
 }
 
 type SessionManager interface {
@@ -50,8 +48,8 @@ func NewService(
 	accountAuthRepo pkgauth.AccountAuthRepository,
 	accountRepo pkgauth.AccountRepository,
 	tenantRepo pkgtenant.TenantRepository,
-	roleRepo role.RoleRepository,
-	userRepo user.UserRepository,
+	roleRepo pkgrbac.RoleRepository,
+	userRepo pkgrbac.UserRepository,
 ) *Service {
 	return &Service{
 		db:              db,
@@ -521,7 +519,6 @@ func (s *Service) UpdatePhoneByWeChat(ctx context.Context, userID uint, code str
 
 	return phone, nil
 }
-
 
 // tenantLocal mirrors the subset of apps/boot/tenant.Tenant fields that
 // weixin reads in getOrCreateDefaultTenant. Local definition keeps

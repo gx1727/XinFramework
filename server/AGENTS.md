@@ -18,7 +18,7 @@ server/
 │   ├── pkg/                    #   公开 SDK
 │   │   ├── auth/               #     pkgauth.Account/AccountAuth/HashPassword
 │   │   ├── tenant/             #     pkgtenant.TenantRecord + 注册钩子
-│   │   ├── module/             #     Module 接口 / AppContext / Manifest（Phase 3 启用）
+│   │   ├── module/             #     Module 接口 / AppContext / Manifest（保留：未来 DI 候选，目前生产不用）
 │   │   ├── middleware/         #     Require / RequireAny / RequireAll / RequirePlatformRole
 │   │   ├── permission/         #     P() / Spec / Constants / Scope
 │   │   ├── plugin/             #     Module 接口 + Register / Apps
@@ -46,13 +46,16 @@ server/
 │   └── xin-server.service      # systemd unit
 │
 └── apps/                       # 业务模块 module: gx1727.com/xin/apps
-    ├── boot/
-    │   ├── auth/               # Phase 2 已迁入
-    │   └── tenant/             # Phase 2 已迁入
-    ├── rbac/                   # Phase 3 待迁入（user/role/menu/...）
-    ├── reference/              # Phase 3 待迁入（dict/asset/weixin）
-    ├── cms/
-    └── flag/
+    ├── boot/                   # 必装：登录/账号 + 多租户
+    │   ├── auth/
+    │   └── tenant/
+    ├── rbac/                   # 必装：RBAC 套件
+    │   ├── user/  role/  menu/  resource/  permission/  organization/
+    ├── reference/              # 选装：附件/字典/微信
+    │   ├── asset/  dict/  weixin/
+    ├── system/                 # 选装：运维管理 + /health
+    ├── cms/                    # 选装：内容管理
+    └── flag/                   # 选装：头像框生成器
 ```
 
 ---

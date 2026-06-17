@@ -18,8 +18,7 @@ EXTENSION IF NOT EXISTS pg_trgm;
 -- ============================================
 
 -- 1. tenants (租户表)
-DROP TABLE IF EXISTS tenants;
-CREATE TABLE tenants
+CREATE TABLE IF NOT EXISTS tenants
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     code       VARCHAR(50)  NOT NULL,
@@ -40,12 +39,11 @@ CREATE TABLE tenants
     updated_by BIGINT,
     is_deleted BOOLEAN     DEFAULT FALSE
 );
-CREATE UNIQUE INDEX uk_tenants_code ON tenants (code) WHERE is_deleted = FALSE;
-CREATE INDEX idx_tenants_config_gin ON tenants USING GIN (config);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_tenants_code ON tenants (code) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_tenants_config_gin ON tenants USING GIN (config);
 
 -- 2. accounts (全局账号表)
-DROP TABLE IF EXISTS accounts;
-CREATE TABLE accounts
+CREATE TABLE IF NOT EXISTS accounts
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     phone      VARCHAR(20),
@@ -59,12 +57,11 @@ CREATE TABLE accounts
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     is_deleted BOOLEAN     DEFAULT FALSE
 );
-CREATE UNIQUE INDEX uk_accounts_phone ON accounts (phone) WHERE is_deleted = FALSE;
-CREATE UNIQUE INDEX uk_accounts_email ON accounts (email) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_accounts_phone ON accounts (phone) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_accounts_email ON accounts (email) WHERE is_deleted = FALSE;
 
 -- 3. organizations (组织表)
-DROP TABLE IF EXISTS organizations;
-CREATE TABLE organizations
+CREATE TABLE IF NOT EXISTS organizations
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id  BIGINT      NOT NULL,
@@ -83,12 +80,11 @@ CREATE TABLE organizations
     updated_by BIGINT,
     is_deleted BOOLEAN     DEFAULT FALSE
 );
-CREATE INDEX idx_org_tenant ON organizations (tenant_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_org_parent ON organizations (parent_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_org_tenant ON organizations (tenant_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_org_parent ON organizations (parent_id) WHERE is_deleted = FALSE;
 
 -- 4. users (用户表)
-DROP TABLE IF EXISTS users;
-CREATE TABLE users
+CREATE TABLE IF NOT EXISTS users
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id  BIGINT NOT NULL,
@@ -105,13 +101,12 @@ CREATE TABLE users
     updated_by BIGINT,
     is_deleted BOOLEAN     DEFAULT FALSE
 );
-CREATE INDEX idx_users_tenant ON users (tenant_id) WHERE is_deleted = FALSE;
-CREATE UNIQUE INDEX uk_users_account ON users (account_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_users_org ON users (org_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_users_tenant ON users (tenant_id) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_users_account ON users (account_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_users_org ON users (org_id) WHERE is_deleted = FALSE;
 
 -- 5. roles (角色表)
-DROP TABLE IF EXISTS roles;
-CREATE TABLE roles
+CREATE TABLE IF NOT EXISTS roles
 (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id   BIGINT      NOT NULL,
@@ -130,12 +125,11 @@ CREATE TABLE roles
     updated_by  BIGINT,
     is_deleted  BOOLEAN              DEFAULT FALSE
 );
-CREATE INDEX idx_roles_tenant ON roles (tenant_id) WHERE is_deleted = FALSE;
-CREATE UNIQUE INDEX uk_roles_code ON roles (tenant_id, code) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_roles_tenant ON roles (tenant_id) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_roles_code ON roles (tenant_id, code) WHERE is_deleted = FALSE;
 
 -- 6. role_data_scopes (角色数据范围表)
-DROP TABLE IF EXISTS role_data_scopes;
-CREATE TABLE role_data_scopes
+CREATE TABLE IF NOT EXISTS role_data_scopes
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id  BIGINT NOT NULL,
@@ -144,12 +138,11 @@ CREATE TABLE role_data_scopes
     created_at TIMESTAMPTZ DEFAULT NOW(),
     is_deleted BOOLEAN     DEFAULT FALSE
 );
-CREATE INDEX idx_rds_role ON role_data_scopes (role_id) WHERE is_deleted = FALSE;
-CREATE UNIQUE INDEX uk_rds_unique ON role_data_scopes (role_id, org_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_rds_role ON role_data_scopes (role_id) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_rds_unique ON role_data_scopes (role_id, org_id) WHERE is_deleted = FALSE;
 
 -- 7. user_roles (用户角色关联表)
-DROP TABLE IF EXISTS user_roles;
-CREATE TABLE user_roles
+CREATE TABLE IF NOT EXISTS user_roles
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id  BIGINT NOT NULL,
@@ -158,13 +151,12 @@ CREATE TABLE user_roles
     created_at TIMESTAMPTZ DEFAULT NOW(),
     is_deleted BOOLEAN     DEFAULT FALSE
 );
-CREATE INDEX idx_ur_user ON user_roles (user_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_ur_role ON user_roles (role_id) WHERE is_deleted = FALSE;
-CREATE UNIQUE INDEX uk_ur_unique ON user_roles (user_id, role_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_ur_user ON user_roles (user_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_ur_role ON user_roles (role_id) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ur_unique ON user_roles (user_id, role_id) WHERE is_deleted = FALSE;
 
 -- 8. menus (菜单表)
-DROP TABLE IF EXISTS menus;
-CREATE TABLE menus
+CREATE TABLE IF NOT EXISTS menus
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id  BIGINT      NOT NULL,
@@ -185,12 +177,11 @@ CREATE TABLE menus
     updated_by BIGINT,
     is_deleted BOOLEAN     DEFAULT FALSE
 );
-CREATE UNIQUE INDEX uk_menu_code ON menus (tenant_id, code) WHERE is_deleted = FALSE;
-CREATE INDEX idx_menu_tenant ON menus (tenant_id) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_menu_code ON menus (tenant_id, code) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_menu_tenant ON menus (tenant_id) WHERE is_deleted = FALSE;
 
 -- 9. resources (资源表)
-DROP TABLE IF EXISTS resources;
-CREATE TABLE resources
+CREATE TABLE IF NOT EXISTS resources
 (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id   BIGINT      NOT NULL,
@@ -207,11 +198,10 @@ CREATE TABLE resources
     updated_by  BIGINT,
     is_deleted  BOOLEAN     DEFAULT FALSE
 );
-CREATE UNIQUE INDEX uk_resource_code ON resources (tenant_id, code) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_resource_code ON resources (tenant_id, code) WHERE is_deleted = FALSE;
 
 -- 10. routes (路由表)
-DROP TABLE IF EXISTS routes;
-CREATE TABLE routes
+CREATE TABLE IF NOT EXISTS routes
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id  BIGINT      NOT NULL,
@@ -226,47 +216,10 @@ CREATE TABLE routes
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     is_deleted BOOLEAN     DEFAULT FALSE
 );
-CREATE INDEX idx_routes_tenant ON routes (tenant_id) WHERE is_deleted = FALSE;
-
--- 12. dicts (字典表)
-DROP TABLE IF EXISTS dicts;
-CREATE TABLE dicts
-(
-    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    tenant_id  BIGINT      NOT NULL,
-    code       VARCHAR(32) NOT NULL,
-    name       VARCHAR(64) NOT NULL,
-    status     SMALLINT    DEFAULT 1,
-    sort       INT         DEFAULT 0,
-    extend     JSONB       DEFAULT '{}'::jsonb,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    is_deleted BOOLEAN     DEFAULT FALSE
-);
-CREATE UNIQUE INDEX uk_dict_code ON dicts (tenant_id, code) WHERE is_deleted = FALSE;
-
--- 13. dict_items (字典项表)
-DROP TABLE IF EXISTS dict_items;
-CREATE TABLE dict_items
-(
-    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    tenant_id  BIGINT      NOT NULL,
-    dict_id    BIGINT      NOT NULL,
-    code       VARCHAR(64) NOT NULL,
-    name       VARCHAR(128) NOT NULL,
-    sort       INT         DEFAULT 0,
-    status     SMALLINT    DEFAULT 1,
-    extend     JSONB       DEFAULT '{}'::jsonb,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    is_deleted BOOLEAN     DEFAULT FALSE
-);
-CREATE INDEX idx_dict_items_dict ON dict_items (dict_id) WHERE is_deleted = FALSE;
-CREATE UNIQUE INDEX uk_dict_items_code ON dict_items (dict_id, code) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_routes_tenant ON routes (tenant_id) WHERE is_deleted = FALSE;
 
 -- 14. db_logs (数据库日志表)
-DROP TABLE IF EXISTS db_logs;
-CREATE TABLE db_logs
+CREATE TABLE IF NOT EXISTS db_logs
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id  BIGINT NOT NULL,
@@ -279,12 +232,11 @@ CREATE TABLE db_logs
     ip         VARCHAR(64),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX idx_db_logs_tenant ON db_logs (tenant_id);
-CREATE INDEX idx_db_logs_user ON db_logs (user_id);
+CREATE INDEX IF NOT EXISTS idx_db_logs_tenant ON db_logs (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_db_logs_user ON db_logs (user_id);
 
 -- 15. subscriptions (订阅表)
-DROP TABLE IF EXISTS subscriptions;
-CREATE TABLE subscriptions
+CREATE TABLE IF NOT EXISTS subscriptions
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id  BIGINT NOT NULL,
@@ -297,11 +249,10 @@ CREATE TABLE subscriptions
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     is_deleted BOOLEAN     DEFAULT FALSE
 );
-CREATE INDEX idx_subs_tenant ON subscriptions (tenant_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_subs_tenant ON subscriptions (tenant_id) WHERE is_deleted = FALSE;
 
 -- 16. plans (套餐表)
-DROP TABLE IF EXISTS plans;
-CREATE TABLE plans
+CREATE TABLE IF NOT EXISTS plans
 (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name        VARCHAR(64) NOT NULL,
@@ -317,11 +268,10 @@ CREATE TABLE plans
     updated_at  TIMESTAMPTZ    DEFAULT NOW(),
     is_deleted  BOOLEAN        DEFAULT FALSE
 );
-CREATE UNIQUE INDEX uk_plan_code ON plans (code) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plan_code ON plans (code) WHERE is_deleted = FALSE;
 
 -- 17. usage_records (用量记录表)
-DROP TABLE IF EXISTS usage_records;
-CREATE TABLE usage_records
+CREATE TABLE IF NOT EXISTS usage_records
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id  BIGINT      NOT NULL,
@@ -330,11 +280,10 @@ CREATE TABLE usage_records
     period VARCHAR (20),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX idx_usage_tenant ON usage_records (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_usage_tenant ON usage_records (tenant_id);
 
 -- 18. ai_documents (AI文档表)
-DROP TABLE IF EXISTS ai_documents;
-CREATE TABLE ai_documents
+CREATE TABLE IF NOT EXISTS ai_documents
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id  BIGINT NOT NULL,
@@ -345,33 +294,12 @@ CREATE TABLE ai_documents
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     is_deleted BOOLEAN     DEFAULT FALSE
 );
-CREATE INDEX idx_ai_doc_tenant ON ai_documents (tenant_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_ai_doc_tenant ON ai_documents (tenant_id) WHERE is_deleted = FALSE;
 
--- 19. attachments (附件表)
-DROP TABLE IF EXISTS attachments;
-CREATE TABLE attachments
-(
-    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    tenant_id  BIGINT NOT NULL,
-    user_id    BIGINT,
-    file_name  VARCHAR(255),
-    file_ext   VARCHAR(32),
-    mime_type  VARCHAR(64),
-    file_size  BIGINT,
-    storage    VARCHAR(32),
-    object_key VARCHAR(255),
-    url        VARCHAR(512),
-    hash       VARCHAR(64),
-    status     SMALLINT    DEFAULT 1,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    is_deleted BOOLEAN     DEFAULT FALSE
-);
-CREATE INDEX idx_attachments_tenant ON attachments (tenant_id) WHERE is_deleted = FALSE;
+-- 19. attachments 已迁出至 migrations/asset.sql（apps/reference/asset 拥有）
 
 -- 20. auth_sessions (会话表)
-DROP TABLE IF EXISTS auth_sessions;
-CREATE TABLE auth_sessions
+CREATE TABLE IF NOT EXISTS auth_sessions
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     account_id BIGINT       NOT NULL,
@@ -381,35 +309,32 @@ CREATE TABLE auth_sessions
     expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX idx_auth_session_token ON auth_sessions (token);
+CREATE INDEX IF NOT EXISTS idx_auth_session_token ON auth_sessions (token);
 
 -- 21. tenant_user_seq (租户用户序号表)
-DROP TABLE IF EXISTS tenant_user_seq;
-CREATE TABLE tenant_user_seq
+CREATE TABLE IF NOT EXISTS tenant_user_seq
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id  BIGINT NOT NULL,
     seq        BIGINT      DEFAULT 0,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE UNIQUE INDEX uk_tenant_seq ON tenant_user_seq (tenant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_tenant_seq ON tenant_user_seq (tenant_id);
 
 -- 22. account_roles (平台角色表)
-DROP TABLE IF EXISTS account_roles;
-CREATE TABLE account_roles
+CREATE TABLE IF NOT EXISTS account_roles
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     account_id BIGINT      NOT NULL,
     role       VARCHAR(32) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE UNIQUE INDEX uk_account_role ON account_roles (account_id, role);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_account_role ON account_roles (account_id, role);
 
 -- ============================================
 -- role_menus 和 role_resources (重构后的角色权限表)
 -- ============================================
-DROP TABLE IF EXISTS role_menus;
-CREATE TABLE role_menus
+CREATE TABLE IF NOT EXISTS role_menus
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id  BIGINT NOT NULL,
@@ -419,12 +344,11 @@ CREATE TABLE role_menus
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     is_deleted BOOLEAN     DEFAULT FALSE
 );
-CREATE UNIQUE INDEX uk_role_menu ON role_menus (role_id, menu_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_role_menus_tenant ON role_menus (tenant_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_role_menus_role ON role_menus (role_id) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_role_menu ON role_menus (role_id, menu_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_role_menus_tenant ON role_menus (tenant_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_role_menus_role ON role_menus (role_id) WHERE is_deleted = FALSE;
 
-DROP TABLE IF EXISTS role_resources;
-CREATE TABLE role_resources
+CREATE TABLE IF NOT EXISTS role_resources
 (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id   BIGINT NOT NULL,
@@ -435,9 +359,9 @@ CREATE TABLE role_resources
     updated_at  TIMESTAMPTZ DEFAULT NOW(),
     is_deleted  BOOLEAN     DEFAULT FALSE
 );
-CREATE UNIQUE INDEX uk_role_resource ON role_resources (role_id, resource_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_role_resources_tenant ON role_resources (tenant_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_role_resources_role ON role_resources (role_id) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_role_resource ON role_resources (role_id, resource_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_role_resources_tenant ON role_resources (tenant_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_role_resources_role ON role_resources (role_id) WHERE is_deleted = FALSE;
 
 -- ============================================
 -- 🔐 RLS (行级安全) 策略 — 纵深防御层

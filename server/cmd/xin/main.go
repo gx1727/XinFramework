@@ -12,11 +12,17 @@ import (
 
 	// Phase 3: RBAC suite
 	_ "gx1727.com/xin/apps/rbac/menu"
-	_ "gx1727.com/xin/apps/rbac/resource"
 	_ "gx1727.com/xin/apps/rbac/organization"
 	_ "gx1727.com/xin/apps/rbac/permission"
+	_ "gx1727.com/xin/apps/rbac/resource"
 	_ "gx1727.com/xin/apps/rbac/role"
 	_ "gx1727.com/xin/apps/rbac/user"
+
+	// Optional apps
+	_ "gx1727.com/xin/apps/reference/asset"
+	_ "gx1727.com/xin/apps/reference/dict"
+	_ "gx1727.com/xin/apps/reference/weixin"
+	_ "gx1727.com/xin/apps/system"
 
 	// External apps
 	_ "gx1727.com/xin/apps/cms"

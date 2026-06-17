@@ -23,6 +23,13 @@ func init() {
 	pkgauth.Register(func() pkgauth.AccountRepository {
 		return NewAccountRepository(db.Get())
 	})
+
+	// 同样注册 AccountAuthRepository，让 apps/reference/weixin 这类下游
+	// 模块在不直接 import apps/boot/auth 的前提下拿到第三方授权（微信/QQ）
+	// 绑定的数据访问实现。
+	pkgauth.RegisterAccountAuthRepository(func() pkgauth.AccountAuthRepository {
+		return NewAccountAuthRepository(db.Get())
+	})
 }
 
 func Module() plugin.Module {

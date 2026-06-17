@@ -10,6 +10,7 @@ package auth
 // Instead, apps/boot/auth's init() pushes its factory here, and user
 // fetches it through Get.
 var globalAccountFactory func() AccountRepository
+var globalAccountAuthFactory func() AccountAuthRepository
 
 // Register wires an AccountRepository factory. Typically called from
 // apps/boot/auth's package init().
@@ -22,4 +23,18 @@ func Register(f func() AccountRepository) {
 // error and returns clean error responses.
 func Get() func() AccountRepository {
 	return globalAccountFactory
+}
+
+// RegisterAccountAuthRepository wires an AccountAuthRepository factory.
+// apps/boot/auth's init() also pushes its AccountAuthRepository here so
+// downstream modules (weixin in apps/reference/weixin) can look it up
+// without importing apps/boot/auth directly.
+func RegisterAccountAuthRepository(f func() AccountAuthRepository) {
+	globalAccountAuthFactory = f
+}
+
+// GetAccountAuthRepository returns the registered factory, or nil if
+// auth is not loaded.
+func GetAccountAuthRepository() func() AccountAuthRepository {
+	return globalAccountAuthFactory
 }
