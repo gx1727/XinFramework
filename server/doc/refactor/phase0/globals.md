@@ -505,14 +505,14 @@
 | `D:\work\xin\XinFramework\server\framework\internal\core\boot\bootstrap.go` | 206 | ``, cfg.Account).Scan(&accountID)` |
 | `D:\work\xin\XinFramework\server\framework\internal\core\boot\bootstrap.go` | 212 | ``, passwordHash, cfg.RealName, accountID); err != nil {` |
 | `D:\work\xin\XinFramework\server\framework\internal\core\boot\bootstrap.go` | 229 | ``, cfg.Account, cfg.RealName, passwordHash).Scan(&accountID)` |
-| `D:\work\xin\XinFramework\server\framework\internal\core\middleware\auth.go` | 26 | `func processAuthToken(c *gin.Context, cfg *config.JWTConfig, sm session.SessionManager) (*jwtpkg.Claims, error) {` |
-| `D:\work\xin\XinFramework\server\framework\internal\core\middleware\auth.go` | 35 | `return []byte(cfg.Secret), nil` |
-| `D:\work\xin\XinFramework\server\framework\internal\core\middleware\auth.go` | 110 | `func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityContextLoader) gin.HandlerFunc {` |
-| `D:\work\xin\XinFramework\server\framework\internal\core\middleware\auth.go` | 112 | `claims, err := processAuthToken(c, cfg, sm)` |
-| `D:\work\xin\XinFramework\server\framework\internal\core\middleware\auth.go` | 138 | `func AuthLite(cfg *config.JWTConfig, sm session.SessionManager) gin.HandlerFunc {` |
-| `D:\work\xin\XinFramework\server\framework\internal\core\middleware\auth.go` | 140 | `claims, err := processAuthToken(c, cfg, sm)` |
-| `D:\work\xin\XinFramework\server\framework\internal\core\middleware\auth.go` | 181 | `func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityContextLoader) gin.HandlerFunc {` |
-| `D:\work\xin\XinFramework\server\framework\internal\core\middleware\auth.go` | 183 | `claims, err := processAuthToken(c, cfg, sm)` |
+| `D:\work\xin\XinFramework\server\framework\internal\core\middleware\auth.go` | 25 | `func processAuthToken(c *gin.Context, cfg *config.JWTConfig, sm session.SessionManager) (*jwtpkg.Claims, error) {` |
+| `D:\work\xin\XinFramework\server\framework\internal\core\middleware\auth.go` | 34 | `return []byte(cfg.Secret), nil` |
+| `D:\work\xin\XinFramework\server\framework\internal\core\middleware\auth.go` | 109 | `func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityContextLoader) gin.HandlerFunc {` |
+| `D:\work\xin\XinFramework\server\framework\internal\core\middleware\auth.go` | 111 | `claims, err := processAuthToken(c, cfg, sm)` |
+| `D:\work\xin\XinFramework\server\framework\internal\core\middleware\auth.go` | 137 | `func AuthLite(cfg *config.JWTConfig, sm session.SessionManager) gin.HandlerFunc {` |
+| `D:\work\xin\XinFramework\server\framework\internal\core\middleware\auth.go` | 139 | `claims, err := processAuthToken(c, cfg, sm)` |
+| `D:\work\xin\XinFramework\server\framework\internal\core\middleware\auth.go` | 180 | `func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityContextLoader) gin.HandlerFunc {` |
+| `D:\work\xin\XinFramework\server\framework\internal\core\middleware\auth.go` | 182 | `claims, err := processAuthToken(c, cfg, sm)` |
 | `D:\work\xin\XinFramework\server\framework\internal\core\middleware\cors.go` | 12 | `func CORS(cfg *config.CORSConfig) gin.HandlerFunc {` |
 | `D:\work\xin\XinFramework\server\framework\internal\core\middleware\cors.go` | 13 | `if cfg == nil \|\| !cfg.Enabled \|\| len(cfg.AllowOrigins) == 0 {` |
 | `D:\work\xin\XinFramework\server\framework\internal\core\middleware\cors.go` | 24 | `for _, o := range cfg.AllowOrigins {` |

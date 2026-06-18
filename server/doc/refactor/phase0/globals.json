@@ -1888,42 +1888,42 @@
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\auth.go",
-                           "Line":  26,
+                           "Line":  25,
                            "Snippet":  "func processAuthToken(c *gin.Context, cfg *config.JWTConfig, sm session.SessionManager) (*jwtpkg.Claims, error) {"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\auth.go",
-                           "Line":  35,
+                           "Line":  34,
                            "Snippet":  "return []byte(cfg.Secret), nil"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\auth.go",
-                           "Line":  110,
+                           "Line":  109,
                            "Snippet":  "func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityContextLoader) gin.HandlerFunc {"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\auth.go",
-                           "Line":  112,
+                           "Line":  111,
                            "Snippet":  "claims, err := processAuthToken(c, cfg, sm)"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\auth.go",
-                           "Line":  138,
+                           "Line":  137,
                            "Snippet":  "func AuthLite(cfg *config.JWTConfig, sm session.SessionManager) gin.HandlerFunc {"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\auth.go",
-                           "Line":  140,
+                           "Line":  139,
                            "Snippet":  "claims, err := processAuthToken(c, cfg, sm)"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\auth.go",
-                           "Line":  181,
+                           "Line":  180,
                            "Snippet":  "func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityContextLoader) gin.HandlerFunc {"
                        },
                        {
                            "File":  "D:\\work\\xin\\XinFramework\\server\\framework\\internal\\core\\middleware\\auth.go",
-                           "Line":  183,
+                           "Line":  182,
                            "Snippet":  "claims, err := processAuthToken(c, cfg, sm)"
                        },
                        {
