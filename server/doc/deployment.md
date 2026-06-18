@@ -1,77 +1,72 @@
 # 部署
 
-> 编译、打包、systemd、监控。
+> XinFramework 是单一二进制 + PostgreSQL + (可选 Redis)的标准 SaaS 后端。
+>
+> 推荐部署:**systemd + nginx 反代 + PostgreSQL 主从 + Redis sentinel**
 
-## 1. 构建
+## 1. 编译
 
-### Linux / macOS
+### 1.1 标准编译
+
+仓库根目录:
 
 ```bash
-cd server
+# Linux/macOS
 ./build.sh
-# 产物：bin/xin
-```
 
-或手工：
-
-```bash
-cd server
-CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/xin ./cmd/xin
-```
-
-参数说明：
-
-- `CGO_ENABLED=0`：纯静态二进制，方便 alpine / scratch 镜像
-- `-ldflags="-s -w"`：去掉符号表与调试信息，体积减小约 30%
-
-### Windows
-
-```powershell
-cd server
+# Windows
 .\build.ps1
-# 产物：bin\xin.exe
 ```
 
-### 交叉编译
+脚本做的事:
+
+1. `go mod tidy` 三个 module(根 / framework / apps)
+2. `go build -ldflags="-s -w"` 编译到 `bin/xin`(或 `bin/xin.exe`)
+3. 复制 `config/` 和 `migrations/` 到产物目录(可选)
+
+### 1.2 交叉编译
 
 ```bash
-# Linux AMD64
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/xin-linux-amd64 ./cmd/xin
+# 在 macOS / Linux 上编 Windows
+GOOS=windows GOARCH=amd64 ./build.sh
 
-# Linux ARM64
-GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/xin-linux-arm64 ./cmd/xin
-
-# macOS ARM64
-GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/xin-darwin-arm64 ./cmd/xin
+# 在 Linux 上编 macOS ARM(M1/M2)
+GOOS=darwin GOARCH=arm64 ./build.sh
 ```
 
-## 2. 运行模式
-
-### 2.1 前台（开发）
+### 1.3 减小二进制
 
 ```bash
-./bin/xin run
-# Ctrl+C 退出
+go build -ldflags="-s -w" -o bin/xin ./cmd/xin
+# 进一步用 upx 压:
+upx --best --lzma bin/xin
 ```
 
-### 2.2 守护进程（生产）
+`-s -w` 去掉符号表和调试信息,通常能从 45MB 减到 30MB 左右。
 
-```bash
-./bin/xin start
-# fork + 写 pid 到 ./xin.pid
-# 日志输出到 ./xin.log
+---
+
+## 2. 单机部署(开发 / 中小规模)
+
+```
+┌──────────────┐
+│   nginx:443  │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────┐
+│ xin:8087     │ ← 单实例
+└──────┬───────┘
+       │
+       ▼
+┌──────────────┐
+│ PostgreSQL   │ ← 单实例
+└──────────────┘
 ```
 
-```bash
-./bin/xin stop     # 发 SIGTERM，graceful shutdown
-./bin/xin restart  # stop + start
-./bin/xin status   # 查看 pid 与运行状态
-./bin/xin reload   # 平滑重载配置（未来支持）
-```
+### 2.1 systemd unit
 
-### 2.3 systemd（推荐生产）
-
-`framework/xin-server.service`：
+[framework/xin-server.service](framework/xin-server.service):
 
 ```ini
 [Unit]
@@ -81,309 +76,440 @@ After=network.target postgresql.service
 [Service]
 Type=simple
 User=xin
-Group=xin
-WorkingDirectory=/opt/xin
-ExecStart=/opt/xin/bin/xin run
-Restart=always
-RestartSec=5
-LimitNOFILE=65536
+WorkingDirectory=/opt/xin-server
+ExecStart=/opt/xin-server/bin/xin run
+Restart=on-failure
+RestartSec=5s
 
-EnvironmentFile=/opt/xin/config/xin.env
+# 环境变量:prod 必须用 32 字节以上的 jwt secret
+Environment="XIN_APP_ENV=prod"
+Environment="XIN_JWT_SECRET=CHANGEME-PROD-SECRET-MIN-32BYTES"
+
+# 日志
+StandardOutput=append:/var/log/xin/xin.log
+StandardError=append:/var/log/xin/xin.err
+
+# 资源限制
+LimitNOFILE=65535
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-安装：
+启用:
 
 ```bash
 sudo cp framework/xin-server.service /etc/systemd/system/
-sudo useradd -r -s /sbin/nologin xin
-sudo mkdir -p /opt/xin/{bin,config,uploads,logs}
-sudo cp bin/xin /opt/xin/bin/
-sudo cp config/config.prod.yaml /opt/xin/config/config.yaml
-
-# 环境变量（密码等敏感信息放这里，不要进 YAML）
-sudo tee /etc/xin/xin.env <<EOF
-DB_PASSWORD=xxx
-JWT_SECRET=xxx
-EOF
-
 sudo systemctl daemon-reload
 sudo systemctl enable --now xin-server
 sudo systemctl status xin-server
 ```
 
-## 3. Docker
+### 2.2 文件结构
 
-### Dockerfile
-
-```dockerfile
-# server/Dockerfile
-FROM golang:1.25 AS build
-WORKDIR /src
-COPY . .
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/xin ./cmd/xin
-
-FROM alpine:3.20
-RUN apk add --no-cache ca-certificates tzdata
-WORKDIR /app
-COPY --from=build /out/xin /app/xin
-COPY config /app/config
-COPY migrations /app/migrations
-EXPOSE 8080
-CMD ["/app/xin", "run"]
+```
+/opt/xin-server/
+├── bin/
+│   └── xin                   # 单一可执行
+├── config/
+│   ├── config.yaml           # 主配置
+│   ├── config.prod.yaml      # prod 环境覆盖
+│   └── ...                   # 子模块 yaml
+├── migrations/               # 由启动时自动跑
+│   ├── framework.sql
+│   ├── cms.sql
+│   └── ...
+├── uploads/                  # local 存储
+├── logs/                     # 自定义 logger 输出
+├── xin.pid                   # 由 xin start 生成
+└── xin.log                   # 由 xin start 写入
 ```
 
-构建运行：
+权限:`xin` 用户拥有 `/opt/xin-server` 和 `/var/log/xin`,不要 root 跑。
 
-```bash
-docker build -t xin-framework:latest .
-docker run --rm -p 8080:8080 \
-  -e DB_HOST=host.docker.internal \
-  -v $(pwd)/config:/app/config:ro \
-  xin-framework:latest
+---
+
+## 3. 高可用部署(生产推荐)
+
+```
+                          ┌─────────────┐
+            ┌────────────►│   nginx A   │
+            │             └──────┬──────┘
+            │                    │
+┌────────┐  │  ┌─────────────┐   │
+│ client │──┼──►│ xin-server A │───┐
+└────────┘  │  └─────────────┘   │
+            │  ┌─────────────┐   │
+            └────────────►│ xin-server B │───┤
+                         └─────────────┘   │
+                                            ▼
+                              ┌──────────────────────┐
+                              │ PostgreSQL primary    │
+                              └─────────┬────────────┘
+                                        │
+                              ┌─────────▼────────────┐
+                              │ PostgreSQL replicas  │
+                              └──────────────────────┘
+
+            ┌─────────────────────┐
+            │ Redis sentinel (3)   │
+            └─────────────────────┘
 ```
 
-### docker-compose.yml
-
-```yaml
-version: "3.8"
-services:
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: xin
-      POSTGRES_PASSWORD: dev
-      POSTGRES_DB: xin
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  xin:
-    build: .
-    depends_on:
-      - postgres
-    ports:
-      - "8080:8080"
-    environment:
-      DB_HOST: postgres
-      DB_USER: xin
-      DB_PASSWORD: dev
-      DB_NAME: xin
-      JWT_SECRET: change-me
-    volumes:
-      - ./uploads:/app/uploads
-    restart: unless-stopped
-
-volumes:
-  pgdata:
-```
-
-## 4. 反向代理
-
-### Nginx
+### 3.1 nginx 反代
 
 ```nginx
+upstream xin_backend {
+    server 10.0.0.1:8087 max_fails=3 fail_timeout=30s;
+    server 10.0.0.2:8087 max_fails=3 fail_timeout=30s;
+    keepalive 32;
+}
+
 server {
-    listen 80;
+    listen 443 ssl http2;
     server_name api.example.com;
 
-    client_max_body_size 20M;
+    ssl_certificate     /etc/letsencrypt/live/api.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.example.com/privkey.pem;
+
+    client_max_body_size 100m;     # 文件上传
 
     location / {
-        proxy_pass http://127.0.0.1:8080;
+        proxy_pass http://xin_backend;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 60s;
+
+        # SSE / 长连接需要
+        proxy_read_timeout  300s;
+        proxy_send_timeout  300s;
     }
 
-    location /files/ {
-        # 静态文件由 nginx 直接服务，不走 Go
-        alias /opt/xin/uploads/;
+    location /uploads/ {
+        # 如果用 local 存储,nginx 直接吐
+        alias /opt/xin-server/uploads/;
         expires 7d;
     }
 }
 ```
 
-### Caddy
+### 3.2 多实例无状态
 
-```
-api.example.com {
-    reverse_proxy 127.0.0.1:8080
-}
-```
+`xin` 是无状态服务(状态都在 DB / Redis):
 
-## 5. HTTPS
+- 可以开任意多个实例横扩
+- `xin.pid` 文件每实例独立(`/var/run/xin-N.pid`)
+- 日志按实例分开(`/var/log/xin/xin-N.log`)
 
-用 Caddy 或 nginx + Let's Encrypt：
+### 3.3 滚动升级
 
 ```bash
-# Caddy 自动 HTTPS
-sudo caddy reverse-proxy --from api.example.com --to 127.0.0.1:8080
+# 1. 拉新二进制
+scp bin/xin user@server:/opt/xin-server/bin/xin.new
 
-# 或 nginx + certbot
-sudo certbot --nginx -d api.example.com
+# 2. 优雅替换
+ssh user@server
+cd /opt/xin-server
+sudo systemctl stop xin-server           # 等当前请求结束
+sudo mv bin/xin bin/xin.bak
+sudo mv bin/xin.new bin/xin
+sudo systemctl start xin-server
+sudo systemctl status xin-server
 ```
 
-Go 端不需要任何改动，证书由前端代理处理。
+`xin stop` 等待 30 秒(可配)让请求跑完,然后退出。
 
-## 6. 配置热加载
+---
 
-当前版本：**不支持**。改 `config.yaml` 后需要 `xin restart`。
+## 4. PostgreSQL 配置建议
 
-未来计划：用 fsnotify 监听配置文件变化 + 重新加载。
+### 4.1 postgresql.conf 关键参数
 
-## 7. 监控
+```ini
+# 连接
+max_connections = 200
+shared_buffers = 4GB                     # 物理内存 25%
+effective_cache_size = 12GB              # 物理内存 70%
+work_mem = 64MB
+maintenance_work_mem = 1GB
 
-### 7.1 健康检查
+# WAL
+wal_level = replica                      # 主从必须
+wal_log_hints = on
+max_wal_size = 4GB
+min_wal_size = 1GB
 
-```bash
-curl http://localhost:8080/api/v1/system/health
+# 慢查询日志(排查问题)
+log_min_duration_statement = 500ms
+log_lock_waits = on
+log_temp_files = 0
+
+# 时区
+timezone = 'UTC'
 ```
 
-返回：
+### 4.2 RLS 性能
 
-```json
-{
-  "code": 0,
-  "data": {
-    "db": "ok",
-    "cache": "ok",
-    "uptime_seconds": 3600
-  }
-}
+RLS 会让每条 SQL 多一次 policy 评估。优化建议:
+
+- `tenant_id` 列建索引(几乎所有租户级查询都需要)
+- RLS policy 表达式尽量简单
+- 大量导入用 `SET LOCAL role = bypass_rls_role` 绕过
+
+### 4.3 主从 + 读写分离(可选)
+
+当前框架**所有查询走主库**。如果未来要读写分离:
+
+1. 用 `pgxpool` 的两个 pool:`writerPool` + `readerPool`
+2. `AppContext.Reader` 暴露两个 pool,handler 选哪个
+3. 框架层暂时不做这件事,留给业务层
+
+---
+
+## 5. Redis 配置
+
+### 5.1 单实例
+
+```yaml
+redis:
+  enabled: true
+  required: true            # 生产建议 required
+  host: redis.internal
+  port: 6379
+  pool_size: 50
+  min_idle_conns: 10
 ```
 
-### 7.2 Prometheus（计划中）
+### 5.2 Sentinel
 
-未来通过 `/metrics` 暴露 Prometheus 指标。
-
-当前可用：自己打点到日志，配合 Loki / ELK 分析。
-
-### 7.3 审计日志
-
-`framework/pkg/audit` 写入 `audit_logs` 表：
-
-```sql
-SELECT user_id, action, target, created_at
-FROM audit_logs
-WHERE created_at > NOW() - INTERVAL '1 day'
-ORDER BY created_at DESC;
-```
-
-## 8. 数据库备份
-
-```bash
-#!/bin/bash
-# /opt/xin/scripts/backup.sh
-set -e
-BACKUP_DIR=/var/backups/xin
-DATE=$(date +%Y%m%d_%H%M%S)
-mkdir -p $BACKUP_DIR
-pg_dump -U xin -h localhost -Fc xin > $BACKUP_DIR/xin_$DATE.dump
-# 保留最近 30 天
-find $BACKUP_DIR -name "xin_*.dump" -mtime +30 -delete
-```
-
-加到 crontab：
-
-```cron
-0 3 * * * /opt/xin/scripts/backup.sh
-```
-
-恢复：
-
-```bash
-pg_restore -U xin -h localhost -d xin_new /var/backups/xin/xin_20260615_030000.dump
-```
-
-## 9. 升级流程
-
-```bash
-# 1. 备份数据库
-./scripts/backup.sh
-
-# 2. 拉新代码
-cd /opt/xin
-git pull
-
-# 3. 重新构建
-./build.sh
-
-# 4. 跑迁移（启动时会自动跑）
-# 也可以手动验证：
-psql -U xin -d xin -f migrations/framework.sql
-
-# 5. 重启
-sudo systemctl restart xin-server
-
-# 6. 验证
-curl http://localhost:8080/api/v1/system/health
-```
-
-## 10. 常见故障
-
-### 10.1 启动失败 "address already in use"
-
-端口被占用。找到进程：
-
-```bash
-sudo lsof -i :8080
-# 或
-sudo ss -tlnp | grep 8080
-```
-
-杀掉：
-
-```bash
-sudo kill -9 <pid>
-```
-
-### 10.2 数据库连接耗尽
-
-`db.max_conns: 20` 不够。调大 + 检查 connection leak：
-
-```sql
-SELECT * FROM pg_stat_activity WHERE state = 'idle';
-```
-
-### 10.3 内存泄漏
-
-pprof：
+需要在代码里改 `cache.Init` 接 sentinel 地址。当前 `framework/pkg/cache/cache.go` 只支持单实例,**改 Sentinel 需要改代码**:
 
 ```go
-import _ "net/http/pprof"
+// 伪代码
+redis.NewFailoverClient(&redis.FailoverOptions{
+    MasterName:    "mymaster",
+    SentinelAddrs: []string{":26379", ":26380", ":26381"},
+    Password:      cfg.Redis.Password,
+    DB:            cfg.Redis.DB,
+})
+```
 
-go func() {
-    log.Println(http.ListenAndServe("localhost:6060", nil))
-}()
+### 5.3 Cluster
+
+Cluster 模式同样需要扩展 `cache.Init`,引入 hash tag 让同一用户的 key 落在同一 slot。
+
+---
+
+## 6. 监控
+
+### 6.1 应用层 metrics
+
+框架目前没内置 Prometheus。建议暴露:
+
+- `GET /system/server-info`(已有):进程级 + DB + Redis 状态
+- 加 Prometheus 端点:`/metrics` —— 可以基于 `server-info` 数据扩展
+
+### 6.2 关键监控项
+
+| 指标 | 阈值 | 来源 |
+|---|---|---|
+| 请求 P99 延迟 | < 500ms | nginx access log |
+| 错误率 | < 0.1% | gin middleware |
+| Goroutines | < 1000 | `runtime.NumGoroutine` |
+| DB 连接池空闲率 | > 20% | `pg_stat_activity` |
+| Redis 命中率 | > 80% | `INFO stats` |
+| 磁盘空间 | < 80% | OS |
+
+### 6.3 日志
+
+`logs/` 目录按天滚动(框架的 logger.Init 配 `cfg.Log.Dir` / `cfg.Log.Level`)。
+
+```go
+// 框架 log 路径
+log.Printf("module %s initialized", m.Name())
+logger.Errorf("[%s] %s %s | %d | %s", reqID, method, path, code, msg)
+```
+
+nginx access log 也保留(trace 完整链路)。
+
+### 6.4 Trace ID
+
+`middleware.RequestID()` 给每个请求注入 `X-Request-ID`(Header 或自动生成),写入 gin context。
+
+- 框架 logger 自带
+- 传给下游(DB log, Redis log)的 `tx.ctx` 也带
+- 前端出问题拿 `X-Request-ID` 来 trace
+
+---
+
+## 7. 备份策略
+
+### 7.1 PostgreSQL
+
+```bash
+# 全量
+pg_dump -Fc -h db.host -U xin_user xin > backup_$(date +%F).dump
+
+# 恢复
+pg_restore -d xin backup_2026-06-18.dump
+```
+
+推荐组合:
+
+| 备份类型 | 频率 | 保留 |
+|---|---|---|
+| 全量 | 每天 03:00 | 7 天 |
+| WAL 归档 | 持续 | 30 天 |
+| 异地副本 | 实时 | 永久 |
+
+### 7.2 Redis
+
+- 开启 AOF(`appendonly yes`)
+- `appendfsync everysec`
+- 主从复制 + Sentinel 自动 failover
+
+业务上 Redis 是缓存,丢了不致命(数据可重建),但 session 丢失会强制用户重新登录。
+
+### 7.3 uploads/ 本地文件
+
+`uploads/`(如果用 local 存储)需要单独备份:
+
+```bash
+rsync -av /opt/xin-server/uploads/ backup:/path/xin-uploads/
+```
+
+或者改用 COS(腾讯云对象存储),由 COS 自己保证可用性。
+
+---
+
+## 8. Docker 镜像(可选)
+
+仓库暂无现成 Dockerfile,典型模板:
+
+```dockerfile
+# Build stage
+FROM golang:1.25-alpine AS builder
+WORKDIR /src
+COPY . .
+RUN cd server && go build -ldflags="-s -w" -o /out/xin ./cmd/xin
+
+# Runtime stage
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates tzdata
+ENV TZ=Asia/Shanghai
+WORKDIR /app
+COPY --from=builder /out/xin /app/xin
+COPY server/config /app/config
+COPY server/migrations /app/migrations
+EXPOSE 8087
+ENTRYPOINT ["/app/xin", "run"]
 ```
 
 ```bash
-go tool pprof http://localhost:6060/debug/pprof/heap
+docker build -t xin:1.0.0 .
+docker run -d \
+  --name xin \
+  -p 8087:8087 \
+  -e XIN_DB_HOST=postgres \
+  -e XIN_DB_PASSWORD=secret \
+  -e XIN_JWT_SECRET=$(openssl rand -base64 48) \
+  -v /opt/xin-uploads:/app/uploads \
+  xin:1.0.0
 ```
 
-### 10.4 上传 413
+---
 
-nginx 默认 `client_max_body_size 1m`。调到 20M+：
+## 9. Kubernetes(高级)
 
-```nginx
-client_max_body_size 20M;
+StatefulSet + Headless Service:
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: xin
+spec:
+  replicas: 3
+  serviceName: xin
+  template:
+    spec:
+      containers:
+      - name: xin
+        image: xin:1.0.0
+        env:
+        - name: XIN_DB_HOST
+          value: postgres.default.svc
+        - name: XIN_REDIS_HOST
+          value: redis.default.svc
+        ports:
+        - containerPort: 8087
+        livenessProbe:
+          httpGet: { path: /api/v1/health, port: 8087 }
+          initialDelaySeconds: 30
+        readinessProbe:
+          httpGet: { path: /api/v1/health, port: 8087 }
+          initialDelaySeconds: 5
 ```
 
-### 10.5 JWT 过期 / 时区错误
+注意事项:
 
-确保服务器时区是 UTC 或正确的本地时区：
+- StatefulSet 给每个实例**固定 hostname**(`xin-0`, `xin-1`, `xin-2`),日志 / pid 隔离方便
+- 用 `PodDisruptionBudget` 防止滚动升级全部 kill
+- `sessionAffinity: ClientIP` 让同一 IP 落到同一实例(避免 session 跨实例同步)
+
+---
+
+## 10. 环境变量参考
+
+完整列表见 [framework/pkg/config/config.go](framework/pkg/config/config.go) `overrideWithEnv()`。
+
+| 变量 | 对应 YAML | 说明 |
+|---|---|---|
+| `XIN_APP_PORT` | `app.port` | HTTP 端口 |
+| `XIN_DB_HOST` | `database.host` | PG host |
+| `XIN_DB_PASSWORD` | `database.password` | PG password |
+| `XIN_REDIS_ENABLED` | `redis.enabled` | Redis 是否启用 |
+| `XIN_REDIS_REQUIRED` | `redis.required` | Redis 挂掉是否启动失败 |
+| `XIN_JWT_SECRET` | `jwt.secret` | JWT 签名 key,**prod 必填 ≥32 字节** |
+| `XIN_CORS_ALLOW_ORIGINS` | `cors.allow_origins` | CORS 白名单(逗号分隔) |
+| `XIN_MODULE` | `module` | 模块白名单(逗号分隔) |
+| `XIN_BOOTSTRAP_TOKEN` | — | bootstrap 必填,启用初始 super_admin |
+| `XIN_BOOTSTRAP_ACCOUNT` | — | bootstrap 账号(username/phone/email) |
+| `XIN_BOOTSTRAP_PASSWORD` | — | bootstrap 明文密码 |
+| `XIN_STORAGE_COS_SECRET_ID` | `storage.cos_secret_id` | COS 凭据 |
+| `XIN_STORAGE_COS_SECRET_KEY` | `storage.cos_secret_key` | COS 凭据 |
+
+---
+
+## 11. 健康检查清单
+
+部署后跑一遍:
 
 ```bash
-timedatectl
-# 设置
-sudo timedatectl set-timezone Asia/Shanghai
+# 1. 进程在
+ps aux | grep xin
+
+# 2. 端口在
+ss -tlnp | grep 8087
+
+# 3. health 返回 200
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8087/api/v1/health
+
+# 4. 关键表存在
+psql -h db -U xin_user -d xin -c '\dt'
+
+# 5. 默认租户存在
+psql -h db -U xin_user -d xin -c "SELECT * FROM tenants WHERE code='default';"
+
+# 6. Redis 连通
+redis-cli -h redis ping
+
+# 7. 能登录
+curl -X POST http://localhost:8087/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"account":"admin","password":"...","tenant_code":"default"}'
 ```
 
-JWT 过期时间用 `time.Now()` 比较，要求服务器时间准确。
+任一步失败,看 [framework/cmd.go](framework/cmd.go) 和 [quickstart.md 常见问题](quickstart.md#9-常见问题)。

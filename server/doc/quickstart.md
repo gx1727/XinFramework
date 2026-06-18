@@ -1,235 +1,319 @@
 # 快速开始
 
-> 5 分钟把 XinFramework 后端跑起来。
+> 目标:15 分钟内跑通 `xin run`,在浏览器看到 health endpoint 返回 `{"status":"ok"}`。
 
-## 1. 环境
+## 1. 环境要求
 
-| 工具 | 版本 | 检查 |
-| --- | --- | --- |
-| Go | 1.25+ | `go version` |
-| Node | 20+（前端） | `node -v` |
-| PostgreSQL | 16+ | `psql --version` |
-| 操作系统 | Linux / macOS / Windows | —— |
-
-## 2. 启动 PostgreSQL
-
-任选一种：
+| 组件 | 版本 | 用途 |
+|---|---|---|
+| Go | 1.25+ | 编译 |
+| PostgreSQL | 14+ | 主存储,需要 `ltree` 和 `pg_trgm` 扩展 |
+| Redis | 7+ | 可选,缓存/会话(`enabled: true` 时启用) |
+| Make / Git | 任意 | 构建脚本(`./build.sh`) |
 
 ```bash
-# 选项 A：Docker
-docker run --name xin-pg \
-  -e POSTGRES_USER=xin -e POSTGRES_PASSWORD=dev \
-  -e POSTGRES_DB=xin -p 5432:5432 \
-  -d postgres:16
-
-# 选项 B：本地服务
-# brew install postgresql@16
-# pg_ctl -D /usr/local/var/postgresql start
-# createuser xin && createdb xin -O xin
-# psql -c "ALTER USER xin WITH PASSWORD 'dev';"
+go version          # go1.25.x 或更新
+psql --version      # PostgreSQL 14.x
+redis-cli --version # redis 7.x (可选)
 ```
 
-## 3. 拉代码与编译
+## 2. 准备 PostgreSQL
+
+### 2.1 安装
 
 ```bash
-git clone <repo-url> xin
-cd xin/server
+# Ubuntu/Debian
+sudo apt install -y postgresql-14 postgresql-contrib
+sudo systemctl start postgresql
 
-# 同步 go.work
-go work sync
+# macOS
+brew install postgresql@14
+brew services start postgresql@14
 
-# 编译（首次较慢，会下载依赖）
-go build ./...
-go vet ./...
+# Windows: 用 EnterpriseDB installer,默认监听 5432
 ```
 
-## 4. 配置
+### 2.2 建库 + 用户
 
 ```bash
-cp config/config.example.yaml config/config.yaml
-# 编辑 config.yaml（下面说明关键字段）
+sudo -u postgres psql
 ```
 
-`config/config.yaml` 关键字段：
+```sql
+CREATE DATABASE xin;
+CREATE USER xin_user WITH PASSWORD 'xin_password';
+GRANT ALL PRIVILEGES ON DATABASE xin TO xin_user;
+\c xin
+GRANT ALL ON SCHEMA public TO xin_user;
+```
+
+### 2.3 装扩展
+
+`migrations/framework.sql` 会自动 `CREATE EXTENSION IF NOT EXISTS ltree / pg_trgm`,但需要**超级用户**才能装扩展。如果 `xin_user` 不是 superuser:
+
+```sql
+\c xin
+CREATE EXTENSION IF NOT EXISTS ltree;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+```
+
+或者给 `xin_user` 装扩展的权限:
+
+```sql
+ALTER USER xin_user WITH SUPERUSER;  -- 仅 dev
+```
+
+## 3. 准备 Redis(可选)
+
+```bash
+# Ubuntu/Debian
+sudo apt install -y redis-server
+sudo systemctl start redis-server
+
+# macOS
+brew install redis
+brew services start redis
+```
+
+测试:
+
+```bash
+redis-cli ping
+# PONG
+```
+
+如果**不想用 Redis**,把 `config/config.yaml` 里的 `redis.enabled: false`,框架会:
+- 跳过 go-redis 初始化
+- session manager 自动切到 DB-backed 实现
+- 权限 cache 退化为直接查 DB(慢但可用)
+
+## 4. 克隆 + 编译
+
+```bash
+git clone https://github.com/xin/framework.git xin-server
+cd xin-server/server
+
+# 编译(3 个 module: server, framework, apps)
+./build.sh                              # Linux/macOS
+# 或
+.\build.ps1                             # Windows
+```
+
+产物:
+
+```
+bin/
+└── xin                                 # 或 xin.exe
+```
+
+## 5. 改配置
+
+默认配置 `config/config.yaml`:
 
 ```yaml
 app:
+  name: xin
+  env: dev
   host: 0.0.0.0
-  port: 8080
-  debug: true
+  port: 8087
 
-db:
-  host: 127.0.0.1
+database:
+  host: localhost
   port: 5432
-  user: xin
-  password: dev
-  database: xin
-  max_conns: 20
+  user: xin_user
+  password: xin_password
+  dbname: xin
+  sslmode: disable
+
+redis:
+  enabled: true
+  required: false       # Redis 挂了不阻止启动
+  host: localhost
+  port: 6379
 
 jwt:
-  secret: "change-me-in-production"
-  ttl: 3600
-  refresh_ttl: 86400
-
-session:
-  driver: memory   # memory | redis
-
-storage:
-  provider: local  # local | cos
-  local_dir: ./uploads
-  local_base_url: http://localhost:8080/files
-
-cors:
-  allowed_origins:
-    - http://localhost:5173
-  allowed_methods: [GET, POST, PUT, DELETE, PATCH]
-  allowed_headers: [Authorization, Content-Type]
-
-module:
-  - auth
-  - tenant
-  - user
-  - role
-  - menu
-  - resource
-  - permission
-  - organization
-  - dict
-  - asset
-  - weixin
-  - system
-  - cms
-  - flag
+  secret: your-secret-key    # ⚠️ prod 必改, ≥32 字节
+  expire: 3600
+  refresh_expire: 86400
 ```
 
-`module:` 列表控制运行时启用哪些模块。增删模块：
+### 5.1 用环境变量覆盖
 
-1. 编辑 `module:` 列表
-2. 重启服务
-
-新增模块的代码（app）需要：
-
-1. 在 `apps/<name>/` 建包（详见 [developing.md](file:///d:\work\xin\XinFramework\server\doc\developing.md)）
-2. 在 `cmd/xin/main.go` 加 `_ "gx1727.com/xin/apps/<name>"` 行
-3. 在 `module:` 列表加名称
-
-## 5. 首次启动
+任何字段都可以用 `XIN_*` 前缀覆盖(大写 + 下划线),优先级高于 YAML:
 
 ```bash
-# 前台运行（开发推荐）
-go run ./cmd/xin run
-
-# 输出类似：
-# 2026-06-15 10:00:00 [INFO] boot init ok
-# 2026-06-15 10:00:00 [INFO] migrations applied (12 files)
-# 2026-06-15 10:00:00 [INFO] module auth initialized
-# 2026-06-15 10:00:00 [INFO] module tenant initialized
-# ...
-# 2026-06-15 10:00:00 [INFO] server starting on 0.0.0.0:8080
+export XIN_APP_PORT=8088
+export XIN_DB_HOST=10.0.0.5
+export XIN_DB_PASSWORD=secret123
+export XIN_JWT_SECRET="$(openssl rand -base64 48)"
 ```
 
-**首次启动**会要求创建默认租户和超级管理员。复制粘贴运行命令里的环境变量：
+支持的环境变量清单见 `framework/framework.go` 旁的 `overrideWithEnv()`。
+
+### 5.2 通过 `.env` 文件加载
+
+`config.Load()` 自动尝试读取 `.env`:
 
 ```bash
-# 服务会等待你执行下面的命令：
-# XIN_BOOTSTRAP=1 go run ./cmd/xin bootstrap
+cat > .env <<EOF
+XIN_APP_PORT=8088
+XIN_DB_PASSWORD=secret123
+XIN_JWT_SECRET=...
+EOF
 ```
 
-`bootstrap` 命令会要求输入：
+注意:`.env` 里的值仅当对应环境变量**未设置**时才生效(不覆盖已有的 env)。
 
-| 字段 | 说明 |
-| --- | --- |
-| `tenant_code` | 默认租户编码（如 `default`） |
-| `tenant_name` | 默认租户名称（如 `我的公司`） |
-| `admin_account` | 超级管理员账号 |
-| `admin_password` | 超级管理员密码（至少 8 位） |
+## 6. 首次启动
 
-完成后可登录：
+### 6.1 前台跑(看日志)
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"tenant_code":"default","account":"admin","password":"xxx"}'
+./bin/xin run
 ```
 
-返回：
+预期输出:
+
+```
+2026/06/18 08:33:06 module tenant initialized
+2026/06/18 08:33:06 module auth initialized
+2026/06/18 08:33:06 module role initialized
+... (14 个 module)
+[GIN-debug] GET /api/v1/health --> ...
+2026/06/18 08:33:06 server starting on 0.0.0.0:8087
+```
+
+按 `Ctrl+C` 优雅退出。
+
+### 6.2 验证
+
+另开一个终端:
+
+```bash
+curl http://localhost:8087/api/v1/health
+```
+
+预期响应:
 
 ```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "token": "eyJhbGciOi...",
-    "refresh_token": "eyJhbGciOi...",
-    "user": { "id": 1, "account": "admin", "name": "管理员" }
-  }
-}
+{"code":0,"msg":"ok","data":{"status":"ok"}}
 ```
 
-## 6. 启动前端
+### 6.3 启用 bootstrap 创建 super_admin
+
+首次部署时,生产数据库通常是空的。用环境变量注入一个初始 super_admin:
 
 ```bash
-cd ../UI
-npm install
-npm run dev
-# Vite 启动在 http://localhost:5173
-# 默认走 mock 数据，后端不通也能演示完整 UI
+export XIN_BOOTSTRAP_TOKEN="$(openssl rand -hex 32)"   # ≥16 字节
+export XIN_BOOTSTRAP_ACCOUNT="admin"
+export XIN_BOOTSTRAP_PASSWORD="$(openssl rand -base64 24)"
+export XIN_BOOTSTRAP_REAL_NAME="初始管理员"
+export XIN_BOOTSTRAP_TENANT_CODE="default"            # tenants.code
+
+./bin/xin run
 ```
 
-## 7. 守护进程（生产）
+框架会在启动后自动:
+1. 查 `tenants WHERE code = 'default'`(必须先在 SQL 里 `INSERT INTO tenants`)
+2. 在 `accounts` 表 upsert 账号
+3. 授予 `super_admin` 平台角色
+4. 在租户事务内创建 `users` 行 + 绑定 `admin` 角色
+
+详细机制见 [framework/internal/core/boot/bootstrap.go](framework/internal/core/boot/bootstrap.go)。
+
+## 7. 守护进程模式
 
 ```bash
-# Linux（systemd）
-go build -ldflags="-s -w" -o /usr/local/bin/xin ./cmd/xin
-cp framework/xin-server.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now xin-server
-systemctl status xin-server
-
-# 通用（nohup）
-go build -ldflags="-s -w" -o ./bin/xin ./cmd/xin
-./bin/xin start   # 后台模式（fork + pid）
-./bin/xin stop
-./bin/xin status
+./bin/xin start           # 后台启动,pid 写到 ./xin.pid,日志 → ./xin.log
+./bin/xin status          # 看 PID 文件状态
+./bin/xin stop            # 发 SIGTERM,等当前请求完成后退出
+./bin/xin restart         # stop + start
+./bin/xin hot-restart     # 不中断服务的热重启(目前等价 restart)
 ```
 
-详见 [deployment.md](file:///d:\work\xin\XinFramework\server\doc\deployment.md)。
-
-## 8. 常见问题
-
-### Q: 启动报 `password authentication failed for user "xin"`
-
-PostgreSQL 用户密码不对，或用户不存在。检查：
+## 8. 跑测试
 
 ```bash
-psql -U postgres -c "\\du xin"
-# 如果不存在：
-psql -U postgres -c "CREATE USER xin WITH PASSWORD 'dev';"
-psql -U postgres -c "CREATE DATABASE xin OWNER xin;"
+go test ./...                       # 全部测试
+go test -v ./framework/pkg/...      # 只测 framework 包
+go test "-coverprofile=cover.out" ./framework/pkg/middleware/...
+go tool cover -func=cover.out       # 看覆盖率
 ```
 
-### Q: 报 `relation "users" does not exist`
+当前覆盖情况:
 
-迁移没跑成功。手动跑：
+| 包 | 覆盖率 |
+|---|---:|
+| `framework/pkg/middleware` | **81.4%** |
+| `framework/pkg/plugin` | **45.5%** |
+| `framework/pkg/permission` | **41.7%** |
+
+详见 [refactor/plan.md](refactor/plan.md)。
+
+## 9. 常见问题
+
+### 9.1 启动时报 `db pool is not initialized`
+
+**原因**:`framework/pkg/db` 的 `Pool` 还是 nil,意味着 `db.Init` 失败了。
+
+排查:
 
 ```bash
-psql -U xin -d xin -f migrations/framework.sql
-psql -U xin -d xin -f migrations/cms.sql
-psql -U xin -d xin -f migrations/flag.sql
+# 1. 测连通性
+psql -h localhost -U xin_user -d xin -c 'SELECT 1'
+
+# 2. 检查 .env / 环境变量是否覆盖了密码
+echo $XIN_DB_PASSWORD
+
+# 3. 看日志里的具体错误
+./bin/xin run 2>&1 | grep -i "db init failed"
 ```
 
-### Q: 模块启动报 `module X not registered`
+### 9.2 `panic: jwt secret is too short`
 
-`module:` 列表里有名字，但代码里没 import。在 `cmd/xin/main.go` 加 side-effect import：
+**原因**:prod 环境强制要求 `jwt.secret` ≥ 32 字节且不是常见占位符。
 
-```go
-import _ "gx1727.com/xin/apps/<x>"
+```bash
+export XIN_JWT_SECRET="$(openssl rand -base64 48)"
 ```
 
-### Q: 报 `package gx1727.com/xin/framework/internal/...: cannot import internal package`
+### 9.3 Redis 拒绝连接但服务不启动
 
-错把内部模块从 apps 引用了。apps 只能引用 `framework/pkg/...`。详见 [architecture.md §4](file:///d:\work\xin\XinFramework\server\doc\architecture.md#4-跨模块依赖规则)。
+检查 `redis.required` 配置:
 
-### Q: 中文乱码
+| 值 | 行为 |
+|---|---|
+| `true` | Redis 不可用 → 直接退出(启动失败) |
+| `false` | Redis 不可用 → log warn,继续启动,session 走 DB |
+| `false` 且 `enabled: false` | 完全跳过 Redis 初始化 |
 
-PowerShell 默认 GBK。详见 [AGENTS.md §10.1](file:///d:\work\xin\XinFramework\server\AGENTS.md#101-编码最重要)。
+### 9.4 端口被占用
+
+```bash
+# Linux/macOS
+lsof -i :8087
+
+# Windows
+netstat -ano | findstr :8087
+```
+
+改 `app.port` 或停掉占用进程。
+
+### 9.5 迁移没跑
+
+迁移由 `framework/pkg/migrate.Run("migrations")` 触发,扫 `./migrations/*.sql` 按文件名顺序执行。如果你改了 `config.yaml` 把 `migrations` 路径覆盖,需要确保路径正确(默认是相对工作目录的 `migrations/`)。
+
+```bash
+ls migrations/
+# cms.sql  dict.sql  flag.sql  framework.sql  asset.sql
+```
+
+## 10. 下一步
+
+| 你想... | 看 |
+|---|---|
+| 了解模块怎么注册 | [architecture.md](architecture.md#3-模块生命周期init--register--shutdown) |
+| 看完整 API 列表 | [api.md](api.md) |
+| 添加新的业务模块 | [developing.md](developing.md) |
+| 配置 RBAC 权限 | [permissions.md](permissions.md) |
+| 部署到生产 | [deployment.md](deployment.md) |

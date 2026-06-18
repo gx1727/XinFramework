@@ -1,318 +1,279 @@
-# 开发指南
+# 开发指南:新增一个业务模块
 
-> 如何新增一个业务模块（app）。
+> 本文档用一个具体例子带你走完新增模块的全流程。示例:加一个 `feedback`(用户反馈) 模块。
 
-## 1. 选位置
+## 0. 前提:理解现有架构
 
-XinFramework 把业务模块分成三层：
+读这些文档后再继续:
 
-| 位置 | 含义 | 例子 |
-| --- | --- | --- |
-| `apps/boot/<name>/` | 框架启动期必须 | auth / tenant |
-| `apps/rbac/<name>/` | RBAC 标准件（Phase 3 待落地） | user / role / menu |
-| `apps/reference/<name>/` | 参考实现，可被 fork 替换 | dict / asset / weixin |
-| `apps/<name>/` | 业务专属（你的自定义 app） | cms / flag / order |
+1. [architecture.md](architecture.md) — 了解 AppContext / Module 接口 / Init / Register 流程
+2. [modules.md](modules.md) — 看现有模块的结构
+3. [database.md](database.md) — 了解 RLS / 软删除 / 索引约定
 
-不放到 `framework/internal/module/`，那里正在清空（Phase 3）。
-
-## 2. 最小骨架
-
-```bash
-mkdir -p apps/order/doc
-```
-
-文件清单：
+## 1. 标准 8 步流程
 
 ```
-apps/order/
-├── module.go       # 模块入口（必须）
-├── handler.go      # HTTP handler
-├── service.go      # 业务逻辑
-├── repository.go   # DB 访问
-├── types.go        # DTO / struct
-├── errors.go       # 业务错误
-├── routes.go       # 路由注册
-├── doc/api.md      # 模块文档
-└── config.go       # （可选）模块私有配置
+1. SQL 迁移           migrations/feedback.sql
+2. 公共接口定义       framework/pkg/rbac/{feedback}.go(可选)
+3. 业务模块           apps/feedback/{handler,service,repository,model,module,routes}.go
+4. 错误码             apps/feedback/errors.go
+5. 在 main.go 注册    cmd/xin/main.go
+6. 在 cfg.Module 启用 config/config.yaml
+7. 资源码 seed(可选)  migrations/feedback.sql 末尾 INSERT INTO resources
+8. 单元测试(可选)     apps/feedback/*_test.go
 ```
 
-### 2.1 module.go
+下面逐步展开。
+
+---
+
+## 2. SQL 迁移 (Step 1)
+
+新建 `migrations/feedback.sql`:
+
+```sql
+-- ============================================
+-- Feedback 模块表
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS feedbacks
+(
+    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tenant_id  BIGINT      NOT NULL,
+    creator_id BIGINT      NOT NULL,
+    title      VARCHAR(128) NOT NULL,
+    content    TEXT         NOT NULL,
+    status     SMALLINT    DEFAULT 1,           -- 1=待处理 2=处理中 3=已处理
+    reply      TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_deleted BOOLEAN     DEFAULT FALSE
+);
+
+-- RLS
+ALTER TABLE feedbacks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE feedbacks FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON feedbacks
+    USING (tenant_id::text = current_setting('app.tenant_id', true));
+
+-- 索引
+CREATE INDEX IF NOT EXISTS idx_feedbacks_tenant_status ON feedbacks (tenant_id, status)
+    WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_feedbacks_creator ON feedbacks (creator_id)
+    WHERE is_deleted = FALSE;
+
+-- Seed:资源码
+INSERT INTO resources (code, action, name, menu_id, status, is_deleted)
+VALUES
+    ('feedback', 'list',   '查看反馈', NULL, 1, FALSE),
+    ('feedback', 'create', '提交反馈', NULL, 1, FALSE),
+    ('feedback', 'update', '处理反馈', NULL, 1, FALSE),
+    ('feedback', 'delete', '删除反馈', NULL, 1, FALSE)
+ON CONFLICT (code, action) DO NOTHING;
+```
+
+> 软删除 + RLS + 物化索引 + 资源码 seed 是规范。
+
+---
+
+## 3. 公共接口定义 (Step 2,可选)
+
+如果你的模块要给其他模块提供 Repository(跨模块消费),在 `framework/pkg/rbac/` 里加个窄接口文件:
 
 ```go
-package order
+// framework/pkg/rbac/feedback.go
+package rbac
 
-import (
-    "github.com/gin-gonic/gin"
-    "gx1727.com/xin/framework/pkg/db"
-    "gx1727.com/xin/framework/pkg/plugin"
-)
-
-type module struct{}
-
-// Module 返回该模块的 plugin.Module 实例。
-// 名称 "order" 必须与 config.yaml 的 module: 列表一致。
-func Module() plugin.Module {
-    return plugin.NewModule("order", func(public, protected *gin.RouterGroup) {
-        repo := NewRepository(db.Get())
-        svc := NewService(repo)
-        h := NewHandler(svc)
-        Register(protected, h)
-    })
+type FeedbackRepository interface {
+    List(ctx context.Context, tenantID, creatorID uint, page, size int) ([]Feedback, int64, error)
+    GetByID(ctx context.Context, id uint) (*Feedback, error)
+    Create(ctx context.Context, tenantID, creatorID uint, title, content string) (uint, error)
+    UpdateReply(ctx context.Context, id uint, reply string) error
 }
 
-// init 在包加载时自动注册到 plugin.Apps()。
-// 不需要 main.go 显式调用——但 main.go 必须有 side-effect import。
-func init() {
-    plugin.Register(Module())
+type Feedback struct {
+    ID        uint
+    TenantID  uint
+    CreatorID uint
+    Title     string
+    Content   string
+    Status    int16
+    Reply     string
+    CreatedAt time.Time
+    UpdatedAt time.Time
 }
 ```
 
-### 2.2 types.go
+然后 `AppContext.Reader` 接口加一行:
 
 ```go
-package order
-
-type Order struct {
-    ID         uint    `json:"id"`
-    TenantID   uint    `json:"tenant_id"`
-    Code       string  `json:"code"`
-    Amount     float64 `json:"amount"`
-    Status     int     `json:"status"`
-    CreatedAt  string  `json:"created_at"`
-    UpdatedAt  string  `json:"updated_at"`
-}
-
-type CreateRequest struct {
-    Code    string  `json:"code"    binding:"required,max=64"`
-    Amount  float64 `json:"amount"  binding:"required,gt=0"`
-}
-
-type UpdateRequest struct {
-    Amount *float64 `json:"amount"`
-    Status *int     `json:"status"`
-}
-
-type ListResponse struct {
-    List  []Order `json:"list"`
-    Total int64   `json:"total"`
-    Page  int     `json:"page"`
-    Size  int     `json:"size"`
+// framework/pkg/plugin/appcontext.go
+type Reader interface {
+    // ...
+    FeedbackRepo() rbac.FeedbackRepository
 }
 ```
 
-### 2.3 errors.go
+`Writer` 加一行:
 
 ```go
-package order
+type Writer interface {
+    // ...
+    SetFeedbackRepo(r rbac.FeedbackRepository)
+}
+```
 
-import "errors"
+`AppContext` struct 加一个字段 + 2 个方法。**编译会引导你完成所有必要的接线**(所有用 `ctx.FeedbackRepo()` 的地方都会报错,直到你注册了 module)。
+
+> 如果你的模块**不**给其他模块用,跳过这步,直接在 apps 里实现完整 repo。
+
+---
+
+## 4. 业务模块文件 (Step 3)
+
+新建 `apps/feedback/` 目录,8 个文件:
+
+```
+apps/feedback/
+├── errors.go            # 错误码 + ErrXxx
+├── model.go             # 业务 struct
+├── repository.go        # DB 访问
+├── service.go           # 业务逻辑
+├── handler.go           # gin handler
+├── routes.go            # 路由注册
+├── module.go            # plugin.Module 实现
+└── config.go(可选)      # 模块私有配置
+```
+
+### 4.1 errors.go
+
+```go
+package feedback
+
+import "gx1727.com/xin/framework/pkg/resp"
 
 var (
-    ErrOrderNotFound      = errors.New("order not found")
-    ErrOrderCodeExists    = errors.New("order code already exists")
-    ErrOrderStatusInvalid = errors.New("order status invalid")
+    ErrNotFound        = resp.Err(13001, "反馈不存在")
+    ErrTitleEmpty      = resp.Err(13002, "标题不能为空")
+    ErrContentEmpty    = resp.Err(13003, "内容不能为空")
+    ErrStatusInvalid   = resp.Err(13004, "状态值无效")
 )
 ```
 
-### 2.4 repository.go
+错误码走 `CodeFlag` 段(`13001-13999`),如果你的 module 已经在用就要避让。
+
+### 4.2 model.go
 
 ```go
-package order
+package feedback
+
+import "time"
+
+type Feedback struct {
+    ID        uint      `json:"id"`
+    TenantID  uint      `json:"tenant_id"`
+    CreatorID uint      `json:"creator_id"`
+    Title     string    `json:"title"`
+    Content   string    `json:"content"`
+    Status    int16     `json:"status"`
+    Reply     string    `json:"reply,omitempty"`
+    CreatedAt time.Time `json:"created_at"`
+    UpdatedAt time.Time `json:"updated_at"`
+}
+```
+
+### 4.3 repository.go
+
+```go
+package feedback
 
 import (
     "context"
-    "errors"
-
-    "github.com/jackc/pgx/v5"
     "github.com/jackc/pgx/v5/pgxpool"
+    "gx1727.com/xin/framework/pkg/db"
 )
 
-type Repository interface {
-    Create(ctx context.Context, tenantID uint, req CreateRequest) (*Order, error)
-    GetByID(ctx context.Context, tenantID, id uint) (*Order, error)
-    List(ctx context.Context, tenantID uint, page, size int, keyword string) ([]Order, int64, error)
-    Update(ctx context.Context, tenantID, id uint, req UpdateRequest) error
-    Delete(ctx context.Context, tenantID, id uint) error
-}
-
-type pgRepository struct {
+type Repository struct {
     db *pgxpool.Pool
 }
 
-func NewRepository(db *pgxpool.Pool) Repository {
-    return &pgRepository{db: db}
+func NewRepository(pool *pgxpool.Pool) *Repository {
+    return &Repository{db: pool}
 }
 
-func (r *pgRepository) Create(ctx context.Context, tenantID uint, req CreateRequest) (*Order, error) {
-    var o Order
-    err := r.db.QueryRow(ctx, `
-        INSERT INTO orders (tenant_id, code, amount, status, created_at, updated_at)
-        VALUES ($1, $2, $3, 1, NOW(), NOW())
-        RETURNING id, tenant_id, code, amount, status, created_at, updated_at
-    `, tenantID, req.Code, req.Amount).Scan(
-        &o.ID, &o.TenantID, &o.Code, &o.Amount, &o.Status, &o.CreatedAt, &o.UpdatedAt,
-    )
-    if err != nil {
-        if isUniqueViolation(err) {
-            return nil, ErrOrderCodeExists
-        }
-        return nil, err
-    }
-    return &o, nil
-}
-
-func (r *pgRepository) GetByID(ctx context.Context, tenantID, id uint) (*Order, error) {
-    var o Order
-    err := r.db.QueryRow(ctx, `
-        SELECT id, tenant_id, code, amount, status, created_at, updated_at
-        FROM orders
-        WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE
-    `, tenantID, id).Scan(
-        &o.ID, &o.TenantID, &o.Code, &o.Amount, &o.Status, &o.CreatedAt, &o.UpdatedAt,
-    )
-    if errors.Is(err, pgx.ErrNoRows) {
-        return nil, ErrOrderNotFound
-    }
-    return &o, err
-}
-
-func (r *pgRepository) List(ctx context.Context, tenantID uint, page, size int, keyword string) ([]Order, int64, error) {
-    if page < 1 {
-        page = 1
-    }
-    if size < 1 || size > 200 {
-        size = 20
-    }
-    offset := (page - 1) * size
+func (r *Repository) List(ctx context.Context, tenantID, creatorID uint, page, size int) ([]Feedback, int64, error) {
+    q, err := db.GetQuerier(ctx)
+    if err != nil { return nil, 0, err }
 
     var total int64
-    err := r.db.QueryRow(ctx, `
-        SELECT COUNT(*) FROM orders
-        WHERE tenant_id = $1 AND is_deleted = FALSE
-          AND ($2 = '' OR code ILIKE '%' || $2 || '%')
-    `, tenantID, keyword).Scan(&total)
-    if err != nil {
+    if err := q.QueryRow(ctx,
+        `SELECT COUNT(*) FROM feedbacks
+         WHERE tenant_id = $1 AND creator_id = $2 AND is_deleted = FALSE`,
+        tenantID, creatorID,
+    ).Scan(&total); err != nil {
         return nil, 0, err
     }
 
-    rows, err := r.db.Query(ctx, `
-        SELECT id, tenant_id, code, amount, status, created_at, updated_at
-        FROM orders
-        WHERE tenant_id = $1 AND is_deleted = FALSE
-          AND ($2 = '' OR code ILIKE '%' || $2 || '%')
-        ORDER BY id DESC
-        LIMIT $3 OFFSET $4
-    `, tenantID, keyword, size, offset)
-    if err != nil {
-        return nil, 0, err
-    }
+    rows, err := q.Query(ctx,
+        `SELECT id, tenant_id, creator_id, title, content, status, COALESCE(reply, ''), created_at, updated_at
+         FROM feedbacks
+         WHERE tenant_id = $1 AND creator_id = $2 AND is_deleted = FALSE
+         ORDER BY created_at DESC
+         LIMIT $3 OFFSET $4`,
+        tenantID, creatorID, size, (page-1)*size,
+    )
+    if err != nil { return nil, 0, err }
     defer rows.Close()
 
-    list := []Order{}
+    var out []Feedback
     for rows.Next() {
-        var o Order
-        if err := rows.Scan(&o.ID, &o.TenantID, &o.Code, &o.Amount, &o.Status, &o.CreatedAt, &o.UpdatedAt); err != nil {
+        var f Feedback
+        if err := rows.Scan(&f.ID, &f.TenantID, &f.CreatorID, &f.Title, &f.Content, &f.Status, &f.Reply, &f.CreatedAt, &f.UpdatedAt); err != nil {
             return nil, 0, err
         }
-        list = append(list, o)
+        out = append(out, f)
     }
-    return list, total, rows.Err()
+    return out, total, nil
 }
 
-func (r *pgRepository) Update(ctx context.Context, tenantID, id uint, req UpdateRequest) error {
-    // 用 COALESCE 做局部更新
-    _, err := r.db.Exec(ctx, `
-        UPDATE orders SET
-            amount    = COALESCE($3, amount),
-            status    = COALESCE($4, status),
-            updated_at = NOW()
-        WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE
-    `, tenantID, id, req.Amount, req.Status)
-    return err
-}
-
-func (r *pgRepository) Delete(ctx context.Context, tenantID, id uint) error {
-    _, err := r.db.Exec(ctx, `
-        UPDATE orders SET is_deleted = TRUE, deleted_at = NOW()
-        WHERE tenant_id = $1 AND id = $2
-    `, tenantID, id)
-    return err
-}
-
-func isUniqueViolation(err error) bool {
-    // pgx 的 PgError.Code == "23505"
-    var pgErr *pgconn.PgError
-    return errors.As(err, &pgErr) && pgErr.Code == "23505"
-}
+// GetByID, Create, UpdateReply ... 略
 ```
 
-### 2.5 service.go
+### 4.4 service.go
 
 ```go
-package order
+package feedback
 
 import (
     "context"
-
-    "gx1727.com/xin/framework/pkg/audit"
-    xincontext "gx1727.com/xin/framework/pkg/context"
+    "github.com/jackc/pgx/v5/pgxpool"
+    xinContext "gx1727.com/xin/framework/pkg/context"
 )
 
 type Service struct {
-    repo Repository
+    repo *Repository
 }
 
-func NewService(repo Repository) *Service {
-    return &Service{repo: repo}
+func NewService(pool *pgxpool.Pool) *Service {
+    return &Service{repo: NewRepository(pool)}
 }
 
-func (s *Service) Create(ctx context.Context, req CreateRequest) (*Order, error) {
-    xc := xincontext.FromContext(ctx)
-    return s.repo.Create(ctx, xc.TenantID, req)
+func (s *Service) List(ctx context.Context, page, size int) ([]Feedback, int64, error) {
+    uc := xinContext.MustNewUserContext(ctx)
+    return s.repo.List(ctx, uc.TenantID, uc.UserID, page, size)
 }
 
-func (s *Service) Get(ctx context.Context, id uint) (*Order, error) {
-    xc := xincontext.FromContext(ctx)
-    o, err := s.repo.GetByID(ctx, xc.TenantID, id)
-    if err != nil {
-        return nil, err
-    }
-    audit.WithContext(ctx, "order.get", id)
-    return o, nil
-}
-
-func (s *Service) List(ctx context.Context, page, size int, keyword string) (*ListResponse, error) {
-    xc := xincontext.FromContext(ctx)
-    list, total, err := s.repo.List(ctx, xc.TenantID, page, size, keyword)
-    if err != nil {
-        return nil, err
-    }
-    return &ListResponse{List: list, Total: total, Page: page, Size: size}, nil
-}
-
-func (s *Service) Update(ctx context.Context, id uint, req UpdateRequest) error {
-    xc := xincontext.FromContext(ctx)
-    audit.WithContext(ctx, "order.update", id)
-    return s.repo.Update(ctx, xc.TenantID, id, req)
-}
-
-func (s *Service) Delete(ctx context.Context, id uint) error {
-    xc := xincontext.FromContext(ctx)
-    audit.WithContext(ctx, "order.delete", id)
-    return s.repo.Delete(ctx, xc.TenantID, id)
-}
+// Create, UpdateReply ... 略
 ```
 
-### 2.6 handler.go
+### 4.5 handler.go
 
 ```go
-package order
+package feedback
 
 import (
-    "errors"
-
+    "strconv"
     "github.com/gin-gonic/gin"
-
     "gx1727.com/xin/framework/pkg/resp"
 )
 
@@ -320,272 +281,275 @@ type Handler struct {
     svc *Service
 }
 
-func NewHandler(svc *Service) *Handler {
-    return &Handler{svc: svc}
+func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
+
+func (h *Handler) List(c *gin.Context) {
+    page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+    size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
+
+    list, total, err := h.svc.List(c.Request.Context(), page, size)
+    if err != nil {
+        resp.HandleError(c, err)
+        return
+    }
+    resp.Paginate(c, total, list)
 }
 
 func (h *Handler) Create(c *gin.Context) {
-    var req CreateRequest
+    var req struct {
+        Title   string `json:"title" binding:"required"`
+        Content string `json:"content" binding:"required"`
+    }
     if err := c.ShouldBindJSON(&req); err != nil {
-        resp.Fail(c, resp.ErrBadRequest, err.Error())
+        resp.BadRequest(c, err.Error())
         return
     }
-    o, err := h.svc.Create(c.Request.Context(), req)
+    id, err := h.svc.Create(c.Request.Context(), req.Title, req.Content)
     if err != nil {
-        if errors.Is(err, ErrOrderCodeExists) {
-            resp.Fail(c, resp.ErrConflict, "订单编码已存在")
-            return
-        }
-        resp.Fail(c, resp.ErrInternal, err.Error())
+        resp.HandleError(c, err)
         return
     }
-    resp.OK(c, o)
+    resp.Success(c, gin.H{"id": id})
 }
 
-func (h *Handler) Get(c *gin.Context) {
-    id := parseID(c)
-    o, err := h.svc.Get(c.Request.Context(), id)
-    if err != nil {
-        if errors.Is(err, ErrOrderNotFound) {
-            resp.Fail(c, resp.ErrNotFound, "订单不存在")
-            return
-        }
-        resp.Fail(c, resp.ErrInternal, err.Error())
-        return
-    }
-    resp.OK(c, o)
-}
-
-func (h *Handler) List(c *gin.Context) {
-    page := atoiDefault(c.Query("page"), 1)
-    size := atoiDefault(c.Query("size"), 20)
-    keyword := c.Query("keyword")
-
-    list, err := h.svc.List(c.Request.Context(), page, size, keyword)
-    if err != nil {
-        resp.Fail(c, resp.ErrInternal, err.Error())
-        return
-    }
-    resp.OK(c, list)
-}
-
-func (h *Handler) Update(c *gin.Context) {
-    id := parseID(c)
-    var req UpdateRequest
-    if err := c.ShouldBindJSON(&req); err != nil {
-        resp.Fail(c, resp.ErrBadRequest, err.Error())
-        return
-    }
-    if err := h.svc.Update(c.Request.Context(), id, req); err != nil {
-        if errors.Is(err, ErrOrderNotFound) {
-            resp.Fail(c, resp.ErrNotFound, "订单不存在")
-            return
-        }
-        resp.Fail(c, resp.ErrInternal, err.Error())
-        return
-    }
-    resp.OK(c, nil)
-}
-
-func (h *Handler) Delete(c *gin.Context) {
-    id := parseID(c)
-    if err := h.svc.Delete(c.Request.Context(), id); err != nil {
-        resp.Fail(c, resp.ErrInternal, err.Error())
-        return
-    }
-    resp.OK(c, nil)
-}
+// ... UpdateReply, Delete 略
 ```
 
-### 2.7 routes.go
+### 4.6 routes.go
 
 ```go
-package order
+package feedback
 
 import (
     "github.com/gin-gonic/gin"
-
     "gx1727.com/xin/framework/pkg/middleware"
     "gx1727.com/xin/framework/pkg/permission"
 )
 
 func Register(protected *gin.RouterGroup, h *Handler) {
-    orders := protected.Group("/orders")
-    orders.GET("", middleware.Require(permission.P(permission.ResOrder, permission.ActList)), h.List)
-    orders.GET("/:id", middleware.Require(permission.P(permission.ResOrder, permission.ActList)), h.Get)
-    orders.POST("", middleware.Require(permission.P(permission.ResOrder, permission.ActCreate)), h.Create)
-    orders.PUT("/:id", middleware.Require(permission.P(permission.ResOrder, permission.ActUpdate)), h.Update)
-    orders.DELETE("/:id", middleware.Require(permission.P(permission.ResOrder, permission.ActDelete)), h.Delete)
+    g := protected.Group("/feedbacks")
+    {
+        g.GET("", middleware.Require(permission.P(permission.ResFlag, permission.ActList)), h.List)  // 这里沿用 ResFlag 占位
+        // ...
+    }
 }
 ```
 
-需要在 `framework/pkg/permission/constants.go` 加：
+> **重要**:Resource 码需要先在 `resources` 表里 seed,然后才能用 `permission.P(...)` 引用。如果你想新增 `ResFeedback`,先改 [framework/pkg/permission/constants.go](framework/pkg/permission/constants.go) 加常量,再在 migration seed。
+
+### 4.7 module.go
 
 ```go
-const (
-    ResOrder = "order"
-)
-```
+package feedback
 
-并在 `migrations/framework.sql` 插入对应资源码。
-
-## 3. 注册到主程序
-
-```go
-// cmd/xin/main.go
 import (
-    "gx1727.com/xin/framework"
-    _ "gx1727.com/xin/framework" // 触发 builtin_modules.go
-    _ "gx1727.com/xin/apps/boot/auth"
-    _ "gx1727.com/xin/apps/boot/tenant"
-    _ "gx1727.com/xin/apps/order"  // ← 新加
-    _ "gx1727.com/xin/apps/cms"
-    _ "gx1727.com/xin/apps/flag"
+    "github.com/gin-gonic/gin"
+    "gx1727.com/xin/framework/pkg/db"
+    "gx1727.com/xin/framework/pkg/plugin"
 )
+
+func init() {
+    plugin.Register(Module())
+}
+
+func Module() plugin.Module {
+    return &plugin.BaseModule{
+        NameStr: "feedback",
+        InitFn: func(_ plugin.Reader, _ plugin.Writer) error {
+            // 初始化逻辑(如资源 seed、配置校验)
+            return nil
+        },
+        RegFn: func(_ plugin.Reader, _, protected *gin.RouterGroup) {
+            svc := NewService(db.Get())
+            h := NewHandler(svc)
+            Register(protected, h)
+        },
+    }
+}
 ```
 
-## 4. 加入配置
-
-```yaml
-# config/config.yaml
-module:
-  - auth
-  - tenant
-  - ...
-  - order  # ← 新加
-  - cms
-  - flag
-```
-
-## 5. 加 SQL 迁移
-
-```bash
-cat > migrations/order.sql <<'EOF'
-CREATE TABLE orders (
-    id          BIGSERIAL PRIMARY KEY,
-    tenant_id   BIGINT NOT NULL,
-    code        VARCHAR(64) NOT NULL,
-    amount      NUMERIC(20,4) NOT NULL DEFAULT 0,
-    status      SMALLINT NOT NULL DEFAULT 1,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    is_deleted  BOOLEAN NOT NULL DEFAULT FALSE,
-    deleted_at  TIMESTAMPTZ
-);
-
-CREATE INDEX idx_orders_tenant ON orders(tenant_id, is_deleted, id DESC);
-CREATE UNIQUE INDEX uk_orders_tenant_code ON orders(tenant_id, code) WHERE is_deleted = FALSE;
-
-INSERT INTO resources (code, type, name, method, path) VALUES
-    ('order:list',   'api', '订单列表', 'GET',    '/api/v1/orders'),
-    ('order:get',    'api', '订单详情', 'GET',    '/api/v1/orders/:id'),
-    ('order:create', 'api', '新建订单', 'POST',   '/api/v1/orders'),
-    ('order:update', 'api', '更新订单', 'PUT',    '/api/v1/orders/:id'),
-    ('order:delete', 'api', '删除订单', 'DELETE', '/api/v1/orders/:id');
-EOF
-```
-
-启动时 `framework/pkg/migrate` 自动按文件名排序执行。
-
-## 6. 前端配合
-
-1. `UI/src/api/client.ts` 加 `orderApi = { list, get, create, update, delete }`
-2. `UI/src/locales/zh-CN.ts` 加 `pages.order.*` 块（**先加**，作为 `LocaleKeys` 类型源头）
-3. `UI/src/locales/en-US.ts` 同步
-4. `UI/src/App.tsx` 加 `lazy(() => import("@/pages/Order"))` + 路由
-5. 写 `UI/src/pages/Order.tsx`（参考 `UI/src/pages/Users.tsx`）
-
-详见 [UI/AGENTS.md](file:///d:\work\xin\XinFramework\UI\AGENTS.md)。
-
-## 7. 验证
-
-```bash
-# 后端编译
-cd server
-go build ./...
-go vet ./...
-
-# 启动
-go run ./cmd/xin run
-
-# 测试 API
-curl -X POST http://localhost:8080/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"tenant_code":"default","account":"admin","password":"xxx"}'
-
-curl -X POST http://localhost:8080/api/v1/orders \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"code":"o001","amount":99.9}'
-```
-
-## 8. 模块自检清单
-
-- [ ] 包名与目录名一致
-- [ ] `Module()` 函数返回 `plugin.Module`
-- [ ] `init()` 调用 `plugin.Register(Module())`
-- [ ] `Register(public, protected, h)` 注册路由时加 `middleware.Require`
-- [ ] Repository 强制按 `tenant_id` 过滤
-- [ ] 用 `is_deleted = FALSE` 软删过滤
-- [ ] Service 从 `xincontext.FromContext(ctx)` 拿 tenantID
-- [ ] Handler 用 `resp.OK/Fail` 返回
-- [ ] 业务错误在 `errors.go` 定义并在 handler 用 `errors.Is`
-- [ ] 关键操作调 `audit.WithContext`
-- [ ] SQL 迁移文件加好（表 + 索引 + resources 记录）
-- [ ] `cmd/xin/main.go` 加 side-effect import
-- [ ] `config.yaml` 的 `module:` 列表加模块名
+> 注意:`db.Get()` 是全局函数,目前 framework 仍保留(`db.Pool` 是全局变量)。新 module 简单场景可以直接用,复杂场景建议把 `db.Pool` 显式从 `ctx.DB()` 读——更显式。
 
 ---
 
-## 9. 进阶
+## 5. 在 main.go 注册 (Step 5)
 
-### 9.1 跨模块依赖
-
-详见 [architecture.md §4](file:///d:\work\xin\XinFramework\server\doc\architecture.md#4-跨模块依赖规则)。
-
-如果你的模块需要用其他模块的 repository，通过 framework/pkg 的注册钩子。
-
-### 9.2 自定义配置
+[cmd/xin/main.go](cmd/xin/main.go) 加一行 side-effect import:
 
 ```go
-// apps/order/config.go
-package order
+import (
+    // ...
+    _ "gx1727.com/xin/apps/feedback"
+)
+```
 
-type Config struct {
-    MaxAmount float64 `yaml:"max_amount"`
-}
+## 6. 在 cfg.Module 启用 (Step 6)
 
-func (c *Config) Default() *Config {
-    return &Config{MaxAmount: 100000}
+[config/config.yaml](config/config.yaml) 加 `- feedback`:
+
+```yaml
+module:
+  - user
+  - role
+  - feedback     # ← 加这一行
+  # ...
+```
+
+或者如果你希望它默认启用,把它加到 [config/config.go](framework/pkg/config/config.go) 的 `optOutModules` 列表里:
+
+```go
+var optOutModules = []string{
+    "menu", "user", "role", "resource", "organization", "dict", "asset",
+    "permission",
+    "feedback",   // ← 默认启用
 }
 ```
 
-`config.Get()` 读全局配置（YAML root），按 yaml 路径取。
+---
 
-### 9.3 异步任务
+## 7. 资源码 seed (Step 7)
+
+在 `migrations/feedback.sql` 末尾加(见 Step 1 的 SQL 示例):
+
+```sql
+INSERT INTO resources (code, action, name, menu_id, status, is_deleted)
+VALUES ('feedback', 'list', '查看反馈', NULL, 1, FALSE), ...
+ON CONFLICT (code, action) DO NOTHING;
+```
+
+然后在 `framework/pkg/permission/constants.go` 加常量:
 
 ```go
-import "github.com/hibiken/asynq"
+const (
+    ResFeedback = "feedback"
+    // ...
+)
+```
 
-func (s *Service) HeavyTask(ctx context.Context, id uint) error {
-    payload, _ := json.Marshal(map[string]any{"order_id": id})
-    _, err := asynqClient.Enqueue(asynq.NewTask("order:heavy", payload))
-    return err
+> 如果不加常量,可以在 routes.go 里直接写字符串:`permission.P("feedback", "list")`。
+
+---
+
+## 8. 测试 (Step 8)
+
+`apps/feedback/service_test.go`:
+
+```go
+package feedback
+
+import (
+    "context"
+    "testing"
+)
+
+func TestService_List_NoRows(t *testing.T) {
+    s := &Service{repo: NewRepository(nil)}
+    // 没 db pool,期望走 nil-db fallback 分支
+    _, _, err := s.List(context.Background(), 1, 20)
+    if err == nil {
+        t.Error("expected error from nil pool, got nil")
+    }
 }
 ```
 
-框架未集成 asynq，需要自行接入。
+跑:
 
-### 9.4 中间件
+```bash
+go test -v ./apps/feedback/...
+```
 
-模块级中间件（作用于该模块的所有路由）：
+---
+
+## 9. 完整代码模板
+
+如果你是脚手架爱好者,可以直接 copy [apps/reference/dict/](apps/reference/dict/) 当模板 —— 它是最小的"教科书级"模块:
+
+```
+apps/reference/dict/
+├── errors.go            ← 错误码
+├── handler.go           ← gin handler
+├── model.go             ← struct
+├── module.go            ← BaseModule 完整实现
+├── repository.go        ← pgx CRUD
+├── routes.go            ← 路由注册(标准模式)
+├── service.go           ← 业务
+└── types.go             ← Request/Response 类型
+```
+
+完整模板在 [apps/reference/dict/module.go](apps/reference/dict/module.go):
 
 ```go
-func Register(protected *gin.RouterGroup, h *Handler) {
-    orders := protected.Group("/orders")
-    orders.Use(myMiddleware())  // ← 模块级
-    orders.GET("", ..., h.List)
+package dict
+
+func init() { plugin.Register(Module()) }
+
+func Module() plugin.Module {
+    return &plugin.BaseModule{
+        NameStr: "dict",
+        InitFn: func(_ plugin.Reader, w plugin.Writer) error {
+            // 跨模块提供 DictRepo → 给 extapi 等用
+            w.SetDictRepo(NewDictRepository(db.Get()))
+            return nil
+        },
+        RegFn: func(_ plugin.Reader, _, protected *gin.RouterGroup) {
+            svc := NewService(NewDictRepository(db.Get()))
+            Register(protected, NewHandler(svc))
+        },
+    }
 }
 ```
 
-公共中间件（全局）放 `framework/internal/core/middleware`。
+---
+
+## 10. 验收清单
+
+新增模块后,提交前跑:
+
+```bash
+# 1. 编译
+go build ./...
+
+# 2. vet
+go vet ./...
+
+# 3. 已有测试不挂
+go test ./...
+
+# 4. 启动 + smoke test
+./bin/xin run &
+sleep 2
+curl http://localhost:8087/api/v1/feedbacks   # 应该 200 或 403,不能 panic
+curl http://localhost:8087/api/v1/health      # 必须 200
+```
+
+启动日志应该看到:
+
+```
+2026/06/18 ... module feedback initialized
+```
+
+---
+
+## 11. 常见陷阱
+
+| 陷阱 | 解决 |
+|---|---|
+| 忘记 `import _ ".../apps/feedback"` | module 不注册,启动看不到 |
+| 忘记加 `cfg.Module` | module 注册了但 Init/Register 跳过 |
+| 错误码和别的模块撞了 | 查 [resp/errors.go](framework/pkg/resp/errors.go) 选空段 |
+| 资源码没 seed,Permission.P 直接写字符串 | 可以工作,但失去 IDE 自动补全 |
+| handler 调 `db.Get()` 而不是 `ctx.DB()` | 简单场景 OK,但不利于测试;新代码建议走 ctx |
+| RLS 没建,跨租户泄漏 | `ALTER TABLE xxx ENABLE ROW LEVEL SECURITY` + `FORCE` |
+| 没加 `is_deleted = FALSE` filter | 删除的数据会混进 List |
+| 唯一索引不是 partial index | 删除后无法重建 |
+| 事务里 `db.Get()` 返回 pool 而不是 tx | 用 `db.GetQuerier(ctx)` 让 ctx 自动找 tx |
+| `super_admin` 平台角色没 bypass 你的中间件 | 确认你的 Require 在 [framework/pkg/middleware/auth.go](framework/pkg/middleware/auth.go) `requireWithSpecs` 里有 `if uc.IsSuperAdmin() { c.Next(); return }` 短路 |
+
+## 12. 下一步
+
+| 你想... | 看 |
+|---|---|
+| 看所有可用中间件 | [architecture.md#中间件链](architecture.md#5-中间件链) |
+| 理解 RBAC | [permissions.md](permissions.md) |
+| 部署你的新模块 | [deployment.md](deployment.md) |
+| 写测试 | [developing.md#8-测试](#8-测试-step-8) |

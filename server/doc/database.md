@@ -1,288 +1,294 @@
-# 数据库
+# 数据库设计
 
-> 表结构、迁移、命名约定。
+> 当前 30+ 张表,核心表在 `migrations/framework.sql`,业务表分散在 `cms.sql` / `dict.sql` / `flag.sql` / `asset.sql`。
 
-## 总览
+## 1. 扩展
 
-数据库：PostgreSQL 16+。
-
-主要迁移文件：
-
-| 文件 | 范围 |
-| --- | --- |
-| `migrations/framework.sql` | 平台 + 框架核心表（accounts, tenants, users, roles, menus, resources, organizations, dicts, attachments, sessions, platform_roles, role_resources, data_scopes, role_menus） |
-| `migrations/cms.sql` | CMS 业务表 |
-| `migrations/flag.sql` | Flag 业务表 |
-
-迁移执行顺序：**按文件名排序**。框架自带 [framework/pkg/migrate](file:///d:\work\xin\XinFramework\server\framework\pkg\migrate) 按序跑 `.sql` 文件。
-
-## 命名约定
-
-| 类型 | 规则 | 示例 |
-| --- | --- | --- |
-| 表名 | 复数 snake_case | `users`, `role_resources`, `account_auths` |
-| 主键 | `id BIGSERIAL` 或 `id BIGINT` | `id` |
-| 外键 | `<单数表名>_id` | `user_id`, `tenant_id`, `role_id` |
-| 时间戳 | `created_at TIMESTAMPTZ`, `updated_at TIMESTAMPTZ` | —— |
-| 软删 | `is_deleted BOOLEAN DEFAULT FALSE`, `deleted_at TIMESTAMPTZ` | —— |
-| 操作人 | `created_by BIGINT`, `updated_by BIGINT` | —— |
-| 枚举 | `SMALLINT`（不要用 PG ENUM 类型） | `status SMALLINT` |
-| 金额 | `NUMERIC(20, 4)` | `amount NUMERIC(20,4)` |
-| 字符集 | UTF-8 | —— |
-| 排序 | `sort INT DEFAULT 0` | —— |
-
-## 多租户
-
-**所有租户内业务表必带** `tenant_id BIGINT NOT NULL`。
+迁移脚本默认装这两个 PG 扩展:
 
 ```sql
-CREATE TABLE users (
-    id          BIGSERIAL PRIMARY KEY,
-    tenant_id   BIGINT NOT NULL,
-    account_id  BIGINT NOT NULL,
-    ...
-);
-
-CREATE INDEX idx_users_tenant ON users(tenant_id, is_deleted, created_at DESC);
+CREATE EXTENSION IF NOT EXISTS ltree;      -- 路径/树形存储
+CREATE EXTENSION IF NOT EXISTS pg_trgm;    -- trigram 模糊匹配
 ```
 
-查询模板：
+需要 PG ≥ 14,扩展需要 superuser 权限装一次。
+
+## 2. 迁移机制
+
+启动时由 `framework/pkg/migrate.Run("migrations")` 执行:
+
+- 扫 `./migrations/*.sql` 按文件名排序
+- 在 `schema_migrations` 表里记录已执行版本
+- 重复执行跳过
+
+**注意**:迁移是**幂等的**(所有 `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`)。但 `ALTER TABLE` 类操作要自己保证幂等。
+
+## 3. 核心表总览
+
+### 3.1 ER 关系
+
+```
+tenants                       accounts ─── account_auths
+   │                          │   │   │
+   │                          │   │   └── account_roles  ← 平台角色(super_admin)
+   │                          │   │
+   │                          │   └── user_codes  ← 验证码
+   │                          │
+   ├── organizations          │
+   │      ↑ (parent_id)       │
+   │                          │
+   ├── users ─── user_roles ───┤
+   │      │     │              │
+   │      │     └── roles      │
+   │      │           │        │
+   │      │           ├── role_menus
+   │      │           │      │
+   │      │           │      └── menus ─── resources (按 menu_id)
+   │      │           │
+   │      │           └── role_resources
+   │      │
+   │      └──(creator_id)
+   │
+   ├── file_assets            ← 所有 module 通用附件
+   ├── dicts ─── dict_items
+   ├── frames / avatars ...   ← flag 业务
+   └── posts                  ← cms 业务
+```
+
+### 3.2 表清单
+
+#### 平台级表(不受 RLS)
+
+| 表 | 用途 | 关键字段 |
+|---|---|---|
+| `tenants` | 租户 | `code`(唯一)、`status`、`config jsonb` |
+| `accounts` | 全局账号 | `username/phone/email`(各自唯一)、`password hash` |
+| `account_auths` | 第三方授权 | `provider`、`openid`、`account_id` |
+| `account_roles` | 平台角色 | `account_id`、`role`(如 `super_admin`) |
+| `user_codes` | 验证码 | `account_id`、`code`、`expire_at` |
+
+#### 租户级表(受 RLS)
+
+| 表 | 用途 | 关键字段 |
+|---|---|---|
+| `organizations` | 组织架构 | `parent_id`、`ancestors`、`code`(租户内唯一) |
+| `users` | 租户用户 | `tenant_id`、`account_id`、`code`、`org_id` |
+| `user_roles` | 用户-角色 | `tenant_id`、`user_id`、`role_id` |
+| `roles` | 角色 | `tenant_id`、`code`、`data_scope` |
+| `role_menus` | 角色-菜单 | `role_id`、`menu_id` |
+| `role_resources` | 角色-资源 | `role_id`、`resource_id`、`effect` |
+| `menus` | 菜单 | `parent_id`、`code`、`path` |
+| `resources` | 资源(按钮/API) | `code`、`action`、`menu_id` |
+| `file_assets` | 文件 | `url`、`size`、`mime`、`owner_id` |
+| `dicts` | 字典 | `code`、`name` |
+| `dict_items` | 字典项 | `dict_id`、`code`、`name`、`parent_id` |
+| `frames` / `frame_categories` / `spaces` / `avatars` / `avatar_categories` | flag 业务 | 见 [flag.sql](../migrations/flag.sql) |
+| `posts` | cms 业务 | 见 [cms.sql](../migrations/cms.sql) |
+
+## 4. 行级安全(RLS)
+
+**多租户隔离通过 `db.RunInTenantTx(ctx, pool, tenantID, fn)` 实现**:把 `SET LOCAL app.tenant_id = <id>` 注入事务,然后查询触发表上定义的 RLS 策略。
+
+### 4.1 一个 RLS 例子(users 表)
 
 ```sql
-SELECT * FROM users
-WHERE tenant_id = $1
-  AND is_deleted = FALSE
-  AND ($2 = '' OR code ILIKE '%' || $2 || '%')
-ORDER BY id DESC
-LIMIT $3 OFFSET $4;
+-- migrations/framework.sql 包含
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation ON users
+    USING (tenant_id::text = current_setting('app.tenant_id', true));
 ```
 
-`is_deleted = FALSE` 必须显式过滤。
+查询 `SELECT * FROM users` 在没设置 `app.tenant_id` 时会返回 0 行。
 
-## 软删
-
-```sql
-UPDATE users SET is_deleted = TRUE, deleted_at = NOW() WHERE id = $1;
-```
-
-而非 `DELETE FROM users`。前端列表永远查 `is_deleted = FALSE`。
-
-## 时间戳
-
-统一 `TIMESTAMPTZ`（带时区），Go 端用 `time.Time` 解析。**不要用** `TIMESTAMP`（不带时区）。
-
-## 主键策略
-
-`BIGSERIAL`（自增）。预留 64 位容量，对租户数 / 用户数 / 数据量都够。
-
-如果将来要分库分表，再考虑雪花算法或 UUID。但当前阶段一律 `BIGSERIAL`。
-
-## JSON 字段
-
-存配置 / 扩展字段时用 `JSONB`：
-
-```sql
-config JSONB NOT NULL DEFAULT '{}'::jsonb
-```
-
-查询用 `config->>'key'`：
-
-```sql
-SELECT * FROM tenants WHERE config->>'theme' = 'dark';
-```
-
-## 索引约定
-
-- **复合索引**：高频查询 `tenant_id, is_deleted, <order_field>` 一起建
-- **外键**：必加索引
-- **unique 索引**：业务唯一键（如 `users(tenant_id, code)`）
-
-```sql
-CREATE UNIQUE INDEX uk_users_tenant_code ON users(tenant_id, code)
-WHERE is_deleted = FALSE;
-```
-
-注意 `UNIQUE` 加 `WHERE is_deleted = FALSE` 是关键——避免软删后能复用 code。
-
-## 表清单（框架）
-
-### accounts — 全局账号
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| id | BIGSERIAL PK | |
-| username | VARCHAR(64) UNIQUE | 登录账号 |
-| phone | VARCHAR(20) | 可空，唯一 |
-| email | VARCHAR(128) | 可空，唯一 |
-| real_name | VARCHAR(64) | |
-| password_hash | TEXT | argon2id |
-| status | SMALLINT | 1=active 0=disabled |
-| last_login_at | TIMESTAMPTZ | |
-| is_deleted | BOOLEAN | |
-| created_at/updated_at | TIMESTAMPTZ | |
-
-### account_auths — 第三方授权
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| id | BIGSERIAL PK | |
-| tenant_id | BIGINT | |
-| account_id | BIGINT FK accounts | |
-| type | VARCHAR(16) | wechat / qq / weibo / wxxcx |
-| openid | VARCHAR(128) | |
-| unionid | VARCHAR(128) | |
-| session_key | TEXT | |
-| created_at/updated_at | TIMESTAMPTZ | |
-
-UNIQUE `(tenant_id, type, openid)`。
-
-### tenants — 租户
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| id | BIGSERIAL PK | |
-| code | VARCHAR(64) UNIQUE | 租户编码 |
-| name | VARCHAR(128) | |
-| status | SMALLINT | 1=active 0=disabled |
-| contact / phone / email | VARCHAR | 联系人信息 |
-| province / city / area / address | VARCHAR | 地址 |
-| config | JSONB | 租户级配置 |
-| dashboard | TEXT | 仪表盘 JSON |
-| is_deleted | BOOLEAN | |
-| created_at/updated_at | TIMESTAMPTZ | |
-
-### users — 租户内用户
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| id | BIGSERIAL PK | |
-| tenant_id | BIGINT | |
-| account_id | BIGINT FK accounts | 关联全局账号 |
-| org_id | BIGINT FK organizations NULL | |
-| code | VARCHAR(64) | 租户内工号 |
-| nickname / real_name / avatar / phone / email | VARCHAR | |
-| status | SMALLINT | |
-| is_deleted | BOOLEAN | |
-
-UNIQUE `(tenant_id, code) WHERE is_deleted = FALSE`。
-
-### organizations — 组织
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| id | BIGSERIAL PK | |
-| tenant_id | BIGINT | |
-| parent_id | BIGINT | 0 = 根 |
-| name | VARCHAR(128) | |
-| path | LTREE 或 TEXT | 物化路径 |
-| sort | INT | |
-| is_deleted | BOOLEAN | |
-
-### roles — 角色
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| id | BIGSERIAL PK | |
-| tenant_id | BIGINT | |
-| code | VARCHAR(64) | admin / user / ... |
-| name | VARCHAR(128) | 显示名 |
-| data_scope_type | SMALLINT | 1=All 2=Custom 3=Dept 4=DeptAndBelow 5=Self |
-| data_scope_org_ids | BIGINT[] | 仅 type=Custom |
-| is_builtin | BOOLEAN | 内置角色（不可删） |
-| is_deleted | BOOLEAN | |
-
-### role_menus — 角色-菜单绑定
-
-`role_id`, `menu_id` 联合主键。
-
-### role_resources — 角色-资源绑定
-
-`role_id`, `resource_id` 联合主键。
-
-### menus — 菜单
-
-`id, tenant_id, parent_id, code, title_i18n_key, path, icon, sort, is_deleted`。
-
-### resources — 资源（API / 按钮）
-
-`id, tenant_id, code (unique), type (api/button), name, method, path`。
-
-### dicts — 字典分类
-
-`id, code (unique), name, description, is_deleted`。
-
-### dict_items — 字典项
-
-`id, dict_id, code, label, value, sort, is_deleted`。
-
-UNIQUE `(dict_id, code) WHERE is_deleted = FALSE`。
-
-### attachments — 附件
-
-`id, tenant_id, owner_id, filename, content_type, size, storage_key, is_deleted`。
-
-### sessions — 会话
-
-`id (uuid), user_id, tenant_id, role, expires_at`。会话存储由 `framework/pkg/session` 抽象（默认内存，可换 Redis）。
-
-### platform_roles — 平台角色
-
-`account_id, role` 联合主键。常用值：`super_admin`。
-
-## 事务
-
-Go 端用 `framework/pkg/db.WithTx`：
+### 4.2 在 Go 里套租户上下文
 
 ```go
-import "gx1727.com/xin/framework/pkg/db"
-
-err := db.WithTx(ctx, func(tx pgx.Tx) error {
-    _, err := tx.Exec(ctx, "INSERT INTO ...", ...)
-    if err != nil { return err }
-    _, err = tx.Exec(ctx, "UPDATE ...", ...)
-    return err
+err := db.RunInTenantTx(ctx, db.Get(), claims.TenantID, func(txCtx context.Context) error {
+    // txCtx 里 SET LOCAL app.tenant_id = claims.TenantID
+    // 这里的 SELECT/INSERT/UPDATE 自动受 RLS 限制
+    return s.repo.GetByID(txCtx, userID)
 })
 ```
 
-事务里通过 `db.GetQuerier(ctx)` 拿 tx，对 repository 无侵入。
+**为什么用 `txCtx`?** 因为 `db.GetQuerier(ctx)` 优先返回 `ctx` 上的 tx,所以整个回调共享一个事务。
 
-## 迁移
+### 4.3 不受 RLS 的表
 
-```go
-// framework/pkg/migrate/migrate.go
-func Run(dir string) error {
-    files, _ := filepath.Glob(filepath.Join(dir, "*.sql"))
-    sort.Strings(files)
-    for _, f := range files {
-        data, _ := os.ReadFile(f)
-        // 切分 ; 逐条执行
-    }
-}
+以下表的查询**不要**套 `RunInTenantTx`:
+
+| 表 | 原因 |
+|---|---|
+| `accounts` | 全局唯一,登录时不知道 tenant_id |
+| `account_auths` | 第三方授权也是全局维度 |
+| `account_roles` | 平台角色,跨租户 |
+| `tenants` | 平台管理,需要跨租户查询 |
+
+## 5. 软删除
+
+所有业务表都有 `is_deleted BOOLEAN DEFAULT FALSE` + `created_at` / `updated_at` / `created_by` / `updated_by`。
+
+**约定**:
+
+- 查询默认带 `WHERE is_deleted = FALSE`
+- 唯一索引都是部分索引:`UNIQUE INDEX ... WHERE is_deleted = FALSE`
+- "删除" 实际是 `UPDATE ... SET is_deleted = TRUE`,数据保留
+- "硬删"(物理 DELETE)只用于 `purge` 类操作(如 `POST /tenants/:id/purge`)
+
+例子:
+
+```sql
+CREATE UNIQUE INDEX uk_users_account ON users (tenant_id, account_id)
+    WHERE is_deleted = FALSE;
 ```
 
-新加 SQL：
+这保证同一 account 在同一租户内只能有一个 user 行,但删除后可以重建。
 
-1. 在 `migrations/` 加 `<timestamp>_<name>.sql`
-2. 启动时自动跑
+## 6. 索引策略
 
-**注意**：
+每个表都至少有以下索引:
 
-- 不要破坏已有表结构（用 `ALTER TABLE ADD COLUMN ... DEFAULT NULL`）
-- 删字段前先 `ALTER TABLE DROP COLUMN IF EXISTS`
-- 大批量 UPDATE 分批提交，避免长事务
+| 索引 | 字段 | 说明 |
+|---|---|---|
+| 主键 | `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` |
+| `created_at` | 默认 `idx_xxx_created_at` | 排序 / 增量同步 |
+| `is_deleted` 部分索引 | 配合其他唯一性 | 软删除 + 唯一 |
 
-## 备份与恢复
+高频查询字段都有专门的 `idx_*`,例如:
+
+```sql
+CREATE INDEX idx_users_tenant_org ON users (tenant_id, org_id) WHERE is_deleted = FALSE;
+CREATE INDEX idx_users_code_trgm ON users USING gin (code gin_trgm_ops);
+CREATE INDEX idx_org_tenant_parent ON organizations (tenant_id, parent_id) WHERE is_deleted = FALSE;
+```
+
+模糊搜索用 `gin_trgm_ops`(由 `pg_trgm` 扩展提供),对中文支持有限,生产环境建议加全文索引或外置 ES。
+
+## 7. 物化路径
+
+`organizations` 表用 ltree 风格的 `ancestors TEXT` 字段做物化路径:
+
+```
+ancestors = ""                   ← 顶级
+ancestors = "/3/"                ← parent_id=3 的子
+ancestors = "/3/7/"              ← parent_id=7,parent_id=3
+```
+
+快速查某节点的所有祖先:
+
+```sql
+SELECT * FROM organizations
+WHERE id = ANY(string_to_array(trim(ancestors, '/'), '/')::bigint[]);
+```
+
+快速查某节点的所有后代:
+
+```sql
+SELECT * FROM organizations WHERE ancestors LIKE '/3/%';
+```
+
+## 8. 时区
+
+所有 `TIMESTAMPTZ DEFAULT NOW()` —— PostgreSQL 内部用 UTC 存储,Go 端用 `time.Time` 自动按本地时区渲染。
+
+生产建议:
+
+- DB server TZ = UTC
+- 应用 server TZ = Asia/Shanghai
+- 所有跨时区逻辑在应用层处理
+
+## 9. JSONB 字段
+
+部分表有 `JSONB` 字段存半结构化数据:
+
+| 表 | 字段 | 用途 |
+|---|---|---|
+| `tenants.config` | jsonb | 租户级配置(主题、限额、特性开关) |
+| 各种业务表 | `extra` / `metadata` | 业务扩展属性 |
+
+可以用 GIN 索引:
+
+```sql
+CREATE INDEX idx_tenants_config_gin ON tenants USING GIN (config);
+```
+
+## 10. 迁移操作清单
+
+新加表/字段的流程:
 
 ```bash
-# 备份
-pg_dump -U xin -h localhost xin > xin_backup_$(date +%Y%m%d).sql
+# 1. 改 SQL 文件
+vi migrations/framework.sql     # 加 CREATE TABLE IF NOT EXISTS xxx
 
-# 恢复
-psql -U xin -h localhost xin < xin_backup_20260615.sql
+# 2. 在仓库根目录跑
+psql -h localhost -U xin_user -d xin -f migrations/framework.sql
+
+# 3. 提交 SQL + Go 实体(apps/.../model.go)
+git add migrations/ apps/
+git commit -m "feat(db): add xxx table"
+
+# 4. 部署后 xin restart 会自动跑未执行的迁移
 ```
 
-生产建议：
+**重要**:永远不要直接改已经上线的迁移脚本。要"反向"加字段就写新脚本做 `ALTER TABLE`,**不要**改 `CREATE TABLE`。
 
-- 每日全量备份 + WAL 归档（pg_basebackup）
-- 异地存储备份文件
-- 定期演练恢复
+## 11. 数据完整性约束
+
+### 11.1 FK 关系
+
+```sql
+-- 示例:users -> tenants + accounts
+ALTER TABLE users
+    ADD CONSTRAINT fk_users_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    ADD CONSTRAINT fk_users_account FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE RESTRICT;
+```
+
+`tenant ON DELETE CASCADE`:租户硬删 → users 全清。
+`account ON DELETE RESTRICT`:账号不能被删,只能软删 + 禁用。
+
+### 11.2 Check 约束
+
+```sql
+ALTER TABLE accounts
+    ADD CONSTRAINT chk_accounts_status CHECK (status IN (0, 1));
+```
+
+## 12. 备份与恢复
+
+不在框架范围内,但典型做法:
+
+```bash
+# 全量备份
+pg_dump -h localhost -U xin_user -d xin > backup.sql
+
+# 恢复
+psql -h localhost -U xin_user -d xin < backup.sql
+```
+
+生产建议:
+
+- WAL 归档 + 时间点恢复(`archive_mode = on`)
+- 异地副本(`streaming replication`)
+- 每天全量备份 + 持续增量
+
+## 13. 性能调优参考
+
+| 表大小 | 建议 |
+|---|---|
+| < 100 万行 | 无需分区 |
+| 100 万 - 1 亿 | 按 `tenant_id` 范围分区 |
+| > 1 亿 | 按 `tenant_id` 哈希分区 + 定期归档 |
+
+常见热点表(users / accounts / resources)走 `tenant_id + status` 联合索引即可。flag 业务(avatars / frames)需要按 `creator_id` 索引,因为 DataScopeSelf 大量用 `WHERE creator_id = $1`。
+
+## 14. 监控
+
+关键指标:
+
+- `pg_stat_user_tables`:各表 `seq_scan` vs `idx_scan` 比例(`> 0.1` 提示索引缺失)
+- `pg_stat_user_indexes`:索引使用频率(`idx_scan = 0` 是无用索引)
+- `pg_locks`:锁等待
+- `pg_stat_activity`:长事务(`state = 'active' AND query_start < now() - interval '1 min'`)
+
+具体 SQL 见 [PostgreSQL 官方文档](https://www.postgresql.org/docs/current/monitoring-stats.html)。

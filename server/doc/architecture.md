@@ -1,245 +1,325 @@
 # 架构总览
 
-> 本文档解释 XinFramework 后端的模块划分、运行时序、以及 [Phase 1-5 重构](file:///d:\work\xin\XinFramework\server\doc\architecture.md#重构方案phase-1-5) 的来龙去脉。
+> 这是 XinFramework 最关键的文档。建议第一次接触代码的人从这里开始。
 
-## 一句话
+## 1. 双 Go Module 结构
 
-```
-framework/ = 基础设施（pkg）+ framework 内部业务模块（Phase 3 即将清空）
-apps/      = 业务模块（auth / tenant / cms / flag / 未来的 RBAC 与参考实现）
-```
-
-任何业务模块的"是否启用"由 `config.yaml` 的 `module:` 列表控制；任何业务模块的"是否打包"由 `cmd/xin/main.go` 的 side-effect import 控制。
-
----
-
-## 1. 目录与 module 切分
+仓库根目录下有两个独立的 Go module,通过 `go.mod` 隔离:
 
 ```
 server/
-├── go.mod                      # module gx1727.com/xin
-├── go.work                     # use(., ./framework, ./apps)
-│
-├── framework/                  # 独立 Go module: gx1727.com/xin/framework
-│   ├── pkg/                    # 公开 SDK（任意位置可 import）
-│   │   ├── plugin/             #   模块注册中心
-│   │   ├── auth/               #   Account / AccountAuth / AccountRepository
-│   │   ├── tenant/             #   TenantRepository + 注册钩子
-│   │   ├── middleware/         #   Require / RequirePlatformRole
-│   │   ├── permission/         #   P() Spec / 常量 / DataScope
-│   │   ├── resp/               #   统一响应 / 错误码
-│   │   ├── session/ jwt/ db/   #   会话 / JWT / pgx
-│   │   ├── cache/ migrate/     #   LRU 缓存 / SQL 迁移执行器
-│   │   ├── config/ audit/      #   配置 / 审计
-│   │   ├── storage/ logger/    #   文件存储 / 日志
-│   │   └── extapi/             #   跨模块 Provider 接口
-│   ├── internal/               # 仅 framework 内可见（Go internal/ 规则）
-│   │   ├── core/               #   boot / server / middleware / ext_impl
-│   │   ├── service/            #   框架级服务（Authz / Perm）
-│   │   └── module/             #   仍在 framework 内的业务模块（Phase 3 待迁出）
-│   └── xin-server.service
-│
-└── apps/                       # 独立 Go module: gx1727.com/xin/apps
-    ├── boot/{auth,tenant}/     # Phase 2 已迁入
-    ├── rbac/{user,role,menu,resource,permission,organization}/   # Phase 3 待迁入
-    ├── reference/{dict,asset,weixin}/                             # Phase 3 待迁入
-    ├── cms/                    # 已就位
-    └── flag/                   # 已就位
+├── go.mod         (path: gx1727.com/xin/server)      # cmd/ + migrations/
+├── framework/
+│   └── go.mod     (path: gx1727.com/xin/framework)  # 框架本体
+└── apps/
+    └── go.mod     (path: gx1727.com/xin/apps)       # 业务模块
 ```
 
-**为什么用三个 module 而不是单体**：
-
-- `framework/` 必须独立——它是"框架核心"，可能单独发版或被第三方 import
-- `apps/` 必须独立——业务模块如果与 framework 在同一 module，cross-import 就完全失控
-- 根 module 仅承载 `cmd/xin/main.go`，把"产品入口"和"框架/业务"分开
-
-代价：每个 module 自己一份 `go.sum`，加新依赖要改两次。Go 1.21+ 的 `go.work sync` 能缓解。
-
----
-
-## 2. 模块的生命周期
+**为什么双 module?** 业务模块和框架的发布节奏完全不同——框架一旦稳定就不应该动,业务模块可以高频迭代。Go module 的依赖方向必须严格:
 
 ```
-side-effect import
-  └─> 包 init()
-        └─> plugin.Register(Module())
-              └─> framework.Run()
-                    └─> initModules(cfg)
-                          └─> for m in plugin.Apps():
-                                if cfg.Module contains m.Name():
-                                  m.Init()
-                                  ↓ 之后 ↓
-                                  m.Register(public, protected)
+cmd/xin ──→ framework ──→ apps
+            (框架核心)    (业务)
 ```
 
-每个模块实现 `framework/pkg/plugin.Module` 接口：
+不允许反向:`framework` 不能 `import apps`,`apps` 不能 `import cmd/xin`。这两个边界用 `framework/internal/` 强制(`internal` 包的 import 限制在同一 module 树内)。
+
+## 2. 启动时序
+
+`framework.Run(cfg)` 执行的精确顺序,见 [framework/framework.go](framework/framework.go):
+
+```go
+func Run(cfg *config.Config) {
+    // 1. 命令行分发(start/stop/restart/run/help)
+    // 2. runServer(cfg)
+    runServer(cfg)
+}
+
+func runServer(cfg *config.Config) {
+    // 3. boot.Init 装载全部基础设施
+    app, err := boot.Init(cfg)  // panic on failure
+    // 4. 遍历 plugin.Apps(),按 cfg.Module 白名单 Init/Register
+    initModules(app)
+    // 5. 数据库迁移(./migrations/*.sql)
+    runMigrations()
+    // 6. 装配全局中间件 + 各 module Register 路由
+    setupRouter(app)
+    // 7. 后台启动 HTTP server
+    go app.Server.Start(addr)
+    // 8. 等待 SIGINT/SIGTERM,优雅退出
+    waitForSignal(app.Server, app)
+}
+```
+
+`boot.Init` 的内部 6 步装配([framework/internal/core/boot/boot.go](framework/internal/core/boot/boot.go)):
+
+```go
+func Init(cfg *config.Config) (*App, error) {
+    logger.Init(cfg.Log.Dir, cfg.Log.Level)
+    db.Init(&cfg.Database)                        // ① pgxpool
+    dict.Init(db.Get())
+    cache.Init(&cfg.Redis)                        // ② go-redis (enabled)
+    sm := session.NewRedisSessionManager()        // ③ Redis 优先
+    permCache := permission.NewRedisPermissionCache()
+    appCtx := plugin.NewAppContext(...)           // ④ 唯一的依赖容器
+    ext_impl.InitExtApi(appCtx)
+    permService := service.NewPermissionService(...)  // ⑤ RBAC 服务
+    appCtx.SetAuthz(authz.Wrap(authzService))     // ⑥ 跨 module 共享
+    return &App{...}, nil
+}
+```
+
+## 3. 模块生命周期:Init / Register / Shutdown
+
+每个 module 实现 `plugin.Module` 接口([framework/pkg/plugin/plugin.go](framework/pkg/plugin/plugin.go)):
 
 ```go
 type Module interface {
     Name() string
-    Init() error
-    Register(public, protected *gin.RouterGroup)
-    Shutdown() error
+    Init(ctx Reader, w Writer) error                              // 写 own slots
+    Register(ctx Reader, public, protected *gin.RouterGroup)      // 路由
+    Shutdown(ctx Reader) error                                   // 释放资源
 }
 ```
 
-`plugin.Register()` 对同名模块只注册一次，所以误重复 import 不会 panic。
-
----
-
-## 3. 路由分层
-
-```
-/api/v1/
-├── public/                      # OptionalAuth 中间件（可选登录）
-│   └── <module-public-routes>   # 如 /auth/login, /dicts/:code
-└── protected/                   # Auth 中间件（强制登录 + 注入 XinContext）
-    └── <module-protected-routes>   # 如 /users, /roles, /cms/articles
-```
-
-每个模块在 `Register(public, protected, h)` 里自挂路由，公共前缀由模块自己起（如 `protected.Group("/users")`）。
-
-全局中间件顺序：
-
-```
-Recovery → RequestID → CORS → ClientIP → Logger → (OptionalAuth | Auth)
-```
-
----
-
-## 4. 跨模块依赖规则
-
-| 方向 | 规则 | 例 |
-| --- | --- | --- |
-| apps → framework/pkg | ✅ 直接 import | `apps/boot/auth` → `framework/pkg/auth` |
-| apps → framework/internal | ❌ internal/ 规则拒绝 | —— |
-| framework/internal → apps | ❌ 同上 | —— |
-| framework/internal → apps（间接） | ✅ 通过 framework/pkg 的注册钩子 | framework/user 通过 `pkgauth.Get()` 拿到 apps/boot/auth 的 AccountRepository |
-| apps/X → apps/Y | ✅ 同 module | `apps/boot/auth` → `apps/boot/tenant` |
-
-**注册钩子模式**（[framework/pkg/auth/registry.go](file:///d:\work\xin\XinFramework\server\framework\pkg\auth\registry.go) ↔ [apps/boot/auth/module.go](file:///d:\work\xin\XinFramework\server\apps\boot\auth\module.go)）：
+推荐用 `BaseModule` struct(避免每个 module 写自己的 method set):
 
 ```go
-// 1. framework/pkg/auth 定义接口 + 注册函数
-package auth
-var globalFactory func() AccountRepository
-func Register(f func() AccountRepository) { globalFactory = f }
-func Get() func() AccountRepository { return globalFactory }
+return &plugin.BaseModule{
+    NameStr: "tenant",
+    InitFn: func(_ plugin.Reader, w plugin.Writer) error {
+        w.SetTenantRepo(&tenantPkgAdapter{repo: NewTenantRepository(db.Get())})
+        return nil
+    },
+    RegFn: func(_ plugin.Reader, _, protected *gin.RouterGroup) {
+        h := NewHandler(NewService(NewTenantRepository(db.Get())))
+        Register(protected, h)
+    },
+}
+```
 
-// 2. apps/boot/auth 在 init() 里推入自己的实现
-func init() {
-    pkgauth.Register(func() pkgauth.AccountRepository {
-        return NewAccountRepository(db.Get())
-    })
+### 3.1 为什么 Init 阶段 Writer 要传 nil-friendly Reader?
+
+- Writer 是**写自己负责的 slot**:`SetAccountRepo` / `SetTenantRepo` / `SetUserRepo` ...
+- Reader 是**读别人贡献的 slot**:`AccountRepo()` / `TenantRepo()` / `UserRepo()` ...
+- 模块必须 nil-check Reader 返回的 Repository(可能 producer module 被 `cfg.Module` 关闭了)
+- 模块**永远不会**拿到写别人 slot 的 Writer,这是编译期类型保证
+
+### 3.2 Register 阶段拿到完整 Reader
+
+到 Register 时,所有模块的 Init 都已完成。`framework/framework.go::registerModules` 把 `app.AppContext` 作为 Reader 传给每个 module。
+
+## 4. AppContext:唯一的依赖容器
+
+[framework/pkg/plugin/appcontext.go](framework/pkg/plugin/appcontext.go) 是整个重构的成果物。**两件不变量**:
+
+1. **构造一次,终身不变** —— 在 `boot.Init` 中构造,后续只读
+2. **Reader / Writer 接口分离** —— 让"读了别人的 repo" 和 "写了别人的 repo" 在类型系统上不可能
+
+### 4.1 接口定义
+
+```go
+type Reader interface {
+    // 基础设施 (Init 之前就填好)
+    DB()       *pgxpool.Pool
+    Cache()    *redis.Client           // 可能 nil
+    Config()   *config.Config
+    Session()  session.SessionManager
+
+    // 跨模块贡献 (Init 完成后填好)
+    Authz()            authz.Authorization
+    AccountRepo()      auth.AccountRepository
+    AccountAuthRepo()  auth.AccountAuthRepository
+    TenantRepo()       tenant.TenantRepository
+    UserRepo()         rbac.UserRepository
+    RoleRepo()         rbac.RoleRepository
+    OrgRepo()          rbac.OrganizationRepository
+    PermRepo()         rbac.RoleResourceRepository
 }
 
-// 3. framework/internal/module/user 用 Get() 取
-import pkgauth "gx1727.com/xin/framework/pkg/auth"
-repo := pkgauth.Get()()  // 注意：nil 检查
+type Writer interface {
+    SetAuthz(authz.Authorization)
+    SetAccountRepo(auth.AccountRepository)
+    SetAccountAuthRepo(auth.AccountAuthRepository)
+    SetTenantRepo(tenant.TenantRepository)
+    SetUserRepo(rbac.UserRepository)
+    SetRoleRepo(rbac.RoleRepository)
+    SetOrgRepo(rbac.OrganizationRepository)
+    SetPermRepo(rbac.RoleResourceRepository)
+}
 ```
 
----
+### 4.2 为什么 AppContext 是 concrete struct 而非 interface?
 
-## 5. 统一响应与错误码
+- **构造期 panic**:NewAppContext 校验 db / cfg 非 nil,在启动期暴露配置错误
+- **零运行时断言**:Reader/Writer 是接口,struct 同时实现两者,编译期 `var _ Reader = (*AppContext)(nil)`
+- **测试友好**:测试可以传一个 `&AppContext{db: fakePool}` 而非 mock 整个 interface
 
-所有 handler 用 `framework/pkg/resp`：
+## 5. 中间件链
+
+[framework/framework.go](framework/framework.go) `setupRouter` 注册全局中间件(按顺序):
 
 ```go
-resp.OK(c, data)                          // 成功
-resp.Fail(c, resp.ErrBadRequest, msg)     // 业务失败
+srv.Engine.Use(
+    middleware.Recovery(),       // 1. panic recover,最先
+    middleware.RequestID(),      // 2. 注入 X-Request-ID
+    middleware.CORS(&cfg.CORS),  // 3. CORS 预检
+    middleware.ClientIP(),       // 4. 客户端 IP(供审计)
+    middleware.Logger(),         // 5. access log(依赖 RequestID)
+)
 ```
 
-响应体固定 `{code, msg, data}`，前端 `api/client.ts` 解析一致。
+然后在 `/api/v1` 路由组里挂两个分组:
 
-错误码分段：
+```go
+public := v1.Group("")
+public.Use(middleware.OptionalAuth(...))   // 可选登录
 
-| 段 | 含义 | 示例 |
-| --- | --- | --- |
-| 0 | 成功 | —— |
-| 4xxx | 客户端错误 | `ErrBadRequest=4000`、`ErrUnauthorized=4001` |
-| 5xxx | 服务端错误 | `ErrInternal=5000` |
-| 9xxx | 业务错误 | `ErrUserNotFound=9001`、`ErrRoleExists=9100` |
+protected := v1.Group("")
+protected.Use(middleware.Auth(...))        // 必须登录
+```
 
-详见 [resp/errors.go](file:///d:\work\xin\XinFramework\server\framework\pkg\resp\errors.go)。
+### 5.1 Auth 中间件做了什么
 
----
+[framework/internal/core/middleware/auth.go](framework/internal/core/middleware/auth.go):
 
-## 6. 重构方案（Phase 1-5）
+1. 从 `Authorization: Bearer <jwt>` 提取 token
+2. JWT 验证(HS256 + `cfg.JWT.Secret`)
+3. Session 验证(去 Redis 或 DB 查 SessionID)
+4. 把 `XinContext` 注入到 `c.Request.Context()`
+5. **懒加载** `UserContextLoader`(第一次有人 `MustNewUserContext(c)` 才查 DB)
 
-### 6.1 问题的提出
+为什么不立即查权限?
 
-旧的 `framework/internal/module/*` 同时塞了 auth / user / tenant / dict / cms 等业务模块。结果：
+- `List` 路由可能只查元数据,不需要权限校验
+- `GetCurrentUser` 路由只需要身份,不需要数据范围
+- 懒加载 + `sync.Once` 保证单请求只查一次
 
-- 业务代码被 Go 的 `internal/` 规则锁死在 framework module 内，**用户不能 fork / 覆盖**
-- main.go 里硬编码 `builtinMap` + `appsRegistry` 双轨注册
-- `apps/cms` 和 `apps/flag` 各自独立 go.mod，依赖重复声明
-- framework 的 `Plugin` 机制是"假"的——main.go 编译期就知道所有 app
+### 5.2 RBAC 中间件
 
-详细分析见 [Phase 0 之前的对话历史](file:///d:\work\xin\XinFramework\README.md)（git log 也保留）。
+[framework/pkg/middleware/auth.go](framework/pkg/middleware/auth.go) 暴露给业务模块用:
 
-### 6.2 Phase 1：统一注册
+| 函数 | 行为 |
+|---|---|
+| `Require(spec)` | 一个 spec 必须满足 |
+| `RequireAny(specs...)` | 任一 spec 满足即可 |
+| `RequireAll(specs...)` | 所有 spec 都必须满足 |
+| `RequireAuthenticated()` | 登录即可,不查 RBAC |
+| `RequirePlatformRole(roles...)` | 必须持有平台角色(跨租户) |
 
-**目标**：删 `builtinMap`，所有模块走 `plugin.Apps()`。
+`Spec` 由 [framework/pkg/permission/spec.go](framework/pkg/permission/spec.go) 定义:
 
-- ✅ `framework/pkg/plugin/plugin.go` 加重名保护
-- ✅ 每个内置模块 `init() { plugin.Register(Module()) }`
-- ✅ `framework/builtin_modules.go` 用 side-effect 解决 internal/ 限制
-- ✅ `cmd/xin/main.go` 简化为只 import + framework.Run
+```go
+spec := permission.P("user", "list")  // resource=user, action=list
+spec := permission.AuthOnly()          // 仅登录
+```
 
-### 6.3 Phase 2：auth / tenant 出 framework
+`super_admin` 平台角色自动 bypass 所有 RBAC(spec 不需要写通配)。
 
-**目标**：把 framework 启动期必须的 auth + tenant 搬到 `apps/boot/`。
+## 6. 响应协议
 
-- ✅ apps/boot/auth 复制过来 + 改 import path
-- ✅ apps/boot/tenant 复制过来 + 改 import path
-- ✅ HashPassword 上提到 `framework/pkg/auth/`
-- ✅ RequirePlatformRole 上提到 `framework/pkg/middleware/`
-- ✅ 注册钩子：`framework/pkg/auth.Register` ↔ `apps/boot/auth.init`
-- ✅ 注册钩子：`framework/pkg/tenant.Register` ↔ `apps/boot/tenant.init`
-- ✅ `framework/internal/core/ext_impl` 通过钩子拿 tenant 数据
-- ✅ `framework/internal/module/user`、`weixin` 改用 `pkgauth` / `pkgtenant` 接口
+[framework/pkg/resp/resp.go](framework/pkg/resp/resp.go):
 
-**结果**：auth 和 tenant 完全可被外部 fork / 覆写，framework 不再锁住这两块核心业务逻辑。
+```json
+// 成功
+{ "code": 0, "msg": "ok", "data": { ... } }
 
-### 6.4 Phase 3：RBAC + reference 全部出 framework（待执行）
+// 业务错误
+{ "code": 2001, "msg": "用户不存在", "data": null }
 
-待办：
-- `framework/internal/module/{user,role,menu,resource,permission,organization}` → `apps/rbac/<name>/`
-- `framework/internal/module/{dict,asset,weixin}` → `apps/reference/<name>/`
-- 沿用 Phase 2 的注册钩子模式
+// 分页
+{ "code": 0, "msg": "ok", "data": { "total": 100, "list": [ ... ] } }
+```
 
-完成后 `framework/internal/module/` 完全清空，framework 真正变成"纯基础设施"。
+**错误码分段管理**(每个 module 一个区段,[resp/errors.go](framework/pkg/resp/errors.go)):
 
-### 6.5 Phase 4：apps module 合并（已部分执行）
+| 区段 | module |
+|---|---|
+| 1001-1999 | auth |
+| 2001-2999 | user |
+| 3001-3999 | tenant |
+| 4001-4999 | role |
+| 5001-5999 | menu |
+| 6001-6999 | organization |
+| 7001-7999 | permission |
+| 8001-8999 | resource |
+| 9001-9999 | asset |
+| 10001-10999 | dict |
+| 11001-11999 | system |
+| 12001-12999 | weixin |
+| 13001-13999 | flag |
 
-- ✅ 删除 `apps/cms/go.mod`、`apps/flag/go.mod`
-- ✅ 创建 `apps/go.mod`（`gx1727.com/xin/apps`）
-- ✅ `root/go.mod` 的 replace 改为 `apps => ./apps`
+## 7. 重构历程(Phase 0-8)
 
-加新 app 不再需要建 go.mod，直接 `apps/<x>/`。
+2026 年完成的一次大重构,把 12 个跨模块全局变量全部迁到 AppContext。
 
-### 6.6 Phase 5：动态插件发现（可选）
+### 7.1 重构前 vs 重构后
 
-- 用 build tag 区分商业版 / 社区版
-- 或用 `go plugin.Open(.so)` 运行时加载
+| 维度 | 重构前 | 重构后 |
+|---|---|---|
+| 跨模块全局变量 | 12 个 | 1 个(authz.Authorization interface) |
+| 数据流传递方式 | 隐式(全局) | 显式(AppContext) |
+| 编译期可追踪 | ✗ | ✓(Reader/Writer 接口) |
+| Test mocking | 难(全局副作用) | 易(可注入 fake Reader) |
+| 删 dead code | — | 525 行 |
+| 新增 P0 单测 | — | 36 个,3 包覆盖率 48.4% |
 
-Phase 5 不是必需——当前 side-effect import 已经够用且 0 运行时成本。
+### 7.2 Phase 时间线
 
----
+| Phase | 内容 | 关键改动 |
+|---|---|---|
+| **0** | 摸底 | 找到 16 个跨模块全局,409 处引用 |
+| **1** | go.mod 修复 | 拆出 framework / apps 两个独立 module |
+| **2** | AppContext 骨架 | 定义 Reader / Writer 接口,BaseModule 引入 |
+| **3** | auth + tenant | 删 `framework/pkg/auth/registry.go` 和 `tenant/registry.go` |
+| **4** | rbac 4 件套 | user / role / organization / permission 全部走 AppContext |
+| **5** | authz | 删 `authz.global`、`service.globalAuthorizationService`、`boot.globalApp + AppInstance()`,8 处 apps cache 失效切到 `ctx.Authz()` |
+| **6** | ext_impl | 删 `ext_impl/registry.go`(189 行死代码) |
+| **7** | middleware | 删 `internal/middleware/auth.go` 5 个 wrapper 死函数(53 行) |
+| **8** | P0 单测 | 36 个测试,permission / middleware / plugin 包 |
 
-## 7. 关键文件位置
+### 7.3 为什么这次重构值得做
 
-| 关注点 | 路径 |
-| --- | --- |
-| 入口 | [cmd/xin/main.go](file:///d:\work\xin\XinFramework\server\cmd\xin\main.go) |
-| 框架入口 | [framework/framework.go](file:///d:\work\xin\XinFramework\server\framework\framework.go) |
-| 内置模块汇总 | [framework/builtin_modules.go](file:///d:\work\xin\XinFramework\server\framework\builtin_modules.go) |
-| 注册中心 | [framework/pkg/plugin/plugin.go](file:///d:\work\xin\XinFramework\server\framework\pkg\plugin\plugin.go) |
-| 启动流程 | [framework/internal/core/boot/boot.go](file:///d:\work\xin\XinFramework\server\framework\internal\core\boot\boot.go) |
-| 全局中间件 | [framework/internal/core/middleware/](file:///d:\work\xin\XinFramework\server\framework\internal\core\middleware) |
-| 公开权限中间件 | [framework/pkg/middleware/auth.go](file:///d:\work\xin\XinFramework\server\framework\pkg\middleware\auth.go) |
-| auth 钩子 | [framework/pkg/auth/registry.go](file:///d:\work\xin\XinFramework\server\framework\pkg\auth\registry.go) |
-| tenant 钩子 | [framework/pkg/tenant/registry.go](file:///d:\work\xin\XinFramework\server\framework\pkg\tenant\registry.go) |
-| 多 module 编排 | [go.work](file:///d:\work\xin\XinFramework\server\go.work) |
-| Root module | [go.mod](file:///d:\work\xin\XinFramework\server\go.mod) |
-| Apps module | [apps/go.mod](file:///d:\work\xin\XinFramework\server\apps\go.mod) |
+代码现在的状态:
+
+```go
+// apps/rbac/role/module.go
+func (m *Module) RegFn(ctx plugin.Reader, _, protected *gin.RouterGroup) {
+    // 显式声明依赖:authz 必须存在
+    if authz := ctx.Authz(); authz != nil {
+        // ... 用 authz.InvalidateRole(roleID) 失效缓存
+    }
+    // 显式取 own repo
+    roleRepo := ctx.RoleRepo()
+    svc := NewService(roleRepo, ctx.Authz())
+    Register(protected, NewHandler(svc))
+}
+```
+
+对比之前:
+
+```go
+// apps/rbac/role/service.go(Phase 5 之前)
+func (s *Service) Update(...) {
+    if err := s.repo.Update(...); err != nil { return err }
+    // 隐式查全局
+    if a := authz.Get(); a != nil { a.InvalidateRole(...) }
+    return nil
+}
+```
+
+**编译期保证 + 显式依赖 + 易测试 + 易追踪** —— 4 个 property 全 get。
+
+详细 Phase 5 静态分析见 [refactor/phase5_static_analysis.md](refactor/phase5_static_analysis.md),Phase 0 摸底数据见 [refactor/phase0/globals.md](refactor/phase0/globals.md),重构方案见 [方案.md](方案.md)。
+
+## 8. 延伸阅读
+
+| 文档 | 内容 |
+|---|---|
+| [doc/quickstart.md](quickstart.md) | 装 PG、跑 migration、首次 `xin run` |
+| [doc/modules.md](modules.md) | 14 个 module 的清单和职责 |
+| [doc/database.md](database.md) | 表结构、RLS、迁移机制 |
+| [doc/permissions.md](permissions.md) | RBAC + 数据范围 + 平台角色 |
+| [doc/developing.md](developing.md) | 新增 module 的标准 8 步 |
+| [doc/deployment.md](deployment.md) | 编译、systemd、Docker |
+| [doc/api.md](api.md) | 100+ 路由的 API 参考 |
