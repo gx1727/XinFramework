@@ -35,9 +35,10 @@ func main() {
 		log.Fatalf("config load failed: %v", err)
 	}
 
-	// Remaining framework-internal modules are pulled in transitively
-	// through "gx1727.com/xin/framework" (see framework/builtin_modules.go).
-	// After framework.Run completes, all built-in + external modules
-	// are sitting in plugin.Apps() ready to be initialized.
+	// All modules — including the ones that previously lived in
+	// framework/builtin_modules.go before Phase 2 — register themselves via
+	// the side-effect imports above. By the time main() reaches this point,
+	// plugin.Apps() contains every module; framework.Run reads cfg.Module
+	// as the enable-list and calls Init / Register on each enabled one.
 	framework.Run(cfg)
 }
