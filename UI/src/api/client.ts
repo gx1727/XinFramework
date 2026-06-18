@@ -868,7 +868,7 @@ export const tenantApi = {
   get: (id: number) =>
     api<TenantItem>(`/tenants/${id}`),
 
-  create: (data: Partial<TenantItem>) =>
+  create: (data: Partial<TenantItem> & { admin_account_id?: number }) =>
     api<TenantItem>("/tenants", {
       method: "POST",
       body: JSON.stringify(data),
@@ -880,10 +880,25 @@ export const tenantApi = {
       body: JSON.stringify(data),
     }),
 
+  /** 更新状态（启用/停用） */
+  updateStatus: (id: number, status: 0 | 1) =>
+    api<TenantItem>(`/tenants/${id}/status`, {
+      method: "PUT",
+      body: JSON.stringify({ status }),
+    }),
+
+  /** 软删（先软删后才能硬删） */
   delete: (id: number) =>
     api(`/tenants/${id}`, {
       method: "DELETE",
     }),
+
+  /** 硬删（不可逆，需先软删） */
+  purge: (id: number) =>
+    api<{ tenant_id: number; code: string; tables_purged: number; tables: Record<string, number> }>(
+      `/tenants/${id}/purge`,
+      { method: "POST" }
+    ),
 }
 
 

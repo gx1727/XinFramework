@@ -19,6 +19,7 @@ const ResourcesPage = lazy(() => import("@/pages/Resources").then((m) => ({ defa
 const OrganizationsPage = lazy(() => import("@/pages/Organizations").then((m) => ({ default: m.OrganizationsPage })))
 const DictsPage = lazy(() => import("@/pages/Dicts").then((m) => ({ default: m.DictsPage })))
 const CachePage = lazy(() => import("@/pages/Cache"))
+const TenantsPage = lazy(() => import("@/pages/Tenants").then((m) => ({ default: m.TenantsPage })))
 
 function PageLoader() {
   return (
@@ -45,6 +46,7 @@ export function App() {
         <Route path="/resources" element={<ResourcesPage />} />
         <Route path="/organizations" element={<OrganizationsPage />} />
         <Route path="/dicts" element={<DictsPage />} />
+        <Route path="/tenants" element={<TenantsPage />} />
         <Route path="/frames" element={<FramesPage />} />
         <Route path="/frame-categories" element={<FrameCategoriesPage />} />
         <Route path="/avatars" element={<AvatarsPage />} />

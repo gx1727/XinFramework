@@ -498,16 +498,14 @@ VALUES (1, 'admin', '管理员', '系统管理员', 1, FALSE, 1, 1, 0, 0),
 INSERT INTO user_roles (tenant_id, user_id, role_id)
 VALUES (1, 1, 1);
 
--- 菜单
+-- 菜单（框架基础菜单；业务菜单如 frames/avatars 由各自模块的 migration 提供）
 INSERT INTO menus (id, tenant_id, code, name, path, icon, sort, parent_id, ancestors, visible, enabled)
     OVERRIDING SYSTEM VALUE
 VALUES (1, 1, 'dashboard', '仪表盘', '/dashboard', 'LayoutDashboardIcon', 1, 0, '1', TRUE, TRUE),
        (2, 1, 'analytics', '数据分析', '/analytics', 'ChartBarIcon', 2, 0, '2', TRUE, TRUE),
        (3, 1, 'projects', '项目管理', '/projects', 'FolderIcon', 3, 0, '3', TRUE, TRUE),
        (4, 1, 'team', '团队管理', '/team', 'UsersIcon', 4, 0, '4', TRUE, TRUE),
-       (5, 1, 'system', '系统管理', '/system', 'SettingsIcon', 5, 0, '5', TRUE, TRUE),
-       (6, 1, 'frames', '相框管理', '/frames', 'FrameIcon', 6, 0, '6', TRUE, TRUE),
-       (7, 1, 'avatars', '头像管理', '/avatars', 'ImageIcon', 7, 0, '7', TRUE, TRUE);
+       (5, 1, 'system', '系统管理', '/system', 'SettingsIcon', 5, 0, '5', TRUE, TRUE);
 
 INSERT INTO menus (id, tenant_id, code, name, path, icon, sort, parent_id, ancestors, visible, enabled)
     OVERRIDING SYSTEM VALUE
@@ -516,11 +514,7 @@ VALUES (51, 1, 'users', '用户管理', '/users', 'FileIcon', 1, 5, '5.51', TRUE
        (53, 1, 'menus', '菜单管理', '/menus', 'MenuIcon', 3, 5, '5.53', TRUE, TRUE),
        (54, 1, 'resources', '资源管理', '/resources', 'ResourceIcon', 4, 5, '5.54', TRUE, TRUE),
        (55, 1, 'organizations', '组织管理', '/organizations', 'ResourceIcon', 5, 5, '5.55', TRUE, TRUE),
-       (56, 1, 'dicts', '数据字典', '/dicts', 'BookIcon', 6, 5, '5.56', TRUE, TRUE),
-       (61, 1, 'frame-list', '相框列表', '/frames', 'FileIcon', 1, 6, '6.61', TRUE, TRUE),
-       (62, 1, 'frame-categories', '相框分类', '/frame-categories', 'ListIcon', 2, 6, '6.62', TRUE, TRUE),
-       (71, 1, 'avatar-list', '头像列表', '/avatars', 'FileIcon', 1, 7, '7.71', TRUE, TRUE),
-       (72, 1, 'avatar-categories', '头像分类', '/avatar-categories', 'ListIcon', 2, 7, '7.72', TRUE, TRUE);
+       (56, 1, 'dicts', '数据字典', '/dicts', 'BookIcon', 6, 5, '5.56', TRUE, TRUE);
 
 SELECT setval('menus_id_seq', 300, true);
 

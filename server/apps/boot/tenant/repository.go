@@ -16,6 +16,25 @@ type PostgresTenantRepository struct {
 	db *pgxpool.Pool
 }
 
+// tenantSelectCols 租户 SELECT 列清单（COALESCE 兜底 NULL，避免 scan 进 *string 失败）。
+// 字符串列用 '' 兜底，数值列用 0 兜底，jsonb 用 '{}'::jsonb 兜底。
+// 三个 SELECT（GetByID / GetByCode / List）必须保持一致。
+const tenantSelectCols = `
+	id, code, name, status,
+	COALESCE(contact, '') AS contact,
+	COALESCE(phone, '')   AS phone,
+	COALESCE(email, '')   AS email,
+	COALESCE(province, '') AS province,
+	COALESCE(city, '')    AS city,
+	COALESCE(area, '')    AS area,
+	COALESCE(address, '') AS address,
+	COALESCE(config, '{}'::jsonb)::text    AS config,
+	COALESCE(dashboard, '')              AS dashboard,
+	created_at, updated_at,
+	COALESCE(created_by, 0) AS created_by,
+	COALESCE(updated_by, 0) AS updated_by,
+	is_deleted`
+
 func NewTenantRepository(db *pgxpool.Pool) TenantRepository {
 	return &PostgresTenantRepository{db: db}
 }
@@ -27,9 +46,7 @@ func (r *PostgresTenantRepository) GetByID(ctx context.Context, id uint) (*Tenan
 	}
 	var t Tenant
 	err = q.QueryRow(ctx, `
-		SELECT id, code, name, status, contact, phone, email,
-		       province, city, area, address, config, dashboard,
-		       created_at, updated_at, created_by, updated_by, is_deleted
+		SELECT`+tenantSelectCols+`
 		FROM tenants
 		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
 		&t.ID, &t.Code, &t.Name, &t.Status,
@@ -56,9 +73,7 @@ func (r *PostgresTenantRepository) GetByCode(ctx context.Context, code string) (
 	}
 	var t Tenant
 	err = q.QueryRow(ctx, `
-		SELECT id, code, name, status, contact, phone, email,
-		       province, city, area, address, config, dashboard,
-		       created_at, updated_at, created_by, updated_by, is_deleted
+		SELECT`+tenantSelectCols+`
 		FROM tenants
 		WHERE is_deleted = FALSE AND code = $1`, code).Scan(
 		&t.ID, &t.Code, &t.Name, &t.Status,
@@ -112,10 +127,8 @@ func (r *PostgresTenantRepository) List(ctx context.Context, keyword string, sta
 	}
 	offset := (page - 1) * size
 
-	query := fmt.Sprintf(`SELECT id, code, name, status, contact, phone, email,
-	       province, city, area, address, config, dashboard,
-	       created_at, updated_at, created_by, updated_by, is_deleted
-		FROM tenants %s ORDER BY id ASC LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
+	query := fmt.Sprintf(`SELECT%s FROM tenants %s ORDER BY id ASC LIMIT $%d OFFSET $%d`,
+		tenantSelectCols, where, argIdx, argIdx+1)
 	args = append(args, size, offset)
 
 	rows, err := q.Query(ctx, query, args...)
@@ -152,9 +165,7 @@ func (r *PostgresTenantRepository) Create(ctx context.Context, code, name, conta
 	err = q.QueryRow(ctx, `
 		INSERT INTO tenants (code, name, contact, phone, email)
 		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, code, name, status, contact, phone, email,
-		          province, city, area, address, config, dashboard,
-		          created_at, updated_at, created_by, updated_by, is_deleted`,
+		RETURNING`+tenantSelectCols,
 		code, name, contact, phone, email,
 	).Scan(
 		&t.ID, &t.Code, &t.Name, &t.Status,
@@ -186,9 +197,7 @@ func (r *PostgresTenantRepository) Update(ctx context.Context, id uint, name, co
 			province = $6, city = $7, area = $8, address = $9,
 			updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1
-		RETURNING id, code, name, status, contact, phone, email,
-		          province, city, area, address, config, dashboard,
-		          created_at, updated_at, created_by, updated_by, is_deleted`,
+		RETURNING`+tenantSelectCols,
 		id, name, contact, phone, email,
 		province, city, area, address,
 	).Scan(
@@ -253,9 +262,7 @@ func (r *PostgresTenantRepository) UpdateStatus(ctx context.Context, id uint, st
 	err = q.QueryRow(ctx, `
 		UPDATE tenants SET status = $2, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1
-		RETURNING id, code, name, status, contact, phone, email,
-		          province, city, area, address, config, dashboard,
-		          created_at, updated_at, created_by, updated_by, is_deleted`,
+		RETURNING`+tenantSelectCols,
 		id, status,
 	).Scan(
 		&t.ID, &t.Code, &t.Name, &t.Status,

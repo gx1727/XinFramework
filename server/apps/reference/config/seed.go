@@ -304,7 +304,7 @@ func HealConfigMenuParent(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("heal config menu parent_id: %w", err)
 		}
-		if n, _ := res.RowsAffected(); n > 0 {
+		if n := res.RowsAffected(); n > 0 {
 			log.Printf("[config] healed %d config menu(s) with wrong parent_id", n)
 		}
 		return nil

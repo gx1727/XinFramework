@@ -22,6 +22,7 @@ import (
 	_ "gx1727.com/xin/apps/reference/asset"
 	_ "gx1727.com/xin/apps/reference/dict"
 	_ "gx1727.com/xin/apps/reference/weixin"
+	_ "gx1727.com/xin/apps/reference/config"
 	_ "gx1727.com/xin/apps/system"
 
 	// External apps
