@@ -1,14 +1,12 @@
 module gx1727.com/xin/apps
 
-go 1.23.0
-
-toolchain go1.23.4
+go 1.26.2
 
 require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-playground/validator/v10 v10.30.1
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.9.0
+	github.com/jackc/pgx/v5 v5.9.2
 	gx1727.com/xin/framework v0.0.0
 )
 

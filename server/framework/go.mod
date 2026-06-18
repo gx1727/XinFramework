@@ -1,15 +1,13 @@
 module gx1727.com/xin/framework
 
-go 1.23.0
-
-toolchain go1.23.4
+go 1.26.2
 
 require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang-jwt/jwt/v5 v5.2.3
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.9.0
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.73
 	golang.org/x/crypto v0.48.0

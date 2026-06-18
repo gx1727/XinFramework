@@ -1,8 +1,6 @@
 module gx1727.com/xin
 
-go 1.23.0
-
-toolchain go1.23.4
+go 1.26.2
 
 require (
 	gx1727.com/xin/apps v0.0.0
