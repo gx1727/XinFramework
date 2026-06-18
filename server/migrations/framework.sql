@@ -282,20 +282,6 @@ CREATE TABLE IF NOT EXISTS usage_records
 );
 CREATE INDEX IF NOT EXISTS idx_usage_tenant ON usage_records (tenant_id);
 
--- 18. ai_documents (AI文档表)
-CREATE TABLE IF NOT EXISTS ai_documents
-(
-    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    tenant_id  BIGINT NOT NULL,
-    title      VARCHAR(255),
-    content    TEXT,
-    status     SMALLINT    DEFAULT 1,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    is_deleted BOOLEAN     DEFAULT FALSE
-);
-CREATE INDEX IF NOT EXISTS idx_ai_doc_tenant ON ai_documents (tenant_id) WHERE is_deleted = FALSE;
-
 -- 19. attachments 已迁出至 migrations/asset.sql（apps/reference/asset 拥有）
 
 -- 20. auth_sessions (会话表)

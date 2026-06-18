@@ -279,7 +279,7 @@ func (r *PostgresTenantRepository) UpdateStatus(ctx context.Context, id uint, st
 // 避免 FK 约束冲突。每个表名对应 migrations/framework.sql 中带 tenant_id 的表。
 //
 // 注意：即使没有显式 FK 约束（migrations 里多数未声明 FK），也按业务依赖排序：
-// - usage_records / attachments / ai_documents：纯记录表，无业务依赖
+// - usage_records / attachments ：纯记录表，无业务依赖
 // - subscriptions：依赖 plans（但 plans 是平台级，不删）
 // - role_data_scopes / user_roles / role_menus / role_resources：依赖 roles
 // - dict_items：依赖 dicts
@@ -289,7 +289,6 @@ func (r *PostgresTenantRepository) UpdateStatus(ctx context.Context, id uint, st
 var purgeOrder = []string{
 	"usage_records",
 	"attachments",
-	"ai_documents",
 	"subscriptions",
 	"role_data_scopes",
 	"user_roles",
