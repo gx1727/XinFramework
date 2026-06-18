@@ -4,6 +4,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"gx1727.com/xin/framework/pkg/db"
 )
@@ -93,20 +94,32 @@ func EnsureTemplateSeeded(ctx context.Context) error {
 		}
 
 		// 8) 菜单：系统管理 → 配置管理
+		// 注意：parent_id 必须是 system 菜单在 __template__ 里的实际 id（不是 default 里的 5）
+		// ancestors 留空，下面 UPDATE 重建
 		if _, err := q.Exec(ctx, `
 			INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
-			SELECT $1, 'config', '配置管理', '系统配置项管理', '', '/settings', 'SettingsIcon', 0, 5, '5.config', TRUE, TRUE
-			WHERE EXISTS (SELECT 1 FROM menus WHERE code = 'system' AND tenant_id = $1 AND is_deleted = FALSE)
+			SELECT $1, 'config', '配置管理', '系统配置项管理', '', '/settings', 'SettingsIcon', 0,
+			       (SELECT id FROM menus WHERE code = 'system' AND tenant_id = $1 AND is_deleted = FALSE),
+			       '', TRUE, TRUE
 			ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING`,
 			templateID,
 		); err != nil {
 			return fmt.Errorf("seed config menu: %w", err)
 		}
 
+		// 重建 config menu 的 ancestors（与 framework.sql 2c 段保持一致）
+		if _, err := q.Exec(ctx, `
+			UPDATE menus SET ancestors = parent_id::text
+			WHERE tenant_id = $1 AND code = 'config' AND parent_id > 0 AND is_deleted = FALSE`,
+			templateID,
+		); err != nil {
+			return fmt.Errorf("update config menu ancestors: %w", err)
+		}
+
 		// 9) 资源：config:list/get/create/update/delete
 		resources := []struct {
 			code, name, action, desc string
-			sort                    int
+			sort                     int
 		}{
 			{"config:list", "查询配置", "list", "查询配置分组与项", 1},
 			{"config:get", "查看配置", "get", "查看分组/项详情", 2},
@@ -178,7 +191,7 @@ func seedSiteItems(ctx context.Context, q db.Querier, tenantID uint) error {
 func seedSecurityItems(ctx context.Context, q db.Querier, tenantID uint) error {
 	items := []struct {
 		key, val, defaultVal, typ, label, desc, validation string
-		sort                                                int
+		sort                                               int
 	}{
 		{"password_min_length", `8`, `8`, "number", "密码最小长度", "新建/修改密码时校验", `{"min":6,"max":32,"required":true}`, 1},
 		{"password_complexity", `"standard"`, `"standard"`, "select", "密码复杂度", "low/standard/strong", `[{"label":"低(纯字母数字)","value":"low"},{"label":"标准(字母+数字)","value":"standard"},{"label":"强(字母+数字+符号)","value":"strong"}]`, 2},
@@ -255,4 +268,45 @@ func seedFeatureFlagItems(ctx context.Context, q db.Querier, tenantID uint) erro
 		}
 	}
 	return nil
+}
+
+// HealConfigMenuParent 启动期自愈：修复 config menu 的 parent_id。
+//
+// 历史 bug：老 framework.sql 写死 parent_id=5，但 __template__ 里 system 菜单
+// 实际 id 已被 setval 推到几千，导致 config menu 成了孤儿（菜单树不显示）。
+//
+// 本函数在平台事务（bypass RLS）下扫描所有租户，把 config menu 的 parent_id
+// 改成该租户 system 菜单的实际 id，并重建 ancestors。
+//
+// 幂等：parent_id 已正确时 no-op。
+func HealConfigMenuParent(ctx context.Context) error {
+	return db.RunInPlatformTx(ctx, db.Get(), func(ctx context.Context) error {
+		q, err := db.GetQuerier(ctx)
+		if err != nil {
+			return err
+		}
+
+		// 修复所有租户里 config menu 的 parent_id
+		// 用子查询拿同租户的 system 菜单 id，确保正确映射
+		res, err := q.Exec(ctx, `
+			UPDATE menus AS cfg
+			SET parent_id = sys.id,
+			    ancestors = sys.id::text
+			FROM menus AS sys
+			WHERE cfg.code = 'config'
+			  AND cfg.is_deleted = FALSE
+			  AND sys.code = 'system'
+			  AND sys.is_deleted = FALSE
+			  AND cfg.tenant_id = sys.tenant_id
+			  AND cfg.parent_id != sys.id
+			  AND sys.id IS NOT NULL`,
+		)
+		if err != nil {
+			return fmt.Errorf("heal config menu parent_id: %w", err)
+		}
+		if n, _ := res.RowsAffected(); n > 0 {
+			log.Printf("[config] healed %d config menu(s) with wrong parent_id", n)
+		}
+		return nil
+	})
 }

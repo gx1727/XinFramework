@@ -30,10 +30,17 @@ func Module() plugin.Module {
 		InitFn: func(_ plugin.Reader, _ plugin.Writer) error {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
+
+			// 1) seed __template__
 			if err := EnsureTemplateSeeded(ctx); err != nil {
-				// 自检失败不阻塞启动（seed 失败也无所谓，业务表可能还没建）
 				log.Printf("[config] init self-check seed skipped: %v", err)
 			}
+
+			// 2) 自愈：修复老 config menu 的 parent_id（写死 5 导致的孤儿）
+			if err := HealConfigMenuParent(ctx); err != nil {
+				log.Printf("[config] heal config menu parent skipped: %v", err)
+			}
+
 			return nil
 		},
 

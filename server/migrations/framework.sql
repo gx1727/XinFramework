@@ -769,7 +769,7 @@ FROM (VALUES
 ) AS s(key, value, default_value, type, label, description, sort, is_readonly)
 ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
 
--- feature_flag items
+-- feature_flag items\
 INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_system)
 SELECT
     (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
@@ -782,10 +782,20 @@ FROM (VALUES
 ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
 
 -- 菜单：系统管理 → 配置管理
+-- 注意：parent_id 必须用子查询拿 system 菜单在 __template__ 里的实际 id
+-- （__template__ 里的 system id 已经被 setval 推到几千，不是源 default 里的 5）
+-- ancestors 留空，下面 UPDATE 段会统一重建为 parent_id::text
 INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
 SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
-       'config', '配置管理', '系统配置项管理', '', '/settings', 'SettingsIcon', 0, 5, '5.config', TRUE, TRUE
+       'config', '配置管理', '系统配置项管理', '', '/settings', 'SettingsIcon', 0,
+       (SELECT id FROM menus WHERE code = 'system' AND tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) AND is_deleted = FALSE),
+       '', TRUE, TRUE
 ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+
+-- 重建 config menu 的 ancestors（与上面 2c 段保持一致）
+UPDATE menus SET ancestors = parent_id::text
+WHERE tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE)
+  AND code = 'config' AND parent_id > 0 AND is_deleted = FALSE;
 
 -- 资源：config:list/get/create/update/delete
 INSERT INTO resources (tenant_id, menu_id, code, name, action, description, sort, status)
