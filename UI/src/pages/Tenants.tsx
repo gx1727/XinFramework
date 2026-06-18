@@ -30,7 +30,6 @@ import {
   AlertTriangleIcon,
   PhoneIcon,
   MailIcon,
-  MapPinIcon,
   ActivityIcon,
 } from "lucide-react"
 import { t } from "@/locales"
@@ -43,7 +42,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
+import { FormDialog } from "@/components/schema/DynamicForm"
+import type { FormSchema } from "@/types/schema"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -134,7 +134,9 @@ export function TenantsPage() {
     }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
 
   // ----- Filter -----
   const filtered = useMemo(() => {
@@ -148,18 +150,87 @@ export function TenantsPage() {
           x.code.toLowerCase().includes(kw) ||
           x.name.toLowerCase().includes(kw) ||
           (x.contact ?? "").toLowerCase().includes(kw) ||
-          (x.email ?? "").toLowerCase().includes(kw)
+          (x.email ?? "").toLowerCase().includes(kw),
       )
     }
     return arr
   }, [tenants, searchTerm, statusFilter])
 
   // ----- Stats -----
-  const stats = useMemo(() => ({
-    total: tenants.length,
-    active: tenants.filter((x) => x.status === 1).length,
-    disabled: tenants.filter((x) => x.status === 0).length,
-  }), [tenants])
+  const stats = useMemo(
+    () => ({
+      total: tenants.length,
+      active: tenants.filter((x) => x.status === 1).length,
+      disabled: tenants.filter((x) => x.status === 0).length,
+    }),
+    [tenants],
+  )
+
+  // ----- Schema（与 Users/Organizations 风格一致：单列 + gap-4） -----
+  const tenantFormSchema: FormSchema = useMemo(() => {
+    const items: FormSchema["items"] = []
+    if (formMode === "create") {
+      items.push({
+        field: "code",
+        label: t("pages.tenants.form.codeLabel"),
+        type: "text",
+        required: true,
+        placeholder: "如 acme、beta",
+        tooltip: t("pages.tenants.form.codeTooltip"),
+      })
+    }
+    items.push({
+      field: "name",
+      label: t("pages.tenants.form.nameLabel"),
+      type: "text",
+      required: true,
+      placeholder: t("pages.tenants.form.namePlaceholder"),
+    })
+    items.push({
+      field: "contact",
+      label: t("pages.tenants.form.contactLabel"),
+      type: "text",
+    })
+    items.push({
+      field: "phone",
+      label: t("pages.tenants.form.phoneLabel"),
+      type: "text",
+    })
+    items.push({
+      field: "email",
+      label: t("pages.tenants.form.emailLabel"),
+      type: "email",
+    })
+    if (formMode === "edit") {
+      items.push({
+        field: "_region",
+        label: t("pages.tenants.form.regionTitle"),
+        type: "divider",
+      })
+      items.push({ field: "province", label: t("pages.tenants.form.provinceLabel"), type: "text" })
+      items.push({ field: "city", label: t("pages.tenants.form.cityLabel"), type: "text" })
+      items.push({ field: "area", label: t("pages.tenants.form.areaLabel"), type: "text" })
+      items.push({ field: "address", label: t("pages.tenants.form.addressLabel"), type: "text" })
+    }
+    return { items }
+  }, [formMode])
+
+  // ----- Initial values -----
+  const formInitialValues = useMemo(() => {
+    if (formMode === "edit" && current) {
+      return {
+        name: current.name,
+        contact: current.contact ?? "",
+        phone: current.phone ?? "",
+        email: current.email ?? "",
+        province: current.province ?? "",
+        city: current.city ?? "",
+        area: current.area ?? "",
+        address: current.address ?? "",
+      }
+    }
+    return { name: "", contact: "", phone: "", email: "" }
+  }, [formMode, current])
 
   // ----- Handlers -----
   const openCreate = () => {
@@ -167,27 +238,31 @@ export function TenantsPage() {
     setCurrent(null)
     setFormOpen(true)
   }
-
   const openEdit = (tenant: TenantItem) => {
     setFormMode("edit")
     setCurrent(tenant)
     setFormOpen(true)
   }
 
-  const handleSubmit = async (formData: Record<string, any>) => {
+  const handleSubmit = async (values: Record<string, unknown>) => {
     setIsSubmitting(true)
     try {
-      if (formMode === "create") {
-        const created = await tenantApi.create(formData)
-        toast.success(`租户「${created.name}」已创建并完成首装`)
-        setFormOpen(false)
-        await load()
-      } else if (current) {
-        await tenantApi.update(current.id, formData)
-        toast.success("更新成功")
-        setFormOpen(false)
-        await load()
+      // 清理空值
+      const clean: Record<string, any> = {}
+      for (const [k, v] of Object.entries(values)) {
+        if (k.startsWith("_")) continue // skip divider markers
+        if (typeof v === "string") clean[k] = v.trim()
+        else clean[k] = v
       }
+      if (formMode === "create") {
+        const created = await tenantApi.create(clean)
+        toast.success(`租户「${created.name}」已创建并完成首装`)
+      } else if (current) {
+        await tenantApi.update(current.id, clean)
+        toast.success("更新成功")
+      }
+      setFormOpen(false)
+      await load()
     } catch (err: any) {
       const msg = err?.response?.data?.msg ?? err?.message ?? "操作失败"
       toast.error(msg)
@@ -196,17 +271,13 @@ export function TenantsPage() {
     }
   }
 
-  const handleToggleStatus = async (tenant: TenantItem) => {
+  const handleToggleStatus = (tenant: TenantItem) => {
     const next: 0 | 1 = tenant.status === 1 ? 0 : 1
     setConfirmOpen({ type: "toggle-status", tenant, nextStatus: next })
   }
 
   const handleSoftDelete = (tenant: TenantItem) => {
     setConfirmOpen({ type: "soft-delete", tenant })
-  }
-
-  const handlePurge = (tenant: TenantItem) => {
-    setConfirmOpen({ type: "purge", tenant })
   }
 
   const executeConfirm = async () => {
@@ -303,11 +374,16 @@ export function TenantsPage() {
           </Card>
         </div>
 
-        {/* Filters */}
+        {/* Table（搜索 + 状态筛选直接放在 CardHeader，与 Users.tsx 风格一致） */}
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
+          <CardHeader>
+            <CardTitle>{t("pages.tenants.list")}</CardTitle>
+            <CardDescription>
+              {t("pages.tenants.total")} {filtered.length} {t("pages.tenants.unit")}
+            </CardDescription>
+            <div className="flex items-center gap-2 pt-2">
+              {/* 搜索框：max-w-sm 与 Users.tsx / Organizations.tsx 一致 */}
+              <div className="relative flex-1 max-w-sm">
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder={t("pages.tenants.searchPlaceholder")}
@@ -316,32 +392,29 @@ export function TenantsPage() {
                   className="pl-9"
                 />
               </div>
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+              <Select
+                value={statusFilter}
+                onValueChange={(v) => setStatusFilter(v as StatusFilter)}
+              >
                 <SelectTrigger className="w-[140px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("pages.tenants.filter.all")}</SelectItem>
-                  <SelectItem value="active">{t("pages.tenants.filter.active")}</SelectItem>
-                  <SelectItem value="disabled">{t("pages.tenants.filter.disabled")}</SelectItem>
+                  <SelectItem value="active">
+                    {t("pages.tenants.filter.active")}
+                  </SelectItem>
+                  <SelectItem value="disabled">
+                    {t("pages.tenants.filter.disabled")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
+              {dataSource === "mock" && (
+                <Badge variant="outline" className="text-amber-600 border-amber-300">
+                  {error || "mock"}
+                </Badge>
+              )}
             </div>
-            {dataSource === "mock" && (
-              <p className="text-xs text-amber-600 mt-2">
-                ⚠ {error || "正在显示 mock 数据（API 不可用或未授权）"}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("pages.tenants.list")}</CardTitle>
-            <CardDescription>
-              {t("pages.tenants.total")} {filtered.length} {t("pages.tenants.unit")}
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -353,13 +426,18 @@ export function TenantsPage() {
                   <TableHead>{t("pages.tenants.columns.contact")}</TableHead>
                   <TableHead>{t("pages.tenants.columns.status")}</TableHead>
                   <TableHead>{t("pages.tenants.columns.createdAt")}</TableHead>
-                  <TableHead className="text-right">{t("pages.tenants.columns.actions")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("pages.tenants.columns.actions")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    <TableCell
+                      colSpan={7}
+                      className="text-center text-muted-foreground py-8"
+                    >
                       {isLoading ? "加载中..." : t("pages.tenants.empty")}
                     </TableCell>
                   </TableRow>
@@ -427,7 +505,7 @@ export function TenantsPage() {
                             <PowerIcon
                               className={cn(
                                 "h-4 w-4",
-                                tenant.status === 0 && "text-green-600"
+                                tenant.status === 0 && "text-green-600",
                               )}
                             />
                           </Button>
@@ -450,14 +528,20 @@ export function TenantsPage() {
         </Card>
       </div>
 
-      {/* Form Dialog */}
-      <TenantFormDialog
+      {/* Form Dialog（项目标准 FormDialog：单列 + gap-4，与 Users/Roles 风格一致） */}
+      <FormDialog
         open={formOpen}
-        mode={formMode}
-        initial={current}
-        onCancel={() => setFormOpen(false)}
+        onOpenChange={setFormOpen}
+        title={
+          formMode === "create"
+            ? t("pages.tenants.form.createTitle")
+            : t("pages.tenants.form.editTitle")
+        }
+        width={520}
+        schema={tenantFormSchema}
+        initialValues={formInitialValues}
         onSubmit={handleSubmit}
-        isSubmitting={isSubmitting}
+        loading={isSubmitting}
       />
 
       {/* Confirm Dialog */}
@@ -469,8 +553,8 @@ export function TenantsPage() {
               {confirmOpen?.type === "purge"
                 ? t("pages.tenants.confirm.purgeTitle")
                 : confirmOpen?.type === "soft-delete"
-                ? t("pages.tenants.confirm.deleteTitle")
-                : t("pages.tenants.confirm.statusTitle")}
+                  ? t("pages.tenants.confirm.deleteTitle")
+                  : t("pages.tenants.confirm.statusTitle")}
             </DialogTitle>
             <DialogDescription>
               {confirmOpen?.type === "purge" && (
@@ -482,8 +566,10 @@ export function TenantsPage() {
               )}
               {confirmOpen?.type === "soft-delete" && (
                 <>
-                  {t("pages.tenants.confirm.deleteDesc")
-                    .replace("{name}", confirmOpen.tenant.name)}
+                  {t("pages.tenants.confirm.deleteDesc").replace(
+                    "{name}",
+                    confirmOpen.tenant.name,
+                  )}
                 </>
               )}
               {confirmOpen?.type === "toggle-status" && (
@@ -494,7 +580,7 @@ export function TenantsPage() {
                       "{action}",
                       confirmOpen.nextStatus === 1
                         ? t("pages.tenants.actions.enable")
-                        : t("pages.tenants.actions.disable")
+                        : t("pages.tenants.actions.disable"),
                     )}
                 </>
               )}
@@ -516,176 +602,5 @@ export function TenantsPage() {
         </DialogContent>
       </Dialog>
     </PageLayout>
-  )
-}
-
-// ============================================
-// 子组件：创建 / 编辑租户表单弹窗
-// ============================================
-interface TenantFormDialogProps {
-  open: boolean
-  mode: "create" | "edit"
-  initial: TenantItem | null
-  onCancel: () => void
-  onSubmit: (data: Record<string, any>) => void
-  isSubmitting: boolean
-}
-
-function TenantFormDialog({ open, mode, initial, onCancel, onSubmit, isSubmitting }: TenantFormDialogProps) {
-  const [form, setForm] = useState<Record<string, any>>({})
-
-  useEffect(() => {
-    if (open) {
-      if (mode === "edit" && initial) {
-        setForm({
-          name: initial.name,
-          contact: initial.contact ?? "",
-          phone: initial.phone ?? "",
-          email: initial.email ?? "",
-          province: initial.province ?? "",
-          city: initial.city ?? "",
-          area: initial.area ?? "",
-          address: initial.address ?? "",
-        })
-      } else {
-        setForm({ name: "", contact: "", phone: "", email: "", province: "", city: "", area: "", address: "" })
-      }
-    }
-  }, [open, mode, initial])
-
-  const update = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }))
-
-  const handleOk = () => {
-    if (mode === "create" && !form.code?.trim()) {
-      toast.error("请填写租户 code")
-      return
-    }
-    if (!form.name?.trim()) {
-      toast.error("请填写租户名称")
-      return
-    }
-    if (mode === "create") {
-      onSubmit({
-        code: form.code.trim(),
-        name: form.name.trim(),
-        contact: form.contact?.trim(),
-        phone: form.phone?.trim(),
-        email: form.email?.trim(),
-      })
-    } else {
-      onSubmit({
-        name: form.name.trim(),
-        contact: form.contact?.trim(),
-        phone: form.phone?.trim(),
-        email: form.email?.trim(),
-        province: form.province?.trim(),
-        city: form.city?.trim(),
-        area: form.area?.trim(),
-        address: form.address?.trim(),
-      })
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle>
-            {mode === "create" ? t("pages.tenants.form.createTitle") : t("pages.tenants.form.editTitle")}
-          </DialogTitle>
-          <DialogDescription>
-            {mode === "create"
-              ? "新建租户会自动触发首装（root 组织 / admin 角色 / 菜单资源 / 字典）"
-              : t("pages.tenants.form.editDesc")}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid grid-cols-2 gap-3">
-          {mode === "create" && (
-            <div className="col-span-2">
-              <Label htmlFor="code">租户 code（必填，租户唯一标识，创建后不可改）</Label>
-              <Input
-                id="code"
-                value={form.code ?? ""}
-                onChange={(e) => update("code", e.target.value)}
-                placeholder="如 acme、beta"
-              />
-            </div>
-          )}
-
-          <div className="col-span-2">
-            <Label htmlFor="name">租户名称（必填）</Label>
-            <Input
-              id="name"
-              value={form.name ?? ""}
-              onChange={(e) => update("name", e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="contact">联系人</Label>
-            <Input
-              id="contact"
-              value={form.contact ?? ""}
-              onChange={(e) => update("contact", e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="phone">手机</Label>
-            <Input
-              id="phone"
-              value={form.phone ?? ""}
-              onChange={(e) => update("phone", e.target.value)}
-            />
-          </div>
-
-          <div className="col-span-2">
-            <Label htmlFor="email">邮箱</Label>
-            <Input
-              id="email"
-              type="email"
-              value={form.email ?? ""}
-              onChange={(e) => update("email", e.target.value)}
-            />
-          </div>
-
-          {mode === "edit" && (
-            <>
-              <div className="col-span-2 pt-2 border-t">
-                <div className="text-xs text-muted-foreground flex items-center gap-1">
-                  <MapPinIcon className="h-3 w-3" />
-                  区域信息（可选）
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="province">省</Label>
-                <Input id="province" value={form.province ?? ""} onChange={(e) => update("province", e.target.value)} />
-              </div>
-              <div>
-                <Label htmlFor="city">市</Label>
-                <Input id="city" value={form.city ?? ""} onChange={(e) => update("city", e.target.value)} />
-              </div>
-              <div>
-                <Label htmlFor="area">区</Label>
-                <Input id="area" value={form.area ?? ""} onChange={(e) => update("area", e.target.value)} />
-              </div>
-              <div>
-                <Label htmlFor="address">详细地址</Label>
-                <Input id="address" value={form.address ?? ""} onChange={(e) => update("address", e.target.value)} />
-              </div>
-            </>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
-            {t("pages.tenants.confirm.cancel")}
-          </Button>
-          <Button onClick={handleOk} disabled={isSubmitting}>
-            {isSubmitting ? "提交中..." : t("pages.tenants.confirm.ok")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   )
 }
