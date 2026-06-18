@@ -37,6 +37,7 @@ import {
 import { useTranslation } from "@/locales"
 import { useMenuStore } from "@/stores/menuStore"
 import type { MenuItem } from "@/stores/menuStore"
+import { useConfigItem } from "@/stores/configStore"
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboardIcon,
@@ -63,6 +64,9 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const t = useTranslation()
   const { menus, fetchMenus } = useMenuStore()
+  const siteName = useConfigItem("site", "site_name") as string | undefined
+  const siteLogo = useConfigItem("site", "site_logo") as string | undefined
+  const sidebarTitle = siteName || "XinFramework"
 
   useEffect(() => {
     fetchMenus()
@@ -149,8 +153,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
               <a href="#">
-                <CommandIcon className="size-5!" />
-                <span className="text-base font-semibold">Acme Inc.</span>
+                {siteLogo ? (
+                  <img src={siteLogo} alt={sidebarTitle} className="size-5! object-contain" />
+                ) : (
+                  <CommandIcon className="size-5!" />
+                )}
+                <span className="text-base font-semibold">{sidebarTitle}</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

@@ -23,6 +23,8 @@ type FirstInstallReport struct {
 	ResourceCount     int
 	DictCount         int
 	DictItemCount     int
+	ConfigGroupCount  int
+	ConfigItemCount   int
 	TenantUserSeqInit bool
 	WarnMessages      []string // 非致命警告（如账号不存在）
 }
@@ -189,6 +191,45 @@ func firstInstall(ctx context.Context, tenantID uint, adminAccountID uint) (*Fir
 		SELECT COUNT(*) FROM dict_items WHERE tenant_id = $1 AND is_deleted = FALSE`,
 		tenantID).Scan(&rep.DictItemCount); err != nil {
 		return nil, fmt.Errorf("first-install count dict_items: %w", err)
+	}
+
+	// 6a) 复制 config_groups（先入主）
+	if _, err := q.Exec(ctx, `
+		INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public, status)
+		SELECT $1, code, name, description, icon, sort, is_system, is_public, status
+		FROM config_groups
+		WHERE tenant_id = $2 AND is_deleted = FALSE`,
+		tenantID, templateID); err != nil {
+		return nil, fmt.Errorf("first-install copy config_groups: %w", err)
+	}
+
+	if err := q.QueryRow(ctx, `
+		SELECT COUNT(*) FROM config_groups WHERE tenant_id = $1 AND is_deleted = FALSE`,
+		tenantID).Scan(&rep.ConfigGroupCount); err != nil {
+		return nil, fmt.Errorf("first-install count config_groups: %w", err)
+	}
+
+	// 6b) 复制 config_items（用 code 重映射 group_id，value 继承 default_value）
+	if _, err := q.Exec(ctx, `
+		INSERT INTO config_items
+		    (tenant_id, group_id, key, value, default_value, type, label, description, options, validation,
+		     sort, is_public, is_readonly, is_system, status)
+		SELECT $1, new_g.id, ci.key, COALESCE(ci.default_value, ci.value), ci.default_value, ci.type,
+		       ci.label, ci.description, ci.options, ci.validation,
+		       ci.sort, ci.is_public, ci.is_readonly, ci.is_system, ci.status
+		FROM config_items ci
+		JOIN config_groups old_g ON old_g.id = ci.group_id AND old_g.tenant_id = $2 AND old_g.is_deleted = FALSE
+		JOIN config_groups new_g ON new_g.code = old_g.code
+		                        AND new_g.tenant_id = $1 AND new_g.is_deleted = FALSE
+		WHERE ci.tenant_id = $2 AND ci.is_deleted = FALSE`,
+		tenantID, templateID); err != nil {
+		return nil, fmt.Errorf("first-install copy config_items: %w", err)
+	}
+
+	if err := q.QueryRow(ctx, `
+		SELECT COUNT(*) FROM config_items WHERE tenant_id = $1 AND is_deleted = FALSE`,
+		tenantID).Scan(&rep.ConfigItemCount); err != nil {
+		return nil, fmt.Errorf("first-install count config_items: %w", err)
 	}
 
 	// 7) admin user（仅当 adminAccountID > 0）

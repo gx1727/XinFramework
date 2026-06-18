@@ -1,176 +1,684 @@
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { PageLayout } from "@/components/page-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useTranslation } from "@/locales"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { useConfigStore } from "@/stores/configStore"
+import { ConfigItemRenderer } from "@/components/config-item-renderer"
+import type { ConfigGroup, ConfigItem, ConfigItemType } from "@/api/client"
+import { PlusIcon, Trash2Icon, SaveIcon, RefreshCwIcon, SettingsIcon } from "lucide-react"
+import { toast } from "sonner"
+import { cn } from "@/lib/utils"
+
+// 平台支持的 item type 列表（用于"新增项"对话框）
+const ITEM_TYPES: { value: ConfigItemType; label: string }[] = [
+  { value: "string", label: "字符串" },
+  { value: "text", label: "多行文本" },
+  { value: "number", label: "数字" },
+  { value: "boolean", label: "布尔" },
+  { value: "json", label: "JSON" },
+  { value: "image", label: "图片" },
+  { value: "color", label: "颜色" },
+  { value: "select", label: "下拉单选" },
+  { value: "multiselect", label: "下拉多选" },
+  { value: "password", label: "密码" },
+]
 
 export function SettingsPage() {
-  const t = useTranslation()
+  const {
+    groups,
+    groupItems,
+    isLoadingGroups,
+    isLoadingItems,
+    error,
+    loadGroups,
+    loadItems,
+    createGroup,
+    deleteGroup,
+    createItem,
+    updateItem,
+    resetItem,
+    deleteItem,
+  } = useConfigStore()
+
+  const [activeGroupId, setActiveGroupId] = useState<number | null>(null)
+  const [dirtyValues, setDirtyValues] = useState<Record<number, unknown>>({})
+  const [saving, setSaving] = useState(false)
+
+  // 新增分组对话框
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false)
+  const [groupDraft, setGroupDraft] = useState<{
+    code: string
+    name: string
+    description: string
+    icon: string
+    is_public: boolean
+  }>({ code: "", name: "", description: "", icon: "SettingsIcon", is_public: false })
+
+  // 新增项对话框
+  const [itemDialogOpen, setItemDialogOpen] = useState(false)
+  const [itemDraft, setItemDraft] = useState<{
+    key: string
+    type: ConfigItemType
+    label: string
+    description: string
+    default_value: string
+    is_public: boolean
+  }>({ key: "", type: "string", label: "", description: "", default_value: "", is_public: false })
+
+  // 删除确认
+  const [deleteGroupTarget, setDeleteGroupTarget] = useState<ConfigGroup | null>(null)
+  const [deleteItemTarget, setDeleteItemTarget] = useState<ConfigItem | null>(null)
+
+  // 初次加载
+  useEffect(() => {
+    void loadGroups().then((gs) => {
+      if (gs.length > 0 && activeGroupId === null) {
+        const first = gs[0]
+        setActiveGroupId(first.id)
+        void loadItems(first.id)
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 切换 tab
+  const handleTabChange = useCallback(
+    (id: string) => {
+      const gid = Number(id)
+      setActiveGroupId(gid)
+      setDirtyValues({})
+      if (!groupItems[gid]) {
+        void loadItems(gid)
+      }
+    },
+    [groupItems, loadItems]
+  )
+
+  // 改 item value（暂存 dirty）
+  const handleItemChange = (itemId: number, value: unknown) => {
+    setDirtyValues((prev) => ({ ...prev, [itemId]: value }))
+  }
+
+  // 单项保存
+  const handleSaveItem = async (item: ConfigItem) => {
+    if (!(item.id in dirtyValues)) return
+    setSaving(true)
+    try {
+      await updateItem(item.id, { value: dirtyValues[item.id] })
+      setDirtyValues((prev) => {
+        const next = { ...prev }
+        delete next[item.id]
+        return next
+      })
+      toast.success(`${item.label || item.key} 已保存`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "保存失败")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // 整组保存
+  const handleSaveAll = async () => {
+    if (!activeGroupId) return
+    const items = groupItems[activeGroupId] || []
+    const dirtyItems = items.filter((it) => it.id in dirtyValues)
+    if (dirtyItems.length === 0) {
+      toast.info("没有未保存的修改")
+      return
+    }
+    setSaving(true)
+    try {
+      for (const it of dirtyItems) {
+        await updateItem(it.id, { value: dirtyValues[it.id] })
+      }
+      setDirtyValues({})
+      toast.success(`已保存 ${dirtyItems.length} 项`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "保存失败")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // 单项 reset
+  const handleResetItem = async (item: ConfigItem) => {
+    setSaving(true)
+    try {
+      const updated = await resetItem(item.id)
+      setDirtyValues((prev) => {
+        const next = { ...prev }
+        delete next[item.id]
+        return next
+      })
+      toast.success(`已恢复 ${updated.label || updated.key} 默认值`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "重置失败")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // 新增分组
+  const handleCreateGroup = async () => {
+    if (!groupDraft.code || !groupDraft.name) {
+      toast.error("编码和名称不能为空")
+      return
+    }
+    try {
+      const g = await createGroup(groupDraft)
+      setGroupDialogOpen(false)
+      setGroupDraft({ code: "", name: "", description: "", icon: "SettingsIcon", is_public: false })
+      toast.success("分组已创建")
+      setActiveGroupId(g.id)
+      void loadItems(g.id)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "创建失败")
+    }
+  }
+
+  // 新增项
+  const handleCreateItem = async () => {
+    if (!activeGroupId) return
+    if (!itemDraft.key) {
+      toast.error("key 不能为空")
+      return
+    }
+    try {
+      let defVal: unknown = itemDraft.default_value
+      if (itemDraft.type === "number") {
+        defVal = itemDraft.default_value ? Number(itemDraft.default_value) : 0
+      } else if (itemDraft.type === "boolean") {
+        defVal = itemDraft.default_value === "true"
+      } else if (itemDraft.type === "json") {
+        try {
+          defVal = itemDraft.default_value ? JSON.parse(itemDraft.default_value) : null
+        } catch {
+          toast.error("默认值 JSON 解析失败")
+          return
+        }
+      }
+      await createItem(activeGroupId, {
+        key: itemDraft.key,
+        type: itemDraft.type,
+        label: itemDraft.label || undefined,
+        description: itemDraft.description || undefined,
+        default_value: defVal,
+        value: defVal,
+        is_public: itemDraft.is_public,
+      })
+      setItemDialogOpen(false)
+      setItemDraft({ key: "", type: "string", label: "", description: "", default_value: "", is_public: false })
+      toast.success("配置项已创建")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "创建失败")
+    }
+  }
+
+  // 删除分组
+  const handleDeleteGroup = async () => {
+    if (!deleteGroupTarget) return
+    try {
+      await deleteGroup(deleteGroupTarget.id)
+      toast.success("分组已删除")
+      setDeleteGroupTarget(null)
+      // 切换到第一个分组
+      const remaining = groups.filter((g) => g.id !== deleteGroupTarget.id)
+      if (remaining.length > 0) {
+        setActiveGroupId(remaining[0].id)
+        void loadItems(remaining[0].id)
+      } else {
+        setActiveGroupId(null)
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "删除失败")
+    }
+  }
+
+  // 删除项
+  const handleDeleteItem = async () => {
+    if (!deleteItemTarget) return
+    try {
+      await deleteItem(deleteItemTarget.id)
+      toast.success("配置项已删除")
+      setDeleteItemTarget(null)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "删除失败")
+    }
+  }
+
+  const activeGroup = useMemo(
+    () => groups.find((g) => g.id === activeGroupId),
+    [groups, activeGroupId]
+  )
+  const activeItems = useMemo(() => {
+    if (!activeGroupId) return []
+    return groupItems[activeGroupId] || []
+  }, [activeGroupId, groupItems])
+  const dirtyCount = useMemo(() => {
+    if (!activeGroupId) return 0
+    return activeItems.filter((it) => it.id in dirtyValues).length
+  }, [activeItems, dirtyValues, activeGroupId])
 
   return (
     <PageLayout>
       <div className="px-4 lg:px-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold">{t.pages.settings?.title || "系统设置"}</h1>
-          <p className="text-sm text-muted-foreground">{t.pages.settings?.subtitle || "管理系统配置和偏好设置"}</p>
+        {/* 顶部 header */}
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">配置管理</h1>
+            <p className="text-muted-foreground text-sm">维护系统级配置项，支持多分组、多种类型、租户可改值</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => void loadGroups()}>
+              <RefreshCwIcon className="mr-1 size-4" />
+              刷新
+            </Button>
+            <Button size="sm" onClick={() => setGroupDialogOpen(true)}>
+              <PlusIcon className="mr-1 size-4" />
+              新建分组
+            </Button>
+          </div>
         </div>
 
-        <Tabs defaultValue="general" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="general">{t.pages.settings?.general || "通用设置"}</TabsTrigger>
-            <TabsTrigger value="security">{t.pages.settings?.security || "安全设置"}</TabsTrigger>
-            <TabsTrigger value="notifications">{t.pages.settings?.notifications || "通知设置"}</TabsTrigger>
-            <TabsTrigger value="appearance">{t.pages.settings?.appearance || "外观"}</TabsTrigger>
-          </TabsList>
+        {error && (
+          <div className="bg-destructive/10 text-destructive mb-4 rounded-md p-3 text-sm">
+            {error}
+          </div>
+        )}
 
-          <TabsContent value="general">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t.pages.settings?.generalSettings || "通用设置"}</CardTitle>
-                <CardDescription>{t.pages.settings?.generalDesc || "配置系统通用选项"}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="siteName">{t.pages.settings?.siteName || "网站名称"}</Label>
-                  <Input id="siteName" defaultValue="XinFramework" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="siteUrl">{t.pages.settings?.siteUrl || "网站地址"}</Label>
-                  <Input id="siteUrl" defaultValue="https://example.com" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="timezone">{t.pages.settings?.timezone || "时区"}</Label>
-                  <Select defaultValue="asia-shanghai">
-                    <SelectTrigger id="timezone">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="asia-shanghai">Asia/Shanghai (UTC+8)</SelectItem>
-                      <SelectItem value="america-new-york">America/New_York (UTC-5)</SelectItem>
-                      <SelectItem value="europe-london">Europe/London (UTC+0)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="language">{t.pages.settings?.language || "语言"}</Label>
-                  <Select defaultValue="zh-CN">
-                    <SelectTrigger id="language">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="zh-CN">简体中文</SelectItem>
-                      <SelectItem value="en-US">English</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button>{t.common.save}</Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
+        {isLoadingGroups && groups.length === 0 ? (
+          <Card>
+            <CardContent className="text-muted-foreground py-12 text-center text-sm">加载中...</CardContent>
+          </Card>
+        ) : groups.length === 0 ? (
+          <Card>
+            <CardContent className="text-muted-foreground py-12 text-center text-sm">
+              暂无配置分组，点击右上角"新建分组"开始
+            </CardContent>
+          </Card>
+        ) : (
+          <Tabs
+            value={activeGroupId !== null ? String(activeGroupId) : undefined}
+            onValueChange={handleTabChange}
+            className="space-y-4"
+          >
+            <TabsList className="flex-wrap">
+              {groups.map((g) => (
+                <TabsTrigger key={g.id} value={String(g.id)} className="gap-2">
+                  <SettingsIcon className="size-3.5" />
+                  {g.name}
+                  {g.is_system && (
+                    <span className="text-muted-foreground text-[10px]">系统</span>
+                  )}
+                </TabsTrigger>
+              ))}
+            </TabsList>
 
-          <TabsContent value="security">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t.pages.settings?.securitySettings || "安全设置"}</CardTitle>
-                <CardDescription>{t.pages.settings?.securityDesc || "管理账户安全选项"}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>{t.pages.settings?.twoFactor || "双因素认证"}</Label>
-                    <p className="text-sm text-muted-foreground">{t.pages.settings?.twoFactorDesc || "为账户添加额外的安全验证"}</p>
-                  </div>
-                  <Button variant="outline">{t.pages.settings?.enable || "启用"}</Button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>{t.pages.settings?.changePassword || "修改密码"}</Label>
-                    <p className="text-sm text-muted-foreground">{t.pages.settings?.changePasswordDesc || "定期更换密码可以保护账户安全"}</p>
-                  </div>
-                  <Button variant="outline">{t.pages.settings?.update || "更新"}</Button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>{t.pages.settings?.sessionTimeout || "会话超时"}</Label>
-                    <p className="text-sm text-muted-foreground">{t.pages.settings?.sessionTimeoutDesc || "设置空闲自动退出时间"}</p>
-                  </div>
-                  <Select defaultValue="30">
-                    <SelectTrigger className="w-[120px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="15">15 分钟</SelectItem>
-                      <SelectItem value="30">30 分钟</SelectItem>
-                      <SelectItem value="60">60 分钟</SelectItem>
-                      <SelectItem value="120">2 小时</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+            {groups.map((g) => (
+              <TabsContent key={g.id} value={String(g.id)} className="space-y-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        {g.name}
+                        {g.is_system && <Badge variant="secondary">系统预置</Badge>}
+                        {g.is_public && <Badge variant="outline">公共</Badge>}
+                      </CardTitle>
+                      <CardDescription>
+                        {g.description || `分组编码：${g.code}`}
+                      </CardDescription>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setActiveGroupId(g.id)
+                          setItemDialogOpen(true)
+                        }}
+                      >
+                        <PlusIcon className="mr-1 size-4" />
+                        新增项
+                      </Button>
+                      {!g.is_system && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleteGroupTarget(g)}
+                        >
+                          <Trash2Icon className="text-destructive size-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {isLoadingItems && activeItems.length === 0 ? (
+                      <div className="text-muted-foreground py-8 text-center text-sm">加载配置项...</div>
+                    ) : activeItems.length === 0 ? (
+                      <div className="text-muted-foreground py-8 text-center text-sm">
+                        该分组下暂无配置项
+                      </div>
+                    ) : (
+                      <>
+                        {activeItems.map((item) => {
+                          const dirty = item.id in dirtyValues
+                          const value = dirty ? dirtyValues[item.id] : item.value
+                          return (
+                            <div
+                              key={item.id}
+                              className={cn(
+                                "rounded-lg border p-4 transition-colors",
+                                dirty && "border-primary bg-primary/5"
+                              )}
+                            >
+                              <div className="mb-3 flex items-start justify-between">
+                                <div className="flex-1">
+                                  <ConfigItemRenderer
+                                    item={item}
+                                    value={value}
+                                    onChange={(v) => handleItemChange(item.id, v)}
+                                    onReset={() => void handleResetItem(item)}
+                                  />
+                                </div>
+                                <div className="ml-4 flex shrink-0 flex-col items-end gap-2">
+                                  {item.is_readonly && (
+                                    <Badge variant="secondary" className="text-xs">只读</Badge>
+                                  )}
+                                  {item.is_public && (
+                                    <Badge variant="outline" className="text-xs">公共</Badge>
+                                  )}
+                                  <div className="flex gap-2">
+                                    {dirty ? (
+                                      <>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            setDirtyValues((prev) => {
+                                              const next = { ...prev }
+                                              delete next[item.id]
+                                              return next
+                                            })
+                                          }}
+                                        >
+                                          取消
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          onClick={() => void handleSaveItem(item)}
+                                          disabled={saving}
+                                        >
+                                          <SaveIcon className="mr-1 size-3.5" />
+                                          保存
+                                        </Button>
+                                      </>
+                                    ) : null}
+                                    {!item.is_system && (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => setDeleteItemTarget(item)}
+                                      >
+                                        <Trash2Icon className="text-destructive size-4" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
 
-          <TabsContent value="notifications">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t.pages.settings?.notificationSettings || "通知设置"}</CardTitle>
-                <CardDescription>{t.pages.settings?.notificationDesc || "配置系统通知和提醒方式"}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>{t.pages.settings?.emailNotifications || "邮件通知"}</Label>
-                    <p className="text-sm text-muted-foreground">{t.pages.settings?.emailDesc || "接收重要事件的邮件通知"}</p>
-                  </div>
-                  <Badge>已开启</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>{t.pages.settings?.pushNotifications || "推送通知"}</Label>
-                    <p className="text-sm text-muted-foreground">{t.pages.settings?.pushDesc || "接收系统推送消息"}</p>
-                  </div>
-                  <Badge variant="secondary">已关闭</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>{t.pages.settings?.weeklyReport || "周报"}</Label>
-                    <p className="text-sm text-muted-foreground">{t.pages.settings?.weeklyDesc || "每周发送系统使用报告"}</p>
-                  </div>
-                  <Badge>已开启</Badge>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="appearance">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t.pages.settings?.appearanceSettings || "外观设置"}</CardTitle>
-                <CardDescription>{t.pages.settings?.appearanceDesc || "自定义界面外观"}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label>{t.pages.settings?.theme || "主题"}</Label>
-                  <div className="flex gap-4">
-                    <Button variant="outline" className="flex-1">浅色</Button>
-                    <Button variant="secondary" className="flex-1">深色</Button>
-                    <Button variant="secondary" className="flex-1">跟随系统</Button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t.pages.settings?.compactMode || "紧凑模式"}</Label>
-                  <p className="text-sm text-muted-foreground">{t.pages.settings?.compactModeDesc || "减少界面元素间距以显示更多内容"}</p>
-                  <Button variant="outline">开启</Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                        {/* 整组保存按钮 */}
+                        {dirtyCount > 0 && (
+                          <div className="bg-primary/10 sticky bottom-0 flex items-center justify-between rounded-md p-3">
+                            <span className="text-sm font-medium">
+                              {dirtyCount} 项未保存
+                            </span>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setDirtyValues({})}
+                              >
+                                全部取消
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => void handleSaveAll()}
+                                disabled={saving}
+                              >
+                                <SaveIcon className="mr-1 size-4" />
+                                保存全部
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            ))}
+          </Tabs>
+        )}
       </div>
+
+      {/* 新建分组对话框 */}
+      <Dialog open={groupDialogOpen} onOpenChange={setGroupDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新建配置分组</DialogTitle>
+            <DialogDescription>分组是配置的逻辑分类，例：site / email / security</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>编码 (code)</Label>
+              <Input
+                value={groupDraft.code}
+                onChange={(e) => setGroupDraft({ ...groupDraft, code: e.target.value })}
+                placeholder="my_group"
+                maxLength={64}
+              />
+              <p className="text-muted-foreground mt-1 text-xs">英文，唯一不可改</p>
+            </div>
+            <div>
+              <Label>名称</Label>
+              <Input
+                value={groupDraft.name}
+                onChange={(e) => setGroupDraft({ ...groupDraft, name: e.target.value })}
+                placeholder="我的分组"
+                maxLength={64}
+              />
+            </div>
+            <div>
+              <Label>描述</Label>
+              <Input
+                value={groupDraft.description}
+                onChange={(e) => setGroupDraft({ ...groupDraft, description: e.target.value })}
+                placeholder="可选"
+                maxLength={255}
+              />
+            </div>
+            <div>
+              <Label>图标 (lucide 名称)</Label>
+              <Input
+                value={groupDraft.icon}
+                onChange={(e) => setGroupDraft({ ...groupDraft, icon: e.target.value })}
+                placeholder="SettingsIcon"
+                maxLength={64}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>公共读</Label>
+                <p className="text-muted-foreground text-xs">开启后该分组下 is_public 项未登录可读</p>
+              </div>
+              <Switch
+                checked={groupDraft.is_public}
+                onCheckedChange={(c) => setGroupDraft({ ...groupDraft, is_public: c })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGroupDialogOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={() => void handleCreateGroup()}>创建</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 新增项对话框 */}
+      <Dialog open={itemDialogOpen} onOpenChange={setItemDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新增配置项</DialogTitle>
+            <DialogDescription>
+              {activeGroup ? `分组：${activeGroup.name}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Key</Label>
+              <Input
+                value={itemDraft.key}
+                onChange={(e) => setItemDraft({ ...itemDraft, key: e.target.value })}
+                placeholder="my_setting"
+                maxLength={128}
+              />
+              <p className="text-muted-foreground mt-1 text-xs">英文，唯一不可改</p>
+            </div>
+            <div>
+              <Label>类型</Label>
+              <Select
+                value={itemDraft.type}
+                onValueChange={(v) => setItemDraft({ ...itemDraft, type: v as ConfigItemType })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ITEM_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>显示名</Label>
+              <Input
+                value={itemDraft.label}
+                onChange={(e) => setItemDraft({ ...itemDraft, label: e.target.value })}
+                placeholder="我的设置"
+                maxLength={128}
+              />
+            </div>
+            <div>
+              <Label>描述</Label>
+              <Input
+                value={itemDraft.description}
+                onChange={(e) => setItemDraft({ ...itemDraft, description: e.target.value })}
+                placeholder="可选"
+                maxLength={512}
+              />
+            </div>
+            <div>
+              <Label>默认值</Label>
+              <Input
+                value={itemDraft.default_value}
+                onChange={(e) => setItemDraft({ ...itemDraft, default_value: e.target.value })}
+                placeholder={
+                  itemDraft.type === "boolean"
+                    ? "true / false"
+                    : itemDraft.type === "json"
+                      ? '{"key":"value"}'
+                      : "可选"
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>公共</Label>
+                <p className="text-muted-foreground text-xs">未登录是否可读</p>
+              </div>
+              <Switch
+                checked={itemDraft.is_public}
+                onCheckedChange={(c) => setItemDraft({ ...itemDraft, is_public: c })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setItemDialogOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={() => void handleCreateItem()}>创建</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 删除分组确认 */}
+      <AlertDialog open={!!deleteGroupTarget} onOpenChange={(o) => !o && setDeleteGroupTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除分组？</AlertDialogTitle>
+            <AlertDialogDescription>
+              将删除分组「{deleteGroupTarget?.name}」。该分组下若有配置项，删除将被拒绝。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleDeleteGroup()}>
+              确认删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 删除项确认 */}
+      <AlertDialog open={!!deleteItemTarget} onOpenChange={(o) => !o && setDeleteItemTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除配置项？</AlertDialogTitle>
+            <AlertDialogDescription>
+              将删除配置项「{deleteItemTarget?.key}」。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleDeleteItem()}>
+              确认删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageLayout>
   )
 }

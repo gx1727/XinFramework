@@ -74,6 +74,7 @@ module:
   - weixin
   - cms
   - flag
+  - config
 
 cors:
   enabled: true

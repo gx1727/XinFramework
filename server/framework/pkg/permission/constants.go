@@ -15,6 +15,7 @@ const (
 	ResWeixin       = "weixin"
 	ResAuth         = "auth"
 	ResFlag         = "flag"
+	ResConfig       = "config"
 )
 
 // Action definition constants

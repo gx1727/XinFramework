@@ -692,3 +692,122 @@ SELECT setval('dict_items_id_seq', GREATEST(
     (SELECT COALESCE(MAX(id), 0) FROM dict_items),
     (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) * 1000
 ), true);
+
+-- ============================================
+-- 🔧 Config 模块 seed（通用配置）
+-- 依赖：config.sql 已建表（字母序 c < f，config.sql 先于本文件跑）
+-- 4 个预置分组 + 19 个预置项 + 1 个菜单 (config) + 5 个资源 (config:*)
+-- 新租户首装时由 apps/boot/tenant/first_install.go 从 __template__ 复制
+-- ============================================
+
+-- config_groups
+INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
+SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+       'site', '站点信息', '站点名称、Logo、版权等公开信息', 'GlobeIcon', 1, TRUE, TRUE
+ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+
+INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
+SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+       'security', '安全策略', '密码强度、会话超时等安全相关配置', 'ShieldIcon', 2, TRUE, FALSE
+ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+
+INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
+SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+       'email', '邮件服务', 'SMTP 邮件服务配置', 'MailIcon', 3, TRUE, FALSE
+ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+
+INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
+SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+       'feature_flag', '功能开关', '系统级功能启用/禁用开关', 'ToggleLeftIcon', 4, TRUE, FALSE
+ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+
+-- site items
+INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_system)
+SELECT
+    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+    (SELECT id FROM config_groups WHERE code = 'site' AND tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) AND is_deleted = FALSE),
+    s.key, s.value, s.default_value, s.type, s.label, s.description, s.sort, s.is_public, TRUE
+FROM (VALUES
+    ('site_name',         '"XinFramework"'::jsonb, '"XinFramework"'::jsonb, 'string', '站点名称', '显示在页面标题、登录页等位置', 1, TRUE),
+    ('site_logo',         '""'::jsonb,              '""'::jsonb,             'image',  '站点 Logo', '建议 PNG/SVG，背景透明', 2, TRUE),
+    ('site_favicon',      '""'::jsonb,              '""'::jsonb,             'image',  'Favicon',  '浏览器标签图标', 3, TRUE),
+    ('site_copyright',    '""'::jsonb,              '""'::jsonb,             'string', '版权信息', '页面底部显示', 4, TRUE),
+    ('site_icp',          '""'::jsonb,              '""'::jsonb,             'string', 'ICP 备案号', '中国大陆站点必填', 5, TRUE),
+    ('site_locale_default', '"zh-CN"'::jsonb,       '"zh-CN"'::jsonb,        'select', '默认语言', 'zh-CN / en-US', 6, TRUE),
+    ('login_background',  '""'::jsonb,              '""'::jsonb,             'image',  '登录页背景', '登录页右侧大图', 7, TRUE)
+) AS s(key, value, default_value, type, label, description, sort, is_public)
+ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
+
+-- security items
+INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, validation, sort, is_public, is_system)
+SELECT
+    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+    (SELECT id FROM config_groups WHERE code = 'security' AND tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) AND is_deleted = FALSE),
+    s.key, s.value, s.default_value, s.type, s.label, s.description, s.validation, s.sort, FALSE, TRUE
+FROM (VALUES
+    ('password_min_length',  '8'::jsonb,    '8'::jsonb,    'number', '密码最小长度', '新建/修改密码时校验',           '{"min":6,"max":32,"required":true}'::jsonb, 1),
+    ('password_complexity',  '"standard"'::jsonb, '"standard"'::jsonb, 'select', '密码复杂度', 'low/standard/strong', '[{"label":"低(纯字母数字)","value":"low"},{"label":"标准(字母+数字)","value":"standard"},{"label":"强(字母+数字+符号)","value":"strong"}]'::jsonb, 2),
+    ('session_timeout_min',  '30'::jsonb,   '30'::jsonb,   'number', '会话超时(分钟)', '空闲超过此时间强制下线',       '{"min":5,"max":1440,"required":true}'::jsonb, 3),
+    ('max_login_attempts',   '5'::jsonb,    '5'::jsonb,    'number', '最大登录失败次数', '超过后锁定账户',                '{"min":1,"max":20,"required":true}'::jsonb, 4),
+    ('lock_duration_min',    '5'::jsonb,    '5'::jsonb,    'number', '锁定时长(分钟)',   '失败次数超限后的锁定时长',       '{"min":1,"max":1440,"required":true}'::jsonb, 5)
+) AS s(key, value, default_value, type, label, description, validation, sort)
+ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
+
+-- email items
+INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_readonly, is_system)
+SELECT
+    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+    (SELECT id FROM config_groups WHERE code = 'email' AND tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) AND is_deleted = FALSE),
+    s.key, s.value, s.default_value, s.type, s.label, s.description, s.sort, FALSE, s.is_readonly, TRUE
+FROM (VALUES
+    ('smtp_host',     '""'::jsonb,         '""'::jsonb,         'string',  'SMTP 主机',   '如 smtp.example.com',  1, FALSE),
+    ('smtp_port',     '465'::jsonb,        '465'::jsonb,        'number',  'SMTP 端口',   '常用 25/465/587',     2, FALSE),
+    ('smtp_user',     '""'::jsonb,         '""'::jsonb,         'string',  'SMTP 用户',   '通常为邮箱地址',       3, FALSE),
+    ('smtp_password', '""'::jsonb,         '""'::jsonb,         'password','SMTP 密码',   '授权码或登录密码',     4, TRUE),
+    ('smtp_from',     '""'::jsonb,         '""'::jsonb,         'string',  '发件人邮箱',  '邮件 From 头',         5, FALSE),
+    ('smtp_use_tls',  'true'::jsonb,       'true'::jsonb,       'boolean', '启用 TLS',    '465 通常 TLS，587 STARTTLS', 6, FALSE)
+) AS s(key, value, default_value, type, label, description, sort, is_readonly)
+ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
+
+-- feature_flag items
+INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_system)
+SELECT
+    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+    (SELECT id FROM config_groups WHERE code = 'feature_flag' AND tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) AND is_deleted = FALSE),
+    s.key, s.value, s.default_value, s.type, s.label, s.description, s.sort, FALSE, TRUE
+FROM (VALUES
+    ('enable_registration', 'true'::jsonb, 'true'::jsonb, 'boolean', '开放注册', '允许外部用户自助注册', 1),
+    ('enable_audit_log',    'true'::jsonb, 'true'::jsonb, 'boolean', '审计日志', '记录关键操作审计日志', 2)
+) AS s(key, value, default_value, type, label, description, sort)
+ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
+
+-- 菜单：系统管理 → 配置管理
+INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
+SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+       'config', '配置管理', '系统配置项管理', '', '/settings', 'SettingsIcon', 0, 5, '5.config', TRUE, TRUE
+ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+
+-- 资源：config:list/get/create/update/delete
+INSERT INTO resources (tenant_id, menu_id, code, name, action, description, sort, status)
+SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+       (SELECT id FROM menus WHERE code = 'config' AND tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) AND is_deleted = FALSE),
+       r.code, r.name, r.action, r.description, r.sort, 1
+FROM (VALUES
+    ('config:list',   '查询配置', 'list',   '查询配置分组与项',  1),
+    ('config:get',    '查看配置', 'get',    '查看分组/项详情',   2),
+    ('config:create', '创建配置', 'create', '新建分组或项',       3),
+    ('config:update', '更新配置', 'update', '更新分组或项',       4),
+    ('config:delete', '删除配置', 'delete', '删除分组或项',       5)
+) AS r(code, name, action, description, sort)
+ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+
+-- 序列号兜底（与上面 setval 段保持一致；保证后续 first_install 复制时 id 不冲突）
+SELECT setval('config_groups_id_seq', GREATEST(
+    (SELECT COALESCE(MAX(id), 0) FROM config_groups),
+    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) * 1000
+), true);
+
+SELECT setval('config_items_id_seq', GREATEST(
+    (SELECT COALESCE(MAX(id), 0) FROM config_items),
+    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) * 1000
+), true);

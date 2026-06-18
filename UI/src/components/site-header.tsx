@@ -4,10 +4,13 @@ import { useTranslation } from "@/locales"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { Switch } from "@/components/ui/switch"
 import { useTheme } from "@/components/theme-provider"
+import { useConfigItem } from "@/stores/configStore"
 
 export function SiteHeader() {
   const t = useTranslation()
   const { theme, setTheme } = useTheme()
+  const siteName = useConfigItem("site", "site_name") as string | undefined
+  const headerTitle = siteName || t.header.documents
 
   const isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)
 
@@ -23,7 +26,7 @@ export function SiteHeader() {
           orientation="vertical"
           className="mx-2 data-[orientation=vertical]:h-4"
         />
-        <h1 className="text-base font-medium">{t.header.documents}</h1>
+        <h1 className="text-base font-medium">{headerTitle}</h1>
         <div className="ml-auto flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">深色模式</span>
