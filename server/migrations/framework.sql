@@ -761,21 +761,17 @@ FROM (VALUES
 ) AS s(key, value, default_value, type, label, description, sort)
 ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
 
--- 菜单：系统管理 → 配置管理
--- 注意：parent_id 必须用子查询拿 system 菜单在 __template__ 里的实际 id
--- （__template__ 里的 system id 已经被 setval 推到几千，不是源 default 里的 5）
--- ancestors 留空，下面 UPDATE 段会统一重建为 parent_id::text
-INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
-SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
-       'config', '配置管理', '系统配置项管理', '', '/settings', 'SettingsIcon', 0,
-       (SELECT id FROM menus WHERE code = 'system' AND tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) AND is_deleted = FALSE),
-       '', TRUE, TRUE
+-- 菜单：平台配置管理（顶级菜单，与 tenants 平级；不挂在 system 下）
+-- id=101（平行 tenants=100，避免与基础菜单 id 冲突）
+-- parent_id=0（顶级，ancestors 留空）
+-- icon=SlidersHorizontalIcon（与 system 的 SettingsIcon 区分）
+-- 注意：ancestors 留空即可（顶级无 ancestors），不需要 UPDATE 重建
+INSERT INTO menus (id, tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
+    OVERRIDING SYSTEM VALUE
+SELECT 101,
+       (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+       'config', '配置管理', '系统配置项管理', '', '/settings', 'SlidersHorizontalIcon', 1, 0, '', TRUE, TRUE
 ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
-
--- 重建 config menu 的 ancestors（与上面 2c 段保持一致）
-UPDATE menus SET ancestors = parent_id::text
-WHERE tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE)
-  AND code = 'config' AND parent_id > 0 AND is_deleted = FALSE;
 
 -- 资源：config:list/get/create/update/delete
 INSERT INTO resources (tenant_id, menu_id, code, name, action, description, sort, status)
@@ -801,6 +797,86 @@ SELECT setval('config_items_id_seq', GREATEST(
     (SELECT COALESCE(MAX(id), 0) FROM config_items),
     (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) * 1000
 ), true);
+
+-- ============================================
+-- 🔁 默认租户 (tenant_id=1) 也 seed 同样的 config 数据
+-- 原因：__template__ 段是为新租户首装准备的；默认租户是手工 seed 的，
+--       不会走 first_install.go，所以需要显式 seed 一份让它有数据。
+-- ON CONFLICT 兜底：已存在的记录跳过，重跑幂等。
+-- ============================================
+
+-- config_groups
+INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
+SELECT 1, 'site',         '站点信息',     '站点名称、Logo、版权等公开信息',         'GlobeIcon',     1, TRUE, TRUE
+ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+
+INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
+SELECT 1, 'security',     '安全策略',     '密码强度、会话超时等安全相关配置',       'ShieldIcon',    2, TRUE, FALSE
+ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+
+INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
+SELECT 1, 'email',        '邮件服务',     'SMTP 邮件服务配置',                      'MailIcon',      3, TRUE, FALSE
+ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+
+INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
+SELECT 1, 'feature_flag', '功能开关',     '系统级功能启用/禁用开关',                'ToggleLeftIcon',4, TRUE, FALSE
+ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+
+-- site items
+INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_system)
+SELECT 1,
+       (SELECT id FROM config_groups WHERE code = 'site' AND tenant_id = 1 AND is_deleted = FALSE),
+       s.key, s.value, s.default_value, s.type, s.label, s.description, s.sort, s.is_public, TRUE
+FROM (VALUES
+    ('site_name',          '"XinFramework"'::jsonb, '"XinFramework"'::jsonb, 'string', '站点名称', '显示在页面标题、登录页等位置', 1, TRUE),
+    ('site_logo',          '""'::jsonb,              '""'::jsonb,             'image',  '站点 Logo', '建议 PNG/SVG，背景透明', 2, TRUE),
+    ('site_favicon',       '""'::jsonb,              '""'::jsonb,             'image',  'Favicon',  '浏览器标签图标', 3, TRUE),
+    ('site_copyright',     '""'::jsonb,              '""'::jsonb,             'string', '版权信息', '页面底部显示', 4, TRUE),
+    ('site_icp',           '""'::jsonb,              '""'::jsonb,             'string', 'ICP 备案号', '中国大陆站点必填', 5, TRUE),
+    ('site_locale_default','"zh-CN"'::jsonb,         '"zh-CN"'::jsonb,        'select', '默认语言', 'zh-CN / en-US', 6, TRUE),
+    ('login_background',   '""'::jsonb,              '""'::jsonb,             'image',  '登录页背景', '登录页右侧大图', 7, TRUE)
+) AS s(key, value, default_value, type, label, description, sort, is_public)
+ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
+
+-- security items
+INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, validation, sort, is_public, is_system)
+SELECT 1,
+       (SELECT id FROM config_groups WHERE code = 'security' AND tenant_id = 1 AND is_deleted = FALSE),
+       s.key, s.value, s.default_value, s.type, s.label, s.description, s.validation, s.sort, FALSE, TRUE
+FROM (VALUES
+    ('password_min_length', '8'::jsonb,    '8'::jsonb,    'number', '密码最小长度',     '新建/修改密码时校验',     '{"min":6,"max":32,"required":true}'::jsonb, 1),
+    ('password_complexity', '"standard"'::jsonb, '"standard"'::jsonb, 'select', '密码复杂度', 'low/standard/strong', '[{"label":"低(纯字母数字)","value":"low"},{"label":"标准(字母+数字)","value":"standard"},{"label":"强(字母+数字+符号)","value":"strong"}]'::jsonb, 2),
+    ('session_timeout_min', '30'::jsonb,   '30'::jsonb,   'number', '会话超时(分钟)',   '空闲超过此时间强制下线',   '{"min":5,"max":1440,"required":true}'::jsonb, 3),
+    ('max_login_attempts',  '5'::jsonb,    '5'::jsonb,    'number', '最大登录失败次数', '超过后锁定账户',           '{"min":1,"max":20,"required":true}'::jsonb, 4),
+    ('lock_duration_min',   '5'::jsonb,    '5'::jsonb,    'number', '锁定时长(分钟)',   '失败次数超限后的锁定时长', '{"min":1,"max":1440,"required":true}'::jsonb, 5)
+) AS s(key, value, default_value, type, label, description, validation, sort)
+ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
+
+-- email items
+INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_readonly, is_system)
+SELECT 1,
+       (SELECT id FROM config_groups WHERE code = 'email' AND tenant_id = 1 AND is_deleted = FALSE),
+       s.key, s.value, s.default_value, s.type, s.label, s.description, s.sort, FALSE, s.is_readonly, TRUE
+FROM (VALUES
+    ('smtp_host',     '""'::jsonb,         '""'::jsonb,         'string',   'SMTP 主机',   '如 smtp.example.com',  1, FALSE),
+    ('smtp_port',     '465'::jsonb,        '465'::jsonb,        'number',   'SMTP 端口',   '常用 25/465/587',     2, FALSE),
+    ('smtp_user',     '""'::jsonb,         '""'::jsonb,         'string',   'SMTP 用户',   '通常为邮箱地址',       3, FALSE),
+    ('smtp_password', '""'::jsonb,         '""'::jsonb,         'password', 'SMTP 密码',   '授权码或登录密码',     4, TRUE),
+    ('smtp_from',     '""'::jsonb,         '""'::jsonb,         'string',   '发件人邮箱',  '邮件 From 头',         5, FALSE),
+    ('smtp_use_tls',  'true'::jsonb,       'true'::jsonb,       'boolean',  '启用 TLS',    '465 通常 TLS，587 STARTTLS', 6, FALSE)
+) AS s(key, value, default_value, type, label, description, sort, is_readonly)
+ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
+
+-- feature_flag items
+INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_system)
+SELECT 1,
+       (SELECT id FROM config_groups WHERE code = 'feature_flag' AND tenant_id = 1 AND is_deleted = FALSE),
+       s.key, s.value, s.default_value, s.type, s.label, s.description, s.sort, FALSE, TRUE
+FROM (VALUES
+    ('enable_registration', 'true'::jsonb, 'true'::jsonb, 'boolean', '开放注册', '允许外部用户自助注册', 1),
+    ('enable_audit_log',    'true'::jsonb, 'true'::jsonb, 'boolean', '审计日志', '记录关键操作审计日志', 2)
+) AS s(key, value, default_value, type, label, description, sort)
+ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
 
 -- ============================================
 -- 🖼️ flag 模块业务菜单 seed（写在 framework.sql 末尾是因为 flag.sql 字母序在 framework 之前，

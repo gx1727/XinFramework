@@ -270,15 +270,19 @@ func seedFeatureFlagItems(ctx context.Context, q db.Querier, tenantID uint) erro
 	return nil
 }
 
-// HealConfigMenuParent 启动期自愈：修复 config menu 的 parent_id。
+// HealConfigMenuParent 启动期自愈：把 config menu 提升为顶级菜单。
 //
-// 历史 bug：老 framework.sql 写死 parent_id=5，但 __template__ 里 system 菜单
-// 实际 id 已被 setval 推到几千，导致 config menu 成了孤儿（菜单树不显示）。
+// 历史背景：
+//  1. 老 framework.sql 写死 parent_id=5（system 菜单的字面 id），但 __template__ 里
+//     system 实际 id 已被 setval 推到几千，导致 config menu 成了孤儿 → 菜单树看不见。
+//  2. 后来改为子查询拿 system 菜单的实际 id，挂在 system 下。
+//  3. 现在再升级：config 是平台级菜单（跨租户、super_admin 专属），应该与 tenants
+//     平级，作为顶级菜单，不挂在 system 下。
 //
 // 本函数在平台事务（bypass RLS）下扫描所有租户，把 config menu 的 parent_id
-// 改成该租户 system 菜单的实际 id，并重建 ancestors。
+// 改成 0（顶级），ancestors 置空。
 //
-// 幂等：parent_id 已正确时 no-op。
+// 幂等：parent_id 已为 0 时 no-op。
 func HealConfigMenuParent(ctx context.Context) error {
 	return db.RunInPlatformTx(ctx, db.Get(), func(ctx context.Context) error {
 		q, err := db.GetQuerier(ctx)
@@ -286,26 +290,19 @@ func HealConfigMenuParent(ctx context.Context) error {
 			return err
 		}
 
-		// 修复所有租户里 config menu 的 parent_id
-		// 用子查询拿同租户的 system 菜单 id，确保正确映射
 		res, err := q.Exec(ctx, `
-			UPDATE menus AS cfg
-			SET parent_id = sys.id,
-			    ancestors = sys.id::text
-			FROM menus AS sys
-			WHERE cfg.code = 'config'
-			  AND cfg.is_deleted = FALSE
-			  AND sys.code = 'system'
-			  AND sys.is_deleted = FALSE
-			  AND cfg.tenant_id = sys.tenant_id
-			  AND cfg.parent_id != sys.id
-			  AND sys.id IS NOT NULL`,
+			UPDATE menus
+			SET parent_id = 0,
+			    ancestors = ''
+			WHERE code = 'config'
+			  AND is_deleted = FALSE
+			  AND parent_id != 0`,
 		)
 		if err != nil {
 			return fmt.Errorf("heal config menu parent_id: %w", err)
 		}
 		if n := res.RowsAffected(); n > 0 {
-			log.Printf("[config] healed %d config menu(s) with wrong parent_id", n)
+			log.Printf("[config] healed %d config menu(s) to top-level (parent_id=0)", n)
 		}
 		return nil
 	})
