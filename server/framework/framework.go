@@ -63,7 +63,7 @@ func runServer(cfg *config.Config) {
 	}
 
 	// 初始化所有模块（统一列表，不再区分 builtin / external）
-	if err := initModules(cfg); err != nil {
+	if err := initModules(app); err != nil {
 		log.Fatalf("module init failed: %v", err)
 	}
 
@@ -98,7 +98,8 @@ func runServer(cfg *config.Config) {
 // 之前内置模块在 builtinMap 中查找、外部 app 走 plugin.Apps()，现在
 // 两者合二为一。cfg.Module 控制加载哪些模块；未在配置中启用的模块
 // 也会注册但跳过 Init / Register，避免误启用。
-func initModules(cfg *config.Config) error {
+func initModules(app *boot.App) error {
+	cfg := app.Config
 	enabled := make(map[string]bool, len(cfg.Module))
 	for _, name := range cfg.Module {
 		enabled[name] = true
@@ -109,10 +110,11 @@ func initModules(cfg *config.Config) error {
 			log.Printf("module %s registered but not enabled (skip)", m.Name())
 			continue
 		}
-		// Phase 2 builds the AppContext and passes it as Reader/Writer.
-		// During Phase 3-5 migration ctx is nil for modules that have not
-		// yet been ported (legacy modules swallow it).
-		ctx, w := buildAppContextForModule(m.Name(), cfg)
+		// Build the (Reader, Writer) pair from the shared AppContext
+		// that boot.Init constructed. Every module sees the same
+		// instance so writes one module makes are visible to readers
+		// of any other module.
+		ctx, w := buildAppContextForModule(app.AppContext)
 		if err := m.Init(ctx, w); err != nil {
 			return fmt.Errorf("module %s init failed: %w", m.Name(), err)
 		}
@@ -122,11 +124,14 @@ func initModules(cfg *config.Config) error {
 }
 
 // buildAppContextForModule constructs (Reader, Writer) for a module.
-// Phase 3 will wire this to a real AppContext with the DB pool, cache,
-// config and cross-module repositories. Today it returns (nil, nil)
-// because all legacy modules ignore the Reader/Writer argument.
-func buildAppContextForModule(name string, cfg *config.Config) (plugin.Reader, plugin.Writer) {
-	return nil, nil
+// AppContext is a concrete struct that satisfies both Reader and
+// Writer; passing the same pointer to both sides lets modules write
+// to the slot they own while reading slots contributed by others.
+func buildAppContextForModule(appCtx *plugin.AppContext) (plugin.Reader, plugin.Writer) {
+	if appCtx == nil {
+		return nil, nil
+	}
+	return appCtx, appCtx
 }
 
 func runMigrations() {
@@ -164,13 +169,15 @@ func registerModules(r *gin.Engine, cfg *config.Config, app *boot.App) {
 		enabled[name] = true
 	}
 
+	// Same Reader that Init used. By the time we reach Register,
+	// every module has finished its Init phase, so ctx.Reader exposes
+	// all repositories that were populated during Init.
+	var ctx plugin.Reader = app.AppContext
+
 	for _, m := range plugin.Apps() {
 		if !enabled[m.Name()] {
 			continue
 		}
-		// Phase 2: legacy modules ignore Reader. Phase 3 will pass
-		// the populated AppContext.Reader here.
-		var ctx plugin.Reader
 		m.Register(ctx, public, protected)
 	}
 }

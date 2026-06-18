@@ -27,6 +27,11 @@ type App struct {
 	Server      *server.XinServer
 	PermService *service.PermissionService
 	Authz       *service.AuthorizationService
+	// AppContext is the shared dependency container passed to every
+	// module's Init and Register phase. framework/framework.go reads
+	// this to wire the real Reader/Writer pair (instead of returning
+	// nil, which crashed every module that called w.SetXxx).
+	AppContext *plugin.AppContext
 }
 
 func Init(cfg *config.Config) (*App, error) {
@@ -80,6 +85,7 @@ func Init(cfg *config.Config) (*App, error) {
 		Server:      server.New(cfg),
 		PermService: permService,
 		Authz:       authzService,
+		AppContext:  appCtx,
 	}
 
 	// 启动期引导：在普通业务表就绪前确保存在一个 super_admin
