@@ -5,28 +5,24 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"gx1727.com/xin/framework/pkg/bootx"
-	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
+	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/plugin"
+	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
 )
-
-func init() {
-	plugin.Register(Module())
-}
 
 // Module returns the tenant module as a BaseModule.
 //
-// Phase 4 changes: db.Get() → bootx.Pool()（过渡期全局变量已删除）
-func Module() plugin.Module {
+// Phase 5：显式接收 *appx.App。
+func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "tenant",
 		InitFn: func(_ plugin.Reader, w plugin.Writer) error {
-			pool := bootx.Pool()
+			pool := app.DB
 			w.SetTenantRepo(&tenantPkgAdapter{repo: NewTenantRepository(pool)})
 			return nil
 		},
 		RegFn: func(_ plugin.Reader, _ *gin.RouterGroup, protected *gin.RouterGroup) {
-			pool := bootx.Pool()
+			pool := app.DB
 			h := NewHandler(NewService(pool, NewTenantRepository(pool)))
 			Register(protected, h)
 		},

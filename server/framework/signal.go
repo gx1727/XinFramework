@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"gx1727.com/xin/framework/internal/core/boot"
-
 	"gx1727.com/xin/framework/internal/core/server"
+	"gx1727.com/xin/framework/pkg/appx"
 )
 
 func getPid() (int, error) {
@@ -52,7 +52,7 @@ func waitForProcess(pid int, timeout time.Duration) {
 	}
 }
 
-func waitForSignal(srv *server.XinServer, app *boot.App) {
+func waitForSignal(srv *server.XinServer, app *appx.App) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, notifySignals()...)
 

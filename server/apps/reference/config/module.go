@@ -6,17 +6,15 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/framework/pkg/bootx"
+	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/plugin"
 )
 
-func init() {
-	plugin.Register(Module())
-}
-
 // Module 返回 config 模块的完整定义
-func Module() plugin.Module {
-	pool := bootx.Pool()
+//
+// Phase 5：显式接收 *appx.App。
+func Module(app *appx.App) plugin.Module {
+	pool := app.DB
 	repo := NewPostgresConfigRepository(pool)
 	cache := NewCache()
 	svc := NewService(pool, repo, cache)
@@ -31,7 +29,7 @@ func Module() plugin.Module {
 		InitFn: func(_ plugin.Reader, _ plugin.Writer) error {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			pool := bootx.Pool()
+			pool := app.DB
 
 			// 1) seed __template__
 			if err := EnsureTemplateSeeded(ctx, pool); err != nil {

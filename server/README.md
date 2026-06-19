@@ -5,21 +5,19 @@
 ## 一句话概览
 
 ```
-main.go ──→ framework.Run(cfg)
-              ├─ logger.Init
-              ├─ db.Init            (pgxpool)
-              ├─ cache.Init         (go-redis, 可选)
-              ├─ session.New        (Redis or DB)
-              ├─ permService + authzService
-              ├─ AppContext = { DB, Cache, Cfg, Session, Authz, Repo×8 }
-              ├─ for m in plugin.Apps():
-              │     if m.Name() ∈ cfg.Module:
-              │         m.Init(ctx, w)        ← 模块推 own Repos
-              │     m.Register(ctx, public, protected)
-              ├─ migrate.Run(./migrations)
-              ├─ recovery → request_id → CORS → client_ip → logger
-              ├─ listen :cfg.App.Port
-              └─ wait SIGINT/SIGTERM → 优雅退出
+main.go
+  ├─ config.Load("config/config.yaml")
+  ├─ framework.Boot(cfg)        → *appx.App{ Config, DB, SessionMgr, Authz, AppContext, ... }
+  ├─ modules := []plugin.Module{ auth.Module(app), tenant.Module(app), ... }   // 显式列举
+  └─ framework.Serve(cfg, app, modules)
+        ├─ migrate.Run(app.DB, "./migrations")
+        ├─ for m in modules:
+        │     if m.Name() ∈ cfg.Module:
+        │         m.Init(ctx, w)        ← 模块推 own Repos
+        │     m.Register(ctx, public, protected)
+        ├─ recovery → request_id → CORS → client_ip → logger
+        ├─ listen :cfg.App.Port
+        └─ wait SIGINT/SIGTERM → 优雅退出
 ```
 
 ## 文档地图
@@ -44,7 +42,7 @@ main.go ──→ framework.Run(cfg)
 | **数据范围** | 5 种 Scope:All/Custom/Dept/DeptAndBelow/Self |
 | **平台角色** | 跨租户特权,`super_admin` 走 `RequirePlatformRole` |
 | **JWT + Session** | HS256,JWT 内含 SessionID,登出即 revoke |
-| **可插拔模块** | 启动时 side-effect import,AppContext 注入,无全局依赖 |
+| **可插拔模块** | main.go 显式 `Module(app)`,AppContext 注入,无全局依赖 |
 | **资源/对象存储** | local 默认,可切 COS(腾讯云) |
 | **缓存** | Redis(可选),不可用时 graceful degradation 到 DB session |
 | **CORS / 审计 / 日志** | 中间件,可热插拔 |
@@ -123,46 +121,43 @@ go build -ldflags="-s -w" -o bin/xin ./cmd/xin
 
 ```
 server/
-├── cmd/xin/                   # 主入口
+├── cmd/xin/                   # 主入口(显式 Build)
 ├── config/                    # YAML 配置(config.{yaml,dev,prod} + 子模块 yaml)
 ├── migrations/                # SQL 迁移(framework / cms / flag / dict / asset)
-├── framework/                 # 内置 Go module(framework 框架本体)
-│   ├── framework.go           # Run() 入口
+├── framework/                 # 框架本体
+│   ├── framework.go           # Boot() / Serve() 入口
 │   ├── internal/
 │   │   ├── core/              # boot / middleware / server / ext_impl
 │   │   └── service/           # authorization / permission service
-│   └── pkg/                   # audit / auth / authz / cache / config /
-│                             # context / db / dict / extapi / jwt /
-│                             # logger / middleware / migrate / model /
-│                             # permission / plugin / rbac / resp /
-│                             # session / storage / tenant
-└── apps/                      # 业务模块 Go module(独立 go.mod)
+│   └── pkg/                   # appx / audit / auth / authz / cache /
+│                             # config / context / db / dict / extapi /
+│                             # jwt / logger / middleware / migrate /
+│                             # model / permission / plugin / rbac /
+│                             # resp / session / storage / tenant
+└── apps/                      # 业务模块(与 framework 同 module)
     ├── boot/                  # auth / tenant(平台级)
     ├── rbac/                  # menu / organization / permission /
     │                          # resource / role / user
-    ├── reference/             # asset / dict / weixin
+    ├── reference/             # asset / config / dict / weixin
     ├── system/                # health / cache 运维
     ├── cms/                   # 示例 CMS
     └── flag/                  # 头像/相框/空间(示例业务)
 ```
 
-## Phase 0-8 重构(已完成)
+## Phase 0-5 重构(已完成)
 
-通过 [doc/architecture.md#重构历程](doc/architecture.md) 了解为什么代码现在长这样。
+通过 [doc/architecture.md](doc/architecture.md) 了解为什么代码现在长这样。
 
 | Phase | 内容 | 状态 |
 |---|---|---|
 | 0 | 摸底:16 个跨模块全局,409 处引用 | ✅ |
-| 1 | go.mod 修复(server + apps 双模块独立) | ✅ |
-| 2 | AppContext Reader/Writer 接口骨架 | ✅ |
-| 3 | auth + tenant 模块迁移,删 2 个 registry.go | ✅ |
-| 4 | rbac 4 件套迁移(user / role / org / perm) | ✅ |
-| 5 | authz 完全收官,8 处 apps cache 失效切换 | ✅ |
-| 6 | 删 ext_impl/registry.go 死代码(189 行) | ✅ |
-| 7 | 删 internal/middleware wrapper 重复(53 行) | ✅ |
-| 8 | P0 单测:permission / middleware / plugin(36 测试) | ✅ |
+| 1 | 合并 go.mod（framework + apps + cmd 单一 module `gx1727.com/xin`） | ✅ |
+| 2 | 抽出 framework.Module 接口、删 plugin 兼容层 | ✅ |
+| 3 | 各模块 BaseModule 化、AppContext Reader/Writer 接口骨架 | ✅ |
+| 4 | 删除 `db.Get()` / `config.Get()` 全局变量（`db.Pool` / `var cfg` 也删） | ✅ |
+| 5 | main.go 显式 Build：4 步（Load → Boot → 构造 `[]plugin.Module` → Serve），删 `bootx` 过渡访问器 | ✅ |
 
-**净收益**:跨模块全局从 12 → 1(仅 authz.Authorization interface,无副作用);删 dead code 525 行;3 包覆盖率 48.4%。
+**净收益**:跨模块全局从 16 → 1（仅 `authz.Authorization` interface,无副作用）;`db.Get` / `config.Get` / `bootx` 全部消失;main.go 一目了然,每个模块的依赖显式注入。
 
 ## 贡献
 

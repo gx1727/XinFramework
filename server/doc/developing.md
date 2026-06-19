@@ -339,28 +339,30 @@ func Register(protected *gin.RouterGroup, h *Handler) {
 
 ### 4.7 module.go
 
+Phase 5 之后的统一形态：`Module(app *appx.App)` 显式接收 `*appx.App`，不再用 `init()` 副作用注册，也不再用 `db.Get()` / `bootx.Pool()` 等全局访问器。
+
 ```go
 package feedback
 
 import (
     "github.com/gin-gonic/gin"
-    "gx1727.com/xin/framework/pkg/db"
+    "gx1727.com/xin/framework/pkg/appx"
     "gx1727.com/xin/framework/pkg/plugin"
 )
 
-func init() {
-    plugin.Register(Module())
-}
-
-func Module() plugin.Module {
+// Module returns the feedback module as a BaseModule.
+func Module(app *appx.App) plugin.Module {
     return &plugin.BaseModule{
         NameStr: "feedback",
-        InitFn: func(_ plugin.Reader, _ plugin.Writer) error {
+        InitFn: func(_ plugin.Reader, w plugin.Writer) error {
             // 初始化逻辑(如资源 seed、配置校验)
             return nil
         },
         RegFn: func(_ plugin.Reader, _, protected *gin.RouterGroup) {
-            svc := NewService(db.Get())
+            pool := app.DB
+            cfg := app.Config
+            _ = cfg
+            svc := NewService(pool)
             h := NewHandler(svc)
             Register(protected, h)
         },
@@ -368,19 +370,25 @@ func Module() plugin.Module {
 }
 ```
 
-> 注意:`db.Get()` 是全局函数,目前 framework 仍保留(`db.Pool` 是全局变量)。新 module 简单场景可以直接用,复杂场景建议把 `db.Pool` 显式从 `ctx.DB()` 读——更显式。
+> `app.DB` / `app.Config` 是 `framework/pkg/appx` 公开的进程级资源，由 `framework.Boot(cfg)` 构造。这是当前唯一推荐的访问方式。
 
 ---
 
 ## 5. 在 main.go 注册 (Step 5)
 
-[cmd/xin/main.go](cmd/xin/main.go) 加一行 side-effect import:
+Phase 5 之后**不再用** `_ "..."` side-effect import。改成在 [cmd/xin/main.go](cmd/xin/main.go) 显式调用：
 
 ```go
 import (
+    "gx1727.com/xin/apps/feedback"   // 显式 import，无下划线
     // ...
-    _ "gx1727.com/xin/apps/feedback"
 )
+
+modules := []plugin.Module{
+    // ...
+    feedback.Module(app),
+    // ...
+}
 ```
 
 ## 6. 在 cfg.Module 启用 (Step 6)
@@ -481,19 +489,20 @@ apps/reference/dict/
 ```go
 package dict
 
-func init() { plugin.Register(Module()) }
+import (
+    "github.com/gin-gonic/gin"
+    "gx1727.com/xin/framework/pkg/appx"
+    "gx1727.com/xin/framework/pkg/plugin"
+)
 
-func Module() plugin.Module {
+// Phase 5：显式接收 *appx.App，依赖显式注入。
+func Module(app *appx.App) plugin.Module {
     return &plugin.BaseModule{
         NameStr: "dict",
-        InitFn: func(_ plugin.Reader, w plugin.Writer) error {
-            // 跨模块提供 DictRepo → 给 extapi 等用
-            w.SetDictRepo(NewDictRepository(db.Get()))
-            return nil
-        },
         RegFn: func(_ plugin.Reader, _, protected *gin.RouterGroup) {
-            svc := NewService(NewDictRepository(db.Get()))
-            Register(protected, NewHandler(svc))
+            pool := app.DB
+            h := NewHandler(NewService(pool, NewPostgresDictRepository(pool)))
+            Register(protected, h)
         },
     }
 }
@@ -534,15 +543,15 @@ curl http://localhost:8087/api/v1/health      # 必须 200
 
 | 陷阱 | 解决 |
 |---|---|
-| 忘记 `import _ ".../apps/feedback"` | module 不注册,启动看不到 |
-| 忘记加 `cfg.Module` | module 注册了但 Init/Register 跳过 |
+| 忘记在 main.go 显式 import 模块（不再用 `_` 副作用） | `feedback.Module(app)` 没被加进 `[]plugin.Module`，启动看不到 |
+| 忘记加 `cfg.Module` | module 在列表里但 Init/Register 跳过 |
 | 错误码和别的模块撞了 | 查 [resp/errors.go](framework/pkg/resp/errors.go) 选空段 |
 | 资源码没 seed,Permission.P 直接写字符串 | 可以工作,但失去 IDE 自动补全 |
-| handler 调 `db.Get()` 而不是 `ctx.DB()` | 简单场景 OK,但不利于测试;新代码建议走 ctx |
+| 还在用 `db.Get()` / `bootx.Pool()` | 这俩已删，改用 `app.DB` 显式注入 |
 | RLS 没建,跨租户泄漏 | `ALTER TABLE xxx ENABLE ROW LEVEL SECURITY` + `FORCE` |
 | 没加 `is_deleted = FALSE` filter | 删除的数据会混进 List |
 | 唯一索引不是 partial index | 删除后无法重建 |
-| 事务里 `db.Get()` 返回 pool 而不是 tx | 用 `db.GetQuerier(ctx)` 让 ctx 自动找 tx |
+| 事务里需要 ctx 自动拿 tx | 用 `db.GetQuerier(ctx, pool)` 让 ctx 找 tx |
 | `super_admin` 平台角色没 bypass 你的中间件 | 确认你的 Require 在 [framework/pkg/middleware/auth.go](framework/pkg/middleware/auth.go) `requireWithSpecs` 里有 `if uc.IsSuperAdmin() { c.Next(); return }` 短路 |
 
 ## 12. 下一步

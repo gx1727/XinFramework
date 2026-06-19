@@ -3,7 +3,6 @@ package ext_impl
 import (
 	"context"
 	"errors"
-	"time"
 
 	pkgrbac "gx1727.com/xin/framework/pkg/rbac"
 	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
@@ -85,14 +84,12 @@ func (f *tenantFacadeImpl) GetByID(ctx context.Context, id uint) (*extapi.Tenant
 	if err != nil {
 		return nil, err
 	}
-	createdAt, _ := t.CreatedAt.(time.Time)
-	updatedAt, _ := t.UpdatedAt.(time.Time)
 	return &extapi.Tenant{
 		ID: t.ID, Code: t.Code, Name: t.Name, Status: t.Status,
 		Contact: t.Contact, Phone: t.Phone, Email: t.Email,
 		Province: t.Province, City: t.City, Area: t.Area, Address: t.Address,
 		Config: t.Config, Dashboard: t.Dashboard,
-		CreatedAt: createdAt, UpdatedAt: updatedAt,
+		CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}, nil
 }
 

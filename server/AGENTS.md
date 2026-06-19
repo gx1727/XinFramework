@@ -9,33 +9,33 @@ server/
 ├── cmd/xin/main.go              ← 入口
 ├── config/                      ← YAML 配置
 ├── migrations/                  ← SQL 迁移
-├── framework/                   ← 框架本体(独立 go.mod)
-│   ├── framework.go             ← Run() 入口
+├── framework/                   ← 框架本体
+│   ├── framework.go             ← Boot() / Serve() 入口
 │   ├── internal/                ← 框架核心实现
 │   │   ├── core/{boot,middleware,server,ext_impl}/
 │   │   └── service/{authorization,permission}_service.go
-│   └── pkg/                     ← 框架公共包(23 个)
-└── apps/                        ← 业务模块(独立 go.mod)
+│   └── pkg/                     ← 框架公共包（含 appx/appx.go）
+└── apps/                        ← 业务模块
     ├── boot/{auth,tenant}/      ← 平台级(alwaysOn)
     ├── rbac/{menu,organization,permission,resource,role,user}/
-    ├── reference/{asset,dict,weixin}/
+    ├── reference/{asset,config,dict,weixin}/
     ├── system/                  ← health / cache 运维
     ├── cms/, flag/              ← 示例业务
 ```
 
-## 2. 双 Go Module 边界
-
-**依赖方向严格单向**:
+## 2. 模块依赖方向
 
 ```
 cmd/xin ──→ framework ──→ apps
+            (internal)     (internal ← 不可)
 ```
 
-- `framework` 不能 import `apps`(用 `internal/` 强制)
+- `framework` 不能 import `apps`（用 `internal/` 强制）
 - `apps` 不能 import `cmd/xin`
-- `apps` 间跨模块通信**只能**通过 `plugin.AppContext`(Reader/Writer)
+- `apps` 间跨模块通信**只能**通过 `plugin.AppContext`（Reader/Writer）
+- 单一 go module（Phase 1 已合并 framework + apps + cmd）
 
-修改前确认:你改的文件属于哪个 module?是否跨边界?
+修改前确认:你改的文件属于哪个目录?是否跨边界?
 
 ## 3. 关键路径速查
 
@@ -123,26 +123,41 @@ func OtherModule() plugin.Module {
 
 ### 6.1 模块骨架
 
+Phase 5 之后**统一形态**：`Module(app *appx.App) plugin.Module`，由 main.go 显式 import 并放进 `[]plugin.Module`：
+
 ```go
 // apps/feedback/module.go
 package feedback
 
 import (
     "github.com/gin-gonic/gin"
+    "gx1727.com/xin/framework/pkg/appx"
     "gx1727.com/xin/framework/pkg/plugin"
 )
 
-func init() { plugin.Register(Module()) }
-
-func Module() plugin.Module {
+// Module returns the feedback module as a BaseModule.
+func Module(app *appx.App) plugin.Module {
     return &plugin.BaseModule{
         NameStr: "feedback",
         InitFn: func(_ plugin.Reader, _ plugin.Writer) error { return nil },
         RegFn: func(_ plugin.Reader, _, protected *gin.RouterGroup) {
-            svc := NewService()
+            pool := app.DB
+            svc := NewService(pool)
             Register(protected, NewHandler(svc))
         },
     }
+}
+```
+
+然后在 [cmd/xin/main.go](cmd/xin/main.go) 显式 import（无 `_`）并放进模块列表：
+
+```go
+import "gx1727.com/xin/apps/feedback"
+
+modules := []plugin.Module{
+    // ...
+    feedback.Module(app),
+    // ...
 }
 ```
 
@@ -215,8 +230,9 @@ func (s *Service) List(ctx context.Context, page, size int) ([]Item, int64, erro
     filter, err := uc.GetDataScopeFilter()  // 用默认列:creator_id / org_id
     if err != nil { return nil, 0, err }
 
-    return db.RunInTenantTx(ctx, db.Get(), uc.TenantID, func(txCtx context.Context) ([]Item, int64, error) {
-        q, _ := db.GetQuerier(txCtx)
+    // Phase 4+：s.pool 是 service 在 NewService(pool, ...) 时显式持有的，不再调 db.Get()
+    return db.RunInTenantTx(ctx, s.pool, uc.TenantID, func(txCtx context.Context) ([]Item, int64, error) {
+        q, _ := db.GetQuerier(txCtx, s.pool)
         // SELECT * FROM items WHERE <filter.SQL> ORDER BY id LIMIT $2 OFFSET $3
         // filter.Args 已经包含 userID / orgIDs 等
         // ...
@@ -239,8 +255,9 @@ func (s *Service) Update(ctx context.Context, roleID uint, req UpdateReq) error 
 ### 6.7 RLS 事务
 
 ```go
-err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(txCtx context.Context) error {
-    q, _ := db.GetQuerier(txCtx)  // 自动拿 tx
+// service 持有 pool；不再用 db.Get() 拿全局 pool
+err := db.RunInTenantTx(ctx, s.pool, tenantID, func(txCtx context.Context) error {
+    q, _ := db.GetQuerier(txCtx, s.pool)  // 自动拿 tx
     // txCtx 上自动 SET LOCAL app.tenant_id = tenantID
     rows, err := q.Query(txCtx, "SELECT * FROM users WHERE ...", ...)
     // ...
@@ -265,7 +282,7 @@ tenants.POST("", h.Create)
 ❌ **不要**新增跨模块全局变量(Phase 0-8 重构就是为了消灭它们)
 ❌ **不要**在 `framework/` 里 import `apps/`(编译就过不去)
 ❌ **不要**绕过 `Require(spec)` 中间件直接调 handler
-❌ **不要**用 `db.Get()` 在业务代码里 — 改用 `ctx.DB()` 或注入
+❌ **不要**用 `db.Get()` 在业务代码里 — 改用 `app.DB`（module 注入）或 `s.pool`（service 持有）
 ❌ **不要**写 `gorm` 或 `database/sql` — 项目统一用 `pgx`
 ❌ **不要**在 handler 里写 SQL — 走 service → repository
 ❌ **不要**新增 `var globalXxx` 包级变量 — 用 `AppContext`
@@ -329,7 +346,7 @@ resp.OK(c, data) / resp.HandleError(c, err)
 
 | 现象 | 排查路径 |
 |---|---|
-| 启动 panic | 看 `framework/framework.go::runServer` 链路 |
+| 启动 panic | 看 `cmd/xin/main.go` + `framework.Serve` 链路 |
 | 路由 404 | `git grep "/xxx" apps/` 找路由定义 |
 | 权限 403 | `middleware.Require` 的 spec 是否对应 `resources` 表里有 seed |
 | 跨租户泄漏 | 业务 SQL 是否包在 `RunInTenantTx` 里 |
@@ -343,12 +360,15 @@ resp.OK(c, data) / resp.HandleError(c, err)
 | 维度 | 状态 |
 |---|---|
 | Go | 1.25+ |
-| 跨模块全局 | 1 个(authz.Authorization interface,无状态) |
-| 死代码 | 已清 525 行(Phase 3-7) |
-| P0 单测 | 36 个,3 包覆盖率 48.4% |
+| Go modules | 单 module `gx1727.com/xin`（Phase 1 合并） |
+| 跨模块全局 | 1 个（`authz.Authorization` interface,无状态） |
+| db.Get / config.Get / bootx | 已删（Phase 4-5） |
+| main.go | 4 步显式 Build：`config.Load` → `framework.Boot` → 构造 `[]plugin.Module` → `framework.Serve` |
+| 模块入口 | 全部 `Module(app *appx.App) plugin.Module`，main.go 显式注册 |
 | 中间件 | 无 wrapper 重复,Require 全在 pkg/middleware |
 | extapi | Provider 模式,facade 从 ctx 拿 repo |
-| ext_impl/registry.go | 已删(189 行) |
+| ext_impl/registry.go | 已删（189 行） |
+| P0 单测 | 36 个,3 包覆盖率 48.4% |
 
 ## 13. 不要改的文件(除非明确要重构)
 

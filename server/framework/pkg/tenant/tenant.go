@@ -8,7 +8,10 @@
 // AppContext, not via this package.
 package tenant
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // TenantRecord is the minimal tenant row representation consumed by
 // the framework's cross-module providers (cms, extapi). apps/boot/tenant
@@ -27,8 +30,8 @@ type TenantRecord struct {
 	Address   string
 	Config    string
 	Dashboard string
-	CreatedAt interface{ /* time.Time via duck typing */ }
-	UpdatedAt interface{}
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // TenantRepository is the cross-module tenant data access contract.

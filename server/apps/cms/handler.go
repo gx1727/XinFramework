@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/framework/pkg/bootx"
+	"github.com/jackc/pgx/v5/pgxpool"
 	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/extapi"
 	"gx1727.com/xin/framework/pkg/resp"
@@ -19,9 +19,9 @@ type Handler struct {
 }
 
 // NewHandler 创建 Handler 实例
-func NewHandler() *Handler {
+func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{
-		posts:    NewCmsPostRepository(bootx.Pool()),
+		posts:    NewCmsPostRepository(pool),
 		provider: extapi.Get(),
 	}
 }

@@ -29,35 +29,35 @@ cmd/xin ──→ framework ──→ apps
 `framework.Run(cfg)` 执行的精确顺序,见 [framework/framework.go](framework/framework.go):
 
 ```go
-func Run(cfg *config.Config) {
-    // 1. 命令行分发(start/stop/restart/run/help)
-    // 2. runServer(cfg)
-    runServer(cfg)
+// Phase 5 之后：main.go 显式 Build，framework 只负责 Serve。
+func main() {
+    cfg, _ := config.Load("config/config.yaml")
+    app, _ := framework.Boot(cfg)            // 构造 *appx.App
+    modules := []plugin.Module{              // 显式列举
+        auth.Module(app), tenant.Module(app),
+        user.Module(app), /* ... */
+    }
+    framework.Serve(cfg, app, modules)       // 迁移 + Init + 路由 + 启动
 }
 
-func runServer(cfg *config.Config) {
-    // 3. boot.Init 装载全部基础设施
-    app, err := boot.Init(cfg)  // panic on failure
-    // 4. 遍历 plugin.Apps(),按 cfg.Module 白名单 Init/Register
-    initModules(app)
-    // 5. 数据库迁移(./migrations/*.sql)
-    runMigrations()
-    // 6. 装配全局中间件 + 各 module Register 路由
-    setupRouter(app)
-    // 7. 后台启动 HTTP server
-    go app.Server.Start(addr)
-    // 8. 等待 SIGINT/SIGTERM,优雅退出
-    waitForSignal(app.Server, app)
+func Serve(cfg *config.Config, app *appx.App, modules []plugin.Module) {
+    migrate.Run(app.DB, "migrations")        // ① DB 迁移
+    for _, m := range modules {              // ② Init 阶段
+        m.Init(ctx, w)                       //    模块写 own slot
+    }
+    setupRouter(app)                         // ③ 全局中间件 + 路由
+    go app.Server.Start(addr)                // ④ 后台启动
+    waitForSignal(app.Server, app)           // ⑤ 等待信号优雅退出
 }
 ```
 
-`boot.Init` 的内部 6 步装配([framework/internal/core/boot/boot.go](framework/internal/core/boot/boot.go)):
+`framework.Boot` (即 `boot.Init`) 的内部 6 步装配([framework/internal/core/boot/boot.go](framework/internal/core/boot/boot.go)):
 
 ```go
-func Init(cfg *config.Config) (*App, error) {
+func Init(cfg *config.Config) (*appx.App, error) {
     logger.Init(cfg.Log.Dir, cfg.Log.Level)
-    db.Init(&cfg.Database)                        // ① pgxpool
-    dict.Init(db.Get())
+    pool, _ := db.Init(ctx, &cfg.Database)        // ① pgxpool, 显式返回
+    dict.Init(pool)
     cache.Init(&cfg.Redis)                        // ② go-redis (enabled)
     sm := session.NewRedisSessionManager()        // ③ Redis 优先
     permCache := permission.NewRedisPermissionCache()
@@ -65,7 +65,7 @@ func Init(cfg *config.Config) (*App, error) {
     ext_impl.InitExtApi(appCtx)
     permService := service.NewPermissionService(...)  // ⑤ RBAC 服务
     appCtx.SetAuthz(authz.Wrap(authzService))     // ⑥ 跨 module 共享
-    return &App{...}, nil
+    return &appx.App{Config, DB, SessionMgr, Server, PermService, Authz, AppContext}, nil
 }
 ```
 
@@ -85,14 +85,15 @@ type Module interface {
 推荐用 `BaseModule` struct(避免每个 module 写自己的 method set):
 
 ```go
+// Phase 5：每个模块的工厂显式接收 *appx.App，依赖从 app.DB / app.Config 取。
 return &plugin.BaseModule{
     NameStr: "tenant",
     InitFn: func(_ plugin.Reader, w plugin.Writer) error {
-        w.SetTenantRepo(&tenantPkgAdapter{repo: NewTenantRepository(db.Get())})
+        w.SetTenantRepo(&tenantPkgAdapter{repo: NewTenantRepository(app.DB)})
         return nil
     },
     RegFn: func(_ plugin.Reader, _, protected *gin.RouterGroup) {
-        h := NewHandler(NewService(NewTenantRepository(db.Get())))
+        h := NewHandler(NewService(app.DB, NewTenantRepository(app.DB)))
         Register(protected, h)
     },
 }

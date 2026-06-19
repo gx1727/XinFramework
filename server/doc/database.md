@@ -105,7 +105,8 @@ CREATE POLICY tenant_isolation ON users
 ### 4.2 在 Go 里套租户上下文
 
 ```go
-err := db.RunInTenantTx(ctx, db.Get(), claims.TenantID, func(txCtx context.Context) error {
+// service 持有 pool（由 module 在 Module(app) 时显式注入），不再调 db.Get()
+err := db.RunInTenantTx(ctx, s.pool, claims.TenantID, func(txCtx context.Context) error {
     // txCtx 里 SET LOCAL app.tenant_id = claims.TenantID
     // 这里的 SELECT/INSERT/UPDATE 自动受 RLS 限制
     return s.repo.GetByID(txCtx, userID)

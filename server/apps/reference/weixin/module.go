@@ -3,14 +3,10 @@ package weixin
 import (
 	"github.com/gin-gonic/gin"
 
-	"gx1727.com/xin/framework/pkg/bootx"
+	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/plugin"
 	"gx1727.com/xin/framework/pkg/session"
 )
-
-func init() {
-	plugin.Register(Module())
-}
 
 // Module returns the weixin module as a BaseModule.
 //
@@ -19,12 +15,14 @@ func init() {
 // globals to AppContext.Reader. The Init phase runs once at boot and
 // calls InitConfig(); downstream dependencies are resolved lazily on
 // first request through the closed-over reader.
-func Module() plugin.Module {
+//
+// Phase 5：显式接收 *appx.App。
+func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "weixin",
 		InitFn: func(_ plugin.Reader, _ plugin.Writer) error {
-			// Phase 4: 通过 bootx 拿全局 config，注入 weixinCfg；service 不再直接调 config.Get()。
-			SetGlobalConfig(bootx.Config())
+			// 把全局 config 注入 weixinCfg；service 不再直接调 config.Get()。
+			SetGlobalConfig(app.Config)
 			return InitConfig()
 		},
 		RegFn: func(ctx plugin.Reader, public *gin.RouterGroup, protected *gin.RouterGroup) {
@@ -41,7 +39,7 @@ func Module() plugin.Module {
 			}
 
 			svc := NewService(
-				bootx.Pool(),
+				app.DB,
 				session.Manager(),
 				accountAuthRepo,
 				accountRepo,

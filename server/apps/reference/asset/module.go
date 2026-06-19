@@ -4,27 +4,22 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/framework/pkg/bootx"
+	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/plugin"
 	"gx1727.com/xin/framework/pkg/storage"
 	storage_cos "gx1727.com/xin/framework/pkg/storage/cos"
 	storage_local "gx1727.com/xin/framework/pkg/storage/local"
 )
 
-// init 在包加载时自动注册到 plugin.Apps()。cmd/xin 通过 side-effect
-// import 引入此包，避免 framework.go 中维护硬编码列表。
-func init() {
-	plugin.Register(Module())
-}
-
 // Module 返回 asset 模块的完整定义
-func Module() plugin.Module {
+//
+// Phase 5：显式接收 *appx.App。
+func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "asset",
 		RegFn: func(_ plugin.Reader, public *gin.RouterGroup, protected *gin.RouterGroup) {
-			// Phase 4: config.Get()/db.Get() → bootx.Config()/bootx.Pool()
-			cfg := bootx.Config()
-			pool := bootx.Pool()
+			cfg := app.Config
+			pool := app.DB
 			// 创建 storage
 			var s storage.Storage
 			if cfg.Storage.Provider == "cos" {
