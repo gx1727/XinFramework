@@ -1,23 +1,23 @@
 # HTTP API 参考
 
-> 当前共 **100+ 路由**。Base path: `/api/v1`,分 `public`(游客可访问) 和 `protected`(必须登录)。
+> 当前共 **100+ 路由**。Base path: `/api/v1`，分 `public`（游客可访问）和 `protected`（必须登录）。
 
 ## 通用约定
 
 ### 1. 响应格式
 
-所有响应都是 JSON,固定三个字段:
+所有响应都是 JSON，固定三个字段：
 
 ```json
 { "code": 0, "msg": "ok", "data": { /* 业务数据 */ } }
 ```
 
-- `code = 0`:成功
-- `code != 0`:业务错误(具体含义见错误码表)
-- `code >= 5000`:服务端错误(走 `resp.Error` 走 HTTP 500)
-- `code >= 4000`:权限不足(HTTP 403)
-- `code >= 3000`:资源不存在(HTTP 404)
-- `code >= 2000`:参数错误(HTTP 400)
+- `code = 0`：成功
+- `code != 0`：业务错误（具体含义见错误码表）
+- `code >= 5000`：服务端错误（走 `resp.Error`，HTTP 500）
+- `code >= 4000`：权限不足（HTTP 403）
+- `code >= 3000`：资源不存在（HTTP 404）
+- `code >= 2000`：参数错误（HTTP 400）
 
 ### 2. 分页响应
 
@@ -33,7 +33,7 @@
 
 ### 3. 认证头
 
-`protected` 路由需要:
+`protected` 路由需要：
 
 ```
 Authorization: Bearer <jwt>
@@ -43,7 +43,7 @@ JWT 由 `POST /api/v1/auth/login` 颁发。
 
 ### 4. 多租户 Header
 
-可选 header:`X-Tenant-ID`。如果登录用户 JWT 中 `TenantID == 0`,框架会用此 header 作为兜底(仅 public 路由生效)。
+可选 header：`X-Tenant-ID`。如果登录用户 JWT 中 `TenantID == 0`，框架会用此 header 作为兜底（仅 public 路由生效）。
 
 ### 5. 错误码分段
 
@@ -63,6 +63,7 @@ JWT 由 `POST /api/v1/auth/login` 颁发。
 | 11001-11999 | system |
 | 12001-12999 | weixin |
 | 13001-13999 | flag |
+| 14001-14999 | config |
 
 ---
 
@@ -76,7 +77,7 @@ JWT 由 `POST /api/v1/auth/login` 颁发。
 curl http://localhost:8087/api/v1/health
 ```
 
-**响应 200**:
+**响应 200**：
 
 ```json
 { "code": 0, "msg": "ok", "data": { "status": "ok" } }
@@ -84,23 +85,23 @@ curl http://localhost:8087/api/v1/health
 
 ---
 
-## 认证 (/auth/*)
+## 认证（/auth/*）
 
 ### POST `/auth/login`
 
 无需认证。
 
-**请求**:
+**请求**：
 
 ```json
 {
   "account": "admin",       // username / phone / email 任意一种
   "password": "your-password",
-  "tenant_code": "default"   // 必填
+  "tenant_code": "default"  // 必填
 }
 ```
 
-**响应 200**:
+**响应 200**：
 
 ```json
 {
@@ -114,17 +115,17 @@ curl http://localhost:8087/api/v1/health
 }
 ```
 
-**错误码**:`1001` 账号不存在 / `1002` 密码错误 / `1003` 账号被禁用 / `1004` 租户不存在 / `1005` 租户被禁用 / `1006` 用户未绑定到该租户。
+**错误码**：`1001` 账号不存在 / `1002` 密码错误 / `1003` 账号被禁用 / `1004` 租户不存在 / `1005` 租户被禁用 / `1006` 用户未绑定到该租户。
 
 ### POST `/auth/register`
 
 无需认证。
 
-**请求**:
+**请求**：
 
 ```json
 {
-  "account": "newuser",   // username / phone / email
+  "account": "newuser",    // username / phone / email
   "password": "...",
   "phone": "13900139000",  // 任一即可
   "email": "...",
@@ -132,33 +133,33 @@ curl http://localhost:8087/api/v1/health
 }
 ```
 
-**响应 200**:
+**响应 200**：
 
 ```json
 { "code": 0, "msg": "ok", "data": { "user_id": 42 } }
 ```
 
-**错误码**:`1010` 账号已存在 / `1011` 密码强度不足。
+**错误码**：`1010` 账号已存在 / `1011` 密码强度不足。
 
 ### POST `/auth/refresh`
 
-无需认证(用 refresh_token 换新 access_token)。
+无需认证（用 refresh_token 换新 access_token）。
 
-**请求**:
+**请求**：
 
 ```json
 { "refresh_token": "..." }
 ```
 
-**响应**:同 `/auth/login`。
+**响应**：同 `/auth/login`。
 
 ### POST `/auth/logout`
 
-需要登录。撤销当前 session,后续 token 立即失效。
+需要登录。撤销当前 session，后续 token 立即失效。
 
-**请求**:无 body。
+**请求**：无 body。
 
-**响应 200**:
+**响应 200**：
 
 ```json
 { "code": 0, "msg": "ok", "data": null }
@@ -166,28 +167,28 @@ curl http://localhost:8087/api/v1/health
 
 ---
 
-## 用户 (/users/*)
+## 用户（/users/*）
 
 ### GET `/users`
 
 需要登录 + `user:list` 权限。
 
-**Query**:
+**Query**：
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
 | `tenant_id` | int | (super_admin 可跨租户查询) |
 | `keyword` | string | 模糊匹配 real_name / nickname / code |
 | `page` | int | 默认 1 |
-| `size` | int | 默认 20,最大 200 |
+| `size` | int | 默认 20，最大 200 |
 
-**响应**:分页。
+**响应**：分页。
 
 ### POST `/users`
 
 需要登录 + `user:create` 权限。
 
-**请求**:
+**请求**：
 
 ```json
 {
@@ -213,13 +214,13 @@ curl http://localhost:8087/api/v1/health
 
 ### PATCH `/users/:id`
 
-需要登录 + `user:update` 权限。**部分更新**(只更新提供的字段)。
+需要登录 + `user:update` 权限。**部分更新**（只更新提供的字段）。
 
 ### PUT `/users/:id/status`
 
 需要登录 + `user:update` 权限。
 
-**请求**:
+**请求**：
 
 ```json
 { "status": 1 }   // 1=启用, 0=禁用
@@ -229,7 +230,7 @@ curl http://localhost:8087/api/v1/health
 
 需要登录 + `user:update` 权限。**调岗**。
 
-**请求**:
+**请求**：
 
 ```json
 { "org_id": 5 }
@@ -239,17 +240,17 @@ curl http://localhost:8087/api/v1/health
 
 需要登录。返回**当前**用户的 profile。
 
-### POST `/user/upload-avatar`
+### POST `/user/avatar`
 
-需要登录。multipart/form-data,字段名 `file`。
+需要登录。multipart/form-data，字段名 `file`。
 
 ### PUT `/user/profile`
 
-需要登录。更新当前用户的 profile(real_name / nickname / email / phone / avatar)。
+需要登录。更新当前用户的 profile（real_name / nickname / email / phone / avatar）。
 
 ---
 
-## 角色 (/roles/*)
+## 角色（/roles/*）
 
 ### GET `/roles`
 
@@ -259,7 +260,7 @@ curl http://localhost:8087/api/v1/health
 
 需要登录 + `role:create`。
 
-**请求**:
+**请求**：
 
 ```json
 {
@@ -271,17 +272,17 @@ curl http://localhost:8087/api/v1/health
 }
 ```
 
-`data_scope.type` 取值见 [permissions.md](permissions.md#数据范围) 的 5 种类型。
+`data_scope.type` 取值见 [permissions.md](permissions.md#3-数据范围-datascope) 的 5 种类型。
 
 ### GET `/roles/:id/permissions`
 
-需要登录 + `role:list`。返回该角色被授权的资源码(`resource:action` 列表)。
+需要登录 + `role:list`。返回该角色被授权的资源码（`resource:action` 列表）。
 
 ### POST `/roles/:id/permissions`
 
 需要登录 + `role:update`。
 
-**请求**:
+**请求**：
 
 ```json
 { "resource_codes": ["user:create", "user:update", "flag:list"] }
@@ -289,7 +290,7 @@ curl http://localhost:8087/api/v1/health
 
 ### PUT `/roles/:id/permissions`
 
-需要登录 + `role:update`。幂等:完全替换角色的资源码集合。
+需要登录 + `role:update`。幂等：完全替换角色的资源码集合。
 
 ### GET `/roles/:id/data-scopes`
 
@@ -299,7 +300,7 @@ curl http://localhost:8087/api/v1/health
 
 需要登录 + `role:update`。
 
-**请求**:
+**请求**：
 
 ```json
 { "type": 2, "org_ids": [3, 5, 7] }
@@ -313,7 +314,7 @@ curl http://localhost:8087/api/v1/health
 
 需要登录 + `role:update`。
 
-**请求**:
+**请求**：
 
 ```json
 { "menu_ids": [1, 2, 5, 8] }
@@ -321,9 +322,9 @@ curl http://localhost:8087/api/v1/health
 
 ---
 
-## 租户 (/tenants/*)
+## 租户（/tenants/*）
 
-**所有租户管理路由额外要求 `super_admin` 平台角色**(普通租户内 admin 无法访问)。
+**所有租户管理路由额外要求 `super_admin` 平台角色**（普通租户内 admin 无法访问）。
 
 ### GET `/tenants`
 
@@ -333,7 +334,7 @@ curl http://localhost:8087/api/v1/health
 
 需要登录 + `super_admin` + `tenant:create`。
 
-**请求**:
+**请求**：
 
 ```json
 {
@@ -346,17 +347,17 @@ curl http://localhost:8087/api/v1/health
   "city": "上海市",
   "area": "浦东新区",
   "address": "世纪大道 100 号",
-  "config": { /* 任意 JSON */ }
+  "config": { /* 任意 JSON，存为 tenants.config JSONB */ }
 }
 ```
 
 ### POST `/tenants/:id/purge`
 
-需要登录 + `super_admin` + `tenant:delete`。**硬删除**(物理 DELETE)。
+需要登录 + `super_admin` + `tenant:delete`。**硬删除**（物理 DELETE）。
 
 ---
 
-## 菜单 (/menus/*)
+## 菜单（/menus/*）
 
 ### GET `/menus/tree`
 
@@ -366,7 +367,7 @@ curl http://localhost:8087/api/v1/health
 
 需要登录 + `menu:create`。
 
-**请求**:
+**请求**：
 
 ```json
 {
@@ -381,7 +382,7 @@ curl http://localhost:8087/api/v1/health
 
 ---
 
-## 组织 (/organizations/*)
+## 组织（/organizations/*）
 
 ### GET `/organizations/tree`
 
@@ -391,7 +392,7 @@ curl http://localhost:8087/api/v1/health
 
 需要登录 + `organization:create`。
 
-**请求**:
+**请求**：
 
 ```json
 {
@@ -406,13 +407,13 @@ curl http://localhost:8087/api/v1/health
 
 ---
 
-## 资源 (/resources/*)
+## 资源（/resources/*）
 
 ### GET `/resources/my`
 
-需要登录(不带 RBAC spec,任何登录用户都可调)。**返回当前用户能点哪些按钮**,前端用来动态渲染 UI。
+需要登录（不带 RBAC spec，任何登录用户都可调）。**返回当前用户能点哪些按钮**，前端用来动态渲染 UI。
 
-**响应**:
+**响应**：
 
 ```json
 {
@@ -431,36 +432,116 @@ curl http://localhost:8087/api/v1/health
 
 ---
 
-## 字典 (/dicts/*)
+## 字典（/dicts/*）
 
 ### GET `/dicts/:id/items`
 
-需要登录 + `dict:list`。返回该字典的所有字典项(扁平列表)。
+需要登录 + `dict:list`。返回该字典的所有字典项（扁平列表）。
 
 ### POST `/dicts/:id/items`
 
 需要登录 + `dict:update`。
 
-**请求**:
+**请求**：
 
 ```json
 {
   "code": "active",
   "name": "启用",
   "sort": 1,
-  "parent_id": 0
+  "parent_id": 0,
+  "extend": { /* JSONB */ }
 }
+```
+
+> `dict_items.extend` 是 JSONB 列，SQL 显式 `::jsonb` cast。
+
+---
+
+## 配置中心（/config/*）
+
+### GET `/config/groups`
+
+需要登录 + `config:list`。
+
+### POST `/config/groups`
+
+需要登录 + `config:create`。
+
+```json
+{
+  "code": "site",
+  "name": "站点配置",
+  "description": "..."
+}
+```
+
+### PUT `/config/groups/:id` / DELETE `/config/groups/:id`
+
+需要登录 + `config:update` / `config:delete`。
+
+### GET `/config/items`
+
+需要登录 + `config:list`。支持 query：
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `group_code` | string | 按 group code 过滤 |
+| `keyword` | string | 模糊匹配 key / label |
+| `page` | int | 默认 1 |
+| `size` | int | 默认 20 |
+
+### GET `/config/items/:id`
+
+需要登录 + `config:get`。
+
+### POST `/config/items`
+
+需要登录 + `config:create`。
+
+```json
+{
+  "group_id": 1,
+  "key": "site.theme",
+  "value": "dark",                       // 任意 JSON（string/number/object/array）
+  "default_value": "light",
+  "type": "string",                       // string/number/boolean/json
+  "label": "主题",
+  "description": "...",
+  "options": [{"label": "深色", "value": "dark"}],   // JSONB
+  "validation": {"min": 0, "max": 100},             // JSONB
+  "sort": 1,
+  "is_public": true,                      // true 时可通过 /:group_code/public 公开访问
+  "is_readonly": false,
+  "status": 1
+}
+```
+
+### PUT `/config/items/:id`
+
+需要登录 + `config:update`。**触发审计日志**（写 `db_logs`）。
+
+### DELETE `/config/items/:id`
+
+需要登录 + `config:delete`。
+
+### GET `/config/:group_code/public`
+
+**公开**（无需登录），按 group + code 拿公开项。供前端初始化站点配置。
+
+```bash
+curl http://localhost:8087/api/v1/config/site/public?key=site.theme
 ```
 
 ---
 
-## 资产 (/asset/*)
+## 资产（/asset/*）
 
 ### POST `/asset/upload`
 
-需要登录 + `asset:create`。**multipart/form-data**,字段名 `file`。
+需要登录 + `asset:create`。**multipart/form-data**，字段名 `file`。
 
-**响应**:
+**响应**：
 
 ```json
 {
@@ -474,24 +555,24 @@ curl http://localhost:8087/api/v1/health
 }
 ```
 
-存储后端由 `cfg.storage.provider` 决定:`local` 写到 `./uploads/`,`cos` 写到腾讯云 COS。
+存储后端由 `cfg.storage.provider` 决定：`local` 写到 `./uploads/`，`cos` 写到腾讯云 COS。
 
 ---
 
-## 系统管理 (/system/*)
+## 系统管理（/system/*）
 
 ### GET `/system/server-info`
 
 需要登录 + `system:list`。
 
-**响应**:
+**响应**：
 
 ```json
 {
   "code": 0, "msg": "ok",
   "data": {
     "go_version": "go1.25.0",
-    "start_time": "2026-06-18T08:33:06Z",
+    "start_time": "2026-06-19T08:33:06Z",
     "uptime_sec": 12345,
     "goroutines": 24,
     "mem_alloc_mb": 12.4,
@@ -503,26 +584,26 @@ curl http://localhost:8087/api/v1/health
 
 ### POST `/system/clear-cache`
 
-需要登录 + `system:update`。清空所有 Redis cache(保留 session)。
+需要登录 + `system:update`。清空所有 Redis cache（保留 session）。
 
 ### GET `/system/cache/info`
 
-需要登录 + `system:list`。返回 Redis 服务器 info(`INFO` 命令的结果)。
+需要登录 + `system:list`。返回 Redis 服务器 info（`INFO` 命令的结果）。
 
 ### GET `/system/cache/keys`
 
 需要登录 + `system:list`。
 
-**Query**:
+**Query**：
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| `pattern` | string | glob 模式,默认 `*` |
+| `pattern` | string | glob 模式，默认 `*` |
 | `count` | int | 默认 100 |
 
 ### GET `/system/cache/value/*key`
 
-需要登录 + `system:list`。**路径参数 key 用 `/` 分隔**(gin 的 `*key` 语法)。
+需要登录 + `system:list`。**路径参数 key 用 `/` 分隔**（gin 的 `*key` 语法）。
 
 ### DELETE `/system/cache/keys/*key`
 
@@ -530,19 +611,19 @@ curl http://localhost:8087/api/v1/health
 
 ---
 
-## 微信 (/weixin/*)
+## 微信（/weixin/*）
 
 ### POST `/weixin/login`
 
 无需认证。
 
-**请求**:
+**请求**：
 
 ```json
 { "code": "wx_jscode_here" }
 ```
 
-**响应 200**:
+**响应 200**：
 
 ```json
 {
@@ -559,7 +640,7 @@ curl http://localhost:8087/api/v1/health
 
 无需认证。
 
-**请求**:
+**请求**：
 
 ```json
 { "code": "encrypted_data", "iv": "...", "encryptedData": "..." }
@@ -571,31 +652,31 @@ curl http://localhost:8087/api/v1/health
 
 ---
 
-## 示例业务 (/cms/*)
+## 示例业务（/cms/*）
 
-展示 extapi 模式。CMS 模块**不直接连 DB**,通过 `extapi.Provider` 调用平台。
+展示 extapi 模式。CMS 模块**不直接连 RBAC 表**，通过 `extapi.Provider` 调用平台。
 
 ### GET `/cms/me`
 
-需要登录。返回**当前登录用户**(走 `extapi.UserFacade.GetByID`)。
+需要登录。返回**当前登录用户**（走 `extapi.UserFacade.GetByID`）。
 
 ### GET `/cms/users`
 
-需要登录。返回用户列表(走 `extapi.UserFacade.List`)。
+需要登录。返回用户列表（走 `extapi.UserFacade.List`）。
 
 ### GET `/cms/tenant`
 
-需要登录。返回当前租户(走 `extapi.TenantFacade.GetByID`)。
+需要登录。返回当前租户（走 `extapi.TenantFacade.GetByID`）。
 
 ### GET/POST/PUT/DELETE `/cms/posts`
 
-需要登录。CMS 自有 posts 表(在 `migrations/cms.sql`)。
+需要登录。CMS 自有 posts 表（在 `migrations/cms.sql`）。
 
 ---
 
-## 示例业务 (/flag/*)
+## 示例业务（/flag/*）
 
-完整的 RBAC + DataScope 演示。
+完整的 RBAC + DataScope 演示。详见 [apps/flag/doc/api.md](../apps/flag/doc/api.md)。
 
 ### GET `/flag/frames`
 
@@ -619,11 +700,11 @@ curl http://localhost:8087/api/v1/health
 
 ### GET `/flag/my-avatars`
 
-需要登录 + `flag:list`。**自动应用 DataScopeSelf**:只返回 `creator_id = 当前 userID` 的记录。
+需要登录 + `flag:list`。**自动应用 DataScopeSelf**：只返回 `creator_id = 当前 userID` 的记录。
 
 ### POST `/flag/generate`
 
-需要登录 + `flag:create`。触发头像生成流程(可能耗时)。
+需要登录 + `flag:create`。触发头像生成流程（可能耗时）。
 
 ---
 
@@ -643,18 +724,18 @@ curl http://localhost:8087/api/v1/health
 
 ## 中间件行为详解
 
-### OptionalAuth(public 路由)
+### OptionalAuth（public 路由）
 
-- 有 `Authorization` 头 → 解析并注入 `XinContext`(不查权限)
-- 无 token 或解析失败 → 继续执行(把游客状态传给 handler)
-- 如果 header 有 `X-Tenant-ID`,把它注入到 `XinContext.TenantID`
+- 有 `Authorization` 头 → 解析并注入 `XinContext`（不查权限）
+- 无 token 或解析失败 → 继续执行（把游客状态传给 handler）
+- 如果 header 有 `X-Tenant-ID`，把它注入到 `XinContext.TenantID`
 
-### Auth(protected 路由)
+### Auth（protected 路由）
 
 - 缺 `Authorization` 头 → 401 unauthorized
 - token 过期 / session 被撤销 → 401 session expired or revoked
 - token 签名错 / claims 异常 → 401 invalid token
-- 校验通过 → 注入 `XinContext` + 注册 `UserContextLoader`(懒加载)
+- 校验通过 → 注入 `XinContext` + 注册 `UserContextLoader`（懒加载）
 
 ### Require(spec) / RequireAny / RequireAll
 
@@ -670,9 +751,9 @@ curl http://localhost:8087/api/v1/health
 
 ---
 
-## SDK 示例(cURL)
+## SDK 示例（cURL）
 
-完整登录 + 调用 protected 接口:
+完整登录 + 调用 protected 接口：
 
 ```bash
 # 1. 登录
@@ -695,7 +776,7 @@ curl -s -X POST http://localhost:8087/api/v1/auth/logout \
 
 ## 待补充
 
-具体请求/响应字段需要参考:
+具体请求/响应字段需要参考：
 
 - [modules.md](modules.md) — 每个 module 的路由清单 + spec
 - 各 module 自己的 `handler.go` 里的 Request/Response struct

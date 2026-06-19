@@ -7,10 +7,10 @@
 ## 1. 技术栈
 
 - **构建**：Vite + React 18 + TypeScript
-- **样式**：Tailwind CSS + shadcn/ui（components/ui/）
+- **样式**：Tailwind CSS + shadcn/ui（`components/ui/`）
 - **图标**：lucide-react
-- **路由**：react-router-dom v6（App.tsx 集中 lazy）
-- **状态**：zustand（stores/authStore, menuStore）
+- **路由**：react-router-dom v6（`App.tsx` 集中 lazy）
+- **状态**：zustand（`stores/authStore`, `stores/menuStore`）
 - **i18n**：自研，`UI/src/locales/{zh-CN,en-US}.ts`；`LocaleKeys = typeof zhCN`
 - **HTTP**：原生 `fetch` + `ApiError`（带 JWT 自动 refresh）
 - **图标选择**：lucide-react 优先；shadcn 默认有 30+ 常用图标
@@ -20,7 +20,7 @@
 ```
 UI/src/
 ├── api/
-│   ├── client.ts          # ApiError + 全部 *Api（userApi / orgApi / dictApi / ...）
+│   ├── client.ts          # ApiError + 全部 *Api（userApi / orgApi / dictApi / configApi / flagApi / ...）
 │   └── index.ts           # 重导出
 ├── components/
 │   ├── ui/                # shadcn 组件（button / card / dialog / table / select / ...）
@@ -29,7 +29,7 @@ UI/src/
 │   ├── page-layout.tsx    # 全局布局（Auth + Sidebar + Header）
 │   └── ...
 ├── locales/{zh-CN,en-US}.ts
-├── pages/                 # 每个模块一个 .tsx（Menus / Users / Roles / ...）
+├── pages/                 # 每个模块一个 .tsx（Menus / Users / Roles / Dicts / Configs / Flags / ...）
 ├── stores/{authStore,menuStore}.ts
 ├── types/schema.ts        # FormSchema / FormItemSchema / TableSchema / ...
 └── App.tsx                # 路由
@@ -56,10 +56,10 @@ UI/src/
 
 - 端点前缀：`${VITE_API_BASE_URL}/api/v1/...`
 - 标准方法：`list(params?) / get(id) / create(data) / update(id, data) / delete(id)`
-- 子资源（如 dict items）：`listItems(parentId) / createItem(parentId, data) / updateItem(parentId, id, data) / deleteItem(parentId, id)`
+- 子资源（如 dict items / config items）：`listItems(parentId) / createItem(parentId, data) / updateItem(parentId, id, data) / deleteItem(parentId, id)`
 - 返回 `data` 字段；分页用 `PageResponse<T> { list, total, page, size }`
 - 错误处理：抛 `ApiError(status, code, message, data)`，前端用 `try { ... } catch (e) { ... }` 兜底
-- mock 兜底是常态：API 失败时回退到 `mockXxx` 数组，让页面能跑通
+- 后端默认端口 **8087**（不是 8080），通过 `VITE_API_BASE_URL` 配置
 
 ### 3.4 Page 结构模板
 
@@ -68,6 +68,8 @@ export function XxxPage() {
   const t = useTranslation()
   const [list, setList] = useState<Xxx[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [useMockFallback, setUseMockFallback] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<"add" | "edit">("add")
@@ -75,16 +77,17 @@ export function XxxPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [toDelete, setToDelete] = useState<Xxx | null>(null)
 
-  // 1) fetch + try/catch + mock fallback
+  // 1) fetch + try/catch + setError + 可选 mock fallback（用户主动）
   // 2) form schema (useMemo 依赖 dialogMode 和 t)
   // 3) handlers: add / edit / delete confirm / submit / actual delete
-  // 4) render: <PageLayout> + Card + Table + FormDialog + 删除确认 Dialog
+  // 4) render: <PageLayout> + Card + Table + FormDialog + 删除确认 Dialog + 顶部 ErrorBar
 }
 ```
 
 ### 3.5 左右两栏（树 + 列表）
 
 参考 `Users.tsx`：
+
 - `grid grid-cols-1 lg:grid-cols-[320px_1fr]`
 - 左栏：递归 `OrgTreeView` 组件 + 搜索 + 计数徽章
 - 右栏：筛选状态条 + 表格
@@ -93,6 +96,7 @@ export function XxxPage() {
 ### 3.6 树视图
 
 参考 `Organizations.tsx` 的 `OrgTreeRow`：
+
 - 递归组件 props：`item, level, expandedIds, onToggle, onEdit, onDelete, onAddChild`
 - 缩进：`style={{ paddingLeft: `${level * 24}px` }}`
 - 展开/收起：`expandedIds.has(item.id)` 或搜索时强制展开
@@ -128,6 +132,7 @@ export function XxxPage() {
 | 用户-组织模板 | `UI/src/pages/Users.tsx` |
 | 组织树模板 | `UI/src/pages/Organizations.tsx` |
 | 字典维护 | `UI/src/pages/Dicts.tsx` |
+| 配置中心模板 | `UI/src/pages/Configs.tsx` |
 | 菜单模板 | `UI/src/pages/Menus.tsx` |
 
 ## 5. 踩坑与决策
@@ -137,6 +142,11 @@ export function XxxPage() {
 - **PowerShell 终端默认 GBK**：用 `python -` + here-string 写中文文件会被 mangle 成 `?`。
 - 可靠方案：用 `[System.IO.File]::WriteAllText($path, $content, [System.Text.UTF8Encoding]::new($false))` 直接写 UTF-8 无 BOM。
 - Vite/esbuild 对 **UTF-8 无 BOM** 期望；**有 BOM** 会出诡异错误。
+- 仓库提供 [server/scripts/strip_bom.py](../server/scripts/strip_bom.py)：
+  ```bash
+  python ../server/scripts/strip_bom.py --check .   # CI gate
+  python ../server/scripts/strip_bom.py .            # 修复
+  ```
 
 ### 5.2 别名导入冲突
 
@@ -153,10 +163,9 @@ export function XxxPage() {
 - 用 `collectOrgSubtreeIds` 递归收集后代 id（见 `Users.tsx`）。
 - 不要在后端用 SQL 子树筛选（除非显式 `?org_subtree=1`），保持接口简洁。
 
-### 5.5 mock 数据
+### 5.5 mock 数据（已废弃静默兜底）
 
-- 每个新页面都加 `mockXxx` 兜底数组；API 失败时 `setList(mockXxx)`。
-- 这样 dev 不依赖后端也能演示完整 UI。
+- 见 §5.9 新约定。
 
 ### 5.6 类型扩展
 
@@ -172,29 +181,7 @@ export function XxxPage() {
 
 - 路由级：`DynamicRouter` 组件按 `useAuthStore.permissions` 拦截。
 - 按钮级：`<Auth action="create">...</Auth>` 包装。
-- 资源权限由后端 middleware.Require 强制，前端只是隐藏。
-
-## 6. 常用配方
-
-### 新增一个 CRUD 页面
-
-1. 在 `client.ts` 加 `xxxApi = { list, get, create, update, delete }`
-2. 在 `App.tsx` 加 `lazy(() => import("@/pages/Xxx"))` + `<Route path="/xxx" element={<XxxPage />} />`
-3. 在 `zh-CN.ts` 加 `pages.xxx` 块 + `en-US.ts` 同步
-4. 在 `migrations/framework.sql` 加菜单和资源
-5. 写 `pages/Xxx.tsx`：fetch + form + table + dialog + mock fallback
-
-### 改既有 i18n key
-
-1. 改 `zh-CN.ts`（先）
-2. 改 `en-US.ts`（保持 `LocaleKeys` 一致）
-3. `tsc --noEmit` 验证
-
-### 给后端端点加前端 API
-
-1. `client.ts` 加新方法（沿用 `api(path, { method, body })` 模板）
-2. 类型在 `ApiResponse<T>` / `PageResponse<T>` 上声明返回类型
-3. 出错时用 `console.warn` + mock 兜底，不要阻塞 UI
+- 资源权限由后端 `middleware.Require` 强制，前端只是隐藏。
 
 ### 5.9 Mock 兜底约定（重要变更）
 
@@ -207,3 +194,49 @@ export function XxxPage() {
   5. 错误条带 Retry 按钮
 - **示例**：见 `Dicts.tsx` 的 `fetchDicts` / `fetchItems` / `useMockFallback` / `error` / `dataSource`。
 - 后续页面（Users / Menus / Roles ...）如有 mock fallback 需同步改造。
+
+## 6. 常用配方
+
+### 新增一个 CRUD 页面
+
+1. 在 `client.ts` 加 `xxxApi = { list, get, create, update, delete }`
+2. 在 `App.tsx` 加 `lazy(() => import("@/pages/Xxx"))` + `<Route path="/xxx" element={<XxxPage />} />`
+3. 在 `zh-CN.ts` 加 `pages.xxx` 块 + `en-US.ts` 同步
+4. 在 `migrations/framework.sql` 加菜单和资源（参考现有 seed 格式）
+5. 写 `pages/Xxx.tsx`：
+   - fetch + try/catch + setError
+   - useMockFallback state（localStorage 持久化）
+   - 顶部 ErrorBar + 数据源徽章
+   - form schema（useMemo 依赖 dialogMode + t）
+   - table + delete confirm + FormDialog
+
+### 改既有 i18n key
+
+1. 改 `zh-CN.ts`（先）
+2. 改 `en-US.ts`（保持 `LocaleKeys` 一致）
+3. `tsc --noEmit` 验证
+
+### 给后端端点加前端 API
+
+1. `client.ts` 加新方法（沿用 `api(path, { method, body })` 模板）
+2. 类型在 `ApiResponse<T>` / `PageResponse<T>` 上声明返回类型
+3. 出错时必须 `setError(...)`，**不要静默 mock fallback**（除非 `useMockFallback=true`）
+
+### 后端模块 ↔ 前端页面映射
+
+| 后端模块 | 前端页面 | 路径 |
+|---|---|---|
+| auth | Login.tsx | `/login` |
+| user | Users.tsx | `/users` |
+| role | Roles.tsx | `/roles` |
+| menu | Menus.tsx | `/menus` |
+| organization | Organizations.tsx | `/organizations` |
+| resource | Resources.tsx | `/resources` |
+| asset | Assets.tsx | `/asset` |
+| dict | Dicts.tsx | `/dicts` |
+| config | Configs.tsx | `/config` |
+| flag | FlagFrames.tsx / FlagSpaces.tsx / ... | `/flag/*` |
+| cms | CmsPosts.tsx | `/cms/posts` |
+| tenant | Tenants.tsx（仅 super_admin） | `/tenants` |
+| system | SystemInfo.tsx | `/system` |
+| weixin | （无独立页面） | — |

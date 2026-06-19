@@ -5,64 +5,42 @@
 ## 基础信息
 
 - **Base URL**: `/api/v1`
-- **认证方式**: JWT Bearer Token
-- **返回格式**: JSON
+- **认证方式**: JWT Bearer Token（公开端点除外）
+- **返回格式**: JSON `{ code, msg, data }`（`code=0` 表示成功）
 
-### 通用响应结构
+---
 
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {}
-}
-```
+## 头像框（Frames）
 
-| 字段   | 类型     | 说明         |
-| ---- | ------ | ---------- |
-| code | int    | 状态码，0 表示成功 |
-| msg  | string | 消息         |
-| data | object | 数据         |
+完整路由列表见 [../../doc/modules.md#flag](../../doc/modules.md#flag)。
 
-***
+### GET `/flag/frames`
 
-## 头像框 (Frames)
+无需认证（公开浏览）。支持 query：
 
-### 获取头像框列表
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `category_id` | uint | 按分类过滤 |
+| `page` | int | 默认 1 |
+| `size` | int | 默认 20 |
 
-获取所有头像框模板
-
-**GET** `/flag/frames`
-
-**Query Parameters:**
-
-| 参数           | 类型   | 必填 | 说明         |
-| ------------ | ---- | -- | ---------- |
-| category\_id | uint | 否  | 分类ID       |
-| page         | int  | 否  | 页码，默认 1    |
-| size         | int  | 否  | 每页数量，默认 20 |
-
-**响应示例:**
+**响应**：
 
 ```json
 {
-  "code": 0,
-  "msg": "ok",
+  "code": 0, "msg": "ok",
   "data": {
     "list": [
       {
         "id": 1,
-        "tenant_id": 0,
         "category_id": 1,
         "name": "程序员专属",
         "description": "适合程序员的简约头像框",
         "preview_url": "/frames/preview/programmer.png",
         "template_url": "/frames/template/programmer.png",
         "template_config": {
-          "avatar_x": 100,
-          "avatar_y": 100,
-          "avatar_width": 300,
-          "avatar_height": 300
+          "avatar_x": 100, "avatar_y": 100,
+          "avatar_width": 300, "avatar_height": 300
         },
         "type": "public",
         "sort": 1,
@@ -71,52 +49,20 @@
         "updated_at": "2026-01-01T00:00:00Z"
       }
     ],
-    "total": 1,
-    "page": 1,
-    "size": 20
+    "total": 1
   }
 }
 ```
 
-***
+### GET `/flag/frames/:id`
 
-### 获取单个头像框
+无需认证。
 
-**GET** `/flag/frames/:id`
+### POST `/flag/frames`
 
-**Path Parameters:**
+需要登录 + `flag:create`。
 
-| 参数 | 类型   | 必填 | 说明    |
-| -- | ---- | -- | ----- |
-| id | uint | 是  | 头像框ID |
-
-**响应示例:**
-
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "id": 1,
-    "name": "程序员专属",
-    "template_url": "/frames/template/programmer.png"
-  }
-}
-```
-
-***
-
-### 创建头像框
-
-**POST** `/flag/frames`
-
-**Headers:**
-
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
+**Request Body**：
 
 ```json
 {
@@ -125,232 +71,102 @@ Authorization: Bearer <token>
   "description": "适合程序员的简约头像框",
   "preview_url": "/frames/preview/programmer.png",
   "template_url": "/frames/template/programmer.png",
+  "template_config": "{\"avatar_x\":100,\"avatar_y\":100,\"avatar_width\":300,\"avatar_height\":300}",
   "type": "public",
   "sort": 1
 }
 ```
 
-| 参数           | 类型     | 必填 | 说明                          |
-| ------------ | ------ | -- | --------------------------- |
-| name         | string | 是  | 模板名称                        |
-| category\_id | uint   | 否  | 分类ID                        |
-| description  | string | 否  | 模板描述                        |
-| preview\_url | string | 否  | 预览图URL                      |
-| template\_url | string | 否  | 模板底图URL                     |
-| type         | string | 否  | 类型: public/private/space    |
-| sort         | int    | 否  | 排序号                         |
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `name` | string | ✅ | 模板名称 |
+| `category_id` | uint | ❌ | 分类 ID |
+| `description` | string | ❌ | 模板描述 |
+| `preview_url` | string | ❌ | 预览图 URL |
+| `template_url` | string | ❌ | 模板底图 URL |
+| `template_config` | string | ❌ | **JSON 字符串**，存为 `template_config JSONB`（SQL 显式 `::jsonb` cast） |
+| `type` | string | ❌ | 类型：`public` / `private` / `space` |
+| `sort` | int | ❌ | 排序号 |
 
-**响应示例:**
+### PUT `/flag/frames/:id`
 
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "id": 1,
-    "name": "程序员专属",
-    "category_id": 1,
-    "type": "public",
-    "sort": 1,
-    "status": 1
-  }
-}
-```
-
-***
-
-### 更新头像框
-
-**PUT** `/flag/frames/:id`
-
-**Headers:**
-
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
+需要登录 + `flag:update`。
 
 ```json
 {
-  "id": 1,
   "name": "更新后的名称",
   "description": "更新后的描述",
   "category_id": 2,
+  "template_config": "{\"avatar_x\":120,...}",
   "type": "public",
   "sort": 10,
   "status": 1
 }
 ```
 
-| 参数           | 类型     | 必填 | 说明                          |
-| ------------ | ------ | -- | --------------------------- |
-| id           | uint   | 是  | 头像框ID                       |
-| name         | string | 否  | 模板名称                        |
-| description  | string | 否  | 模板描述                        |
-| category\_id | uint   | 否  | 分类ID                        |
-| preview\_url | string | 否  | 预览图URL                      |
-| template\_url | string | 否  | 模板底图URL                     |
-| type         | string | 否  | 类型: public/private/space    |
-| sort         | int    | 否  | 排序号                         |
-| status       | int8   | 否  | 状态: 0-禁用, 1-启用              |
+### DELETE `/flag/frames/:id`
 
-***
+需要登录 + `flag:delete`。
 
-### 删除头像框
+---
 
-**DELETE** `/flag/frames/:id`
+## 头像框分类（Frame Categories）
 
-**Headers:**
+### GET `/flag/frame-categories`
 
-```
-Authorization: Bearer <token>
-```
+无需认证。
 
-***
-
-## 头像框分类 (Categories)
-
-### 获取头像框分类列表
-
-**GET** `/flag/categories`
-
-**响应示例:**
+**响应**：
 
 ```json
 {
-  "code": 0,
-  "msg": "ok",
+  "code": 0, "msg": "ok",
   "data": [
     {
       "id": 1,
-      "tenant_id": 0,
       "code": "emotion",
       "name": "情绪类",
-      "type": "emotion",
       "sort": 1,
-      "status": 1
-    },
-    {
-      "id": 2,
-      "tenant_id": 0,
-      "code": "school",
-      "name": "学校活动",
-      "type": "custom",
-      "sort": 2,
       "status": 1
     }
   ]
 }
 ```
 
-***
+### POST `/flag/frame-categories`
 
-### 创建头像框分类
-
-**POST** `/flag/categories`
-
-**Headers:**
-
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
+需要登录 + `flag:create`。
 
 ```json
 {
   "code": "emotion",
   "name": "情绪类",
-  "type": "emotion",
   "sort": 1
 }
 ```
 
-| 参数   | 类型     | 必填 | 说明                              |
-| ---- | ------ | -- | ------------------------------- |
-| code | string | 是  | 分类编码                            |
-| name | string | 是  | 分类名称                            |
-| type | string | 否  | 类型: public/emotion/tag/hot/custom |
-| sort | int    | 否  | 排序号                             |
+### PUT `/flag/frame-categories/:id` / DELETE `/flag/frame-categories/:id`
 
-***
+需要登录 + `flag:update` / `flag:delete`。
 
-### 更新头像框分类
+---
 
-**PUT** `/flag/categories/:id`
+## 活动空间（Spaces）
 
-**Headers:**
+### GET `/flag/spaces/:code`
 
-```
-Authorization: Bearer <token>
-```
+无需认证。按**邀请码**查公开活动。
 
-**Request Body:**
+**响应**：
 
 ```json
 {
-  "id": 1,
-  "code": "emotion",
-  "name": "情绪类更新",
-  "type": "emotion",
-  "sort": 10,
-  "status": 1
-}
-```
-
-| 参数     | 类型     | 必填 | 说明                 |
-| ------ | ------ | -- | ------------------ |
-| id     | uint   | 是  | 分类ID               |
-| code   | string | 否  | 分类编码               |
-| name   | string | 否  | 分类名称               |
-| type   | string | 否  | 类型                 |
-| sort   | int    | 否  | 排序号                |
-| status | int8   | 否  | 状态: 0-禁用, 1-启用 |
-
-***
-
-### 删除头像框分类
-
-**DELETE** `/flag/categories/:id`
-
-**Headers:**
-
-```
-Authorization: Bearer <token>
-```
-
-***
-
-## 活动空间 (Spaces)
-
-### 获取活动 Space (通过邀请码)
-
-**GET** `/flag/spaces/:code`
-
-**Path Parameters:**
-
-| 参数   | 类型     | 必填 | 说明  |
-| ---- | ------ | -- | --- |
-| code | string | 是  | 邀请码 |
-
-**响应示例:**
-
-```json
-{
-  "code": 0,
-  "msg": "ok",
+  "code": 0, "msg": "ok",
   "data": {
     "id": 1,
-    "tenant_id": 1,
     "name": "测试活动",
-    "description": "这是一个测试活动",
+    "description": "...",
     "frame_id": 1,
-    "space_config": {
-      "fields": [
-        {"key": "grade", "label": "届数", "required": true, "show": true}
-      ]
-    },
     "access_type": "public",
     "invite_code": "test",
     "max_usage": 100,
@@ -360,19 +176,9 @@ Authorization: Bearer <token>
 }
 ```
 
-***
+### POST `/flag/spaces`
 
-### 创建活动 Space
-
-**POST** `/flag/spaces`
-
-**Headers:**
-
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
+需要登录 + `flag:create`。
 
 ```json
 {
@@ -385,92 +191,21 @@ Authorization: Bearer <token>
 }
 ```
 
-| 参数           | 类型     | 必填 | 说明                        |
-| ------------ | ------ | -- | ------------------------- |
-| name         | string | 是  | 活动名称                      |
-| description  | string | 否  | 活动描述                      |
-| frame\_id    | uint   | 否  | 绑定的头像框ID                  |
-| access\_type | string | 否  | 访问类型: public/invite/limit |
-| start\_at    | string | 否  | 开始时间                      |
-| end\_at      | string | 否  | 结束时间                      |
+### PUT `/flag/spaces/:id` / DELETE `/flag/spaces/:id`
 
-**响应示例:**
+需要登录 + `flag:update` / `flag:delete`。
 
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "id": 1,
-    "name": "校庆100周年活动",
-    "invite_code": "abc12345"
-  }
-}
-```
+### GET `/flag/spaces`
 
-***
+需要登录 + `flag:list`。返回当前用户可见的 spaces。
 
-### 更新活动 Space
-
-**PUT** `/flag/spaces/:id`
-
-**Headers:**
-
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
-
-```json
-{
-  "id": 1,
-  "name": "更新后的名称",
-  "description": "更新后的描述",
-  "frame_id": 2,
-  "status": 1
-}
-```
-
-***
-
-### 删除活动 Space
-
-**DELETE** `/flag/spaces/:id`
-
-**Headers:**
-
-```
-Authorization: Bearer <token>
-```
-
-***
-
-### 获取我的活动 Space 列表
-
-**GET** `/flag/spaces`
-
-**Headers:**
-
-```
-Authorization: Bearer <token>
-```
-
-***
+---
 
 ## 头像生成
 
-### 生成头像
+### POST `/flag/generate`
 
-**POST** `/flag/generate`
-
-**Headers:**
-
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
+需要登录 + `flag:create`。触发头像生成流程（可能耗时）。
 
 ```json
 {
@@ -484,19 +219,18 @@ Authorization: Bearer <token>
 }
 ```
 
-| 参数            | 类型     | 必填 | 说明          |
-| ------------- | ------ | -- | ----------- |
-| frame\_id     | uint   | 是  | 头像框ID       |
-| space\_id     | uint   | 否  | 关联的Space ID |
-| source\_image | string | 是  | 用户上传的原图URL  |
-| field\_values | object | 否  | 动态字段值       |
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `frame_id` | uint | ✅ | 头像框 ID |
+| `space_id` | uint | ❌ | 关联的 Space ID |
+| `source_image` | string | ✅ | 用户上传的原图 URL |
+| `field_values` | object | ❌ | 动态字段值 |
 
-**响应示例:**
+**响应**：
 
 ```json
 {
-  "code": 0,
-  "msg": "ok",
+  "code": 0, "msg": "ok",
   "data": {
     "id": 1,
     "result_url": "https://img.gx1727.com/flag/1/abc123.png",
@@ -505,48 +239,34 @@ Authorization: Bearer <token>
 }
 ```
 
-***
+### GET `/flag/my-avatars`
 
-### 获取我生成的头像列表
+需要登录 + `flag:list`。**自动应用 DataScopeSelf**：只返回 `creator_id = 当前 userID` 的记录。
 
-**GET** `/flag/my-avatars`
+---
 
-**Headers:**
+## 头像分类（Avatar Categories）
 
-```
-Authorization: Bearer <token>
-```
+### GET `/flag/avatar-categories`
 
-***
+无需认证。
 
-## 头像分类 (Avatar Categories)
+**Query**：
 
-> 头像分类管理（需要管理员权限）
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `type` | string | `public` / `custom` |
 
-### 获取头像分类列表
-
-**GET** `/flag/avatar-categories`
-
-**Query Parameters:**
-
-| 参数   | 类型     | 必填 | 说明                |
-| ---- | ------ | -- | ----------------- |
-| type | string | 否  | 类型: public/custom |
-
-**响应示例:**
+**响应**：
 
 ```json
 {
-  "code": 0,
-  "msg": "ok",
+  "code": 0, "msg": "ok",
   "data": [
     {
       "id": 1,
-      "tenant_id": 0,
       "code": "selfie",
       "name": "自拍头像",
-      "icon": "/icons/selfie.png",
-      "type": "public",
       "sort": 1,
       "status": 1
     }
@@ -554,134 +274,73 @@ Authorization: Bearer <token>
 }
 ```
 
-***
+### POST `/flag/avatar-categories`
 
-### 创建头像分类
-
-**POST** `/flag/avatar-categories`
-
-**Headers:**
-
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
+需要登录 + `flag:create`。
 
 ```json
 {
   "code": "my-category",
   "name": "我的分类",
-  "icon": "/icons/custom.png",
-  "type": "custom",
   "sort": 10
 }
 ```
 
-| 参数   | 类型     | 必填 | 说明                |
-| ---- | ------ | -- | ----------------- |
-| code | string | 是  | 分类编码              |
-| name | string | 是  | 分类名称              |
-| icon | string | 否  | 分类图标              |
-| type | string | 否  | 类型: public/custom |
-| sort | int    | 否  | 排序号               |
+### PUT `/flag/avatar-categories/:id` / DELETE `/flag/avatar-categories/:id`
 
-***
+需要登录 + `flag:update` / `flag:delete`。
 
-### 更新头像分类
+---
 
-**PUT** `/flag/avatar-categories/:id`
+## 头像管理（Avatars）
 
-**Headers:**
+### GET `/flag/avatars`
 
-```
-Authorization: Bearer <token>
-```
+无需认证（公开浏览）。
 
-***
+**Query**：
 
-### 删除头像分类
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `category_id` | uint | 分类 ID |
+| `user_id` | uint | 用户 ID |
+| `type` | string | `custom` / `system` |
+| `page` | int | 默认 1 |
+| `size` | int | 默认 20 |
 
-**DELETE** `/flag/avatar-categories/:id`
-
-**Headers:**
-
-```
-Authorization: Bearer <token>
-```
-
-***
-
-## 头像管理 (Avatars)
-
-### 获取头像列表
-
-**GET** `/flag/avatars`
-
-**Query Parameters:**
-
-| 参数           | 类型     | 必填 | 说明                |
-| ------------ | ------ | -- | ----------------- |
-| category\_id | uint   | 否  | 分类ID              |
-| user\_id     | uint   | 否  | 用户ID              |
-| type         | string | 否  | 类型: custom/system |
-| page         | int    | 否  | 页码，默认 1           |
-| size         | int    | 否  | 每页数量，默认 20        |
-
-**响应示例:**
+**响应**：
 
 ```json
 {
-  "code": 0,
-  "msg": "ok",
+  "code": 0, "msg": "ok",
   "data": {
     "list": [
       {
         "id": 1,
-        "tenant_id": 1,
         "user_id": 1,
         "category_id": 1,
         "name": "我的头像1",
         "source_url": "/avatars/source/1.png",
         "thumbnail_url": "/avatars/thumb/1.png",
-        "file_size": 102400,
-        "width": 500,
-        "height": 500,
         "type": "custom",
         "is_public": true,
-        "like_count": 10,
-        "view_count": 100,
         "status": 1,
         "created_at": "2026-01-01T00:00:00Z",
         "updated_at": "2026-01-01T00:00:00Z"
       }
     ],
-    "total": 1,
-    "page": 1,
-    "size": 20
+    "total": 1
   }
 }
 ```
 
-***
+### GET `/flag/avatars/:id`
 
-### 获取单个头像
+无需认证。
 
-**GET** `/flag/avatars/:id`
+### POST `/flag/avatars`
 
-***
-
-### 上传头像
-
-**POST** `/flag/avatars`
-
-**Headers:**
-
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
+需要登录 + `flag:create`。
 
 ```json
 {
@@ -689,56 +348,62 @@ Authorization: Bearer <token>
   "name": "我的头像",
   "source_url": "https://cos.example.com/avatars/123.jpg",
   "thumbnail_url": "https://cos.example.com/avatars/123_thumb.jpg",
-  "file_size": 204800,
-  "width": 500,
-  "height": 500,
   "is_public": true
 }
 ```
 
-| 参数             | 类型     | 必填 | 说明       |
-| -------------- | ------ | -- | -------- |
-| source\_url    | string | 是  | 原图URL    |
-| category\_id   | uint   | 否  | 分类ID     |
-| name           | string | 否  | 头像名称     |
-| thumbnail\_url | string | 否  | 缩略图URL   |
-| file\_size     | int64  | 否  | 文件大小(字节) |
-| width          | int    | 否  | 图片宽度     |
-| height         | int    | 否  | 图片高度     |
-| is\_public     | bool   | 否  | 是否公开     |
+### PUT `/flag/avatars/:id` / DELETE `/flag/avatars/:id`
 
-***
+需要登录 + `flag:update` / `flag:delete`。
 
-### 更新头像
-
-**PUT** `/flag/avatars/:id`
-
-**Headers:**
-
-```
-Authorization: Bearer <token>
-```
-
-***
-
-### 删除头像
-
-**DELETE** `/flag/avatars/:id`
-
-**Headers:**
-
-```
-Authorization: Bearer <token>
-```
-
-***
+---
 
 ## 错误码
 
-| 错误码   | 说明      |
-| ----- | ------- |
-| 15001 | 头像框不存在  |
-| 15002 | 活动空间不存在 |
-| 15003 | 头像生成失败  |
-| 15004 | 头像不存在   |
+| 错误码 | 说明 |
+|---|---|
+| 13001 | 头像框不存在 |
+| 13002 | 活动空间不存在 |
+| 13003 | 头像生成失败 |
+| 13004 | 头像不存在 |
 
+---
+
+## 数据范围（DataScope）
+
+`/flag/my-avatars` 自动应用 `DataScopeSelf`——只返回 `creator_id = 当前 userID` 的记录。详见 [../../doc/permissions.md](../../doc/permissions.md#3-数据范围-datascope)。
+
+## JSONB 字段
+
+`flag_frames.template_config` 是 JSONB。Go 端字段是 `string`，写入时 SQL 显式 `::jsonb` cast：
+
+```go
+// repository.go 实际写法
+configStr := nullStr(frame.TemplateConfig)   // string 或 nil
+q.Exec(ctx, `UPDATE flag_frames SET ... template_config = $7::jsonb ...`, ..., configStr, ...)
+```
+
+如果传了非法 JSON（非 `text/json` 字符串），PG 会报 `22P02 invalid input syntax for type json`。
+
+## 调试
+
+```bash
+# 公开浏览相框
+curl http://localhost:8087/api/v1/flag/frames
+
+# 登录后创建相框
+TOKEN=$(curl -s -X POST http://localhost:8087/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"account":"admin","password":"...","tenant_code":"default"}' \
+  | jq -r '.data.token')
+
+curl -X POST http://localhost:8087/api/v1/flag/frames \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "测试相框",
+    "category_id": 1,
+    "template_url": "/frames/template/test.png",
+    "template_config": "{\"avatar_x\":100,\"avatar_y\":100,\"avatar_width\":300,\"avatar_height\":300}"
+  }'
+```

@@ -1,35 +1,35 @@
-# 开发指南:新增一个业务模块
+# 开发指南：新增一个业务模块
 
-> 本文档用一个具体例子带你走完新增模块的全流程。示例:加一个 `feedback`(用户反馈) 模块。
+> 用一个具体例子带你走完新增模块的全流程。示例：加一个 `feedback`（用户反馈）模块。
 
-## 0. 前提:理解现有架构
+## 0. 前提：理解现有架构
 
-读这些文档后再继续:
+读这些文档后再继续：
 
 1. [architecture.md](architecture.md) — 了解 AppContext / Module 接口 / Init / Register 流程
 2. [modules.md](modules.md) — 看现有模块的结构
-3. [database.md](database.md) — 了解 RLS / 软删除 / 索引约定
+3. [database.md](database.md) — 了解 RLS / 软删除 / 索引 / JSONB 约定
 
 ## 1. 标准 8 步流程
 
 ```
 1. SQL 迁移           migrations/feedback.sql
-2. 公共接口定义       framework/pkg/rbac/{feedback}.go(可选)
+2. 公共接口定义       framework/pkg/rbac/{feedback}.go（可选）
 3. 业务模块           apps/feedback/{handler,service,repository,model,module,routes}.go
 4. 错误码             apps/feedback/errors.go
 5. 在 main.go 注册    cmd/xin/main.go
 6. 在 cfg.Module 启用 config/config.yaml
-7. 资源码 seed(可选)  migrations/feedback.sql 末尾 INSERT INTO resources
-8. 单元测试(可选)     apps/feedback/*_test.go
+7. 资源码 seed（可选）migrations/feedback.sql 末尾 INSERT INTO resources
+8. 单元测试（可选）   apps/feedback/*_test.go
 ```
 
 下面逐步展开。
 
 ---
 
-## 2. SQL 迁移 (Step 1)
+## 2. SQL 迁移（Step 1）
 
-新建 `migrations/feedback.sql`:
+新建 `migrations/feedback.sql`：
 
 ```sql
 -- ============================================
@@ -62,7 +62,7 @@ CREATE INDEX IF NOT EXISTS idx_feedbacks_tenant_status ON feedbacks (tenant_id, 
 CREATE INDEX IF NOT EXISTS idx_feedbacks_creator ON feedbacks (creator_id)
     WHERE is_deleted = FALSE;
 
--- Seed:资源码
+-- Seed：资源码
 INSERT INTO resources (code, action, name, menu_id, status, is_deleted)
 VALUES
     ('feedback', 'list',   '查看反馈', NULL, 1, FALSE),
@@ -73,12 +73,14 @@ ON CONFLICT (code, action) DO NOTHING;
 ```
 
 > 软删除 + RLS + 物化索引 + 资源码 seed 是规范。
+>
+> 如果表里有 JSONB 列，记得 SQL 写 `value = $N::jsonb`（见 [database.md §9.2](database.md#92-️-pgx-jsonb-写入必须-jsonb-cast)）。
 
 ---
 
-## 3. 公共接口定义 (Step 2,可选)
+## 3. 公共接口定义（Step 2，可选）
 
-如果你的模块要给其他模块提供 Repository(跨模块消费),在 `framework/pkg/rbac/` 里加个窄接口文件:
+如果你的模块要给其他模块提供 Repository（跨模块消费），在 `framework/pkg/rbac/` 里加个窄接口文件：
 
 ```go
 // framework/pkg/rbac/feedback.go
@@ -104,7 +106,7 @@ type Feedback struct {
 }
 ```
 
-然后 `AppContext.Reader` 接口加一行:
+然后 `AppContext.Reader` 接口加一行：
 
 ```go
 // framework/pkg/plugin/appcontext.go
@@ -114,7 +116,7 @@ type Reader interface {
 }
 ```
 
-`Writer` 加一行:
+`Writer` 加一行：
 
 ```go
 type Writer interface {
@@ -123,15 +125,15 @@ type Writer interface {
 }
 ```
 
-`AppContext` struct 加一个字段 + 2 个方法。**编译会引导你完成所有必要的接线**(所有用 `ctx.FeedbackRepo()` 的地方都会报错,直到你注册了 module)。
+`AppContext` struct 加一个字段 + 2 个方法。**编译会引导你完成所有必要的接线**（所有用 `ctx.FeedbackRepo()` 的地方都会报错，直到你注册了 module）。
 
-> 如果你的模块**不**给其他模块用,跳过这步,直接在 apps 里实现完整 repo。
+> 如果你的模块**不**给其他模块用，跳过这步，直接在 apps 里实现完整 repo。
 
 ---
 
-## 4. 业务模块文件 (Step 3)
+## 4. 业务模块文件（Step 3）
 
-新建 `apps/feedback/` 目录,8 个文件:
+新建 `apps/feedback/` 目录，8 个文件：
 
 ```
 apps/feedback/
@@ -142,7 +144,7 @@ apps/feedback/
 ├── handler.go           # gin handler
 ├── routes.go            # 路由注册
 ├── module.go            # plugin.Module 实现
-└── config.go(可选)      # 模块私有配置
+└── config.go（可选）     # 模块私有配置
 ```
 
 ### 4.1 errors.go
@@ -153,14 +155,22 @@ package feedback
 import "gx1727.com/xin/framework/pkg/resp"
 
 var (
-    ErrNotFound        = resp.Err(13001, "反馈不存在")
-    ErrTitleEmpty      = resp.Err(13002, "标题不能为空")
-    ErrContentEmpty    = resp.Err(13003, "内容不能为空")
-    ErrStatusInvalid   = resp.Err(13004, "状态值无效")
+    ErrNotFound      = resp.Err(15001, "反馈不存在")
+    ErrTitleEmpty    = resp.Err(15002, "标题不能为空")
+    ErrContentEmpty  = resp.Err(15003, "内容不能为空")
+    ErrStatusInvalid = resp.Err(15004, "状态值无效")
 )
 ```
 
-错误码走 `CodeFlag` 段(`13001-13999`),如果你的 module 已经在用就要避让。
+错误码走 `flag` 段（`13001-13999`），如果你的 module 已经在用就要避让。可用区段：
+
+| 区段 | 模块 |
+|---|---|
+| 1001-1999 | auth |
+| 11001-11999 | system |
+| 12001-12999 | weixin |
+| 13001-13999 | flag |
+| 14001-14999 | config |
 
 ### 4.2 model.go
 
@@ -329,17 +339,26 @@ import (
 func Register(protected *gin.RouterGroup, h *Handler) {
     g := protected.Group("/feedbacks")
     {
-        g.GET("", middleware.Require(permission.P(permission.ResFlag, permission.ActList)), h.List)  // 这里沿用 ResFlag 占位
-        // ...
+        g.GET("",    middleware.Require(permission.P(permission.ResFeedback, permission.ActList)),   h.List)
+        g.POST("",   middleware.Require(permission.P(permission.ResFeedback, permission.ActCreate)), h.Create)
+        g.GET("/:id",middleware.Require(permission.P(permission.ResFeedback, permission.ActList)),   h.Get)
+        g.PUT("/:id",middleware.Require(permission.P(permission.ResFeedback, permission.ActUpdate)), h.Update)
+        g.DELETE("/:id",middleware.Require(permission.P(permission.ResFeedback, permission.ActDelete)), h.Delete)
     }
 }
 ```
 
-> **重要**:Resource 码需要先在 `resources` 表里 seed,然后才能用 `permission.P(...)` 引用。如果你想新增 `ResFeedback`,先改 [framework/pkg/permission/constants.go](framework/pkg/permission/constants.go) 加常量,再在 migration seed。
+> **重要**：Resource 码需要先在 `resources` 表里 seed（见 Step 1 的 SQL），然后才能用 `permission.P(...)` 引用。
+>
+> 如果要新增 `ResFeedback` 常量，在 [`framework/pkg/permission/constants.go`](../framework/pkg/permission/constants.go) 加：
+>
+> ```go
+> ResFeedback = "feedback"
+> ```
 
 ### 4.7 module.go
 
-Phase 5 之后的统一形态：`Module(app *appx.App)` 显式接收 `*appx.App`，不再用 `init()` 副作用注册，也不再用 `db.Get()` / `bootx.Pool()` 等全局访问器。
+**Phase 5 之后**：`Module(app *appx.App)` 显式接收 `*appx.App`，不再用 `init()` 副作用注册，也不用 `db.Get()` / `bootx.Pool()` 等全局访问器。
 
 ```go
 package feedback
@@ -355,7 +374,8 @@ func Module(app *appx.App) plugin.Module {
     return &plugin.BaseModule{
         NameStr: "feedback",
         InitFn: func(_ plugin.Reader, w plugin.Writer) error {
-            // 初始化逻辑(如资源 seed、配置校验)
+            // 初始化逻辑（如资源 seed、配置校验）
+            // 如果要给其他模块用，调 w.SetFeedbackRepo(...)
             return nil
         },
         RegFn: func(_ plugin.Reader, _, protected *gin.RouterGroup) {
@@ -370,13 +390,13 @@ func Module(app *appx.App) plugin.Module {
 }
 ```
 
-> `app.DB` / `app.Config` 是 `framework/pkg/appx` 公开的进程级资源，由 `framework.Boot(cfg)` 构造。这是当前唯一推荐的访问方式。
+> `app.DB` / `app.Config` 是 `framework/pkg/appx` 公开的进程级资源，由 `framework.Boot(cfg)` 构造。当前唯一推荐的访问方式。
 
 ---
 
-## 5. 在 main.go 注册 (Step 5)
+## 5. 在 main.go 注册（Step 5）
 
-Phase 5 之后**不再用** `_ "..."` side-effect import。改成在 [cmd/xin/main.go](cmd/xin/main.go) 显式调用：
+**Phase 5 之后不再用** `_ "..."` side-effect import。改成在 [cmd/xin/main.go](../cmd/xin/main.go) 显式调用：
 
 ```go
 import (
@@ -391,9 +411,11 @@ modules := []plugin.Module{
 }
 ```
 
-## 6. 在 cfg.Module 启用 (Step 6)
+---
 
-[config/config.yaml](config/config.yaml) 加 `- feedback`:
+## 6. 在 cfg.Module 启用（Step 6）
+
+[config/config.yaml](../config/config.yaml) 加 `- feedback`：
 
 ```yaml
 module:
@@ -403,21 +425,21 @@ module:
   # ...
 ```
 
-或者如果你希望它默认启用,把它加到 [config/config.go](framework/pkg/config/config.go) 的 `optOutModules` 列表里:
+如果你希望它默认启用，把它加到 [`framework/pkg/config/config.go`](../framework/pkg/config/config.go) 的 `optOutModules` 列表里：
 
 ```go
 var optOutModules = []string{
     "menu", "user", "role", "resource", "organization", "dict", "asset",
-    "permission",
+    "permission", "config",
     "feedback",   // ← 默认启用
 }
 ```
 
 ---
 
-## 7. 资源码 seed (Step 7)
+## 7. 资源码 seed（Step 7）
 
-在 `migrations/feedback.sql` 末尾加(见 Step 1 的 SQL 示例):
+在 `migrations/feedback.sql` 末尾加（见 Step 1 的 SQL 示例）：
 
 ```sql
 INSERT INTO resources (code, action, name, menu_id, status, is_deleted)
@@ -425,7 +447,7 @@ VALUES ('feedback', 'list', '查看反馈', NULL, 1, FALSE), ...
 ON CONFLICT (code, action) DO NOTHING;
 ```
 
-然后在 `framework/pkg/permission/constants.go` 加常量:
+然后在 [`framework/pkg/permission/constants.go`](../framework/pkg/permission/constants.go) 加常量：
 
 ```go
 const (
@@ -434,13 +456,13 @@ const (
 )
 ```
 
-> 如果不加常量,可以在 routes.go 里直接写字符串:`permission.P("feedback", "list")`。
+> 如果不加常量，可以在 routes.go 里直接写字符串：`permission.P("feedback", "list")`。
 
 ---
 
-## 8. 测试 (Step 8)
+## 8. 测试（Step 8）
 
-`apps/feedback/service_test.go`:
+`apps/feedback/service_test.go`：
 
 ```go
 package feedback
@@ -452,7 +474,7 @@ import (
 
 func TestService_List_NoRows(t *testing.T) {
     s := &Service{repo: NewRepository(nil)}
-    // 没 db pool,期望走 nil-db fallback 分支
+    // 没 db pool，期望走 nil-db fallback 分支
     _, _, err := s.List(context.Background(), 1, 20)
     if err == nil {
         t.Error("expected error from nil pool, got nil")
@@ -460,7 +482,7 @@ func TestService_List_NoRows(t *testing.T) {
 }
 ```
 
-跑:
+跑：
 
 ```bash
 go test -v ./apps/feedback/...
@@ -470,7 +492,7 @@ go test -v ./apps/feedback/...
 
 ## 9. 完整代码模板
 
-如果你是脚手架爱好者,可以直接 copy [apps/reference/dict/](apps/reference/dict/) 当模板 —— 它是最小的"教科书级"模块:
+**最小** 模板：[apps/reference/dict/](../apps/reference/dict/)
 
 ```
 apps/reference/dict/
@@ -479,12 +501,12 @@ apps/reference/dict/
 ├── model.go             ← struct
 ├── module.go            ← BaseModule 完整实现
 ├── repository.go        ← pgx CRUD
-├── routes.go            ← 路由注册(标准模式)
+├── routes.go            ← 路由注册（标准模式）
 ├── service.go           ← 业务
 └── types.go             ← Request/Response 类型
 ```
 
-完整模板在 [apps/reference/dict/module.go](apps/reference/dict/module.go):
+完整模板在 [`apps/reference/dict/module.go`](../apps/reference/dict/module.go)：
 
 ```go
 package dict
@@ -508,11 +530,13 @@ func Module(app *appx.App) plugin.Module {
 }
 ```
 
+**完整业务模板**（带审计、DataScope、JSONB）：[apps/reference/config/](../apps/reference/config/)
+
 ---
 
 ## 10. 验收清单
 
-新增模块后,提交前跑:
+新增模块后，提交前跑：
 
 ```bash
 # 1. 编译
@@ -524,17 +548,20 @@ go vet ./...
 # 3. 已有测试不挂
 go test ./...
 
-# 4. 启动 + smoke test
-./bin/xin run &
-sleep 2
-curl http://localhost:8087/api/v1/feedbacks   # 应该 200 或 403,不能 panic
+# 4. BOM 检查（CI gate）
+python scripts/strip_bom.py --check .
+
+# 5. 启动 + smoke test
+go run ./cmd/xin run &
+sleep 3
+curl http://localhost:8087/api/v1/feedbacks   # 应该 200 或 403，不能 panic
 curl http://localhost:8087/api/v1/health      # 必须 200
 ```
 
-启动日志应该看到:
+启动日志应该看到：
 
 ```
-2026/06/18 ... module feedback initialized
+2026/06/19 ... module feedback initialized
 ```
 
 ---
@@ -545,20 +572,24 @@ curl http://localhost:8087/api/v1/health      # 必须 200
 |---|---|
 | 忘记在 main.go 显式 import 模块（不再用 `_` 副作用） | `feedback.Module(app)` 没被加进 `[]plugin.Module`，启动看不到 |
 | 忘记加 `cfg.Module` | module 在列表里但 Init/Register 跳过 |
-| 错误码和别的模块撞了 | 查 [resp/errors.go](framework/pkg/resp/errors.go) 选空段 |
-| 资源码没 seed,Permission.P 直接写字符串 | 可以工作,但失去 IDE 自动补全 |
+| 错误码和别的模块撞了 | 查 [`resp/errors.go`](../framework/pkg/resp/errors.go) 选空段 |
+| 资源码没 seed，`Permission.P` 直接写字符串 | 可以工作，但失去 IDE 自动补全 |
 | 还在用 `db.Get()` / `bootx.Pool()` | 这俩已删，改用 `app.DB` 显式注入 |
-| RLS 没建,跨租户泄漏 | `ALTER TABLE xxx ENABLE ROW LEVEL SECURITY` + `FORCE` |
+| RLS 没建，跨租户泄漏 | `ALTER TABLE xxx ENABLE ROW LEVEL SECURITY` + `FORCE` |
 | 没加 `is_deleted = FALSE` filter | 删除的数据会混进 List |
 | 唯一索引不是 partial index | 删除后无法重建 |
 | 事务里需要 ctx 自动拿 tx | 用 `db.GetQuerier(ctx, pool)` 让 ctx 找 tx |
-| `super_admin` 平台角色没 bypass 你的中间件 | 确认你的 Require 在 [framework/pkg/middleware/auth.go](framework/pkg/middleware/auth.go) `requireWithSpecs` 里有 `if uc.IsSuperAdmin() { c.Next(); return }` 短路 |
+| `super_admin` 平台角色没 bypass 你的中间件 | 确认你的 Require 在 [`framework/pkg/middleware/auth.go`](../framework/pkg/middleware/auth.go) `requireWithSpecs` 里有 `if uc.IsSuperAdmin() { c.Next(); return }` 短路 |
+| JSONB 列写入报 `42804` | SQL 加 `::jsonb` cast（见 [database.md §9.2](database.md#92-️-pgx-jsonb-写入必须-jsonb-cast)） |
+| 源文件编译报 `invalid BOM in the middle of the file` | 跑 `python scripts/strip_bom.py .` |
+
+---
 
 ## 12. 下一步
 
 | 你想... | 看 |
 |---|---|
-| 看所有可用中间件 | [architecture.md#中间件链](architecture.md#5-中间件链) |
+| 看所有可用中间件 | [architecture.md#5-中间件链](architecture.md#5-中间件链) |
 | 理解 RBAC | [permissions.md](permissions.md) |
 | 部署你的新模块 | [deployment.md](deployment.md) |
 | 写测试 | [developing.md#8-测试](#8-测试-step-8) |

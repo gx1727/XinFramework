@@ -1,14 +1,14 @@
 # 部署
 
-> XinFramework 是单一二进制 + PostgreSQL + (可选 Redis)的标准 SaaS 后端。
+> XinFramework 是单一二进制 + PostgreSQL + (可选 Redis) 的标准 SaaS 后端。
 >
-> 推荐部署:**systemd + nginx 反代 + PostgreSQL 主从 + Redis sentinel**
+> 推荐部署：**systemd + nginx 反代 + PostgreSQL 主从 + Redis sentinel**
 
 ## 1. 编译
 
 ### 1.1 标准编译
 
-仓库根目录:
+仓库根目录：
 
 ```bash
 # Linux/macOS
@@ -18,11 +18,11 @@
 .\build.ps1
 ```
 
-脚本做的事:
+脚本做的事：
 
-1. `go mod tidy` 三个 module(根 / framework / apps)
-2. `go build -ldflags="-s -w"` 编译到 `bin/xin`(或 `bin/xin.exe`)
-3. 复制 `config/` 和 `migrations/` 到产物目录(可选)
+1. `go mod tidy`（单 module `gx1727.com/xin`）
+2. `go build -ldflags="-s -w"` 编译到 `bin/xin`（或 `bin/xin.exe`）
+3. 复制 `config/` 和 `migrations/` 到产物目录（可选）
 
 ### 1.2 交叉编译
 
@@ -30,7 +30,7 @@
 # 在 macOS / Linux 上编 Windows
 GOOS=windows GOARCH=amd64 ./build.sh
 
-# 在 Linux 上编 macOS ARM(M1/M2)
+# 在 Linux 上编 macOS ARM（M1/M2）
 GOOS=darwin GOARCH=arm64 ./build.sh
 ```
 
@@ -42,11 +42,11 @@ go build -ldflags="-s -w" -o bin/xin ./cmd/xin
 upx --best --lzma bin/xin
 ```
 
-`-s -w` 去掉符号表和调试信息,通常能从 45MB 减到 30MB 左右。
+`-s -w` 去掉符号表和调试信息，通常能从 45MB 减到 30MB 左右。
 
 ---
 
-## 2. 单机部署(开发 / 中小规模)
+## 2. 单机部署（开发 / 中小规模）
 
 ```
 ┌──────────────┐
@@ -66,7 +66,7 @@ upx --best --lzma bin/xin
 
 ### 2.1 systemd unit
 
-[framework/xin-server.service](framework/xin-server.service):
+[framework/xin-server.service](../framework/xin-server.service)：
 
 ```ini
 [Unit]
@@ -81,7 +81,7 @@ ExecStart=/opt/xin-server/bin/xin run
 Restart=on-failure
 RestartSec=5s
 
-# 环境变量:prod 必须用 32 字节以上的 jwt secret
+# 环境变量：prod 必须用 32 字节以上的 jwt secret
 Environment="XIN_APP_ENV=prod"
 Environment="XIN_JWT_SECRET=CHANGEME-PROD-SECRET-MIN-32BYTES"
 
@@ -96,7 +96,7 @@ LimitNOFILE=65535
 WantedBy=multi-user.target
 ```
 
-启用:
+启用：
 
 ```bash
 sudo cp framework/xin-server.service /etc/systemd/system/
@@ -117,19 +117,22 @@ sudo systemctl status xin-server
 │   └── ...                   # 子模块 yaml
 ├── migrations/               # 由启动时自动跑
 │   ├── framework.sql
-│   ├── cms.sql
-│   └── ...
+│   ├── asset.sql
+│   ├── config.sql
+│   ├── dict.sql
+│   ├── flag.sql
+│   └── cms.sql
 ├── uploads/                  # local 存储
 ├── logs/                     # 自定义 logger 输出
 ├── xin.pid                   # 由 xin start 生成
 └── xin.log                   # 由 xin start 写入
 ```
 
-权限:`xin` 用户拥有 `/opt/xin-server` 和 `/var/log/xin`,不要 root 跑。
+权限：`xin` 用户拥有 `/opt/xin-server` 和 `/var/log/xin`，不要 root 跑。
 
 ---
 
-## 3. 高可用部署(生产推荐)
+## 3. 高可用部署（生产推荐）
 
 ```
                           ┌─────────────┐
@@ -188,7 +191,7 @@ server {
     }
 
     location /uploads/ {
-        # 如果用 local 存储,nginx 直接吐
+        # 如果用 local 存储，nginx 直接吐
         alias /opt/xin-server/uploads/;
         expires 7d;
     }
@@ -197,11 +200,11 @@ server {
 
 ### 3.2 多实例无状态
 
-`xin` 是无状态服务(状态都在 DB / Redis):
+`xin` 是无状态服务（状态都在 DB / Redis）：
 
 - 可以开任意多个实例横扩
-- `xin.pid` 文件每实例独立(`/var/run/xin-N.pid`)
-- 日志按实例分开(`/var/log/xin/xin-N.log`)
+- `xin.pid` 文件每实例独立（`/var/run/xin-N.pid`）
+- 日志按实例分开（`/var/log/xin/xin-N.log`）
 
 ### 3.3 滚动升级
 
@@ -219,7 +222,7 @@ sudo systemctl start xin-server
 sudo systemctl status xin-server
 ```
 
-`xin stop` 等待 30 秒(可配)让请求跑完,然后退出。
+`xin stop` 等待 30 秒（可配）让请求跑完，然后退出。
 
 ---
 
@@ -241,7 +244,7 @@ wal_log_hints = on
 max_wal_size = 4GB
 min_wal_size = 1GB
 
-# 慢查询日志(排查问题)
+# 慢查询日志（排查问题）
 log_min_duration_statement = 500ms
 log_lock_waits = on
 log_temp_files = 0
@@ -252,19 +255,19 @@ timezone = 'UTC'
 
 ### 4.2 RLS 性能
 
-RLS 会让每条 SQL 多一次 policy 评估。优化建议:
+RLS 会让每条 SQL 多一次 policy 评估。优化建议：
 
-- `tenant_id` 列建索引(几乎所有租户级查询都需要)
+- `tenant_id` 列建索引（几乎所有租户级查询都需要）
 - RLS policy 表达式尽量简单
 - 大量导入用 `SET LOCAL role = bypass_rls_role` 绕过
 
-### 4.3 主从 + 读写分离(可选)
+### 4.3 主从 + 读写分离（可选）
 
-当前框架**所有查询走主库**。如果未来要读写分离:
+当前框架**所有查询走主库**。如果未来要读写分离：
 
-1. 用 `pgxpool` 的两个 pool:`writerPool` + `readerPool`
-2. `AppContext.Reader` 暴露两个 pool,handler 选哪个
-3. 框架层暂时不做这件事,留给业务层
+1. 用 `pgxpool` 的两个 pool：`writerPool` + `readerPool`
+2. `AppContext.Reader` 暴露两个 pool，handler 选哪个
+3. 框架层暂时不做这件事，留给业务层
 
 ---
 
@@ -284,7 +287,7 @@ redis:
 
 ### 5.2 Sentinel
 
-需要在代码里改 `cache.Init` 接 sentinel 地址。当前 `framework/pkg/cache/cache.go` 只支持单实例,**改 Sentinel 需要改代码**:
+需要在代码里改 `cache.Init` 接 sentinel 地址。当前 `framework/pkg/cache/cache.go` 只支持单实例，**改 Sentinel 需要改代码**：
 
 ```go
 // 伪代码
@@ -298,7 +301,7 @@ redis.NewFailoverClient(&redis.FailoverOptions{
 
 ### 5.3 Cluster
 
-Cluster 模式同样需要扩展 `cache.Init`,引入 hash tag 让同一用户的 key 落在同一 slot。
+Cluster 模式同样需要扩展 `cache.Init`，引入 hash tag 让同一用户的 key 落在同一 slot。
 
 ---
 
@@ -306,10 +309,10 @@ Cluster 模式同样需要扩展 `cache.Init`,引入 hash tag 让同一用户的
 
 ### 6.1 应用层 metrics
 
-框架目前没内置 Prometheus。建议暴露:
+框架目前没内置 Prometheus。建议暴露：
 
-- `GET /system/server-info`(已有):进程级 + DB + Redis 状态
-- 加 Prometheus 端点:`/metrics` —— 可以基于 `server-info` 数据扩展
+- `GET /system/server-info`（已有）：进程级 + DB + Redis 状态
+- 加 Prometheus 端点：`/metrics` —— 可以基于 `server-info` 数据扩展
 
 ### 6.2 关键监控项
 
@@ -324,7 +327,7 @@ Cluster 模式同样需要扩展 `cache.Init`,引入 hash tag 让同一用户的
 
 ### 6.3 日志
 
-`logs/` 目录按天滚动(框架的 logger.Init 配 `cfg.Log.Dir` / `cfg.Log.Level`)。
+`logs/` 目录按天滚动（框架的 logger.Init 配 `cfg.Log.Dir` / `cfg.Log.Level`）。
 
 ```go
 // 框架 log 路径
@@ -332,14 +335,14 @@ log.Printf("module %s initialized", m.Name())
 logger.Errorf("[%s] %s %s | %d | %s", reqID, method, path, code, msg)
 ```
 
-nginx access log 也保留(trace 完整链路)。
+nginx access log 也保留（trace 完整链路）。
 
 ### 6.4 Trace ID
 
-`middleware.RequestID()` 给每个请求注入 `X-Request-ID`(Header 或自动生成),写入 gin context。
+`middleware.RequestID()` 给每个请求注入 `X-Request-ID`（Header 或自动生成），写入 gin context。
 
 - 框架 logger 自带
-- 传给下游(DB log, Redis log)的 `tx.ctx` 也带
+- 传给下游（DB log, Redis log）的 `tx.ctx` 也带
 - 前端出问题拿 `X-Request-ID` 来 trace
 
 ---
@@ -353,10 +356,10 @@ nginx access log 也保留(trace 完整链路)。
 pg_dump -Fc -h db.host -U xin_user xin > backup_$(date +%F).dump
 
 # 恢复
-pg_restore -d xin backup_2026-06-18.dump
+pg_restore -d xin backup_2026-06-19.dump
 ```
 
-推荐组合:
+推荐组合：
 
 | 备份类型 | 频率 | 保留 |
 |---|---|---|
@@ -366,27 +369,27 @@ pg_restore -d xin backup_2026-06-18.dump
 
 ### 7.2 Redis
 
-- 开启 AOF(`appendonly yes`)
+- 开启 AOF（`appendonly yes`）
 - `appendfsync everysec`
 - 主从复制 + Sentinel 自动 failover
 
-业务上 Redis 是缓存,丢了不致命(数据可重建),但 session 丢失会强制用户重新登录。
+业务上 Redis 是缓存，丢了不致命（数据可重建），但 session 丢失会强制用户重新登录。
 
 ### 7.3 uploads/ 本地文件
 
-`uploads/`(如果用 local 存储)需要单独备份:
+`uploads/`（如果用 local 存储）需要单独备份：
 
 ```bash
 rsync -av /opt/xin-server/uploads/ backup:/path/xin-uploads/
 ```
 
-或者改用 COS(腾讯云对象存储),由 COS 自己保证可用性。
+或者改用 COS（腾讯云对象存储），由 COS 自己保证可用性。
 
 ---
 
-## 8. Docker 镜像(可选)
+## 8. Docker 镜像（可选）
 
-仓库暂无现成 Dockerfile,典型模板:
+仓库暂无现成 Dockerfile，典型模板：
 
 ```dockerfile
 # Build stage
@@ -421,9 +424,9 @@ docker run -d \
 
 ---
 
-## 9. Kubernetes(高级)
+## 9. Kubernetes（高级）
 
-StatefulSet + Headless Service:
+StatefulSet + Headless Service：
 
 ```yaml
 apiVersion: apps/v1
@@ -453,30 +456,30 @@ spec:
           initialDelaySeconds: 5
 ```
 
-注意事项:
+注意事项：
 
-- StatefulSet 给每个实例**固定 hostname**(`xin-0`, `xin-1`, `xin-2`),日志 / pid 隔离方便
+- StatefulSet 给每个实例**固定 hostname**（`xin-0`, `xin-1`, `xin-2`），日志 / pid 隔离方便
 - 用 `PodDisruptionBudget` 防止滚动升级全部 kill
-- `sessionAffinity: ClientIP` 让同一 IP 落到同一实例(避免 session 跨实例同步)
+- `sessionAffinity: ClientIP` 让同一 IP 落到同一实例（避免 session 跨实例同步）
 
 ---
 
 ## 10. 环境变量参考
 
-完整列表见 [framework/pkg/config/config.go](framework/pkg/config/config.go) `overrideWithEnv()`。
+完整列表见 [`framework/pkg/config/config.go`](../framework/pkg/config/config.go) `overrideWithEnv()`。
 
 | 变量 | 对应 YAML | 说明 |
 |---|---|---|
-| `XIN_APP_PORT` | `app.port` | HTTP 端口 |
+| `XIN_APP_PORT` | `app.port` | HTTP 端口（默认 8087） |
 | `XIN_DB_HOST` | `database.host` | PG host |
 | `XIN_DB_PASSWORD` | `database.password` | PG password |
 | `XIN_REDIS_ENABLED` | `redis.enabled` | Redis 是否启用 |
 | `XIN_REDIS_REQUIRED` | `redis.required` | Redis 挂掉是否启动失败 |
-| `XIN_JWT_SECRET` | `jwt.secret` | JWT 签名 key,**prod 必填 ≥32 字节** |
-| `XIN_CORS_ALLOW_ORIGINS` | `cors.allow_origins` | CORS 白名单(逗号分隔) |
-| `XIN_MODULE` | `module` | 模块白名单(逗号分隔) |
-| `XIN_BOOTSTRAP_TOKEN` | — | bootstrap 必填,启用初始 super_admin |
-| `XIN_BOOTSTRAP_ACCOUNT` | — | bootstrap 账号(username/phone/email) |
+| `XIN_JWT_SECRET` | `jwt.secret` | JWT 签名 key，**prod 必填 ≥32 字节** |
+| `XIN_CORS_ALLOW_ORIGINS` | `cors.allow_origins` | CORS 白名单（逗号分隔） |
+| `XIN_MODULE` | `module` | 模块白名单（逗号分隔） |
+| `XIN_BOOTSTRAP_TOKEN` | — | bootstrap 必填，启用初始 super_admin |
+| `XIN_BOOTSTRAP_ACCOUNT` | — | bootstrap 账号（username/phone/email） |
 | `XIN_BOOTSTRAP_PASSWORD` | — | bootstrap 明文密码 |
 | `XIN_STORAGE_COS_SECRET_ID` | `storage.cos_secret_id` | COS 凭据 |
 | `XIN_STORAGE_COS_SECRET_KEY` | `storage.cos_secret_key` | COS 凭据 |
@@ -485,7 +488,7 @@ spec:
 
 ## 11. 健康检查清单
 
-部署后跑一遍:
+部署后跑一遍：
 
 ```bash
 # 1. 进程在
@@ -512,4 +515,4 @@ curl -X POST http://localhost:8087/api/v1/auth/login \
   -d '{"account":"admin","password":"...","tenant_code":"default"}'
 ```
 
-任一步失败,看 [framework/cmd.go](framework/cmd.go) 和 [quickstart.md 常见问题](quickstart.md#9-常见问题)。
+任一步失败，看 [`framework/cmd.go`](../framework/cmd.go) 和 [quickstart.md 常见问题](quickstart.md#9-常见问题)。
