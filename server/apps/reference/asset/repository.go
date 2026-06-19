@@ -19,7 +19,7 @@ func NewAttachmentRepository(db *pgxpool.Pool) *PostgresAttachmentRepository {
 }
 
 func (r *PostgresAttachmentRepository) GetByID(ctx context.Context, id uint) (*Attachment, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (r *PostgresAttachmentRepository) GetByID(ctx context.Context, id uint) (*A
 }
 
 func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID uint, hash string) (*Attachment, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (r *PostgresAttachmentRepository) GetByHash(ctx context.Context, tenantID u
 }
 
 func (r *PostgresAttachmentRepository) Create(ctx context.Context, attachment *Attachment) (*Attachment, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func (r *PostgresAttachmentRepository) Create(ctx context.Context, attachment *A
 }
 
 func (r *PostgresAttachmentRepository) UpdateStatus(ctx context.Context, id uint, status int8) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func (r *PostgresAttachmentRepository) UpdateStatus(ctx context.Context, id uint
 }
 
 func (r *PostgresAttachmentRepository) Delete(ctx context.Context, id uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}

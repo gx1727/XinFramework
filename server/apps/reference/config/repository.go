@@ -24,7 +24,7 @@ func NewPostgresConfigRepository(pool *pgxpool.Pool) *PostgresConfigRepository {
 // =============== Group ===============
 
 func (r *PostgresConfigRepository) ListGroups(ctx context.Context, tenantID uint) ([]ConfigGroup, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (r *PostgresConfigRepository) ListGroups(ctx context.Context, tenantID uint
 }
 
 func (r *PostgresConfigRepository) GetGroupByID(ctx context.Context, id uint) (*ConfigGroup, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (r *PostgresConfigRepository) GetGroupByID(ctx context.Context, id uint) (*
 }
 
 func (r *PostgresConfigRepository) GetGroupByCode(ctx context.Context, tenantID uint, code string) (*ConfigGroup, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (r *PostgresConfigRepository) GetGroupByCode(ctx context.Context, tenantID 
 }
 
 func (r *PostgresConfigRepository) CreateGroup(ctx context.Context, tenantID uint, req CreateGroupRepoReq) (*ConfigGroup, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (r *PostgresConfigRepository) CreateGroup(ctx context.Context, tenantID uin
 }
 
 func (r *PostgresConfigRepository) UpdateGroup(ctx context.Context, id uint, req UpdateGroupRepoReq) (*ConfigGroup, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (r *PostgresConfigRepository) UpdateGroup(ctx context.Context, id uint, req
 }
 
 func (r *PostgresConfigRepository) DeleteGroup(ctx context.Context, id uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func (r *PostgresConfigRepository) DeleteGroup(ctx context.Context, id uint) err
 // =============== Item ===============
 
 func (r *PostgresConfigRepository) ListItemsByGroup(ctx context.Context, groupID uint) ([]ConfigItem, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +177,7 @@ func (r *PostgresConfigRepository) ListItemsByGroup(ctx context.Context, groupID
 }
 
 func (r *PostgresConfigRepository) ListItemsByTenant(ctx context.Context, tenantID uint) ([]ConfigItem, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +203,7 @@ func (r *PostgresConfigRepository) ListItemsByTenant(ctx context.Context, tenant
 }
 
 func (r *PostgresConfigRepository) ListPublicItemsByTenant(ctx context.Context, tenantID uint) ([]ConfigItem, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +231,7 @@ func (r *PostgresConfigRepository) ListPublicItemsByTenant(ctx context.Context, 
 }
 
 func (r *PostgresConfigRepository) ListPublicItemsByGroupCode(ctx context.Context, tenantID uint, groupCode string) ([]ConfigItem, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +260,7 @@ func (r *PostgresConfigRepository) ListPublicItemsByGroupCode(ctx context.Contex
 }
 
 func (r *PostgresConfigRepository) GetItemByID(ctx context.Context, id uint) (*ConfigItem, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +279,7 @@ func (r *PostgresConfigRepository) GetItemByID(ctx context.Context, id uint) (*C
 }
 
 func (r *PostgresConfigRepository) CreateItem(ctx context.Context, tenantID, groupID uint, req CreateItemRepoReq) (*ConfigItem, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -307,7 +307,7 @@ func (r *PostgresConfigRepository) CreateItem(ctx context.Context, tenantID, gro
 }
 
 func (r *PostgresConfigRepository) UpdateItem(ctx context.Context, id uint, req UpdateItemRepoReq) (*ConfigItem, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +340,7 @@ func (r *PostgresConfigRepository) UpdateItem(ctx context.Context, id uint, req 
 }
 
 func (r *PostgresConfigRepository) ResetItem(ctx context.Context, id uint) (*ConfigItem, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -362,7 +362,7 @@ func (r *PostgresConfigRepository) ResetItem(ctx context.Context, id uint) (*Con
 }
 
 func (r *PostgresConfigRepository) DeleteItem(ctx context.Context, id uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return err
 	}
@@ -377,7 +377,7 @@ func (r *PostgresConfigRepository) DeleteItem(ctx context.Context, id uint) erro
 }
 
 func (r *PostgresConfigRepository) CountItemsByGroup(ctx context.Context, groupID uint) (int64, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return 0, err
 	}

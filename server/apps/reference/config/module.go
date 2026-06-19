@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/framework/pkg/db"
+	"gx1727.com/xin/framework/pkg/bootx"
 	"gx1727.com/xin/framework/pkg/plugin"
 )
 
@@ -16,9 +16,10 @@ func init() {
 
 // Module 返回 config 模块的完整定义
 func Module() plugin.Module {
-	repo := NewPostgresConfigRepository(db.Get())
+	pool := bootx.Pool()
+	repo := NewPostgresConfigRepository(pool)
 	cache := NewCache()
-	svc := NewService(repo, cache)
+	svc := NewService(pool, repo, cache)
 	h := NewHandler(svc)
 
 	return &plugin.BaseModule{
@@ -30,14 +31,15 @@ func Module() plugin.Module {
 		InitFn: func(_ plugin.Reader, _ plugin.Writer) error {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
+			pool := bootx.Pool()
 
 			// 1) seed __template__
-			if err := EnsureTemplateSeeded(ctx); err != nil {
+			if err := EnsureTemplateSeeded(ctx, pool); err != nil {
 				log.Printf("[config] init self-check seed skipped: %v", err)
 			}
 
 			// 2) 自愈：修复老 config menu 的 parent_id（写死 5 导致的孤儿）
-			if err := HealConfigMenuParent(ctx); err != nil {
+			if err := HealConfigMenuParent(ctx, pool); err != nil {
 				log.Printf("[config] heal config menu parent skipped: %v", err)
 			}
 

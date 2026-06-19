@@ -1,9 +1,11 @@
-// Package dict 数据字典服务层
+﻿// Package dict 数据字典服务层
 package dict
 
 import (
 	"context"
 	"fmt"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"gx1727.com/xin/framework/pkg/audit"
 	"gx1727.com/xin/framework/pkg/db"
@@ -12,10 +14,11 @@ import (
 
 type Service struct {
 	repo DictRepository
+	pool *pgxpool.Pool
 }
 
-func NewService(repo DictRepository) *Service {
-	return &Service{repo: repo}
+func NewService(pool *pgxpool.Pool, repo DictRepository) *Service {
+	return &Service{repo: repo, pool: pool}
 }
 
 // ========== 字典主表 ==========
@@ -24,7 +27,7 @@ func NewService(repo DictRepository) *Service {
 func (s *Service) List(ctx context.Context, tenantID uint, req listRequest) ([]Dict, int64, error) {
 	var list []Dict
 	var total int64
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		var err error
 		list, total, err = s.repo.List(ctx, tenantID, trimKeyword(req.Keyword), req.Page, req.Size)
 		return err
@@ -55,7 +58,7 @@ func trimKeyword(s string) string {
 // Get 获取单个字典（跨租户校验）
 func (s *Service) Get(ctx context.Context, tenantID uint, id uint) (*Dict, error) {
 	var d *Dict
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		got, err := s.repo.GetByID(ctx, id)
 		if err != nil {
 			return err
@@ -72,7 +75,7 @@ func (s *Service) Get(ctx context.Context, tenantID uint, id uint) (*Dict, error
 // Create 新建字典
 func (s *Service) Create(ctx context.Context, tenantID uint, req createRequest) (*Dict, error) {
 	var d *Dict
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		got, err := s.repo.Create(ctx, tenantID, CreateDictRepoReq{
 			Code:   req.Code,
 			Name:   req.Name,
@@ -92,7 +95,7 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req createRequest) 
 // Update 更新字典
 func (s *Service) Update(ctx context.Context, tenantID, id uint, req updateRequest) (*Dict, error) {
 	var d *Dict
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		old, err := s.repo.GetByID(ctx, id)
 		if err != nil {
 			return err
@@ -123,7 +126,7 @@ func (s *Service) Update(ctx context.Context, tenantID, id uint, req updateReque
 
 // Delete 删除字典前先检查字典项是否还有未删的；通过后写审计。
 func (s *Service) Delete(ctx context.Context, tenantID, id uint) error {
-	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	return db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		d, err := s.repo.GetByID(ctx, id)
 		if err != nil {
 			return err
@@ -145,7 +148,7 @@ func (s *Service) Delete(ctx context.Context, tenantID, id uint) error {
 		}
 
 		// 审计：删除字典
-		audit.Log(ctx, audit.Entry{
+		audit.Log(ctx, s.pool, audit.Entry{
 			Action:    "dict:delete",
 			TableName: "dicts",
 			RecordID:  d.ID,
@@ -165,7 +168,7 @@ func (s *Service) Delete(ctx context.Context, tenantID, id uint) error {
 // ListItems 列出某字典下的所有字典项
 func (s *Service) ListItems(ctx context.Context, tenantID, dictID uint) ([]DictItem, error) {
 	var items []DictItem
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		d, err := s.repo.GetByID(ctx, dictID)
 		if err != nil {
 			return err
@@ -183,7 +186,7 @@ func (s *Service) ListItems(ctx context.Context, tenantID, dictID uint) ([]DictI
 func (s *Service) CreateItem(ctx context.Context, tenantID, dictID uint, req createItemRequest) (*DictItem, error) {
 	var item *DictItem
 	var dictCode string
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		d, err := s.repo.GetByID(ctx, dictID)
 		if err != nil {
 			return err
@@ -216,7 +219,7 @@ func (s *Service) CreateItem(ctx context.Context, tenantID, dictID uint, req cre
 
 // UpdateItem 更新字典项；写审计 + 刷缓存
 func (s *Service) UpdateItem(ctx context.Context, tenantID, itemID uint, req updateItemRequest) error {
-	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	return db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		old, err := s.repo.GetItemByID(ctx, itemID)
 		if err != nil {
 			return err
@@ -244,7 +247,7 @@ func (s *Service) UpdateItem(ctx context.Context, tenantID, itemID uint, req upd
 			return err
 		}
 
-		audit.Log(ctx, audit.Entry{
+		audit.Log(ctx, s.pool, audit.Entry{
 			Action:    "dict_item:update",
 			TableName: "dict_items",
 			RecordID:  old.ID,
@@ -269,7 +272,7 @@ func (s *Service) UpdateItem(ctx context.Context, tenantID, itemID uint, req upd
 
 // DeleteItem 软删字典项；写审计 + 刷缓存
 func (s *Service) DeleteItem(ctx context.Context, tenantID, itemID uint) error {
-	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	return db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		old, err := s.repo.GetItemByID(ctx, itemID)
 		if err != nil {
 			return err
@@ -287,7 +290,7 @@ func (s *Service) DeleteItem(ctx context.Context, tenantID, itemID uint) error {
 			return err
 		}
 
-		audit.Log(ctx, audit.Entry{
+		audit.Log(ctx, s.pool, audit.Entry{
 			Action:    "dict_item:delete",
 			TableName: "dict_items",
 			RecordID:  old.ID,

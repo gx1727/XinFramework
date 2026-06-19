@@ -20,7 +20,7 @@ func NewAccountRepository(db *pgxpool.Pool) AccountRepository {
 }
 
 func (r *PostgresAccountRepository) GetByID(ctx context.Context, id uint) (*Account, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func (r *PostgresAccountRepository) GetByID(ctx context.Context, id uint) (*Acco
 }
 
 func (r *PostgresAccountRepository) GetByUsername(ctx context.Context, username string) (*Account, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func (r *PostgresAccountRepository) GetByUsername(ctx context.Context, username 
 }
 
 func (r *PostgresAccountRepository) GetByPhone(ctx context.Context, phone string) (*Account, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func (r *PostgresAccountRepository) GetByPhone(ctx context.Context, phone string
 }
 
 func (r *PostgresAccountRepository) GetByEmail(ctx context.Context, email string) (*Account, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (r *PostgresAccountRepository) GetByEmail(ctx context.Context, email string
 }
 
 func (r *PostgresAccountRepository) Create(ctx context.Context, username, phone, email, realName, passwordHash string) (*Account, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (r *PostgresAccountRepository) Create(ctx context.Context, username, phone,
 }
 
 func (r *PostgresAccountRepository) Exists(ctx context.Context, account string) (bool, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return false, err
 	}

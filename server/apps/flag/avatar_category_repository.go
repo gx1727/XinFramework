@@ -20,7 +20,7 @@ func NewAvatarCategoryRepository(pool *pgxpool.Pool) *AvatarCategoryRepository {
 }
 
 func (r *AvatarCategoryRepository) List(ctx context.Context) (_ []AvatarCategory, err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (r *AvatarCategoryRepository) List(ctx context.Context) (_ []AvatarCategory
 }
 
 func (r *AvatarCategoryRepository) Create(ctx context.Context, c *AvatarCategory) (_ *AvatarCategory, err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (r *AvatarCategoryRepository) Create(ctx context.Context, c *AvatarCategory
 }
 
 func (r *AvatarCategoryRepository) Update(ctx context.Context, c *AvatarCategory) (err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}
@@ -102,7 +102,7 @@ func (r *AvatarCategoryRepository) Update(ctx context.Context, c *AvatarCategory
 }
 
 func (r *AvatarCategoryRepository) Delete(ctx context.Context, id uint) (err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}

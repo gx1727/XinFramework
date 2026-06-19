@@ -105,8 +105,6 @@ func (r *RedisConfig) Addr() string {
 	return fmt.Sprintf("%s:%d", r.Host, r.Port)
 }
 
-var cfg *Config
-
 func defaults() *Config {
 	return &Config{
 		App: AppConfig{
@@ -165,7 +163,7 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("load .env failed: %w", err)
 	}
 
-	cfg = defaults()
+	cfg := defaults()
 
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -435,10 +433,6 @@ func (c *Config) AppEnabled(name string) bool {
 		}
 	}
 	return false
-}
-
-func Get() *Config {
-	return cfg
 }
 
 var moduleBaseDir = "config"

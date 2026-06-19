@@ -5,7 +5,7 @@ import (
 
 	bootauth "gx1727.com/xin/apps/boot/auth"
 	pkgauth "gx1727.com/xin/framework/pkg/auth"
-	"gx1727.com/xin/framework/pkg/db"
+	"gx1727.com/xin/framework/pkg/bootx"
 )
 
 // newAccountAdapter returns an auth.AccountRepository backed by
@@ -20,12 +20,12 @@ import (
 // pkgauth.AccountRepository (e.g. field shape changes), this file
 // will fail to compile and the divergence will be caught at build time.
 func newAccountAdapter() pkgauth.AccountRepository {
-	return bootauth.NewAccountRepository(db.Get())
+	return bootauth.NewAccountRepository(bootx.Pool())
 }
 
 // Compile-time guard: any change to apps/boot/auth that breaks the
 // contract is caught immediately rather than at runtime.
-var _ pkgauth.AccountRepository = bootauth.NewAccountRepository(db.Get())
+var _ pkgauth.AccountRepository = bootauth.NewAccountRepository(bootx.Pool())
 
 // Suppress unused-import warnings for "context" if all uses are
 // removed in future refactors.

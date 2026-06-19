@@ -1,3 +1,7 @@
+// Package migrate 数据库迁移工具（按目录扫 SQL 文件，按序应用）。
+//
+// Phase 4 重构：所有 helper 与 Run 都接收 pool 作为参数，删除对
+// 包级 db.Pool / db.Get() 的依赖。
 package migrate
 
 import (
@@ -13,22 +17,19 @@ import (
 )
 
 // ensureTable 确保数据库迁移记录表存在
-func ensureTable(ctx context.Context) {
-	pool := db.Get()
+func ensureTable(ctx context.Context, pool *pgxpool.Pool) {
 	if pool == nil {
 		return
 	}
-	// 创建迁移版本记录表
 	_, _ = pool.Exec(ctx, `
 CREATE TABLE IF NOT EXISTS _schema_migrations (
-    version VARCHAR(255) PRIMARY KEY,     -- 迁移版本号（文件名）
-    applied_at TIMESTAMPTZ DEFAULT NOW()  -- 应用时间
+    version VARCHAR(255) PRIMARY KEY,
+    applied_at TIMESTAMPTZ DEFAULT NOW()
 )`)
 }
 
 // isApplied 检查指定版本的迁移是否已应用
-func isApplied(ctx context.Context, version string) bool {
-	pool := db.Get()
+func isApplied(ctx context.Context, pool *pgxpool.Pool, version string) bool {
 	if pool == nil {
 		return false
 	}
@@ -38,8 +39,7 @@ func isApplied(ctx context.Context, version string) bool {
 }
 
 // markApplied 标记指定版本的迁移为已应用
-func markApplied(ctx context.Context, version string) error {
-	pool := db.Get()
+func markApplied(ctx context.Context, pool *pgxpool.Pool, version string) error {
 	if pool == nil {
 		return ErrDBNotInitialized
 	}
@@ -47,17 +47,16 @@ func markApplied(ctx context.Context, version string) error {
 	return err
 }
 
-// Migration 迁移结构，表示单个SQL迁移文件
+// Migration 迁移结构
 type Migration struct {
-	Version string // 迁移版本号（文件名）
-	SQL     string // SQL内容
+	Version string
+	SQL     string
 }
 
 // loadFromDir 从指定目录加载所有SQL迁移文件
 func loadFromDir(dir string) ([]Migration, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		// 如果目录不存在，返回空列表（不是错误）
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
@@ -66,7 +65,6 @@ func loadFromDir(dir string) ([]Migration, error) {
 
 	var migrations []Migration
 	for _, entry := range entries {
-		// 跳过子目录和非SQL文件
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
 			continue
 		}
@@ -81,7 +79,6 @@ func loadFromDir(dir string) ([]Migration, error) {
 		})
 	}
 
-	// 按版本号排序（文件名排序）
 	sort.Slice(migrations, func(i, j int) bool {
 		return migrations[i].Version < migrations[j].Version
 	})
@@ -89,46 +86,35 @@ func loadFromDir(dir string) ([]Migration, error) {
 	return migrations, nil
 }
 
-// Run 执行指定目录下的所有未应用的数据库迁移
-func Run(dir string) error {
-	pool := db.Get()
+// Run 执行指定目录下的所有未应用的数据库迁移。pool 由调用方持有。
+func Run(pool *pgxpool.Pool, dir string) error {
 	if pool == nil {
 		return ErrDBNotInitialized
 	}
 
 	ctx := context.Background()
 
-	// 确保迁移记录表存在
-	ensureTable(ctx)
+	ensureTable(ctx, pool)
 
-	// 加载所有迁移文件
 	migrations, err := loadFromDir(dir)
 	if err != nil {
 		return err
 	}
-	// 如果没有迁移文件，直接返回
 	if len(migrations) == 0 {
 		return nil
 	}
 
-	// 逐个应用未执行的迁移
 	for _, m := range migrations {
-		// 跳过已应用的迁移
-		if isApplied(ctx, m.Version) {
+		if isApplied(ctx, pool, m.Version) {
 			continue
 		}
 
 		fmt.Printf("[migrate] applying %s ...\n", m.Version)
-		// 在事务内执行迁移 SQL，开头 SET LOCAL row_security = off 关闭 RLS。
-		// 原因：migrations 可能跨租户/系统级 INSERT（如 framework_002_template_tenant.sql
-		// 的 __template__ 租户 + menus / dicts 复制），RLS policy 会拦截非 owner 连接。
-		// 关闭 RLS 是迁移期的合理行为——业务层仍由 app.bypass_rls（policy 需识别）+ tenant_id 控制。
 		if err := runMigration(ctx, pool, m.SQL); err != nil {
 			return fmt.Errorf("migration %s failed: %w", m.Version, err)
 		}
 
-		// 标记为已应用（事务已提交，再走普通连接）
-		if err := markApplied(ctx, m.Version); err != nil {
+		if err := markApplied(ctx, pool, m.Version); err != nil {
 			return fmt.Errorf("mark %s applied failed: %w", m.Version, err)
 		}
 		fmt.Printf("[migrate] %s done\n", m.Version)
@@ -138,15 +124,12 @@ func Run(dir string) error {
 }
 
 // runMigration 在 RunInTx 内执行单条迁移，开头关闭 RLS。
-// 失败自动回滚（RunInTx 内部 defer Rollback），保证不会留下半成品。
 func runMigration(ctx context.Context, pool *pgxpool.Pool, sql string) error {
 	return db.RunInTx(ctx, pool, func(ctx context.Context) error {
-		q, err := db.GetQuerier(ctx)
+		q, err := db.GetQuerier(ctx, pool)
 		if err != nil {
 			return err
 		}
-		// SET LOCAL 仅在本事务内生效，事务结束自动失效，不污染连接池。
-		// row_security = off 等价于该 session 内 RLS 完全不参与检查。
 		if _, err := q.Exec(ctx, "SET LOCAL row_security = off"); err != nil {
 			return fmt.Errorf("set row_security off: %w", err)
 		}

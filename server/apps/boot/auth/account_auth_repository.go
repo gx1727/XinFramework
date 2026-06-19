@@ -20,7 +20,7 @@ func NewAccountAuthRepository(db *pgxpool.Pool) AccountAuthRepository {
 }
 
 func (r *PostgresAccountAuthRepository) GetByOpenID(ctx context.Context, tenantID uint, authType, openID string) (*AccountAuth, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func (r *PostgresAccountAuthRepository) GetByOpenID(ctx context.Context, tenantI
 }
 
 func (r *PostgresAccountAuthRepository) GetByAccountID(ctx context.Context, accountID uint) ([]AccountAuth, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (r *PostgresAccountAuthRepository) GetByAccountID(ctx context.Context, acco
 }
 
 func (r *PostgresAccountAuthRepository) Create(ctx context.Context, tenantID, accountID uint, authType, openID, unionID, sessionKey string) (*AccountAuth, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (r *PostgresAccountAuthRepository) Create(ctx context.Context, tenantID, ac
 }
 
 func (r *PostgresAccountAuthRepository) UpdateSessionKey(ctx context.Context, id uint, sessionKey string) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (r *PostgresAccountAuthRepository) UpdateSessionKey(ctx context.Context, id
 }
 
 func (r *PostgresAccountAuthRepository) Delete(ctx context.Context, id uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}

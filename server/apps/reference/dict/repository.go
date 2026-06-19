@@ -22,7 +22,7 @@ func NewPostgresDictRepository(pool *pgxpool.Pool) *PostgresDictRepository {
 }
 
 func (r *PostgresDictRepository) List(ctx context.Context, tenantID uint, keyword string, page, size int) ([]Dict, int64, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -73,7 +73,7 @@ func (r *PostgresDictRepository) List(ctx context.Context, tenantID uint, keywor
 }
 
 func (r *PostgresDictRepository) GetByID(ctx context.Context, id uint) (*Dict, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (r *PostgresDictRepository) GetByID(ctx context.Context, id uint) (*Dict, e
 }
 
 func (r *PostgresDictRepository) GetByCode(ctx context.Context, tenantID uint, code string) (*Dict, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (r *PostgresDictRepository) GetByCode(ctx context.Context, tenantID uint, c
 }
 
 func (r *PostgresDictRepository) Create(ctx context.Context, tenantID uint, req CreateDictRepoReq) (*Dict, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func (r *PostgresDictRepository) Create(ctx context.Context, tenantID uint, req 
 }
 
 func (r *PostgresDictRepository) Update(ctx context.Context, id uint, req UpdateDictRepoReq) (*Dict, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (r *PostgresDictRepository) Update(ctx context.Context, id uint, req Update
 }
 
 func (r *PostgresDictRepository) Delete(ctx context.Context, id uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func (r *PostgresDictRepository) Delete(ctx context.Context, id uint) error {
 }
 
 func (r *PostgresDictRepository) CountItems(ctx context.Context, dictID uint) (int64, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return 0, err
 	}
@@ -181,7 +181,7 @@ func (r *PostgresDictRepository) CountItems(ctx context.Context, dictID uint) (i
 // ========== 字典项 ==========
 
 func (r *PostgresDictRepository) ListItems(ctx context.Context, dictID uint) ([]DictItem, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +207,7 @@ func (r *PostgresDictRepository) ListItems(ctx context.Context, dictID uint) ([]
 }
 
 func (r *PostgresDictRepository) GetItemByID(ctx context.Context, id uint) (*DictItem, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +225,7 @@ func (r *PostgresDictRepository) GetItemByID(ctx context.Context, id uint) (*Dic
 }
 
 func (r *PostgresDictRepository) CreateItem(ctx context.Context, tenantID, dictID uint, req CreateDictItemRepoReq) (*DictItem, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +246,7 @@ func (r *PostgresDictRepository) CreateItem(ctx context.Context, tenantID, dictI
 }
 
 func (r *PostgresDictRepository) UpdateItem(ctx context.Context, id uint, req UpdateDictItemRepoReq) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return err
 	}
@@ -264,7 +264,7 @@ func (r *PostgresDictRepository) UpdateItem(ctx context.Context, id uint, req Up
 }
 
 func (r *PostgresDictRepository) DeleteItem(ctx context.Context, id uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return err
 	}

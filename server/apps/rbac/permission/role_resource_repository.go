@@ -25,7 +25,7 @@ func NewRoleResourceRepository(db *pgxpool.Pool) RoleResourceRepository {
 }
 
 func (r *PostgresRoleResourceRepository) GetByRoleID(ctx context.Context, roleID uint) ([]uint, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (r *PostgresRoleResourceRepository) GetByRoleID(ctx context.Context, roleID
 }
 
 func (r *PostgresRoleResourceRepository) SetForRole(ctx context.Context, roleID uint, resourceIDs []uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func (r *PostgresRoleResourceRepository) SetForRole(ctx context.Context, roleID 
 	return nil
 }
 func (r *PostgresRoleResourceRepository) DeleteByRoleID(ctx context.Context, roleID uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}

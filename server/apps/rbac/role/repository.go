@@ -22,7 +22,7 @@ func NewRoleRepository(db *pgxpool.Pool) RoleRepository {
 }
 
 func (r *PostgresRoleRepository) GetByID(ctx context.Context, id uint) (*Role, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func (r *PostgresRoleRepository) GetByID(ctx context.Context, id uint) (*Role, e
 }
 
 func (r *PostgresRoleRepository) GetByCode(ctx context.Context, tenantID uint, code string) (*Role, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (r *PostgresRoleRepository) GetByCode(ctx context.Context, tenantID uint, c
 }
 
 func (r *PostgresRoleRepository) GetUserRoles(ctx context.Context, userID uint) ([]Role, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (r *PostgresRoleRepository) GetUserRoles(ctx context.Context, userID uint) 
 }
 
 func (r *PostgresRoleRepository) List(ctx context.Context, tenantID uint, keyword string, page, size int) ([]Role, int64, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -151,7 +151,7 @@ func (r *PostgresRoleRepository) List(ctx context.Context, tenantID uint, keywor
 }
 
 func (r *PostgresRoleRepository) Create(ctx context.Context, tenantID uint, req CreateRoleRepoReq) (*Role, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func (r *PostgresRoleRepository) Create(ctx context.Context, tenantID uint, req 
 }
 
 func (r *PostgresRoleRepository) Update(ctx context.Context, id uint, req UpdateRoleRepoReq) (*Role, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +246,7 @@ func (r *PostgresRoleRepository) Patch(ctx context.Context, id uint, req PatchRo
 	sets = append(sets, "updated_at = NOW()")
 	args = append(args, id)
 
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +275,7 @@ func (r *PostgresRoleRepository) Patch(ctx context.Context, id uint, req PatchRo
 }
 
 func (r *PostgresRoleRepository) Delete(ctx context.Context, id uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}

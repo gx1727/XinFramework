@@ -1,19 +1,22 @@
-package tenant
+﻿package tenant
 
 import (
 	"context"
 	"fmt"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"gx1727.com/xin/framework/pkg/audit"
 	"gx1727.com/xin/framework/pkg/db"
 )
 
 type Service struct {
+	pool       *pgxpool.Pool
 	tenantRepo TenantRepository
 }
 
-func NewService(repo TenantRepository) *Service {
-	return &Service{tenantRepo: repo}
+func NewService(pool *pgxpool.Pool, repo TenantRepository) *Service {
+	return &Service{pool: pool, tenantRepo: repo}
 }
 
 // GetByID 平台级操作：走 RunInPlatformTx，绕过 RLS。
@@ -23,7 +26,7 @@ func (s *Service) GetByID(ctx context.Context, id uint) (*TenantResp, error) {
 		return nil, ErrBackendUnavailable
 	}
 	var t *Tenant
-	err := db.RunInPlatformTx(ctx, db.Get(), func(ctx context.Context) error {
+	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
 		var err error
 		t, err = s.tenantRepo.GetByID(ctx, id)
 		return err
@@ -54,7 +57,7 @@ func (s *Service) Create(ctx context.Context, req CreateTenantReq) (*TenantResp,
 		t   *Tenant
 		rep *FirstInstallReport
 	)
-	err := db.RunInPlatformTx(ctx, db.Get(), func(ctx context.Context) error {
+	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
 		var err error
 		t, err = s.tenantRepo.Create(ctx, req.Code, req.Name, req.Contact, req.Phone, req.Email)
 		if err != nil {
@@ -65,7 +68,7 @@ func (s *Service) Create(ctx context.Context, req CreateTenantReq) (*TenantResp,
 		if req.AdminAccountID != nil {
 			adminAccountID = *req.AdminAccountID
 		}
-		rep, err = firstInstall(ctx, t.ID, adminAccountID)
+		rep, err = firstInstall(ctx, s.pool, t.ID, adminAccountID)
 		return err
 	})
 	if err != nil {
@@ -73,7 +76,7 @@ func (s *Service) Create(ctx context.Context, req CreateTenantReq) (*TenantResp,
 	}
 
 	// 审计：tenant.create + 首装明细 —— 高敏操作必须留痕。
-	audit.Log(ctx, audit.Entry{
+	audit.Log(ctx, s.pool, audit.Entry{
 		Action:    "tenant:create",
 		TableName: "tenants",
 		RecordID:  t.ID,
@@ -110,7 +113,7 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateTenantReq) (*Te
 	}
 	var before *Tenant
 	var after *Tenant
-	err := db.RunInPlatformTx(ctx, db.Get(), func(ctx context.Context) error {
+	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
 		var err error
 		before, err = s.tenantRepo.GetByID(ctx, id)
 		if err != nil {
@@ -124,7 +127,7 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateTenantReq) (*Te
 		return nil, mapRepoError(err)
 	}
 
-	audit.Log(ctx, audit.Entry{
+	audit.Log(ctx, s.pool, audit.Entry{
 		Action:    "tenant:update",
 		TableName: "tenants",
 		RecordID:  id,
@@ -160,7 +163,7 @@ func (s *Service) UpdateStatus(ctx context.Context, id uint, status int16) (*Ten
 	}
 	var before *Tenant
 	var after *Tenant
-	err := db.RunInPlatformTx(ctx, db.Get(), func(ctx context.Context) error {
+	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
 		var err error
 		before, err = s.tenantRepo.GetByID(ctx, id)
 		if err != nil {
@@ -173,7 +176,7 @@ func (s *Service) UpdateStatus(ctx context.Context, id uint, status int16) (*Ten
 		return nil, mapRepoError(err)
 	}
 
-	audit.Log(ctx, audit.Entry{
+	audit.Log(ctx, s.pool, audit.Entry{
 		Action:    "tenant:status_change",
 		TableName: "tenants",
 		RecordID:  id,
@@ -194,7 +197,7 @@ func (s *Service) Delete(ctx context.Context, id uint) error {
 		return ErrBackendUnavailable
 	}
 	var tenantCode string
-	err := db.RunInPlatformTx(ctx, db.Get(), func(ctx context.Context) error {
+	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
 		// 1) 拿租户快照（用于审计 + 校验）
 		t, err := s.tenantRepo.GetByID(ctx, id)
 		if err != nil {
@@ -218,7 +221,7 @@ func (s *Service) Delete(ctx context.Context, id uint) error {
 		return mapRepoError(err)
 	}
 
-	audit.Log(ctx, audit.Entry{
+	audit.Log(ctx, s.pool, audit.Entry{
 		Action:    "tenant:delete",
 		TableName: "tenants",
 		RecordID:  id,
@@ -236,7 +239,7 @@ func (s *Service) List(ctx context.Context, req ListTenantReq) ([]TenantResp, in
 	}
 	var list []Tenant
 	var total int64
-	err := db.RunInPlatformTx(ctx, db.Get(), func(ctx context.Context) error {
+	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
 		var err error
 		list, total, err = s.tenantRepo.List(ctx, req.Keyword, req.Status, req.Page, req.Size)
 		return err
@@ -277,7 +280,7 @@ func (s *Service) Purge(ctx context.Context, id uint) (*PurgeResult, error) {
 		return nil, ErrBackendUnavailable
 	}
 	var result PurgeResult
-	err := db.RunInPlatformTx(ctx, db.Get(), func(ctx context.Context) error {
+	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
 		// 1) 抓快照 + 前置校验：必须已软删
 		t, err := s.tenantRepo.GetByID(ctx, id)
 		if err != nil {
@@ -320,7 +323,7 @@ func (s *Service) Purge(ctx context.Context, id uint) (*PurgeResult, error) {
 	for _, n := range result.Tables {
 		totalDeleted += n
 	}
-	audit.Log(ctx, audit.Entry{
+	audit.Log(ctx, s.pool, audit.Entry{
 		Action:    "tenant:purge",
 		TableName: "tenants",
 		RecordID:  id,

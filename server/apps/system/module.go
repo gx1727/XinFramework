@@ -11,8 +11,11 @@ func init() {
 
 // Module 返回 system 模块的完整定义
 func Module() plugin.Module {
-	return plugin.NewModule("system", func(public *gin.RouterGroup, protected *gin.RouterGroup) {
-		h := NewHandler()
-		Register(public, protected, h)
-	})
+	return &plugin.BaseModule{
+		NameStr: "system",
+		RegFn: func(_ plugin.Reader, public *gin.RouterGroup, protected *gin.RouterGroup) {
+			h := NewHandler()
+			Register(public, protected, h)
+		},
+	}
 }

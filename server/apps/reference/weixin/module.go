@@ -3,7 +3,7 @@ package weixin
 import (
 	"github.com/gin-gonic/gin"
 
-	"gx1727.com/xin/framework/pkg/db"
+	"gx1727.com/xin/framework/pkg/bootx"
 	"gx1727.com/xin/framework/pkg/plugin"
 	"gx1727.com/xin/framework/pkg/session"
 )
@@ -23,6 +23,8 @@ func Module() plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "weixin",
 		InitFn: func(_ plugin.Reader, _ plugin.Writer) error {
+			// Phase 4: 通过 bootx 拿全局 config，注入 weixinCfg；service 不再直接调 config.Get()。
+			SetGlobalConfig(bootx.Config())
 			return InitConfig()
 		},
 		RegFn: func(ctx plugin.Reader, public *gin.RouterGroup, protected *gin.RouterGroup) {
@@ -39,7 +41,7 @@ func Module() plugin.Module {
 			}
 
 			svc := NewService(
-				db.Get(),
+				bootx.Pool(),
 				session.Manager(),
 				accountAuthRepo,
 				accountRepo,

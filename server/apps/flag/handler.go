@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"gx1727.com/xin/framework/pkg/config"
+	"gx1727.com/xin/framework/pkg/bootx"
 	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/logger"
@@ -31,7 +31,7 @@ func (h *Handler) ListFrames(c *gin.Context) {
 
 	var frames []Frame
 	var total int64
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		var err error
 		frames, total, err = frameRepo.List(ctx, req.CategoryID, req.Page, req.Size)
 		return err
@@ -58,7 +58,7 @@ func (h *Handler) GetFrame(c *gin.Context) {
 	}
 
 	var frame *Frame
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		var err error
 		frame, err = frameRepo.GetByID(ctx, req.ID)
 		return err
@@ -93,7 +93,7 @@ func (h *Handler) CreateFrame(c *gin.Context) {
 	}
 
 	var result *Frame
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		var err error
 		result, err = frameRepo.Create(ctx, frame)
 		return err
@@ -127,7 +127,7 @@ func (h *Handler) UpdateFrame(c *gin.Context) {
 		Status:      req.Status,
 	}
 
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		return frameRepo.Update(ctx, frame)
 	})
 	if err != nil {
@@ -147,7 +147,7 @@ func (h *Handler) DeleteFrame(c *gin.Context) {
 		return
 	}
 
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		return frameRepo.Delete(ctx, req.ID)
 	})
 	if err != nil {
@@ -163,7 +163,7 @@ func (h *Handler) DeleteFrame(c *gin.Context) {
 func (h *Handler) ListFrameCategories(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
 	var categories []FrameCategory
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		var err error
 		categories, err = frameCatRepo.List(ctx)
 		return err
@@ -195,7 +195,7 @@ func (h *Handler) CreateFrameCategory(c *gin.Context) {
 	}
 
 	var category *FrameCategory
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		var err error
 		category, err = frameCatRepo.Create(ctx, cat)
 		return err
@@ -226,7 +226,7 @@ func (h *Handler) UpdateFrameCategory(c *gin.Context) {
 		Status: req.Status,
 	}
 
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		return frameCatRepo.Update(ctx, cat)
 	})
 	if err != nil {
@@ -246,7 +246,7 @@ func (h *Handler) DeleteFrameCategory(c *gin.Context) {
 		return
 	}
 
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		return frameCatRepo.Delete(ctx, req.ID)
 	})
 	if err != nil {
@@ -360,10 +360,10 @@ func (h *Handler) GenerateAvatar(c *gin.Context) {
 	resultKey := fmt.Sprintf("flag/%d/%s.png", uc.TenantID, uuid.New().String())
 
 	baseURL := func() string {
-		if config.Get().Storage.Provider == "cos" {
-			return config.Get().Storage.CosBaseURL
+		if bootx.Config().Storage.Provider == "cos" {
+			return bootx.Config().Storage.CosBaseURL
 		}
-		return config.Get().Storage.LocalBaseURL
+		return bootx.Config().Storage.LocalBaseURL
 	}()
 
 	resultURL := fmt.Sprintf("%s/%s", baseURL, resultKey)
@@ -393,7 +393,7 @@ func (h *Handler) ListMyAvatars(c *gin.Context) {
 func (h *Handler) ListAvatarCategories(c *gin.Context) {
 	uc := xincontext.NewUserContext(c)
 	var categories []AvatarCategory
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		var err error
 		categories, err = avatarCatRepo.List(ctx)
 		return err
@@ -426,7 +426,7 @@ func (h *Handler) CreateAvatarCategory(c *gin.Context) {
 	}
 
 	var category *AvatarCategory
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		var err error
 		category, err = avatarCatRepo.Create(ctx, cat)
 		return err
@@ -458,7 +458,7 @@ func (h *Handler) UpdateAvatarCategory(c *gin.Context) {
 		Status: req.Status,
 	}
 
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		return avatarCatRepo.Update(ctx, cat)
 	})
 	if err != nil {
@@ -478,7 +478,7 @@ func (h *Handler) DeleteAvatarCategory(c *gin.Context) {
 		return
 	}
 
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		return avatarCatRepo.Delete(ctx, req.ID)
 	})
 	if err != nil {
@@ -501,7 +501,7 @@ func (h *Handler) ListAvatars(c *gin.Context) {
 
 	var avatars []Avatar
 	var total int64
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		var err error
 		avatars, total, err = avatarRepo.List(ctx, req.CategoryID, req.UserID, req.Type, req.Page, req.Size)
 		return err
@@ -528,7 +528,7 @@ func (h *Handler) GetAvatar(c *gin.Context) {
 	}
 
 	var avatar *Avatar
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		var err error
 		avatar, err = avatarRepo.GetByID(ctx, req.ID)
 		return err
@@ -570,7 +570,7 @@ func (h *Handler) CreateAvatar(c *gin.Context) {
 	}
 
 	var result *Avatar
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		var err error
 		result, err = avatarRepo.Create(ctx, avatar)
 		return err
@@ -602,7 +602,7 @@ func (h *Handler) UpdateAvatar(c *gin.Context) {
 		Status:       req.Status,
 	}
 
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		return avatarRepo.Update(ctx, avatar)
 	})
 	if err != nil {
@@ -622,7 +622,7 @@ func (h *Handler) DeleteAvatar(c *gin.Context) {
 		return
 	}
 
-	err := db.RunInTenantTx(c.Request.Context(), db.Get(), uc.TenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(c.Request.Context(), bootx.Pool(), uc.TenantID, func(ctx context.Context) error {
 		return avatarRepo.Delete(ctx, req.ID)
 	})
 	if err != nil {

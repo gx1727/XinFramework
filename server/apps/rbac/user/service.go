@@ -6,19 +6,22 @@ import (
 	"fmt"
 	"mime/multipart"
 
-	"gx1727.com/xin/apps/reference/asset"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"gx1727.com/xin/apps/rbac/organization"
 	"gx1727.com/xin/apps/rbac/role"
+	"gx1727.com/xin/apps/reference/asset"
 	pkgauth "gx1727.com/xin/framework/pkg/auth"
 	"gx1727.com/xin/framework/pkg/audit"
 	"gx1727.com/xin/framework/pkg/db"
 )
 
 type Service struct {
-	userRepo    UserRepository
-	roleRepo    role.RoleRepository
-	orgRepo     organization.OrganizationRepository
-	assetSvc    *asset.FileService
+	pool       *pgxpool.Pool
+	userRepo   UserRepository
+	roleRepo   role.RoleRepository
+	orgRepo    organization.OrganizationRepository
+	assetSvc   *asset.FileService
 	accountRepo pkgauth.AccountRepository
 }
 
@@ -47,7 +50,7 @@ func (s *Service) validateOrg(ctx context.Context, tenantID uint, orgID *uint) e
 // UpdateOrg 调整用户的主组织（orgID=nil 或 0 表示移出组织）。
 func (s *Service) UpdateOrg(ctx context.Context, tenantID, userID uint, orgID *uint) (*UserInfo, error) {
 	var info *UserInfo
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		// 校验目标存在 + 同租户
 		// 先读出旧 org_id，写审计要用
 		oldUser, err := s.userRepo.GetByIDScoped(ctx, userID)
@@ -100,7 +103,7 @@ func (s *Service) UpdateOrg(ctx context.Context, tenantID, userID uint, orgID *u
 			newOrgID = *u.OrgID
 		}
 		if oldOrgID != newOrgID {
-			audit.Log(ctx, audit.Entry{
+			audit.Log(ctx, s.pool, audit.Entry{
 				TenantID:  u.TenantID,
 				Action:    "user:org_change",
 				TableName: "users",
@@ -124,6 +127,7 @@ func (s *Service) UpdateOrg(ctx context.Context, tenantID, userID uint, orgID *u
 }
 
 func NewService(
+	pool *pgxpool.Pool,
 	userRepo UserRepository,
 	roleRepo role.RoleRepository,
 	orgRepo organization.OrganizationRepository,
@@ -131,6 +135,7 @@ func NewService(
 	accountRepo pkgauth.AccountRepository,
 ) *Service {
 	return &Service{
+		pool:        pool,
 		userRepo:    userRepo,
 		roleRepo:    roleRepo,
 		orgRepo:     orgRepo,
@@ -150,7 +155,7 @@ func (s *Service) List(ctx context.Context, tenantID uint, req listRequest) ([]U
 	var result []UserInfo
 	var total int64
 
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		users, t, err := s.userRepo.ListScoped(ctx, tenantID, req.Keyword, req.OrgID, req.Page, req.Size)
 		if err != nil {
 			return err
@@ -190,7 +195,7 @@ func (s *Service) List(ctx context.Context, tenantID uint, req listRequest) ([]U
 
 func (s *Service) Get(ctx context.Context, tenantID, userID uint) (*UserInfo, error) {
 	var info *UserInfo
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		u, err := s.userRepo.GetByIDScoped(ctx, userID)
 		if err != nil {
 			if errors.Is(err, ErrUserNotFoundDB) {
@@ -232,7 +237,7 @@ func (s *Service) Get(ctx context.Context, tenantID, userID uint) (*UserInfo, er
 }
 
 func (s *Service) UpdateStatus(ctx context.Context, tenantID, userID uint, status int8) error {
-	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	return db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		u, err := s.userRepo.GetByIDScoped(ctx, userID)
 		if err != nil {
 			return err
@@ -251,7 +256,7 @@ func (s *Service) UpdateStatus(ctx context.Context, tenantID, userID uint, statu
 // Update 全量更新；会校验租户归属
 func (s *Service) Update(ctx context.Context, tenantID, userID uint, req updateUserRequest) (*UserInfo, error) {
 	var info *UserInfo
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		if err := s.validateOrg(ctx, tenantID, req.OrgID); err != nil {
 			return err
 		}
@@ -298,7 +303,7 @@ func (s *Service) Update(ctx context.Context, tenantID, userID uint, req updateU
 // Patch 局部更新；nil 字段保持原值。空 body 等价于 GET
 func (s *Service) Patch(ctx context.Context, tenantID, userID uint, req patchUserRequest) (*UserInfo, error) {
 	var info *UserInfo
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		if err := s.validateOrg(ctx, tenantID, req.OrgID); err != nil {
 			return err
 		}
@@ -344,7 +349,7 @@ func (s *Service) Patch(ctx context.Context, tenantID, userID uint, req patchUse
 
 func (s *Service) Profile(ctx context.Context, tenantID, userID uint) (*UserInfo, error) {
 	var info *UserInfo
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		u, err := s.userRepo.GetByID(ctx, userID)
 		if err != nil {
 			if errors.Is(err, ErrUserNotFoundDB) {
@@ -388,7 +393,7 @@ func (s *Service) Profile(ctx context.Context, tenantID, userID uint) (*UserInfo
 
 func (s *Service) UploadAvatar(ctx context.Context, tenantID, userID uint, file *multipart.FileHeader) (string, error) {
 	var url string
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		uploadResp, err := s.assetSvc.Upload(ctx, tenantID, userID, file)
 		if err != nil {
 			return err
@@ -409,7 +414,7 @@ func (s *Service) UploadAvatar(ctx context.Context, tenantID, userID uint, file 
 }
 
 func (s *Service) UpdateProfile(ctx context.Context, tenantID, userID uint, nickname, avatar string) error {
-	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	return db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		u, err := s.userRepo.GetByID(ctx, userID)
 		if err != nil {
 			return err
@@ -432,7 +437,7 @@ func (s *Service) Create(ctx context.Context, tenantID, creatorID uint, req crea
 		newAccount  *pkgauth.Account
 	)
 
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		if s.accountRepo != nil {
 			exists, err := s.accountRepo.Exists(ctx, req.Username)
 			if err != nil {
@@ -458,7 +463,7 @@ func (s *Service) Create(ctx context.Context, tenantID, creatorID uint, req crea
 			return fmt.Errorf("create account: %w", err)
 		}
 
-		querier, err := db.GetQuerier(ctx)
+		querier, err := db.GetQuerier(ctx, s.pool)
 		if err != nil {
 			return fmt.Errorf("get querier: %w", err)
 		}

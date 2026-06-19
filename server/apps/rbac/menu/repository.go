@@ -20,7 +20,7 @@ func NewMenuRepository(db *pgxpool.Pool) MenuRepository {
 }
 
 func (r *PostgresMenuRepository) GetByID(ctx context.Context, id uint) (_ *Menu, err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (r *PostgresMenuRepository) GetByID(ctx context.Context, id uint) (_ *Menu,
 }
 
 func (r *PostgresMenuRepository) GetByCode(ctx context.Context, tenantID uint, code string) (_ *Menu, err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (r *PostgresMenuRepository) GetByCode(ctx context.Context, tenantID uint, c
 }
 
 func (r *PostgresMenuRepository) GetByTenant(ctx context.Context, tenantID uint) (_ []Menu, err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (r *PostgresMenuRepository) GetByTenant(ctx context.Context, tenantID uint)
 }
 
 func (r *PostgresMenuRepository) GetUserMenus(ctx context.Context, tenantID, userID uint) (_ []Menu, err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (r *PostgresMenuRepository) GetUserMenus(ctx context.Context, tenantID, use
 }
 
 func (r *PostgresMenuRepository) Create(ctx context.Context, tenantID uint, req CreateMenuRepoReq) (_ *Menu, err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func (r *PostgresMenuRepository) Create(ctx context.Context, tenantID uint, req 
 }
 
 func (r *PostgresMenuRepository) Update(ctx context.Context, id uint, req UpdateMenuRepoReq) (_ *Menu, err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (r *PostgresMenuRepository) Update(ctx context.Context, id uint, req Update
 }
 
 func (r *PostgresMenuRepository) Delete(ctx context.Context, tenantID, id uint) (err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}

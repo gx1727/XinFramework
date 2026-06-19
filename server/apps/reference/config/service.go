@@ -1,4 +1,4 @@
-// Package config 通用配置 - 服务层
+﻿// Package config 通用配置 - 服务层
 package config
 
 import (
@@ -6,24 +6,27 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"gx1727.com/xin/framework/pkg/audit"
 	"gx1727.com/xin/framework/pkg/db"
 )
 
 type Service struct {
+	pool  *pgxpool.Pool
 	repo  ConfigRepository
 	cache *Cache
 }
 
-func NewService(repo ConfigRepository, cache *Cache) *Service {
-	return &Service{repo: repo, cache: cache}
+func NewService(pool *pgxpool.Pool, repo ConfigRepository, cache *Cache) *Service {
+	return &Service{pool: pool, repo: repo, cache: cache}
 }
 
 // =============== Group ===============
 
 func (s *Service) ListGroups(ctx context.Context, tenantID uint) ([]ConfigGroup, error) {
 	var groups []ConfigGroup
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		var err error
 		groups, err = s.repo.ListGroups(ctx, tenantID)
 		return err
@@ -33,7 +36,7 @@ func (s *Service) ListGroups(ctx context.Context, tenantID uint) ([]ConfigGroup,
 
 func (s *Service) CreateGroup(ctx context.Context, tenantID uint, req createGroupRequest) (*ConfigGroup, error) {
 	var g *ConfigGroup
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		created, err := s.repo.CreateGroup(ctx, tenantID, CreateGroupRepoReq{
 			Code:        req.Code,
 			Name:        req.Name,
@@ -47,7 +50,7 @@ func (s *Service) CreateGroup(ctx context.Context, tenantID uint, req createGrou
 			return err
 		}
 		g = created
-		audit.Log(ctx, audit.Entry{
+		audit.Log(ctx, s.pool, audit.Entry{
 			Action:    "config_group:create",
 			TableName: "config_groups",
 			RecordID:  g.ID,
@@ -62,7 +65,7 @@ func (s *Service) CreateGroup(ctx context.Context, tenantID uint, req createGrou
 
 func (s *Service) UpdateGroup(ctx context.Context, tenantID, id uint, req updateGroupRequest) (*ConfigGroup, error) {
 	var g *ConfigGroup
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		old, err := s.repo.GetGroupByID(ctx, id)
 		if err != nil {
 			return err
@@ -82,7 +85,7 @@ func (s *Service) UpdateGroup(ctx context.Context, tenantID, id uint, req update
 			return err
 		}
 		g = updated
-		audit.Log(ctx, audit.Entry{
+		audit.Log(ctx, s.pool, audit.Entry{
 			Action:    "config_group:update",
 			TableName: "config_groups",
 			RecordID:  g.ID,
@@ -98,7 +101,7 @@ func (s *Service) UpdateGroup(ctx context.Context, tenantID, id uint, req update
 }
 
 func (s *Service) DeleteGroup(ctx context.Context, tenantID, id uint) error {
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		g, err := s.repo.GetGroupByID(ctx, id)
 		if err != nil {
 			return err
@@ -120,7 +123,7 @@ func (s *Service) DeleteGroup(ctx context.Context, tenantID, id uint) error {
 		if err := s.repo.DeleteGroup(ctx, id); err != nil {
 			return err
 		}
-		audit.Log(ctx, audit.Entry{
+		audit.Log(ctx, s.pool, audit.Entry{
 			Action:    "config_group:delete",
 			TableName: "config_groups",
 			RecordID:  g.ID,
@@ -138,7 +141,7 @@ func (s *Service) DeleteGroup(ctx context.Context, tenantID, id uint) error {
 
 func (s *Service) ListItemsByGroup(ctx context.Context, tenantID, groupID uint) ([]ConfigItem, error) {
 	var items []ConfigItem
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		g, err := s.repo.GetGroupByID(ctx, groupID)
 		if err != nil {
 			return err
@@ -154,7 +157,7 @@ func (s *Service) ListItemsByGroup(ctx context.Context, tenantID, groupID uint) 
 
 func (s *Service) ListItemsByTenant(ctx context.Context, tenantID uint) ([]ConfigItem, error) {
 	var items []ConfigItem
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		var err error
 		items, err = s.repo.ListItemsByTenant(ctx, tenantID)
 		return err
@@ -168,7 +171,7 @@ func (s *Service) CreateItem(ctx context.Context, tenantID, groupID uint, req cr
 		return nil, err
 	}
 	var item *ConfigItem
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		g, err := s.repo.GetGroupByID(ctx, groupID)
 		if err != nil {
 			return err
@@ -199,7 +202,7 @@ func (s *Service) CreateItem(ctx context.Context, tenantID, groupID uint, req cr
 			return err
 		}
 		item = created
-		audit.Log(ctx, audit.Entry{
+		audit.Log(ctx, s.pool, audit.Entry{
 			Action:    "config_item:create",
 			TableName: "config_items",
 			RecordID:  item.ID,
@@ -217,7 +220,7 @@ func (s *Service) CreateItem(ctx context.Context, tenantID, groupID uint, req cr
 
 func (s *Service) UpdateItem(ctx context.Context, tenantID, id uint, req updateItemRequest) (*ConfigItem, error) {
 	var item *ConfigItem
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		old, err := s.repo.GetItemByID(ctx, id)
 		if err != nil {
 			return err
@@ -247,7 +250,7 @@ func (s *Service) UpdateItem(ctx context.Context, tenantID, id uint, req updateI
 			return err
 		}
 		item = updated
-		audit.Log(ctx, audit.Entry{
+		audit.Log(ctx, s.pool, audit.Entry{
 			Action:    "config_item:update",
 			TableName: "config_items",
 			RecordID:  item.ID,
@@ -264,7 +267,7 @@ func (s *Service) UpdateItem(ctx context.Context, tenantID, id uint, req updateI
 
 func (s *Service) ResetItem(ctx context.Context, tenantID, id uint) (*ConfigItem, error) {
 	var item *ConfigItem
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		old, err := s.repo.GetItemByID(ctx, id)
 		if err != nil {
 			return err
@@ -280,7 +283,7 @@ func (s *Service) ResetItem(ctx context.Context, tenantID, id uint) (*ConfigItem
 			return err
 		}
 		item = updated
-		audit.Log(ctx, audit.Entry{
+		audit.Log(ctx, s.pool, audit.Entry{
 			Action:    "config_item:reset",
 			TableName: "config_items",
 			RecordID:  item.ID,
@@ -296,7 +299,7 @@ func (s *Service) ResetItem(ctx context.Context, tenantID, id uint) (*ConfigItem
 }
 
 func (s *Service) DeleteItem(ctx context.Context, tenantID, id uint) error {
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		old, err := s.repo.GetItemByID(ctx, id)
 		if err != nil {
 			return err
@@ -310,7 +313,7 @@ func (s *Service) DeleteItem(ctx context.Context, tenantID, id uint) error {
 		if err := s.repo.DeleteItem(ctx, id); err != nil {
 			return err
 		}
-		audit.Log(ctx, audit.Entry{
+		audit.Log(ctx, s.pool, audit.Entry{
 			Action:    "config_item:delete",
 			TableName: "config_items",
 			RecordID:  old.ID,
@@ -343,7 +346,7 @@ func (s *Service) GetPublicByGroup(ctx context.Context, tenantID uint, groupCode
 	}
 	// 缓存未命中：拉全量 + 缓存（这里仅 public 项）
 	var publicAll []ConfigItem
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		var err error
 		publicAll, err = s.repo.ListPublicItemsByTenant(ctx, tenantID)
 		return err

@@ -1,4 +1,4 @@
-package weixin
+﻿package weixin
 
 import (
 	"context"
@@ -27,6 +27,7 @@ const (
 )
 
 type Service struct {
+	cfg             *config.Config
 	db              *pgxpool.Pool
 	session         SessionManager
 	accountAuthRepo pkgauth.AccountAuthRepository
@@ -52,6 +53,7 @@ func NewService(
 	userRepo pkgrbac.UserRepository,
 ) *Service {
 	return &Service{
+		cfg:             weixinCfg,
 		db:              db,
 		session:         session,
 		accountAuthRepo: accountAuthRepo,
@@ -242,7 +244,7 @@ func (s *Service) LoginByWeChat(ctx context.Context, code string) (*LoginResult,
 	isNewUser := false
 
 	err = db.RunInTenantTx(ctx, s.db, tenantID, func(ctx context.Context) error {
-		q, err := db.GetQuerier(ctx)
+		q, err := db.GetQuerier(ctx, s.db)
 		if err != nil {
 			return err
 		}
@@ -335,7 +337,7 @@ func (s *Service) LoginByWeChat(ctx context.Context, code string) (*LoginResult,
 }
 
 func (s *Service) getOrCreateDefaultTenant(ctx context.Context) (*tenantLocal, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, s.db)
 	if err != nil {
 		return nil, err
 	}
@@ -377,7 +379,7 @@ func (s *Service) createWeChatUser(ctx context.Context, tenantID uint, openID, u
 	var userCode string
 
 	err := db.RunInTenantTx(ctx, s.db, tenantID, func(ctx context.Context) error {
-		q, err := db.GetQuerier(ctx)
+		q, err := db.GetQuerier(ctx, s.db)
 		if err != nil {
 			return err
 		}
@@ -447,7 +449,7 @@ func (s *Service) createWeChatUser(ctx context.Context, tenantID uint, openID, u
 }
 
 func (s *Service) generateUserCode(ctx context.Context, tenantID uint) (string, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, s.db)
 	if err != nil {
 		return "", err
 	}
@@ -471,18 +473,18 @@ type tokenPair struct {
 
 func (s *Service) generateTokens(ctx context.Context, userID, tenantID uint, role string) (*tokenPair, error) {
 	sessionID := uuid.NewString()
-	refreshTTL := time.Duration(config.Get().JWT.RefreshExpire) * time.Second
+	refreshTTL := time.Duration(s.cfg.JWT.RefreshExpire) * time.Second
 
 	if err := s.session.Create(sessionID, userID, tenantID, role, refreshTTL); err != nil {
 		return nil, err
 	}
 
-	accessToken, err := jwtpkg.Generate(&config.Get().JWT, userID, tenantID, role, sessionID)
+	accessToken, err := jwtpkg.Generate(&s.cfg.JWT, userID, tenantID, role, sessionID)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := jwtpkg.GenerateWithType(&config.Get().JWT, userID, tenantID, role, sessionID, jwtpkg.TokenTypeRefresh)
+	refreshToken, err := jwtpkg.GenerateWithType(&s.cfg.JWT, userID, tenantID, role, sessionID, jwtpkg.TokenTypeRefresh)
 	if err != nil {
 		return nil, err
 	}
@@ -510,7 +512,7 @@ func (s *Service) UpdatePhoneByWeChat(ctx context.Context, userID uint, code str
 	}
 
 	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	err = db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err = db.RunInTenantTx(ctx, s.db, tenantID, func(ctx context.Context) error {
 		return s.userRepo.UpdatePhone(ctx, userID, phone)
 	})
 	if err != nil {

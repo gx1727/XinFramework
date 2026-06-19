@@ -39,7 +39,7 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 	var identity LoginIdentity
 
 	err := db.RunInTenantTx(ctx, d, tenantID, func(ctx context.Context) error {
-		querier, err := db.GetQuerier(ctx)
+		querier, err := db.GetQuerier(ctx, d)
 		if err != nil {
 			return err
 		}
@@ -321,7 +321,7 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 			return ErrRegisterFailed
 		}
 
-		querier, err := db.GetQuerier(ctx)
+		querier, err := db.GetQuerier(ctx, s.db)
 		if err != nil {
 			return ErrRegisterFailed
 		}

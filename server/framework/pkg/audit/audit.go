@@ -11,6 +11,8 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/logger"
@@ -29,7 +31,9 @@ type Entry struct {
 }
 
 // Log 写一条审计记录。错误仅记日志，不返回给业务路径。
-func Log(ctx context.Context, e Entry) {
+//
+// Phase 4: 显式传入 pool，不再依赖 db.GetQuerier(ctx) 全局访问器。
+func Log(ctx context.Context, pool *pgxpool.Pool, e Entry) {
 	tenantID := e.TenantID
 	userID := e.UserID
 	if xc, ok := xincontext.XinContextFrom(ctx); ok && xc != nil {
@@ -48,7 +52,7 @@ func Log(ctx context.Context, e Entry) {
 	oldJSON, _ := json.Marshal(e.OldData)
 	newJSON, _ := json.Marshal(e.NewData)
 
-	querier, err := db.GetQuerier(ctx)
+	querier, err := db.GetQuerier(ctx, pool)
 	if err != nil {
 		logger.Module("audit").Warnf("[Log] no querier: %v", err)
 		return

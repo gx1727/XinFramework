@@ -20,7 +20,7 @@ func NewAvatarRepository(pool *pgxpool.Pool) *AvatarRepository {
 }
 
 func (r *AvatarRepository) List(ctx context.Context, categoryID, userID uint, avatarType string, page, size int) (_ []Avatar, _ int64, err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -98,7 +98,7 @@ func (r *AvatarRepository) List(ctx context.Context, categoryID, userID uint, av
 }
 
 func (r *AvatarRepository) GetByID(ctx context.Context, id uint) (_ *Avatar, err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func (r *AvatarRepository) GetByID(ctx context.Context, id uint) (_ *Avatar, err
 }
 
 func (r *AvatarRepository) Create(ctx context.Context, avatar *Avatar) (_ *Avatar, err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func (r *AvatarRepository) Create(ctx context.Context, avatar *Avatar) (_ *Avata
 }
 
 func (r *AvatarRepository) Update(ctx context.Context, avatar *Avatar) (err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}
@@ -208,7 +208,7 @@ func (r *AvatarRepository) Update(ctx context.Context, avatar *Avatar) (err erro
 }
 
 func (r *AvatarRepository) Delete(ctx context.Context, id uint) (err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}

@@ -67,8 +67,10 @@ func runServer(cfg *config.Config) {
 		log.Fatalf("module init failed: %v", err)
 	}
 
-	// 执行数据迁移
-	runMigrations()
+	// 执行数据迁移（pool 由 boot 持有）
+	if err := migrate.Run(app.DB, "migrations"); err != nil {
+		log.Fatalf("migrations failed: %v", err)
+	}
 
 	// 配置路由和中间件
 	setupRouter(app)
@@ -134,12 +136,6 @@ func buildAppContextForModule(appCtx *plugin.AppContext) (plugin.Reader, plugin.
 	return appCtx, appCtx
 }
 
-func runMigrations() {
-	if err := migrate.Run("migrations"); err != nil {
-		log.Fatalf("migrations failed: %v", err)
-	}
-}
-
 func setupRouter(app *boot.App) {
 	srv := app.Server
 	cfg := app.Config
@@ -159,10 +155,10 @@ func setupRouter(app *boot.App) {
 func registerModules(r *gin.Engine, cfg *config.Config, app *boot.App) {
 	v1 := r.Group("/api/v1")
 	public := v1.Group("")
-	public.Use(middleware.OptionalAuth(&cfg.JWT, app.SessionMgr, app.Authz))
+	public.Use(middleware.OptionalAuth(&cfg.JWT, app.SessionMgr, app.Authz, app.DB))
 
 	protected := v1.Group("")
-	protected.Use(middleware.Auth(&cfg.JWT, app.SessionMgr, app.Authz))
+	protected.Use(middleware.Auth(&cfg.JWT, app.SessionMgr, app.Authz, app.DB))
 
 	enabled := make(map[string]bool, len(cfg.Module))
 	for _, name := range cfg.Module {

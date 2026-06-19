@@ -3,7 +3,7 @@ package resource
 import (
 	"github.com/gin-gonic/gin"
 
-	"gx1727.com/xin/framework/pkg/db"
+	"gx1727.com/xin/framework/pkg/bootx"
 	"gx1727.com/xin/framework/pkg/plugin"
 )
 
@@ -12,9 +12,6 @@ func init() {
 }
 
 // Module returns the resource module as a BaseModule.
-//
-// Phase 5 Step 6: pulls Authorization from AppContext.Reader to
-// invalidate user permission cache after resource changes.
 func Module() plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "resource",
@@ -22,7 +19,7 @@ func Module() plugin.Module {
 			return nil
 		},
 		RegFn: func(ctx plugin.Reader, _ *gin.RouterGroup, protected *gin.RouterGroup) {
-			pool := db.Get()
+			pool := bootx.Pool()
 			authzSvc := ctx.Authz()
 			h := NewHandler(NewService(NewResourceRepository(pool), authzSvc))
 			Register(protected, h)

@@ -20,7 +20,7 @@ func NewPermissionRepository(db *pgxpool.Pool) *PostgresPermissionRepository {
 // GetUserPermissions returns map of "resource:action" -> true
 // Joins through: users -> user_roles -> roles -> role_resources -> resources
 func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, userID uint) (map[string]bool, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, u
 
 // GetUserRoles returns role codes for a user
 func (r *PostgresPermissionRepository) GetUserRoles(ctx context.Context, userID uint) ([]string, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (r *PostgresPermissionRepository) GetUserRoles(ctx context.Context, userID 
 
 // GetUserIDsByRole returns all user IDs that have the given role
 func (r *PostgresPermissionRepository) GetUserIDsByRole(ctx context.Context, roleID uint) ([]uint, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (r *PostgresPermissionRepository) GetUserIDsByRole(ctx context.Context, rol
 
 // GetUserIDsByResource returns all user IDs whose roles reference the given resource
 func (r *PostgresPermissionRepository) GetUserIDsByResource(ctx context.Context, resourceID uint) ([]uint, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +163,7 @@ func NewDataScopeRepository(db *pgxpool.Pool) *PostgresDataScopeRepository {
 // GetDataScope returns the data scope for a user based on their roles
 // Takes the most permissive scope if user has multiple roles
 func (r *PostgresDataScopeRepository) GetDataScope(ctx context.Context, userID uint) (*DataScope, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +215,7 @@ func (r *PostgresDataScopeRepository) GetDataScope(ctx context.Context, userID u
 
 // GetUserOrgID returns the user's organization ID
 func (r *PostgresDataScopeRepository) GetUserOrgID(ctx context.Context, userID uint) (int64, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return 0, err
 	}
@@ -232,7 +232,7 @@ func (r *PostgresDataScopeRepository) GetUserOrgID(ctx context.Context, userID u
 
 // GetByRoleID returns org_ids for a role's custom data scope
 func (r *PostgresDataScopeRepository) GetByRoleID(ctx context.Context, roleID uint) ([]uint, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +257,7 @@ func (r *PostgresDataScopeRepository) GetByRoleID(ctx context.Context, roleID ui
 
 // SetForRole replaces all data scopes for a role
 func (r *PostgresDataScopeRepository) SetForRole(ctx context.Context, roleID uint, orgIDs []uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}

@@ -13,8 +13,19 @@ type WxxcxConfig struct {
 var wxxcxCfg *WxxcxConfig
 var weixinLogger *logger.Logger
 
+// weixinCfg 持有整个 *config.Config，主要给 generateTokens 用 JWT 配置。
+// 与 wxxcxCfg 的区别：wxxcxCfg 只装 weixin 自己的子段，weixinCfg 是全局。
+// 过渡期字段，未来 main.go 显式 Build 后应改为显式注入到 NewService。
+var weixinCfg *config.Config
+
 func Cfg() *WxxcxConfig {
 	return wxxcxCfg
+}
+
+// SetGlobalConfig 让模块入口在 boot 阶段把全局 config 注入进来，
+// 避免 service 直接调用 pkgconfig.Get()。
+func SetGlobalConfig(c *config.Config) {
+	weixinCfg = c
 }
 
 func InitConfig() error {

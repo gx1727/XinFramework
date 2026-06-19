@@ -114,7 +114,7 @@ func upsertBootstrapUser(ctx context.Context, pool *pgxpool.Pool, accountID uint
 	var userID uint
 	var userCreated bool
 	err = db.RunInTenantTx(ctx, pool, tenantID, func(ctx context.Context) error {
-		querier, err := db.GetQuerier(ctx)
+		querier, err := db.GetQuerier(ctx, pool)
 		if err != nil {
 			return err
 		}

@@ -20,7 +20,7 @@ func NewResourceRepository(db *pgxpool.Pool) ResourceRepository {
 }
 
 func (r *PostgresResourceRepository) GetByID(ctx context.Context, id uint) (*Resource, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (r *PostgresResourceRepository) GetByID(ctx context.Context, id uint) (*Res
 }
 
 func (r *PostgresResourceRepository) GetByCode(ctx context.Context, tenantID uint, code string) (*Resource, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (r *PostgresResourceRepository) GetByCode(ctx context.Context, tenantID uin
 }
 
 func (r *PostgresResourceRepository) GetByTenant(ctx context.Context, tenantID uint) ([]Resource, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (r *PostgresResourceRepository) GetByTenant(ctx context.Context, tenantID u
 }
 
 func (r *PostgresResourceRepository) GetByMenu(ctx context.Context, menuID uint) ([]Resource, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func (r *PostgresResourceRepository) GetByMenu(ctx context.Context, menuID uint)
 }
 
 func (r *PostgresResourceRepository) GetUserResources(ctx context.Context, tenantID, userID uint) ([]Resource, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func (r *PostgresResourceRepository) GetUserResources(ctx context.Context, tenan
 
 // GetUserResourcesByMenu 查询当前用户在指定菜单下可访问的资源（包括全局资源 menu_id IS NULL）
 func (r *PostgresResourceRepository) GetUserResourcesByMenu(ctx context.Context, tenantID, userID, menuID uint) ([]Resource, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +212,7 @@ func (r *PostgresResourceRepository) GetUserResourcesByMenu(ctx context.Context,
 }
 
 func (r *PostgresResourceRepository) Create(ctx context.Context, tenantID uint, req CreateResourceRepoReq) (*Resource, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +235,7 @@ func (r *PostgresResourceRepository) Create(ctx context.Context, tenantID uint, 
 }
 
 func (r *PostgresResourceRepository) Update(ctx context.Context, id uint, req UpdateResourceRepoReq) (*Resource, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +258,7 @@ func (r *PostgresResourceRepository) Update(ctx context.Context, id uint, req Up
 }
 
 func (r *PostgresResourceRepository) Delete(ctx context.Context, id uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}

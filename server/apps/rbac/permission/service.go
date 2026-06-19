@@ -5,8 +5,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/authz"
+	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
 )
 
@@ -33,7 +33,7 @@ func (s *Service) GetPermissions(ctx context.Context, roleID uint) ([]ResourcePe
 
 // AssignPermissions 全量覆盖角色的资源权限
 func (s *Service) AssignPermissions(ctx context.Context, tenantID, roleID uint, req AssignResourceReq) error {
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.db, tenantID, func(ctx context.Context) error {
 		return s.roleResourceRepo.SetForRole(ctx, roleID, req.ResourceIDs)
 	})
 	if err != nil {
@@ -54,7 +54,7 @@ func (s *Service) GetResources(ctx context.Context, roleID uint) ([]ResourcePerm
 
 	result := make([]ResourcePerm, 0)
 
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.db, tenantID, func(ctx context.Context) error {
 		resourceIDs, err := s.roleResourceRepo.GetByRoleID(ctx, roleID)
 		if err != nil {
 			return err
@@ -66,7 +66,7 @@ func (s *Service) GetResources(ctx context.Context, roleID uint) ([]ResourcePerm
 				id, menuID         uint
 				code, name, action string
 			)
-			q, qErr := db.GetQuerier(ctx)
+			q, qErr := db.GetQuerier(ctx, s.db)
 			if qErr != nil {
 				continue
 			}

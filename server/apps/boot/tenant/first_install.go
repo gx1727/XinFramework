@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/db"
 )
 
@@ -38,9 +39,11 @@ type FirstInstallReport struct {
 //   - resources 用 code 重映射 menu_id
 //   - dicts + dict_items 用 code 重映射 dict_id
 //   - admin role 绑定所有菜单 + 超级资源 *:*（resources 复制时已包含）
-func firstInstall(ctx context.Context, tenantID uint, adminAccountID uint) (*FirstInstallReport, error) {
+//
+// Phase 4: 显式传入 pool（free function，无 receiver）。
+func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminAccountID uint) (*FirstInstallReport, error) {
 	rep := &FirstInstallReport{}
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, pool)
 	if err != nil {
 		return nil, err
 	}

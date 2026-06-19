@@ -1,9 +1,11 @@
-package organization
+﻿package organization
 
 import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"gx1727.com/xin/framework/pkg/audit"
 	xincontext "gx1727.com/xin/framework/pkg/context"
@@ -11,17 +13,18 @@ import (
 )
 
 type Service struct {
+	pool    *pgxpool.Pool
 	orgRepo OrganizationRepository
 }
 
-func NewService(orgRepo OrganizationRepository) *Service {
-	return &Service{orgRepo: orgRepo}
+func NewService(pool *pgxpool.Pool, orgRepo OrganizationRepository) *Service {
+	return &Service{pool: pool, orgRepo: orgRepo}
 }
 
 func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]OrgResp, int64, error) {
 	var orgs []Organization
 
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		var err error
 		if req.ParentID > 0 {
 			orgs, err = s.orgRepo.GetChildrenScoped(ctx, req.ParentID)
@@ -52,7 +55,7 @@ func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]OrgRe
 func (s *Service) Get(ctx context.Context, id uint) (*OrgResp, error) {
 	tenantID, _ := xincontext.TenantIDFrom(ctx)
 	var org *Organization
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		var err error
 		org, err = s.orgRepo.GetByIDScoped(ctx, id)
 		return err
@@ -70,7 +73,7 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Or
 	}
 
 	var org *Organization
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		// Build ancestors path
 		ancestors := fmt.Sprintf("%d", req.ParentID)
 		if req.ParentID > 0 {
@@ -105,7 +108,7 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Or
 func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*OrgResp, error) {
 	tenantID, _ := xincontext.TenantIDFrom(ctx)
 	var org *Organization
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		if _, err := s.orgRepo.GetByIDScoped(ctx, id); err != nil {
 			return err
 		}
@@ -129,7 +132,7 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*OrgResp,
 
 func (s *Service) Delete(ctx context.Context, id uint) error {
 	tenantID, _ := xincontext.TenantIDFrom(ctx)
-	return db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	return db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		org, err := s.orgRepo.GetByIDScoped(ctx, id)
 		if err != nil {
 			return err
@@ -161,7 +164,7 @@ func (s *Service) Delete(ctx context.Context, id uint) error {
 		}
 
 		// 2) 审计：记录组织软删除事件
-		audit.Log(ctx, audit.Entry{
+		audit.Log(ctx, s.pool, audit.Entry{
 			TenantID:  org.TenantID,
 			Action:    "org:delete",
 			TableName: "organizations",
@@ -182,7 +185,7 @@ func (s *Service) Delete(ctx context.Context, id uint) error {
 
 func (s *Service) GetTree(ctx context.Context, tenantID uint) ([]OrgResp, error) {
 	var orgs []Organization
-	err := db.RunInTenantTx(ctx, db.Get(), tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		var err error
 		orgs, err = s.orgRepo.GetTreeScoped(ctx, tenantID)
 		return err

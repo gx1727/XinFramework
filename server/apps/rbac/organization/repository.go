@@ -43,7 +43,7 @@ func rebindScopeSQL(sql string, from, to int) string {
 }
 
 func (r *PostgresOrganizationRepository) GetByID(ctx context.Context, id uint) (*Organization, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func (r *PostgresOrganizationRepository) GetByID(ctx context.Context, id uint) (
 }
 
 func (r *PostgresOrganizationRepository) GetByIDScoped(ctx context.Context, id uint) (*Organization, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func (r *PostgresOrganizationRepository) GetByIDScoped(ctx context.Context, id u
 }
 
 func (r *PostgresOrganizationRepository) GetByCode(ctx context.Context, tenantID uint, code string) (*Organization, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (r *PostgresOrganizationRepository) GetByCode(ctx context.Context, tenantID
 }
 
 func (r *PostgresOrganizationRepository) GetByTenant(ctx context.Context, tenantID uint) ([]Organization, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (r *PostgresOrganizationRepository) GetByTenant(ctx context.Context, tenant
 }
 
 func (r *PostgresOrganizationRepository) GetByTenantScoped(ctx context.Context, tenantID uint) ([]Organization, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func (r *PostgresOrganizationRepository) GetByTenantScoped(ctx context.Context, 
 // CountUsersInOrgTree 统计本组织及其所有后代下的未删除用户数。
 // 用 ancestors 字符串前缀匹配才能一次扫到后代，不依赖 ltree 扩展。
 func (r *PostgresOrganizationRepository) CountUsersInOrgTree(ctx context.Context, orgID uint) (int64, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return 0, err
 	}
@@ -212,7 +212,7 @@ func (r *PostgresOrganizationRepository) CountUsersInOrgTree(ctx context.Context
 }
 
 func (r *PostgresOrganizationRepository) CountChildren(ctx context.Context, parentID uint) (int64, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return 0, err
 	}
@@ -222,7 +222,7 @@ func (r *PostgresOrganizationRepository) CountChildren(ctx context.Context, pare
 }
 
 func (r *PostgresOrganizationRepository) GetChildren(ctx context.Context, parentID uint) ([]Organization, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func (r *PostgresOrganizationRepository) GetChildren(ctx context.Context, parent
 }
 
 func (r *PostgresOrganizationRepository) GetChildrenScoped(ctx context.Context, parentID uint) ([]Organization, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +292,7 @@ func (r *PostgresOrganizationRepository) GetChildrenScoped(ctx context.Context, 
 }
 
 func (r *PostgresOrganizationRepository) GetTree(ctx context.Context, tenantID uint) ([]Organization, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +321,7 @@ func (r *PostgresOrganizationRepository) GetTree(ctx context.Context, tenantID u
 }
 
 func (r *PostgresOrganizationRepository) GetTreeScoped(ctx context.Context, tenantID uint) ([]Organization, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -362,7 +362,7 @@ func (r *PostgresOrganizationRepository) GetTreeScoped(ctx context.Context, tena
 }
 
 func (r *PostgresOrganizationRepository) Create(ctx context.Context, tenantID uint, req CreateOrgRepoReq) (*Organization, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -382,7 +382,7 @@ func (r *PostgresOrganizationRepository) Create(ctx context.Context, tenantID ui
 }
 
 func (r *PostgresOrganizationRepository) Update(ctx context.Context, id uint, req UpdateOrgRepoReq) (*Organization, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +405,7 @@ func (r *PostgresOrganizationRepository) Update(ctx context.Context, id uint, re
 }
 
 func (r *PostgresOrganizationRepository) Delete(ctx context.Context, id uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}

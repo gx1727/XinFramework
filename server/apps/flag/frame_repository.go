@@ -20,7 +20,7 @@ func NewFrameRepository(pool *pgxpool.Pool) *FrameRepository {
 }
 
 func (r *FrameRepository) List(ctx context.Context, categoryID uint, page, size int) (_ []Frame, _ int64, err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -80,7 +80,7 @@ func (r *FrameRepository) List(ctx context.Context, categoryID uint, page, size 
 }
 
 func (r *FrameRepository) GetByID(ctx context.Context, id uint) (_ *Frame, err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (r *FrameRepository) GetByID(ctx context.Context, id uint) (_ *Frame, err e
 }
 
 func (r *FrameRepository) Create(ctx context.Context, frame *Frame) (_ *Frame, err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +154,7 @@ func (r *FrameRepository) Create(ctx context.Context, frame *Frame) (_ *Frame, e
 }
 
 func (r *FrameRepository) Update(ctx context.Context, frame *Frame) (err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}
@@ -177,7 +177,7 @@ func (r *FrameRepository) Update(ctx context.Context, frame *Frame) (err error) 
 }
 
 func (r *FrameRepository) Delete(ctx context.Context, id uint) (err error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}

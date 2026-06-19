@@ -4,8 +4,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"gx1727.com/xin/framework/pkg/bootx"
 	xincontext "gx1727.com/xin/framework/pkg/context"
-	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/extapi"
 	"gx1727.com/xin/framework/pkg/resp"
 )
@@ -21,7 +21,7 @@ type Handler struct {
 // NewHandler 创建 Handler 实例
 func NewHandler() *Handler {
 	return &Handler{
-		posts:    NewCmsPostRepository(db.Get()),
+		posts:    NewCmsPostRepository(bootx.Pool()),
 		provider: extapi.Get(),
 	}
 }

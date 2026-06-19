@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/config"
 	xinContext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
@@ -47,7 +48,9 @@ func processAuthToken(c *gin.Context, cfg *config.JWTConfig, sm session.SessionM
 }
 
 // injectAuthContext loads permissions and injects UserContext and XinContext into the request
-func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc SecurityContextLoader) {
+//
+// Phase 4: 显式传入 pool；不再依赖 db.Get() 全局。
+func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc SecurityContextLoader, pool *pgxpool.Pool) {
 	ctx := c.Request.Context()
 
 	// 始终优先装配轻量的 XinContext（包含了身份的基本标识）
@@ -83,7 +86,7 @@ func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc SecurityCo
 			var dsPtr *permission.DataScope
 			// 因为 RLS 策略强制要求 tenant_id，我们需要包裹在租户事务中
 			// 只有设置了 app.tenant_id 才能查询出 users/roles/permissions
-			err := db.RunInTenantTx(ctx, db.Get(), claims.TenantID, func(txCtx context.Context) error {
+			err := db.RunInTenantTx(ctx, pool, claims.TenantID, func(txCtx context.Context) error {
 				var err error
 				perms, roles, dsPtr, orgID, err = permSvc.LoadUserSecurityContext(txCtx, claims.UserID)
 				return err
@@ -106,7 +109,9 @@ func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc SecurityCo
 }
 
 // Auth 认证中间件 - 验证 JWT Token 和 Session
-func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityContextLoader) gin.HandlerFunc {
+//
+// Phase 4: 显式传入 pool；中间件内部不再依赖 db.Get() 全局。
+func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityContextLoader, pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		claims, err := processAuthToken(c, cfg, sm)
 		if err != nil {
@@ -121,7 +126,7 @@ func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityCont
 			return
 		}
 
-		injectAuthContext(c, claims, permSvc)
+		injectAuthContext(c, claims, permSvc, pool)
 		c.Next()
 	}
 }
@@ -177,12 +182,14 @@ func AuthLite(cfg *config.JWTConfig, sm session.SessionManager) gin.HandlerFunc 
 }
 
 // OptionalAuth 可选认证中间件 - 如果有 Token 则解析并注入上下文，没有或无效也继续执行
-func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityContextLoader) gin.HandlerFunc {
+//
+// Phase 4: 显式传入 pool；中间件内部不再依赖 db.Get() 全局。
+func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityContextLoader, pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		claims, err := processAuthToken(c, cfg, sm)
 		// 如果 Token 解析成功，注入上下文；否则尝试从 Header 获取租户信息（当游客）
 		if err == nil && claims != nil {
-			injectAuthContext(c, claims, permSvc)
+			injectAuthContext(c, claims, permSvc, pool)
 		} else {
 			// 兜底：如果没传 Token（或无效），尝试提取 X-Tenant-ID，以便公共接口也能拿到租户上下文
 			if tenantIDStr := c.GetHeader("X-Tenant-ID"); tenantIDStr != "" {

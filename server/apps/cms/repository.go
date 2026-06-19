@@ -1,4 +1,4 @@
-package cms
+﻿package cms
 
 import (
 	"context"
@@ -18,7 +18,7 @@ func NewCmsPostRepository(db *pgxpool.Pool) CmsPostRepository {
 }
 
 func (r *postgresCmsPostRepository) GetByID(ctx context.Context, id uint) (*CmsPost, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (r *postgresCmsPostRepository) List(ctx context.Context, tenantID uint, key
 	}
 
 	var total int64
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -95,7 +95,7 @@ func (r *postgresCmsPostRepository) List(ctx context.Context, tenantID uint, key
 }
 
 func (r *postgresCmsPostRepository) Create(ctx context.Context, tenantID uint, title, content string, status int16) (*CmsPost, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (r *postgresCmsPostRepository) Create(ctx context.Context, tenantID uint, t
 }
 
 func (r *postgresCmsPostRepository) Update(ctx context.Context, id uint, title, content string, status int16) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func (r *postgresCmsPostRepository) Update(ctx context.Context, id uint, title, 
 }
 
 func (r *postgresCmsPostRepository) Delete(ctx context.Context, id uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}

@@ -40,7 +40,7 @@ func NewTenantRepository(db *pgxpool.Pool) TenantRepository {
 }
 
 func (r *PostgresTenantRepository) GetByID(ctx context.Context, id uint) (*Tenant, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (r *PostgresTenantRepository) GetByID(ctx context.Context, id uint) (*Tenan
 }
 
 func (r *PostgresTenantRepository) GetByCode(ctx context.Context, code string) (*Tenant, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func (r *PostgresTenantRepository) GetByCode(ctx context.Context, code string) (
 }
 
 func (r *PostgresTenantRepository) List(ctx context.Context, keyword string, status *int16, page, size int) ([]Tenant, int64, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -157,7 +157,7 @@ func (r *PostgresTenantRepository) List(ctx context.Context, keyword string, sta
 }
 
 func (r *PostgresTenantRepository) Create(ctx context.Context, code, name, contact, phone, email string) (*Tenant, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func (r *PostgresTenantRepository) Create(ctx context.Context, code, name, conta
 }
 
 func (r *PostgresTenantRepository) Update(ctx context.Context, id uint, name, contact, phone, email, province, city, area, address string) (*Tenant, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +219,7 @@ func (r *PostgresTenantRepository) Update(ctx context.Context, id uint, name, co
 }
 
 func (r *PostgresTenantRepository) Delete(ctx context.Context, id uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}
@@ -238,7 +238,7 @@ func (r *PostgresTenantRepository) Delete(ctx context.Context, id uint) error {
 // CountActiveUsers 统计租户下未软删的用户数。
 // 注意：必须在 RunInPlatformTx 调用本方法，否则会被 users 表的 RLS 拦截（current_setting('app.bypass_rls') != 'on'）。
 func (r *PostgresTenantRepository) CountActiveUsers(ctx context.Context, tenantID uint) (int64, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return 0, err
 	}
@@ -254,7 +254,7 @@ func (r *PostgresTenantRepository) CountActiveUsers(ctx context.Context, tenantI
 
 // UpdateStatus 仅修改 status 字段，回填完整行便于审计快照。
 func (r *PostgresTenantRepository) UpdateStatus(ctx context.Context, id uint, status int16) (*Tenant, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +316,7 @@ var purgeOrder = []string{
 // 必须在 RunInPlatformTx 内调用，否则会被 RLS 拦截。
 // 返回每张表实际删除的行数。
 func (r *PostgresTenantRepository) PurgeTenantData(ctx context.Context, tenantID uint) (map[string]int64, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -336,7 +336,7 @@ func (r *PostgresTenantRepository) PurgeTenantData(ctx context.Context, tenantID
 // HardDelete 硬删 tenants 表中指定 id 的行。
 // 前置条件：service 层必须先调 PurgeTenantData 清空所有 tenant_id-bearing 表。
 func (r *PostgresTenantRepository) HardDelete(ctx context.Context, id uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}

@@ -31,7 +31,7 @@ func NewPlatformRoleRepository(pool *pgxpool.Pool) *PostgresPlatformRoleReposito
 }
 
 func (r *PostgresPlatformRoleRepository) GetRolesByAccountID(ctx context.Context, accountID uint) ([]string, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (r *PostgresPlatformRoleRepository) GetRolesByAccountID(ctx context.Context
 }
 
 func (r *PostgresPlatformRoleRepository) GetRolesByUserID(ctx context.Context, userID uint) ([]string, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (r *PostgresPlatformRoleRepository) GetRolesByUserID(ctx context.Context, u
 }
 
 func (r *PostgresPlatformRoleRepository) Grant(ctx context.Context, accountID uint, role string) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func (r *PostgresPlatformRoleRepository) Grant(ctx context.Context, accountID ui
 }
 
 func (r *PostgresPlatformRoleRepository) Revoke(ctx context.Context, accountID uint, role string) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}

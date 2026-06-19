@@ -25,7 +25,7 @@ func NewRoleMenuRepository(db *pgxpool.Pool) RoleMenuRepository {
 }
 
 func (r *PostgresRoleMenuRepository) GetByRoleID(ctx context.Context, roleID uint) ([]uint, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (r *PostgresRoleMenuRepository) GetByRoleID(ctx context.Context, roleID uin
 }
 
 func (r *PostgresRoleMenuRepository) SetForRole(ctx context.Context, roleID uint, menuIDs []uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func (r *PostgresRoleMenuRepository) SetForRole(ctx context.Context, roleID uint
 	return nil
 }
 func (r *PostgresRoleMenuRepository) DeleteByRoleID(ctx context.Context, roleID uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}

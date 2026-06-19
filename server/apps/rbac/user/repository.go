@@ -103,7 +103,7 @@ func scanUser(row pgx.Row) (*User, error) {
 }
 
 func (r *PostgresUserRepository) GetByID(ctx context.Context, id uint) (*User, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id uint) (*User, e
 }
 
 func (r *PostgresUserRepository) GetByIDScoped(ctx context.Context, id uint) (*User, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func (r *PostgresUserRepository) GetByIDScoped(ctx context.Context, id uint) (*U
 // keeps a legacy name GetByAccountID for in-package callers that don't
 // filter by tenant (uses tenantID=0 implicitly meaning "any tenant").
 func (r *PostgresUserRepository) GetByAccount(ctx context.Context, tenantID, accountID uint) (*User, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func (r *PostgresUserRepository) GetByAccountID(ctx context.Context, accountID u
 }
 
 func (r *PostgresUserRepository) GetByCode(ctx context.Context, tenantID uint, code string) (*User, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +203,7 @@ func (r *PostgresUserRepository) GetByCode(ctx context.Context, tenantID uint, c
 // GetByCodeLegacy is the unscoped variant kept for in-package callers
 // that don't filter by tenant. Prefer GetByCode for new code.
 func (r *PostgresUserRepository) GetByCodeLegacy(ctx context.Context, code string) (*User, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +226,7 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID uint, keywor
 		tenantID, _ = xincontext.TenantIDFrom(ctx)
 	}
 
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -270,7 +270,7 @@ func (r *PostgresUserRepository) ListScoped(ctx context.Context, tenantID uint, 
 		tenantID, _ = xincontext.TenantIDFrom(ctx)
 	}
 
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -364,7 +364,7 @@ func scanUserRows(rows pgx.Rows) ([]User, error) {
 }
 
 func (r *PostgresUserRepository) Create(ctx context.Context, tenantID, accountID uint, code string, orgID *uint) (*User, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -404,7 +404,7 @@ func (r *PostgresUserRepository) Create(ctx context.Context, tenantID, accountID
 
 // Update 全量更新 users 表的 4 个字段（不含 phone/email，跨表见 UpdatePhone）
 func (r *PostgresUserRepository) Update(ctx context.Context, id uint, req UpdateUserRepoReq) (*User, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -473,7 +473,7 @@ func (r *PostgresUserRepository) Patch(ctx context.Context, id uint, req PatchUs
 	sets = append(sets, "updated_at = NOW()")
 	args = append(args, id)
 
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -495,7 +495,7 @@ func (r *PostgresUserRepository) Patch(ctx context.Context, id uint, req PatchUs
 }
 
 func (r *PostgresUserRepository) UpdateStatus(ctx context.Context, id uint, status int8) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}
@@ -513,7 +513,7 @@ func (r *PostgresUserRepository) UpdateStatus(ctx context.Context, id uint, stat
 }
 
 func (r *PostgresUserRepository) Delete(ctx context.Context, id uint) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}
@@ -533,7 +533,7 @@ func (r *PostgresUserRepository) Delete(ctx context.Context, id uint) error {
 // UpdateOrg 调整用户的主组织；orgID 为 nil 或 0 都表示移出组织（org_id 置 NULL）。
 // org 是否存在 / 是否同租户的校验由 service 层负责，仓库只做原子写入。
 func (r *PostgresUserRepository) UpdateOrg(ctx context.Context, id uint, orgID *uint) (*User, error) {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
@@ -560,7 +560,7 @@ func (r *PostgresUserRepository) UpdateOrg(ctx context.Context, id uint, orgID *
 // an account-level attribute, not a per-tenant user attribute). The single
 // UPDATE...FROM statement resolves account_id without a separate lookup.
 func (r *PostgresUserRepository) UpdatePhone(ctx context.Context, userID uint, phone string) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}
@@ -582,7 +582,7 @@ func (r *PostgresUserRepository) UpdatePhone(ctx context.Context, userID uint, p
 }
 
 func (r *PostgresUserRepository) UpdateProfile(ctx context.Context, id uint, nickname, avatar string) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}
@@ -600,7 +600,7 @@ func (r *PostgresUserRepository) UpdateProfile(ctx context.Context, id uint, nic
 }
 
 func (r *PostgresUserRepository) UpdateAvatar(ctx context.Context, id uint, avatar string) error {
-	q, err := db.GetQuerier(ctx)
+	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}
