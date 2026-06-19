@@ -291,7 +291,7 @@ func (r *PostgresConfigRepository) CreateItem(ctx context.Context, tenantID, gro
 		INSERT INTO config_items
 		    (tenant_id, group_id, key, value, default_value, type, label, description, options, validation,
 		     sort, is_public, is_readonly, is_system, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 1)
+		VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12, $13, $14, 1)
 		RETURNING id, tenant_id, group_id, key, value, default_value, type, label, description,
 		          options, validation, sort, is_public, is_readonly, is_system, status, created_at, updated_at`,
 		tenantID, groupID, req.Key, valueJSON, defaultValueJSON, req.Type, req.Label, req.Description,
@@ -317,7 +317,7 @@ func (r *PostgresConfigRepository) UpdateItem(ctx context.Context, id uint, req 
 	}
 	row := q.QueryRow(ctx, `
 		UPDATE config_items SET
-			value       = COALESCE($2, value),
+			value       = COALESCE($2::jsonb, value),
 			label       = COALESCE($3, label),
 			description = COALESCE($4, description),
 			sort        = COALESCE($5, sort),

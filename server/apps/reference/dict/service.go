@@ -1,4 +1,4 @@
-﻿// Package dict 数据字典服务层
+// Package dict 数据字典服务层
 package dict
 
 import (

@@ -61,9 +61,10 @@ func Log(ctx context.Context, pool *pgxpool.Pool, e Entry) {
 	// db_logs 没有 is_deleted 列，没有 created_by 列，但有 tenant_id / user_id。
 	// RLS 在 db_logs 上没启用（参见 001_framework_init.sql），所以这里不强制租户上下文。
 	// user_id 允许 NULL，IP 允许 NULL。
+	// old_data / new_data 是 JSONB；pgx 把 string 当 text 发，必须 ::jsonb 显式 cast。
 	_, err = querier.Exec(ctx, `
 		INSERT INTO db_logs (tenant_id, user_id, action, table_name, record_id, old_data, new_data, ip, created_at)
-		VALUES ($1, NULLIF($2, 0), $3, $4, NULLIF($5, 0), NULLIF($6, ''), NULLIF($7, ''), NULLIF($8, ''), NOW())`,
+		VALUES ($1, NULLIF($2, 0), $3, $4, NULLIF($5, 0), NULLIF($6, '')::jsonb, NULLIF($7, '')::jsonb, NULLIF($8, ''), NOW())`,
 		tenantID,
 		userID,
 		e.Action,

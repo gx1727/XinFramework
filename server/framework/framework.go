@@ -61,7 +61,7 @@ func Serve(cfg *config.Config, app *appx.App, modules []plugin.Module) {
 	}
 
 	// 配置全局中间件 + 路由
-	setupRouter(app)
+	setupRouter(app, modules)
 
 	// 启动 HTTP server
 	addr := fmt.Sprintf("%s:%d", cfg.App.Host, cfg.App.Port)
@@ -105,7 +105,7 @@ func buildAppContextPair(appCtx *plugin.AppContext) (plugin.Reader, plugin.Write
 	return appCtx, appCtx
 }
 
-func setupRouter(app *appx.App) {
+func setupRouter(app *appx.App, modules []plugin.Module) {
 	srv := app.Server
 	cfg := app.Config
 
@@ -117,11 +117,11 @@ func setupRouter(app *appx.App) {
 	srv.Engine.Use(middleware.Logger())        // 5. 日志（依赖 RequestID）
 
 	// 注册所有模块的路由
-	registerModules(srv.Engine, cfg, app)
+	registerModules(srv.Engine, cfg, app, modules)
 }
 
 // registerModules 注册已启用模块的路由（所有模块统一处理，无内置/外部之分）。
-func registerModules(r *gin.Engine, cfg *config.Config, app *appx.App) {
+func registerModules(r *gin.Engine, cfg *config.Config, app *appx.App, modules []plugin.Module) {
 	v1 := r.Group("/api/v1")
 	public := v1.Group("")
 	public.Use(middleware.OptionalAuth(&cfg.JWT, app.SessionMgr, app.Authz, app.DB))
@@ -135,8 +135,9 @@ func registerModules(r *gin.Engine, cfg *config.Config, app *appx.App) {
 	// all repositories that were populated during Init.
 	var ctx plugin.Reader = app.AppContext
 
-	for _, m := range plugin.Apps() {
+	for _, m := range modules {
 		if !enabled[m.Name()] {
+			log.Printf("module %s not enabled (skip register)", m.Name())
 			continue
 		}
 		m.Register(ctx, public, protected)

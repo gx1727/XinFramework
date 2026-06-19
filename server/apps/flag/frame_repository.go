@@ -126,7 +126,7 @@ func (r *FrameRepository) Create(ctx context.Context, frame *Frame) (_ *Frame, e
 	var description, previewURL, templateURL, templateConfig *string
 	err = q.QueryRow(ctx, `
 		INSERT INTO flag_frames (tenant_id, category_id, name, description, preview_url, template_url, template_config, type, sort, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10)
 		RETURNING id, tenant_id, category_id, name, description, preview_url, template_url, template_config, type, sort, status, created_at, updated_at`,
 		frame.TenantID, nilIfZero(frame.CategoryID), frame.Name, nullStr(frame.Description),
 		nullStr(frame.PreviewURL), nullStr(frame.TemplateURL), nullStr(frame.TemplateConfig),
@@ -162,7 +162,7 @@ func (r *FrameRepository) Update(ctx context.Context, frame *Frame) (err error) 
 	tag, err := q.Exec(ctx, `
 		UPDATE flag_frames SET
 			category_id = $2, name = $3, description = $4, preview_url = $5,
-			template_url = $6, template_config = $7, type = $8, sort = $9, status = $10, updated_at = NOW()
+			template_url = $6, template_config = $7::jsonb, type = $8, sort = $9, status = $10, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`,
 		frame.ID, nilIfZero(frame.CategoryID), frame.Name, nullStr(frame.Description),
 		nullStr(frame.PreviewURL), nullStr(frame.TemplateURL), nullStr(frame.TemplateConfig),

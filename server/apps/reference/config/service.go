@@ -1,4 +1,4 @@
-﻿﻿// Package config 通用配置 - 服务层
+// Package config 通用配置 - 服务层
 package config
 
 import (

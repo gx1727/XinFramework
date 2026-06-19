@@ -116,7 +116,7 @@ func (r *PostgresDictRepository) Create(ctx context.Context, tenantID uint, req 
 	extendJSON, _ := json.Marshal(req.Extend)
 	row := q.QueryRow(ctx, `
 		INSERT INTO dicts (tenant_id, code, name, sort, status, extend)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		VALUES ($1, $2, $3, $4, $5, $6::jsonb)
 		RETURNING id, tenant_id, code, name, sort, status, COALESCE(extend, '{}') AS extend, created_at, updated_at`,
 		tenantID, req.Code, req.Name, req.Sort, req.Status, extendJSON)
 	d, err := scanDict(row)
@@ -137,7 +137,7 @@ func (r *PostgresDictRepository) Update(ctx context.Context, id uint, req Update
 	}
 	extendJSON, _ := json.Marshal(req.Extend)
 	row := q.QueryRow(ctx, `
-		UPDATE dicts SET name = $2, sort = $3, status = $4, extend = $5, updated_at = NOW()
+		UPDATE dicts SET name = $2, sort = $3, status = $4, extend = $5::jsonb, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1
 		RETURNING id, tenant_id, code, name, sort, status, COALESCE(extend, '{}') AS extend, created_at, updated_at`,
 		id, req.Name, req.Sort, req.Status, extendJSON)
@@ -232,7 +232,7 @@ func (r *PostgresDictRepository) CreateItem(ctx context.Context, tenantID, dictI
 	extendJSON, _ := json.Marshal(req.Extend)
 	row := q.QueryRow(ctx, `
 		INSERT INTO dict_items (tenant_id, dict_id, code, name, sort, status, extend)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
 		RETURNING id, tenant_id, dict_id, code, name, sort, status, COALESCE(extend, '{}') AS extend, created_at, updated_at`,
 		tenantID, dictID, req.Code, req.Name, req.Sort, req.Status, extendJSON)
 	it, err := scanDictItem(row)
@@ -252,7 +252,7 @@ func (r *PostgresDictRepository) UpdateItem(ctx context.Context, id uint, req Up
 	}
 	extendJSON, _ := json.Marshal(req.Extend)
 	tag, err := q.Exec(ctx, `
-		UPDATE dict_items SET name = $2, sort = $3, status = $4, extend = $5, updated_at = NOW()
+		UPDATE dict_items SET name = $2, sort = $3, status = $4, extend = $5::jsonb, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id, req.Name, req.Sort, req.Status, extendJSON)
 	if err != nil {
 		return fmt.Errorf("update dict item: %w", err)
