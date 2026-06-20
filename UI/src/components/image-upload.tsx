@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { UploadIcon, XIcon, LinkIcon } from "lucide-react"
-import { assetApi } from "@/api/client"
+import { assetApi } from "@/api"
 import { toast } from "sonner"
 
 interface ImageUploadProps {

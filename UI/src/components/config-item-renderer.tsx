@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ImageUpload } from "@/components/image-upload"
 import { RotateCcwIcon } from "lucide-react"
-import type { ConfigItem } from "@/api/client"
+import type { ConfigItem } from "@/api"
 
 interface ConfigItemRendererProps {
   item: ConfigItem

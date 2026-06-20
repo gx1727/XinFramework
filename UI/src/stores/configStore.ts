@@ -1,5 +1,5 @@
 import { create } from "zustand"
-import { configApi, type ConfigGroup, type ConfigItem, type ConfigItemType } from "@/api/client"
+import { configApi, type ConfigGroup, type ConfigItem, type ConfigItemType } from "@/api"
 
 interface ConfigState {
   // 已加载的公共配置：groupCode -> { key -> value }

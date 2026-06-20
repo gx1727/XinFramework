@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useConfigStore } from "@/stores/configStore"
 import { ConfigItemRenderer } from "@/components/config-item-renderer"
-import type { ConfigGroup, ConfigItem, ConfigItemType } from "@/api/client"
+import type { ConfigGroup, ConfigItem, ConfigItemType } from "@/api"
 import { PlusIcon, Trash2Icon, SaveIcon, RefreshCwIcon, SettingsIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
