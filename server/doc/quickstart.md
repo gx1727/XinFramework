@@ -206,29 +206,6 @@ curl http://localhost:8087/api/v1/health
 {"code":0,"msg":"ok","data":{"status":"ok"}}
 ```
 
-### 6.3 启用 bootstrap 创建 super_admin
-
-首次部署时，生产数据库通常是空的。用环境变量注入一个初始 super_admin：
-
-```bash
-export XIN_BOOTSTRAP_TOKEN="$(openssl rand -hex 32)"   # ≥16 字节
-export XIN_BOOTSTRAP_ACCOUNT="admin"
-export XIN_BOOTSTRAP_PASSWORD="$(openssl rand -base64 24)"
-export XIN_BOOTSTRAP_REAL_NAME="初始管理员"
-export XIN_BOOTSTRAP_TENANT_CODE="default"            # tenants.code
-
-./bin/xin run
-```
-
-框架会在启动后自动：
-
-1. 查 `tenants WHERE code = 'default'`（必须先在 SQL 里 `INSERT INTO tenants`）
-2. 在 `accounts` 表 upsert 账号
-3. 授予 `super_admin` 平台角色
-4. 在租户事务内创建 `users` 行 + 绑定 `admin` 角色
-
-详细机制见 [`framework/internal/core/boot/bootstrap.go`](framework/internal/core/boot/bootstrap.go)。
-
 ## 7. 守护进程模式
 
 ```bash

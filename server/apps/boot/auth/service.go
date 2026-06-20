@@ -5,7 +5,6 @@ import (
 
 	"context"
 	"errors"
-	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,9 +14,6 @@ import (
 	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 )
-
-// bootstrapAccountEnv 是启动期引导账号的环境变量名。
-const bootstrapAccountEnv = "XIN_BOOTSTRAP_ACCOUNT"
 
 type LoginIdentity struct {
 	UserID       uint
@@ -123,12 +119,6 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 	}
 
 	return &identity, nil
-}
-
-// isBootstrapAccountLocked 返回 true 表示当前进程未启用 XIN_BOOTSTRAP_ACCOUNT。
-// 在此状态下，持有 super_admin 平台角色的账号拒绝登录/刷新令牌。
-func isBootstrapAccountLocked() bool {
-	return os.Getenv(bootstrapAccountEnv) == ""
 }
 
 // hasPlatformRole 判断 userID 是否拥有指定的平台级角色（如 super_admin）。
@@ -242,11 +232,6 @@ func (s *Service) Login(ctx context.Context, req loginRequest) (*LoginResult, er
 	if identity.UserStatus != 1 {
 		return nil, ErrUserDisabled
 	}
-	// 未配置 XIN_BOOTSTRAP_ACCOUNT 时，super_admin 平台角色拒绝登录
-	if isBootstrapAccountLocked() && s.hasPlatformRole(ctx, identity.UserID, jwtpkg.PlatformRoleSuperAdmin) {
-		return nil, ErrUserDisabled
-	}
-
 	tokens, err := s.generateTokens(ctx, identity.UserID, identity.TenantID, identity.RoleCode)
 	if err != nil {
 		return nil, err
@@ -287,11 +272,6 @@ func (s *Service) Refresh(ctx context.Context, req refreshRequest) (*refreshResu
 
 	claims, err := jwtpkg.ValidateRefresh(req.RefreshToken, &s.config.JWT)
 	if err != nil {
-		return nil, ErrInvalidRefreshToken
-	}
-
-	// 未配置 XIN_BOOTSTRAP_ACCOUNT 时，super_admin 平台角色拒绝刷新令牌
-	if isBootstrapAccountLocked() && s.hasPlatformRole(ctx, claims.UserID, jwtpkg.PlatformRoleSuperAdmin) {
 		return nil, ErrInvalidRefreshToken
 	}
 

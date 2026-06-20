@@ -71,7 +71,6 @@ cmd/xin ──→ framework ──→ apps
 | RBAC 中间件 | [framework/pkg/middleware/auth.go](framework/pkg/middleware/auth.go) |
 | DataScope 编译期 | [framework/pkg/permission/scope.go](framework/pkg/permission/scope.go) |
 | 错误码分段 | [framework/pkg/resp/errors.go](framework/pkg/resp/errors.go) |
-| Bootstrap | [framework/internal/core/boot/bootstrap.go](framework/internal/core/boot/bootstrap.go) |
 | 资源码常量 | [framework/pkg/permission/constants.go](framework/pkg/permission/constants.go) |
 | extapi Provider | [framework/internal/core/ext_impl/provider.go](framework/internal/core/ext_impl/provider.go) |
 | 审计日志 | [framework/pkg/audit/audit.go](framework/pkg/audit/audit.go) |

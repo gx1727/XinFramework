@@ -14,9 +14,7 @@ import (
 // with the same parameters apps/boot/auth uses.
 //
 // Moved from framework/internal/module/auth/password.go to framework/pkg/auth
-// during Phase 2: framework's bootstrap (in boot/bootstrap.go) needs to
-// create admin accounts at startup, but apps/boot/auth can't be imported
-// from framework/internal.
+// so that apps/boot/auth can call HashPassword directly without import cycles.
 func HashPassword(password string) (string, error) {
 	salt := make([]byte, 16)
 	if _, err := rand.Read(salt); err != nil {

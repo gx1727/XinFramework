@@ -478,9 +478,6 @@ spec:
 | `XIN_JWT_SECRET` | `jwt.secret` | JWT 签名 key，**prod 必填 ≥32 字节** |
 | `XIN_CORS_ALLOW_ORIGINS` | `cors.allow_origins` | CORS 白名单（逗号分隔） |
 | `XIN_MODULE` | `module` | 模块白名单（逗号分隔） |
-| `XIN_BOOTSTRAP_TOKEN` | — | bootstrap 必填，启用初始 super_admin |
-| `XIN_BOOTSTRAP_ACCOUNT` | — | bootstrap 账号（username/phone/email） |
-| `XIN_BOOTSTRAP_PASSWORD` | — | bootstrap 明文密码 |
 | `XIN_STORAGE_COS_SECRET_ID` | `storage.cos_secret_id` | COS 凭据 |
 | `XIN_STORAGE_COS_SECRET_KEY` | `storage.cos_secret_key` | COS 凭据 |
 

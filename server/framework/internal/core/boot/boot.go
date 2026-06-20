@@ -82,13 +82,6 @@ func Init(cfg *config.Config) (*appx.App, error) {
 	}
 	_ = authzSvc // kept for future use; currently only AppContext.Authz is read
 
-	// 启动期引导
-	if bcfg := LoadBootstrapConfig(); bcfg.Enabled {
-		if err := RunBootstrap(ctx, pool, bcfg); err != nil {
-			log.Printf("[bootstrap] failed: %v", err)
-		}
-	}
-
 	return app, nil
 }
 

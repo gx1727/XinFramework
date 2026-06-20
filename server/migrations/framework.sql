@@ -480,9 +480,12 @@ INSERT INTO tenants (code, name, status, created_by, updated_by)
 VALUES ('default', '默认租户', 1, 0, 0);
 
 -- 账号 (password: admin123)
+-- 注意：此 hash 必须与 framework/pkg/auth.HashPassword 输出格式一致
+--      使用新框架参数 (m=65536,t=3,p=4) 生成，并用 VerifyPassword 自验证通过。
+--      历史 bug：早期 hash 用了不同的参数且不匹配 admin123，已修复。
 INSERT INTO accounts (phone, email, password, username, real_name, status)
 VALUES ('13800138000', 'admin@example.com',
-        '$argon2id$v=19$m=19456,t=2,p=1$nMpweyGYDB9dvGMQAkzcHw$Tfc9vn1or7d0KMg0h6aRYFuDMxZbuK2cO8o6VaOyBk4', 'admin',
+        '$argon2id$v=19$m=65536,t=3,p=4$l9OpXE4q2opC5q1SZSSFMg$sKlfP3vLGM+/UJPa51OLGonHhYmsACGYjV9f8AveDes', 'admin',
         '系统管理员', 1);
 
 -- 用户
