@@ -12,11 +12,11 @@ type listRequest struct {
 type listResponse struct {
 	List  []Dict `json:"list"`
 	Total int64  `json:"total"`
-	Page  int    `json:"page"`
-	Size  int    `json:"size"`
+	Page  int    `form:"page"`
+	Size  int    `form:"size"`
 }
 
-// createRequest 创建字典
+// createRequest 创建字典（租户自建字典）
 type createRequest struct {
 	Code   string                 `json:"code" binding:"required,max=32"`
 	Name   string                 `json:"name" binding:"required,max=64"`
@@ -51,4 +51,57 @@ type updateItemRequest struct {
 // listItemsRequest 字典项列表请求（按 dict_id 过滤）
 type listItemsRequest struct {
 	DictID uint `form:"dict_id" binding:"required"`
+}
+
+// ============ Phase 0022: 平台字典 / visibility / override 类型 ============
+
+// platformDictCreateRequest super_admin 创建平台字典
+type platformDictCreateRequest struct {
+	Code       string                 `json:"code" binding:"required,max=32"`
+	Name       string                 `json:"name" binding:"required,max=64"`
+	Sort       int                    `json:"sort"`
+	Visibility string                 `json:"visibility" binding:"omitempty,oneof=all whitelist blacklist"`
+	Extend     map[string]interface{} `json:"extend"`
+}
+
+// platformDictUpdateRequest super_admin 更新平台字典
+type platformDictUpdateRequest struct {
+	Name       string                 `json:"name" binding:"required,max=64"`
+	Sort       int                    `json:"sort"`
+	Status     int8                   `json:"status" binding:"omitempty,oneof=0 1 2"`
+	Visibility string                 `json:"visibility" binding:"omitempty,oneof=all whitelist blacklist"`
+	Extend     map[string]interface{} `json:"extend"`
+}
+
+// platformItemCreateRequest super_admin 在平台字典下新增字典项
+type platformItemCreateRequest struct {
+	Code   string                 `json:"code" binding:"required,max=64"`
+	Name   string                 `json:"name" binding:"required,max=128"`
+	Sort   int                    `json:"sort"`
+	Extend map[string]interface{} `json:"extend"`
+}
+
+// visibilityUpsertRequest super_admin 维护平台字典对某租户的访问级别
+type visibilityUpsertRequest struct {
+	TenantID uint   `json:"tenant_id" binding:"required"`
+	Access   string `json:"access" binding:"required,oneof=invisible readonly editable"`
+}
+
+// visibilityListResponse 平台字典可见性列表
+type visibilityListResponse struct {
+	List  []DictVisibility `json:"list"`
+	Total int64            `json:"total"`
+}
+
+// overrideUpsertRequest 租户覆盖某个平台字典项
+type overrideUpsertRequest struct {
+	Name   string                 `json:"name" binding:"required,max=128"`
+	Sort   int                    `json:"sort"`
+	Status int8                   `json:"status" binding:"omitempty,oneof=0 1 2"`
+	Extend map[string]interface{} `json:"extend"`
+}
+
+// resolveResponse 合并后的字典详情（业务最终消费）
+type resolveResponse struct {
+	Dict ResolvedDict `json:"dict"`
 }

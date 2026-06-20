@@ -317,3 +317,485 @@ func refreshDictCache(parent context.Context, tenantID uint, code string) {
 	defer cancel()
 	_ = dictpkg.RefreshDict(ctx, tenantID, code)
 }
+
+// ============ Phase 0022: 平台字典 / visibility / override ============
+
+// validateAccess 校验 access 取值
+func validateAccess(access string) error {
+	switch access {
+	case AccessInvisible, AccessReadonly, AccessEditable:
+		return nil
+	default:
+		return ErrInvalidAccess
+	}
+}
+
+// validateVisibility 校验 visibility 取值
+func validateVisibility(v string) error {
+	if v == "" {
+		return nil
+	}
+	switch v {
+	case VisibilityAll, VisibilityWhitelist, VisibilityBlacklist:
+		return nil
+	default:
+		return ErrInvalidVisibility
+	}
+}
+
+// ============ 平台字典 CRUD（仅 super_admin） ============
+
+// ListPlatformDicts 平台字典列表（跨租户）
+func (s *Service) ListPlatformDicts(ctx context.Context, req listRequest) ([]Dict, int64, error) {
+	return s.repo.ListPlatformDicts(ctx, trimKeyword(req.Keyword), req.Page, req.Size)
+}
+
+// GetPlatformDict 平台字典详情
+func (s *Service) GetPlatformDict(ctx context.Context, id uint) (*Dict, error) {
+	return s.repo.GetPlatformDictByID(ctx, id)
+}
+
+// CreatePlatformDict 创建平台字典
+func (s *Service) CreatePlatformDict(ctx context.Context, req platformDictCreateRequest) (*Dict, error) {
+	if err := validateVisibility(req.Visibility); err != nil {
+		return nil, err
+	}
+	// 把 visibility 字段写到 extend（也可以走单独列；这里走列）
+	d, err := s.repo.CreatePlatformDict(ctx, CreateDictRepoReq{
+		Code:   req.Code,
+		Name:   req.Name,
+		Sort:   req.Sort,
+		Status: 1,
+		Extend: req.Extend,
+	})
+	if err != nil {
+		return nil, err
+	}
+	// 重新读取以应用 visibility 列（CreatePlatformDict 默认 all）
+	if req.Visibility != "" && req.Visibility != d.Visibility {
+		updReq := UpdateDictRepoReq{Name: d.Name, Sort: d.Sort, Status: d.Status, Extend: d.Extend}
+		d2, uerr := s.repo.UpdatePlatformDict(ctx, d.ID, updReq)
+		if uerr != nil {
+			return nil, uerr
+		}
+		d = d2
+		// 单独更新 visibility 列
+		if _, err := s.pool.Exec(ctx, `UPDATE dicts SET visibility = $1 WHERE id = $2`, req.Visibility, d.ID); err != nil {
+			return nil, fmt.Errorf("update visibility: %w", err)
+		}
+		d.Visibility = req.Visibility
+	}
+
+	// 审计：平台字典创建（高敏操作，跨租户影响，必须留痕）
+	audit.Log(ctx, s.pool, audit.Entry{
+		Action:    "dict:platform_create",
+		TableName: "dicts",
+		RecordID:  d.ID,
+		NewData: map[string]any{
+			"id":         d.ID,
+			"code":       d.Code,
+			"name":       d.Name,
+			"sort":       d.Sort,
+			"status":     d.Status,
+			"scope":      d.Scope,
+			"visibility": d.Visibility,
+		},
+	})
+	return d, nil
+}
+
+// UpdatePlatformDict 更新平台字典
+func (s *Service) UpdatePlatformDict(ctx context.Context, id uint, req platformDictUpdateRequest) (*Dict, error) {
+	if err := validateVisibility(req.Visibility); err != nil {
+		return nil, err
+	}
+	// 改前快照（用于审计 diff）
+	before, err := s.repo.GetPlatformDictByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	d, err := s.repo.UpdatePlatformDict(ctx, id, UpdateDictRepoReq{
+		Name: req.Name, Sort: req.Sort, Status: req.Status, Extend: req.Extend,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if req.Visibility != "" && req.Visibility != d.Visibility {
+		if _, err := s.pool.Exec(ctx, `UPDATE dicts SET visibility = $1 WHERE id = $2`, req.Visibility, id); err != nil {
+			return nil, fmt.Errorf("update visibility: %w", err)
+		}
+		d.Visibility = req.Visibility
+	}
+
+	// 审计：平台字典更新（高敏操作，跨租户影响）
+	audit.Log(ctx, s.pool, audit.Entry{
+		Action:    "dict:platform_update",
+		TableName: "dicts",
+		RecordID:  id,
+		OldData: map[string]any{
+			"name":       before.Name,
+			"sort":       before.Sort,
+			"status":     before.Status,
+			"visibility": before.Visibility,
+		},
+		NewData: map[string]any{
+			"name":       d.Name,
+			"sort":       d.Sort,
+			"status":     d.Status,
+			"visibility": d.Visibility,
+		},
+	})
+	return d, nil
+}
+
+// DeletePlatformDict 删除平台字典（仍有租户覆盖时拒绝）
+func (s *Service) DeletePlatformDict(ctx context.Context, id uint) error {
+	// 改前快照（审计用）
+	before, err := s.repo.GetPlatformDictByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := s.repo.DeletePlatformDict(ctx, id); err != nil {
+		return err
+	}
+
+	// 审计：平台字典删除（不可逆高敏操作）
+	audit.Log(ctx, s.pool, audit.Entry{
+		Action:    "dict:platform_delete",
+		TableName: "dicts",
+		RecordID:  id,
+		OldData: map[string]any{
+			"id":         before.ID,
+			"code":       before.Code,
+			"name":       before.Name,
+			"scope":      before.Scope,
+			"visibility": before.Visibility,
+			"status":     before.Status,
+		},
+	})
+	return nil
+}
+
+// ============ 平台字典项 CRUD（仅 super_admin） ============
+
+// ListPlatformItems 平台字典项
+func (s *Service) ListPlatformItems(ctx context.Context, dictID uint) ([]DictItem, error) {
+	// 先校验 dict 是 platform
+	d, err := s.repo.GetPlatformDictByID(ctx, dictID)
+	if err != nil {
+		return nil, err
+	}
+	_ = d
+	return s.repo.ListPlatformItems(ctx, dictID)
+}
+
+// CreatePlatformItem 新增平台字典项
+func (s *Service) CreatePlatformItem(ctx context.Context, dictID uint, req platformItemCreateRequest) (*DictItem, error) {
+	d, err := s.repo.GetPlatformDictByID(ctx, dictID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.repo.CreatePlatformItem(ctx, dictID, CreateDictItemRepoReq{
+		Code: req.Code, Name: req.Name, Sort: req.Sort, Status: 1, Extend: req.Extend,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// 审计：平台字典项新增
+	audit.Log(ctx, s.pool, audit.Entry{
+		Action:    "dict_item:platform_create",
+		TableName: "dict_items",
+		RecordID:  item.ID,
+		NewData: map[string]any{
+			"id":      item.ID,
+			"dict_id": item.DictID,
+			"dict":    d.Code,
+			"code":    item.Code,
+			"name":    item.Name,
+			"sort":    item.Sort,
+			"status":  item.Status,
+		},
+	})
+	return item, nil
+}
+
+// UpdatePlatformItem 更新平台字典项
+func (s *Service) UpdatePlatformItem(ctx context.Context, itemID uint, req updateItemRequest) error {
+	status := req.Status
+	if status == 0 {
+		status = 1
+	}
+	// 改前快照
+	before, err := s.repo.GetItemByID(ctx, itemID)
+	if err != nil {
+		return err
+	}
+	if before.TenantID != 0 {
+		return ErrDictItemNotFound // 只允许改平台项
+	}
+	if err := s.repo.UpdatePlatformItem(ctx, itemID, UpdateDictItemRepoReq{
+		Name: req.Name, Sort: req.Sort, Status: status, Extend: req.Extend,
+	}); err != nil {
+		return err
+	}
+
+	// 审计：平台字典项更新
+	audit.Log(ctx, s.pool, audit.Entry{
+		Action:    "dict_item:platform_update",
+		TableName: "dict_items",
+		RecordID:  itemID,
+		OldData: map[string]any{
+			"name":   before.Name,
+			"sort":   before.Sort,
+			"status": before.Status,
+			"code":   before.Code,
+		},
+		NewData: map[string]any{
+			"name":   req.Name,
+			"sort":   req.Sort,
+			"status": status,
+		},
+	})
+	return nil
+}
+
+// DeletePlatformItem 删除平台字典项
+func (s *Service) DeletePlatformItem(ctx context.Context, itemID uint) error {
+	// 改前快照
+	before, err := s.repo.GetItemByID(ctx, itemID)
+	if err != nil {
+		return err
+	}
+	if before.TenantID != 0 {
+		return ErrDictItemNotFound
+	}
+	if err := s.repo.DeletePlatformItem(ctx, itemID); err != nil {
+		return err
+	}
+
+	// 审计：平台字典项删除（不可逆）
+	audit.Log(ctx, s.pool, audit.Entry{
+		Action:    "dict_item:platform_delete",
+		TableName: "dict_items",
+		RecordID:  itemID,
+		OldData: map[string]any{
+			"id":      before.ID,
+			"dict_id": before.DictID,
+			"code":    before.Code,
+			"name":    before.Name,
+		},
+	})
+	return nil
+}
+
+// ============ 可见性配置（仅 super_admin） ============
+
+// ListVisibility 平台字典对各租户的可见性列表
+func (s *Service) ListVisibility(ctx context.Context, dictID uint) ([]DictVisibility, error) {
+	if _, err := s.repo.GetPlatformDictByID(ctx, dictID); err != nil {
+		return nil, err
+	}
+	return s.repo.ListVisibilityByDict(ctx, dictID)
+}
+
+// UpsertVisibility upsert 单条可见性配置
+func (s *Service) UpsertVisibility(ctx context.Context, dictID uint, req visibilityUpsertRequest) (*DictVisibility, error) {
+	if err := validateAccess(req.Access); err != nil {
+		return nil, err
+	}
+	d, err := s.repo.GetPlatformDictByID(ctx, dictID)
+	if err != nil {
+		return nil, err
+	}
+	// 改前快照（用于 audit diff；可能不存在）
+	before, _ := s.repo.GetAccessForTenant(ctx, dictID, req.TenantID)
+
+	v, err := s.repo.UpsertVisibility(ctx, dictID, req.TenantID, req.Access)
+	if err != nil {
+		return nil, err
+	}
+
+	// 审计：可见性配置变更（影响特定租户的访问权限）
+	action := "dict_visibility:upsert"
+	if before != "" && before != req.Access {
+		action = "dict_visibility:update"
+	} else if before == "" {
+		action = "dict_visibility:create"
+	}
+	audit.Log(ctx, s.pool, audit.Entry{
+		Action:    action,
+		TableName: "dict_visibility",
+		RecordID:  v.ID,
+		OldData: map[string]any{
+			"dict_id":   dictID,
+			"dict":      d.Code,
+			"tenant_id": req.TenantID,
+			"access":    before,
+		},
+		NewData: map[string]any{
+			"dict_id":   dictID,
+			"dict":      d.Code,
+			"tenant_id": req.TenantID,
+			"access":    req.Access,
+		},
+	})
+	return v, nil
+}
+
+// DeleteVisibility 删除单条可见性配置
+func (s *Service) DeleteVisibility(ctx context.Context, dictID, tenantID uint) error {
+	// 改前快照
+	d, err := s.repo.GetPlatformDictByID(ctx, dictID)
+	if err != nil {
+		return err
+	}
+	before, _ := s.repo.GetAccessForTenant(ctx, dictID, tenantID)
+	if err := s.repo.DeleteVisibility(ctx, dictID, tenantID); err != nil {
+		return err
+	}
+
+	// 审计：可见性配置删除（恢复默认策略）
+	audit.Log(ctx, s.pool, audit.Entry{
+		Action:    "dict_visibility:delete",
+		TableName: "dict_visibility",
+		RecordID:  dictID,
+		OldData: map[string]any{
+			"dict_id":   dictID,
+			"dict":      d.Code,
+			"tenant_id": tenantID,
+			"access":    before,
+		},
+	})
+	return nil
+}
+
+// ============ 租户覆盖（override） ============
+
+// UpsertOverride 租户对平台字典项 upsert 覆盖
+func (s *Service) UpsertOverride(ctx context.Context, tenantID, dictID, platformItemID uint, req overrideUpsertRequest) (*DictItem, error) {
+	// 校验 dict 是 platform
+	d, err := s.repo.GetPlatformDictByID(ctx, dictID)
+	if err != nil {
+		return nil, err
+	}
+	// 校验 access=editable
+	access, err := s.repo.GetAccessForTenant(ctx, d.ID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if access == "" {
+		// 走默认策略
+		switch d.Visibility {
+		case VisibilityWhitelist:
+			return nil, ErrDictInvisible
+		default:
+			access = AccessEditable
+		}
+	}
+	if access != AccessEditable {
+		return nil, ErrDictReadonly
+	}
+
+	// 改前快照（用于审计 diff）
+	before, _ := s.repo.GetOverrideByPlatformItem(ctx, platformItemID, tenantID)
+
+	status := req.Status
+	if status == 0 {
+		status = 1
+	}
+	item, err := s.repo.UpsertOverride(ctx, tenantID, dictID, platformItemID, UpdateDictItemRepoReq{
+		Name: req.Name, Sort: req.Sort, Status: status, Extend: req.Extend,
+	})
+	if err != nil {
+		return nil, err
+	}
+	// 失效缓存
+	refreshDictCache(ctx, tenantID, d.Code)
+
+	// 审计：租户覆盖字典项（create / update 区分）
+	action := "dict_item:override_upsert"
+	if before == nil {
+		action = "dict_item:override_create"
+	} else {
+		action = "dict_item:override_update"
+	}
+	audit.Log(ctx, s.pool, audit.Entry{
+		Action:    action,
+		TableName: "dict_items",
+		RecordID:  item.ID,
+		TenantID:  tenantID, // 显式覆盖（覆盖属于租户域操作）
+		OldData: func() map[string]any {
+			if before == nil {
+				return map[string]any{
+					"platform_item_id": platformItemID,
+					"dict":             d.Code,
+				}
+			}
+			return map[string]any{
+				"name":             before.Name,
+				"sort":             before.Sort,
+				"status":           before.Status,
+				"platform_item_id": platformItemID,
+				"dict":             d.Code,
+			}
+		}(),
+		NewData: map[string]any{
+			"name":             item.Name,
+			"sort":             item.Sort,
+			"status":           item.Status,
+			"platform_item_id": platformItemID,
+			"dict":             d.Code,
+			"is_override":      item.IsOverride,
+		},
+	})
+	return item, nil
+}
+
+// DeleteOverride 取消租户覆盖
+func (s *Service) DeleteOverride(ctx context.Context, tenantID, dictID, platformItemID uint) error {
+	d, err := s.repo.GetPlatformDictByID(ctx, dictID)
+	if err != nil {
+		return err
+	}
+	// 改前快照
+	before, _ := s.repo.GetOverrideByPlatformItem(ctx, platformItemID, tenantID)
+	if err := s.repo.DeleteOverride(ctx, tenantID, platformItemID); err != nil {
+		return err
+	}
+	refreshDictCache(ctx, tenantID, d.Code)
+
+	// 审计：取消租户覆盖（恢复平台默认值）
+	audit.Log(ctx, s.pool, audit.Entry{
+		Action:    "dict_item:override_delete",
+		TableName: "dict_items",
+		RecordID:  dictID,
+		TenantID:  tenantID,
+		OldData: func() map[string]any {
+			out := map[string]any{
+				"platform_item_id": platformItemID,
+				"dict":             d.Code,
+			}
+			if before != nil {
+				out["name"] = before.Name
+				out["sort"] = before.Sort
+				out["status"] = before.Status
+				out["override_id"] = before.ID
+			}
+			return out
+		}(),
+	})
+	return nil
+}
+
+// ============ 业务消费：Resolve 合并字典 ============
+
+// ResolveForTenant 按 code 取租户视角的合并字典
+func (s *Service) ResolveForTenant(ctx context.Context, tenantID uint, dictCode string) (*ResolvedDict, error) {
+	return s.repo.ResolveDictForTenant(ctx, tenantID, dictCode)
+}
+
+// ResolveByIDForTenant 按 dict_id 取租户视角的合并字典
+func (s *Service) ResolveByIDForTenant(ctx context.Context, tenantID, dictID uint) (*ResolvedDict, error) {
+	return s.repo.ResolveDictByIDForTenant(ctx, tenantID, dictID)
+}

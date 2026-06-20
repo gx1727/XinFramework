@@ -550,11 +550,11 @@ VALUES (1, '*', '超级管理员通配权限', '*', '拥有系统所有权限', 
 INSERT INTO role_resources (tenant_id, role_id, resource_id, effect)
 VALUES (1, 1, (SELECT id FROM resources WHERE code = '*'), 1);
 
--- 字典示例数据
-INSERT INTO dicts (tenant_id, code, name, sort, status)
-VALUES (0, 'gender', '性别', 1, 1),
-       (0, 'user_status', '用户状态', 2, 1),
-       (0, 'education', '学历', 3, 1);
+-- 字典示例数据（平台级；scope='platform'）
+INSERT INTO dicts (tenant_id, code, name, sort, status, scope)
+VALUES (0, 'gender', '性别', 1, 1, 'platform'),
+       (0, 'user_status', '用户状态', 2, 1, 'platform'),
+       (0, 'education', '学历', 3, 1, 'platform');
 
 INSERT INTO dict_items (tenant_id, dict_id, code, name, sort, status)
 SELECT 0, d.id, x.code, x.name, x.sort, 1
@@ -633,12 +633,13 @@ LEFT JOIN menus new_m ON new_m.code = (
 WHERE r.tenant_id = (SELECT id FROM tenants WHERE code = 'default' AND is_deleted = FALSE)
   AND r.is_deleted = FALSE;
 
--- 4) 复制 dicts：从系统级（tenant_id=0）
-INSERT INTO dicts (tenant_id, code, name, sort, status, extend)
+-- 4) 复制 dicts：从系统级（tenant_id=0，scope='platform'）
+-- 复制到 __template__ 租户时 scope 改为 'tenant'（属于该租户的私有副本）
+INSERT INTO dicts (tenant_id, code, name, sort, status, extend, scope)
 SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
-       code, name, sort, status, extend
+       code, name, sort, status, extend, 'tenant'
 FROM dicts
-WHERE tenant_id = 0 AND is_deleted = FALSE;
+WHERE tenant_id = 0 AND is_deleted = FALSE AND scope = 'platform';
 
 -- 5) 复制 dict_items：用 code 重新映射 dict_id
 INSERT INTO dict_items (tenant_id, dict_id, code, name, sort, status, extend)
