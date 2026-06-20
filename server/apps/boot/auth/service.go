@@ -26,6 +26,12 @@ type LoginIdentity struct {
 	UserStatus   int16
 	RoleCode     string
 	PasswordHash string
+
+	// 用户展示资料（侧边栏 / NavUser 用），来自 users JOIN accounts
+	Nickname string
+	RealName string
+	Avatar   string
+	Email    string
 }
 
 func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, tenantID uint) (*LoginIdentity, error) {
@@ -58,15 +64,27 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 			return err
 		}
 
-		var uID uint
-		var uTenantID uint
-		var uCode string
-		var uStatus int16
+		var (
+			uID       uint
+			uTenantID uint
+			uCode     string
+			uStatus   int16
+			uNickname string
+			uRealName string
+			uAvatar   string
+			aEmail    string
+		)
 		err = querier.QueryRow(ctx, `
-			SELECT id, tenant_id, code, status
-			FROM users
-			WHERE account_id = $1
-			ORDER BY id ASC LIMIT 1`, accID).Scan(&uID, &uTenantID, &uCode, &uStatus)
+			SELECT u.id, u.tenant_id, u.code, u.status,
+			       COALESCE(u.nickname, ''), COALESCE(u.real_name, ''), COALESCE(u.avatar, ''),
+			       COALESCE(a.email, '')
+			FROM users u
+			JOIN accounts a ON a.id = u.account_id
+			WHERE u.account_id = $1
+			ORDER BY u.id ASC LIMIT 1`, accID).Scan(
+			&uID, &uTenantID, &uCode, &uStatus,
+			&uNickname, &uRealName, &uAvatar, &aEmail,
+		)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return errTenantBindingNotFound
@@ -92,6 +110,10 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 			UserStatus:   uStatus,
 			RoleCode:     roleCode,
 			PasswordHash: password,
+			Nickname:     uNickname,
+			RealName:     uRealName,
+			Avatar:       uAvatar,
+			Email:        aEmail,
 		}
 		return nil
 	})
@@ -238,6 +260,10 @@ func (s *Service) Login(ctx context.Context, req loginRequest) (*LoginResult, er
 	res.User.TenantID = identity.TenantID
 	res.User.Code = identity.UserCode
 	res.User.Role = identity.RoleCode
+	res.User.Nickname = identity.Nickname
+	res.User.RealName = identity.RealName
+	res.User.Avatar = identity.Avatar
+	res.User.Email = identity.Email
 	return res, nil
 }
 
@@ -380,5 +406,7 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 	res.User.TenantID = req.TenantID
 	res.User.Code = newUserCode
 	res.User.Role = "user"
+	res.User.RealName = req.RealName
+	// nickname/avatar/email 暂未在注册时收集，留空字符串（DB 列也未填）
 	return res, nil
 }

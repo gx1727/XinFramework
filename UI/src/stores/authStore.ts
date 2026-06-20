@@ -8,6 +8,11 @@ interface User {
   id: number
   role: string
   tenant_id: number
+  // 展示资料（侧边栏 NavUser 用）；后端登录响应里返回，可选以兼容旧登录态
+  nickname?: string
+  real_name?: string
+  avatar?: string
+  email?: string
 }
 
 interface AuthState {

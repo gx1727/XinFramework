@@ -4,6 +4,7 @@ import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
+import { useAuthStore } from "@/stores/authStore"
 import {
   Sidebar,
   SidebarContent,
@@ -99,6 +100,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const navMainItems = buildNavItems(menus)
 
+  const authUser = useAuthStore((s) => s.user)
+  // 真实字段映射：real_name 优先 → nickname → code；email 来自 accounts；avatar 来自 users
+  const sidebarUser = authUser
+    ? {
+        name: authUser.real_name?.trim() || authUser.nickname?.trim() || authUser.code,
+        email: authUser.email?.trim() || authUser.role,
+        avatar: authUser.avatar?.trim() || "",
+      }
+    : { name: "", email: "", avatar: "" }
+
   const documentsItems = [
     {
       name: t.nav.dataLibrary,
@@ -118,11 +129,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   ]
 
   const data = {
-    user: {
-      name: "shadcn",
-      email: "m@example.com",
-      avatar: "/avatars/shadcn.jpg",
-    },
+    user: sidebarUser,
     navSecondary: [
       {
         title: t.nav.settings,

@@ -33,6 +33,11 @@ export interface LoginResponse {
     tenant_id: number
     code: string
     role: string
+    // 展示资料（侧边栏 / NavUser 用）
+    nickname?: string
+    real_name?: string
+    avatar?: string
+    email?: string
   }
 }
 

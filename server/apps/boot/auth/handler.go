@@ -14,6 +14,20 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
+// serializeAuthUser 把 auth.User 拍平成 gin.H，供 login/register 响应复用。
+func serializeAuthUser(u User) gin.H {
+	return gin.H{
+		"id":        u.ID,
+		"tenant_id": u.TenantID,
+		"code":      u.Code,
+		"role":      u.Role,
+		"nickname":  u.Nickname,
+		"real_name": u.RealName,
+		"avatar":    u.Avatar,
+		"email":     u.Email,
+	}
+}
+
 func (h *Handler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -33,12 +47,7 @@ func (h *Handler) Login(c *gin.Context) {
 	resp.Success(c, gin.H{
 		"token":         result.Token,
 		"refresh_token": result.RefreshToken,
-		"user": gin.H{
-			"id":        result.User.ID,
-			"tenant_id": result.User.TenantID,
-			"code":      result.User.Code,
-			"role":      result.User.Role,
-		},
+		"user":          serializeAuthUser(result.User),
 	})
 }
 
@@ -65,12 +74,7 @@ func (h *Handler) Register(c *gin.Context) {
 	resp.Success(c, gin.H{
 		"token":         result.Token,
 		"refresh_token": result.RefreshToken,
-		"user": gin.H{
-			"id":        result.User.ID,
-			"tenant_id": result.User.TenantID,
-			"code":      result.User.Code,
-			"role":      result.User.Role,
-		},
+		"user":          serializeAuthUser(result.User),
 	})
 }
 

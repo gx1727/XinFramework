@@ -6,15 +6,26 @@ type loginRequest struct {
 	TenantID uint   `json:"tenant_id" binding:"required"`
 }
 
+// User 是登录/注册响应里的精简用户视图，对应前端的 NavUser 字段。
+//
+// 注：保留 Code/Role 是因为前端 authStore.User 已依赖；Nickname/RealName/Avatar/Email
+// 用于侧边栏展示。RealName 优先于 Nickname 作为显示名（前端会自己 fallback）。
+type User struct {
+	ID       uint   `json:"id"`
+	TenantID uint   `json:"tenant_id"`
+	Code     string `json:"code"`
+	Role     string `json:"role"`
+
+	Nickname string `json:"nickname,omitempty"`
+	RealName string `json:"real_name,omitempty"`
+	Avatar   string `json:"avatar,omitempty"`
+	Email    string `json:"email,omitempty"`
+}
+
 type LoginResult struct {
 	Token        string
 	RefreshToken string
-	User         struct {
-		ID       uint
-		TenantID uint
-		Code     string
-		Role     string
-	}
+	User         User
 }
 
 type registerRequest struct {
@@ -27,12 +38,7 @@ type registerRequest struct {
 type registerResult struct {
 	Token        string
 	RefreshToken string
-	User         struct {
-		ID       uint
-		TenantID uint
-		Code     string
-		Role     string
-	}
+	User         User
 }
 
 type refreshRequest struct {
