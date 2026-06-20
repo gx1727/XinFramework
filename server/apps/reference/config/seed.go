@@ -1,4 +1,4 @@
-// Package config 通用配置 - __template__ 启动期 seed 自检
+// Package config 通用配置 - bootstrap 启动期 seed 自检
 package config
 
 import (
@@ -12,16 +12,16 @@ import (
 )
 
 // TemplateTenantCode 与 apps/boot/tenant/first_install.go 保持一致
-const TemplateTenantCode = "__template__"
+const TemplateTenantCode = "bootstrap"
 
-// EnsureTemplateSeeded 启动期自检：如果 __template__ 租户下没有 config_groups，
+// EnsureTemplateSeeded 启动期自检：如果 bootstrap 租户下没有 config_groups，
 // 自动补种 4 个预置分组 + 19 个预置项 + 1 个菜单 + 5 个资源。
 //
 // 目的：解决"已部署过老 framework.sql 的库"在新 framework.sql 加了 config seed
 // 之后，_schema_migrations 跳过 framework.sql 导致 seed 不跑的问题。
 //
 // 幂等：所有 INSERT 用 ON CONFLICT DO NOTHING，重复执行无副作用。
-// Bypass RLS：__template__ 的 tenant_id 不为 0，必须用 RunInPlatformTx 才能写入。
+// Bypass RLS：bootstrap 的 tenant_id 不为 0，必须用 RunInPlatformTx 才能写入。
 //
 // Phase 4: 显式传入 pool。
 func EnsureTemplateSeeded(ctx context.Context, pool *pgxpool.Pool) error {
@@ -31,20 +31,20 @@ func EnsureTemplateSeeded(ctx context.Context, pool *pgxpool.Pool) error {
 			return err
 		}
 
-		// 1) 查 __template__ 租户 id
+		// 1) 查 bootstrap 租户 id
 		var templateID uint
 		if err := q.QueryRow(ctx,
 			`SELECT id FROM tenants WHERE code = $1 AND is_deleted = FALSE LIMIT 1`,
 			TemplateTenantCode,
 		).Scan(&templateID); err != nil {
-			return fmt.Errorf("lookup __template__ tenant: %w", err)
+			return fmt.Errorf("lookup bootstrap tenant: %w", err)
 		}
 		if templateID == 0 {
-			// __template__ 还没建（极少发生，可能是 framework.sql 未跑）；跳过
+			// bootstrap 还没建（极少发生，可能是 framework.sql 未跑）；跳过
 			return nil
 		}
 
-		// 2) 检查 __template__ 是否已有 config_groups
+		// 2) 检查 bootstrap 是否已有 config_groups
 		var n int
 		if err := q.QueryRow(ctx,
 			`SELECT COUNT(*) FROM config_groups WHERE tenant_id = $1 AND is_deleted = FALSE`,
@@ -98,7 +98,7 @@ func EnsureTemplateSeeded(ctx context.Context, pool *pgxpool.Pool) error {
 		}
 
 		// 8) 菜单：系统管理 → 配置管理
-		// 注意：parent_id 必须是 system 菜单在 __template__ 里的实际 id（不是 default 里的 5）
+		// 注意：parent_id 必须是 system 菜单在 bootstrap 里的实际 id（不是其他租户的）
 		// ancestors 留空，下面 UPDATE 重建
 		if _, err := q.Exec(ctx, `
 			INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
@@ -277,7 +277,7 @@ func seedFeatureFlagItems(ctx context.Context, q db.Querier, tenantID uint) erro
 // HealConfigMenuParent 启动期自愈：把 config menu 提升为顶级菜单。
 //
 // 历史背景：
-//  1. 老 framework.sql 写死 parent_id=5（system 菜单的字面 id），但 __template__ 里
+//  1. 老 framework.sql 写死 parent_id=5（system 菜单的字面 id），但 bootstrap 里
 //     system 实际 id 已被 setval 推到几千，导致 config menu 成了孤儿 → 菜单树看不见。
 //  2. 后来改为子查询拿 system 菜单的实际 id，挂在 system 下。
 //  3. 现在再升级：config 是平台级菜单（跨租户、super_admin 专属），应该与 tenants

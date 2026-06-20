@@ -97,7 +97,7 @@ curl http://localhost:8087/api/v1/health
 {
   "account": "admin",       // username / phone / email 任意一种
   "password": "your-password",
-  "tenant_code": "default"  // 必填
+  "tenant_code": "bootstrap"  // 必填
 }
 ```
 
@@ -129,7 +129,7 @@ curl http://localhost:8087/api/v1/health
   "password": "...",
   "phone": "13900139000",  // 任一即可
   "email": "...",
-  "tenant_code": "default"
+  "tenant_code": "bootstrap"
 }
 ```
 
@@ -759,7 +759,7 @@ curl http://localhost:8087/api/v1/config/site/public?key=site.theme
 # 1. 登录
 TOKEN=$(curl -s -X POST http://localhost:8087/api/v1/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"account":"admin","password":"your-password","tenant_code":"default"}' \
+  -d '{"account":"admin","password":"your-password","tenant_code":"bootstrap"}' \
   | jq -r '.data.token')
 
 # 2. 调用 protected 接口

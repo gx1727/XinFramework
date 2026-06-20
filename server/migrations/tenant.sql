@@ -31,7 +31,7 @@ ON CONFLICT (account_id, role) DO NOTHING;
 INSERT INTO menus (id, tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
     OVERRIDING SYSTEM VALUE
 VALUES (100, 1, 'tenants', '租户管理', '跨租户平台管理', '', '/tenants', 'Building2Icon', 0, 0, '', TRUE, TRUE)
-ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+ON CONFLICT (tenant_id, code) WHERE scope = 'tenant' AND is_deleted = FALSE DO NOTHING;
 
 -- 序列号兜底（保持 1000 倍数租户偏移量）
 SELECT setval('menus_id_seq', GREATEST(
@@ -88,16 +88,14 @@ ON CONFLICT DO NOTHING;
 
 -- ============================================
 -- 5) 平台配置菜单（顶级，与 tenants 平级）
--- 默认租户 (tenant_id=1) 的 config menu（__template__ 里的版本由 framework.sql seed）
--- id=102（注意：menus.id 是全局 PK，不是 (tenant_id,id) 联合主键；__template__ 已占用 101，
---       所以 tenant 1 用 102）
+-- bootstrap 租户 (tenant_id=1) 的 config menu（id=101 已被 framework.sql 占用）
 -- icon=SlidersHorizontalIcon（与 system 的 SettingsIcon 区分）
 -- admin 角色通过 * 通配资源 + role_menus 自动有权限（不需要单独 bind config:* 资源）
 -- ============================================
 INSERT INTO menus (id, tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
     OVERRIDING SYSTEM VALUE
 VALUES (102, 1, 'config', '配置管理', '系统配置项管理', '', '/settings', 'SlidersHorizontalIcon', 1, 0, '', TRUE, TRUE)
-ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+ON CONFLICT (tenant_id, code) WHERE scope = 'tenant' AND is_deleted = FALSE DO NOTHING;
 
 -- 5a) admin 角色绑定 config 菜单（确保侧边栏可见）
 INSERT INTO role_menus (tenant_id, role_id, menu_id)

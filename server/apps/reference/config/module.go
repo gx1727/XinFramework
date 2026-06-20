@@ -23,7 +23,7 @@ func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "config",
 
-		// InitFn: 启动期自检 __template__ 是否有 config 数据，没有就补 seed。
+		// InitFn: 启动期自检 bootstrap 是否有 config 数据，没有就补 seed。
 		// 解决"老 framework.sql 部署过的库"在新 framework.sql 加了 config seed
 		// 但因 _schema_migrations 已标记 framework.sql 而跳过导致的缺口。
 		InitFn: func(_ plugin.Reader, _ plugin.Writer) error {
@@ -31,7 +31,7 @@ func Module(app *appx.App) plugin.Module {
 			defer cancel()
 			pool := app.DB
 
-			// 1) seed __template__
+			// 1) seed bootstrap
 			if err := EnsureTemplateSeeded(ctx, pool); err != nil {
 				log.Printf("[config] init self-check seed skipped: %v", err)
 			}

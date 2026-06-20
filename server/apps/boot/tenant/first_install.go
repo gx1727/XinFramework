@@ -12,8 +12,15 @@ import (
 )
 
 // TemplateTenantCode 模板租户的特殊 code。所有 first_install 流程从此租户复制
-// menus / resources / dicts / dict_items。status=0，不参与业务。
-const TemplateTenantCode = "__template__"
+// menus / resources / dicts / dict_items / config_groups / config_items。
+//
+// 历史方案：曾有一个 __template__ (status=0) 作为克隆源 + default (status=1) 作为 admin 居住地。
+// 现已合并为单一 bootstrap 租户同时承担两个角色（admin 居住 + 新租户克隆源）。
+//   - status=1（激活），所以 admin 能登录看到所有模板数据
+//   - new_install.go 显式只克隆数据表（menus/resources/dicts/config_groups/config_items），
+//     不克隆 users / organizations / user_roles / role_data_scopes / tenant_user_seq
+//   - 这些"租户级独有"的数据每次首装独立创建
+const TemplateTenantCode = "bootstrap"
 
 // FirstInstallReport 记录首装每一步的结果，供 service 写入 audit。
 type FirstInstallReport struct {
@@ -34,7 +41,7 @@ type FirstInstallReport struct {
 //
 // 全部走同一事务（bypass_rls=on），任一失败回滚，租户不留半成品。
 //
-// 复制来源：__template__ 租户（migrations/framework_002_template_tenant.sql seed）。
+// 复制来源：bootstrap 租户（migrations/framework.sql seed，admin 居住地）。
 //   - menus 两步法复制（根 → 子，用 code 重映射 parent_id，再补 ancestors）
 //   - resources 用 code 重映射 menu_id
 //   - dicts + dict_items 用 code 重映射 dict_id
@@ -56,7 +63,7 @@ func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminA
 		LIMIT 1`, TemplateTenantCode).Scan(&templateID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, fmt.Errorf("模板租户 %q 不存在，请先执行 migrations/framework_002_template_tenant.sql", TemplateTenantCode)
+			return nil, fmt.Errorf("模板租户 %q 不存在，请先执行 migrations/framework.sql", TemplateTenantCode)
 		}
 		return nil, fmt.Errorf("lookup template tenant: %w", err)
 	}

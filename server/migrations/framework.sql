@@ -160,6 +160,9 @@ CREATE TABLE IF NOT EXISTS menus
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id  BIGINT      NOT NULL,
+    scope      VARCHAR(16) NOT NULL DEFAULT 'tenant',
+    -- scope: 'platform' | 'tenant'
+    -- 与 dicts.scope 设计一致：显式标记 + tenant_id=0 兼容
     code       VARCHAR(64),
     name       VARCHAR(64) NOT NULL,
     subtitle   VARCHAR(128),
@@ -177,8 +180,13 @@ CREATE TABLE IF NOT EXISTS menus
     updated_by BIGINT,
     is_deleted BOOLEAN     DEFAULT FALSE
 );
-CREATE UNIQUE INDEX IF NOT EXISTS uk_menu_code ON menus (tenant_id, code) WHERE is_deleted = FALSE;
+-- 平台菜单按 code 全局唯一；租户菜单按 (tenant_id, code) 唯一
+CREATE UNIQUE INDEX IF NOT EXISTS uk_menu_code_platform
+    ON menus (code) WHERE scope = 'platform' AND is_deleted = FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_menu_code_tenant
+    ON menus (tenant_id, code) WHERE scope = 'tenant' AND is_deleted = FALSE;
 CREATE INDEX IF NOT EXISTS idx_menu_tenant ON menus (tenant_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_menu_scope  ON menus (scope) WHERE is_deleted = FALSE;
 
 -- 9. resources (资源表)
 CREATE TABLE IF NOT EXISTS resources
@@ -475,9 +483,9 @@ USING (
 -- 初始化数据
 -- ============================================
 
--- 租户
+-- 租户：bootstrap 租户（单一系统租户，同时承担 admin 居住地 + 新租户克隆源）
 INSERT INTO tenants (code, name, status, created_by, updated_by)
-VALUES ('default', '默认租户', 1, 0, 0);
+VALUES ('bootstrap', '[系统] Bootstrap 租户', 1, 0, 0);
 
 -- 账号 (password: admin123)
 -- 注意：此 hash 必须与 framework/pkg/auth.HashPassword 输出格式一致
@@ -573,143 +581,81 @@ JOIN (VALUES
 ) AS x(dict_code, code, name, sort) ON x.dict_code = d.code;
 
 -- ============================================
--- 📦 模板租户（__template__）—— 所有新建租户的首装源
+-- 📦 单一系统租户 bootstrap —— admin 居住地 + 新租户克隆源合一
 -- ============================================
--- 设计意图：通过 API 创建租户时，tenant.Service.Create → first_install
--- 从本租户复制 menus / resources / dicts。后续运维只需在 __template__
--- 内追加一次，新租户自动获得。
+-- 历史方案有两个特殊租户：default (admin 居住) + __template__ (克隆源，**已废弃**)。
+-- 现已合并为单一 bootstrap 租户：
+--   - admin 用户在此居住（tenant_id=1，status=1 激活）
+--   - 新租户通过 first_install.go 从 bootstrap 复制 menus/resources/dicts/config_groups/config_items
+--   - 复制逻辑只克隆数据表，不克隆 users / organizations / user_roles / role_data_scopes / tenant_user_seq
+--     （这些是租户级独有，每次首装独立创建）
 --
--- 包含的表：menus / resources（含 *:*）/ dicts / dict_items
--- 不包含的表：users / organizations / user_roles / role_data_scopes / tenant_user_seq
--- （这些是租户级独有，每次首装独立创建）
+-- 优点：
+--   1. 少一个特殊租户概念
+--   2. admin 改的菜单直接就是模板，没有"先写 default 再复制到 __template__"的中间步骤（双租户方案已被本迁移合并）
+--   3. 新租户 first_install 时源数据已在 bootstrap（无需再做 SELECT FROM default INSERT INTO __template__）
+-- ============================================
 
--- 1) 模板租户本身
--- status=0：不参与业务；is_deleted=FALSE：必须存活的"源"
-INSERT INTO tenants (code, name, status, created_by, updated_by)
-VALUES ('__template__', '[系统] 租户模板', 0, 0, 0)
-ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
+-- 1) bootstrap 租户本身已在文件前面 INSERT，这里不再重复
 
--- 2) 复制 menus：从 default 租户（用 code 查源，比硬编码 tenant_id=1 更稳健）
--- 2a) 根菜单（parent_id=0）
-INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
-SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
-       code, name, subtitle, url, path, icon, sort, 0, '', visible, enabled
-FROM menus
-WHERE tenant_id = (SELECT id FROM tenants WHERE code = 'default' AND is_deleted = FALSE)
-  AND parent_id = 0
-  AND is_deleted = FALSE;
+-- 2) menus / resources 已在文件前段（admin 角色 / role_menus / dicts seed）直接写入 bootstrap，无需复制
+--    first_install.go 会从 bootstrap 复制到新租户
 
--- 2b) 子菜单：用 code 重新映射 parent_id 到新租户同 code 菜单
-INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
-SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
-       m.code, m.name, m.subtitle, m.url, m.path, m.icon, m.sort,
-       new_p.id, '', m.visible, m.enabled
-FROM menus m
-JOIN menus old_p ON old_p.id = m.parent_id
-                 AND old_p.tenant_id = (SELECT id FROM tenants WHERE code = 'default' AND is_deleted = FALSE)
-                 AND old_p.is_deleted = FALSE
-JOIN menus new_p ON new_p.code = old_p.code
-                AND new_p.tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE)
-                AND new_p.is_deleted = FALSE
-WHERE m.tenant_id = (SELECT id FROM tenants WHERE code = 'default' AND is_deleted = FALSE)
-  AND m.parent_id > 0
-  AND m.is_deleted = FALSE;
-
--- 2c) 重建 ancestors（用 parent_id::text 表达层级路径）
-UPDATE menus SET ancestors = parent_id::text
-WHERE tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE)
-  AND parent_id > 0;
-
--- 3) 复制 resources：从 default 租户
--- 用 code 重新映射 menu_id（resources.menu_id 是 BIGINT，无显式 FK，跨租户 NULL 安全）
-INSERT INTO resources (tenant_id, menu_id, code, name, action, description, sort, status)
-SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
-       new_m.id, r.code, r.name, r.action, r.description, r.sort, r.status
-FROM resources r
-LEFT JOIN menus new_m ON new_m.code = (
-        SELECT code FROM menus WHERE id = r.menu_id
-            AND tenant_id = (SELECT id FROM tenants WHERE code = 'default' AND is_deleted = FALSE)
-            AND is_deleted = FALSE
-    ) AND new_m.tenant_id = (
-        SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE
-    ) AND new_m.is_deleted = FALSE
-WHERE r.tenant_id = (SELECT id FROM tenants WHERE code = 'default' AND is_deleted = FALSE)
-  AND r.is_deleted = FALSE;
-
--- 4) 复制 dicts：从系统级（tenant_id=0，scope='platform'）
--- 复制到 __template__ 租户时 scope 改为 'tenant'（属于该租户的私有副本）
+-- 3) dicts 平台副本：把系统级（tenant_id=0, scope='platform'）的字典复制到 bootstrap 私有副本
+--    （新租户 first_install 时再从 bootstrap 的 tenant 副本克隆）
 INSERT INTO dicts (tenant_id, code, name, sort, status, extend, scope)
-SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
        code, name, sort, status, extend, 'tenant'
 FROM dicts
-WHERE tenant_id = 0 AND is_deleted = FALSE AND scope = 'platform';
+WHERE tenant_id = 0 AND is_deleted = FALSE AND scope = 'platform'
+ON CONFLICT (tenant_id, code) WHERE scope = 'tenant' AND is_deleted = FALSE DO NOTHING;
 
--- 5) 复制 dict_items：用 code 重新映射 dict_id
+-- 4) 复制 dict_items：用 code 重新映射 dict_id
 INSERT INTO dict_items (tenant_id, dict_id, code, name, sort, status, extend)
-SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
        new_d.id, di.code, di.name, di.sort, di.status, di.extend
 FROM dict_items di
 JOIN dicts old_d ON old_d.id = di.dict_id AND old_d.tenant_id = 0 AND old_d.is_deleted = FALSE
 JOIN dicts new_d ON new_d.code = old_d.code
                 AND new_d.tenant_id = (
-                    SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE
+                    SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE
                 ) AND new_d.is_deleted = FALSE
-WHERE di.tenant_id = 0 AND di.is_deleted = FALSE;
-
--- 6) 推 sequence（避免新租户 first_install 时 id 撞 default 1~300 区间）
-SELECT setval('menus_id_seq', GREATEST(
-    (SELECT COALESCE(MAX(id), 0) FROM menus),
-    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) * 1000
-), true);
-
-SELECT setval('resources_id_seq', GREATEST(
-    (SELECT COALESCE(MAX(id), 0) FROM resources),
-    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) * 1000
-), true);
-
-SELECT setval('dicts_id_seq', GREATEST(
-    (SELECT COALESCE(MAX(id), 0) FROM dicts),
-    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) * 1000
-), true);
-
-SELECT setval('dict_items_id_seq', GREATEST(
-    (SELECT COALESCE(MAX(id), 0) FROM dict_items),
-    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) * 1000
-), true);
+WHERE di.tenant_id = 0 AND di.is_deleted = FALSE
+ON CONFLICT (tenant_id, dict_id, code) WHERE tenant_id <> 0 AND is_deleted = FALSE DO NOTHING;
 
 -- ============================================
 -- 🔧 Config 模块 seed（通用配置）
 -- 依赖：config.sql 已建表（字母序 c < f，config.sql 先于本文件跑）
 -- 4 个预置分组 + 19 个预置项 + 1 个菜单 (config) + 5 个资源 (config:*)
--- 新租户首装时由 apps/boot/tenant/first_install.go 从 __template__ 复制
+-- 新租户首装时由 apps/boot/tenant/first_install.go 从 bootstrap 复制
 -- ============================================
 
 -- config_groups
 INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
-SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
        'site', '站点信息', '站点名称、Logo、版权等公开信息', 'GlobeIcon', 1, TRUE, TRUE
 ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
 
 INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
-SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
        'security', '安全策略', '密码强度、会话超时等安全相关配置', 'ShieldIcon', 2, TRUE, FALSE
 ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
 
 INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
-SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
        'email', '邮件服务', 'SMTP 邮件服务配置', 'MailIcon', 3, TRUE, FALSE
 ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
 
 INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
-SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
        'feature_flag', '功能开关', '系统级功能启用/禁用开关', 'ToggleLeftIcon', 4, TRUE, FALSE
 ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
 
 -- site items
 INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_system)
 SELECT
-    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
-    (SELECT id FROM config_groups WHERE code = 'site' AND tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) AND is_deleted = FALSE),
+    (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
+    (SELECT id FROM config_groups WHERE code = 'site' AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
     s.key, s.value, s.default_value, s.type, s.label, s.description, s.sort, s.is_public, TRUE
 FROM (VALUES
     ('site_name',         '"XinFramework"'::jsonb, '"XinFramework"'::jsonb, 'string', '站点名称', '显示在页面标题、登录页等位置', 1, TRUE),
@@ -725,8 +671,8 @@ ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
 -- security items
 INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, validation, sort, is_public, is_system)
 SELECT
-    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
-    (SELECT id FROM config_groups WHERE code = 'security' AND tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) AND is_deleted = FALSE),
+    (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
+    (SELECT id FROM config_groups WHERE code = 'security' AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
     s.key, s.value, s.default_value, s.type, s.label, s.description, s.validation, s.sort, FALSE, TRUE
 FROM (VALUES
     ('password_min_length',  '8'::jsonb,    '8'::jsonb,    'number', '密码最小长度', '新建/修改密码时校验',           '{"min":6,"max":32,"required":true}'::jsonb, 1),
@@ -740,8 +686,8 @@ ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
 -- email items
 INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_readonly, is_system)
 SELECT
-    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
-    (SELECT id FROM config_groups WHERE code = 'email' AND tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) AND is_deleted = FALSE),
+    (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
+    (SELECT id FROM config_groups WHERE code = 'email' AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
     s.key, s.value, s.default_value, s.type, s.label, s.description, s.sort, FALSE, s.is_readonly, TRUE
 FROM (VALUES
     ('smtp_host',     '""'::jsonb,         '""'::jsonb,         'string',  'SMTP 主机',   '如 smtp.example.com',  1, FALSE),
@@ -756,8 +702,8 @@ ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
 -- feature_flag items\
 INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_system)
 SELECT
-    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
-    (SELECT id FROM config_groups WHERE code = 'feature_flag' AND tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) AND is_deleted = FALSE),
+    (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
+    (SELECT id FROM config_groups WHERE code = 'feature_flag' AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
     s.key, s.value, s.default_value, s.type, s.label, s.description, s.sort, FALSE, TRUE
 FROM (VALUES
     ('enable_registration', 'true'::jsonb, 'true'::jsonb, 'boolean', '开放注册', '允许外部用户自助注册', 1),
@@ -773,14 +719,14 @@ ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
 INSERT INTO menus (id, tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
     OVERRIDING SYSTEM VALUE
 SELECT 101,
-       (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+       (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
        'config', '配置管理', '系统配置项管理', '', '/settings', 'SlidersHorizontalIcon', 1, 0, '', TRUE, TRUE
-ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+ON CONFLICT (tenant_id, code) WHERE scope = 'tenant' AND is_deleted = FALSE DO NOTHING;
 
 -- 资源：config:list/get/create/update/delete
 INSERT INTO resources (tenant_id, menu_id, code, name, action, description, sort, status)
-SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
-       (SELECT id FROM menus WHERE code = 'config' AND tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) AND is_deleted = FALSE),
+SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
+       (SELECT id FROM menus WHERE code = 'config' AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
        r.code, r.name, r.action, r.description, r.sort, 1
 FROM (VALUES
     ('config:list',   '查询配置', 'list',   '查询配置分组与项',  1),
@@ -794,146 +740,66 @@ ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
 -- 序列号兜底（与上面 setval 段保持一致；保证后续 first_install 复制时 id 不冲突）
 SELECT setval('config_groups_id_seq', GREATEST(
     (SELECT COALESCE(MAX(id), 0) FROM config_groups),
-    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) * 1000
+    (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) * 1000
 ), true);
 
 SELECT setval('config_items_id_seq', GREATEST(
     (SELECT COALESCE(MAX(id), 0) FROM config_items),
-    (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) * 1000
+    (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) * 1000
 ), true);
 
 -- ============================================
--- 🔁 默认租户 (tenant_id=1) 也 seed 同样的 config 数据
--- 原因：__template__ 段是为新租户首装准备的；默认租户是手工 seed 的，
---       不会走 first_install.go，所以需要显式 seed 一份让它有数据。
--- ON CONFLICT 兜底：已存在的记录跳过，重跑幂等。
--- ============================================
-
--- config_groups
-INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
-SELECT 1, 'site',         '站点信息',     '站点名称、Logo、版权等公开信息',         'GlobeIcon',     1, TRUE, TRUE
-ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
-
-INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
-SELECT 1, 'security',     '安全策略',     '密码强度、会话超时等安全相关配置',       'ShieldIcon',    2, TRUE, FALSE
-ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
-
-INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
-SELECT 1, 'email',        '邮件服务',     'SMTP 邮件服务配置',                      'MailIcon',      3, TRUE, FALSE
-ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
-
-INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
-SELECT 1, 'feature_flag', '功能开关',     '系统级功能启用/禁用开关',                'ToggleLeftIcon',4, TRUE, FALSE
-ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
-
--- site items
-INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_system)
-SELECT 1,
-       (SELECT id FROM config_groups WHERE code = 'site' AND tenant_id = 1 AND is_deleted = FALSE),
-       s.key, s.value, s.default_value, s.type, s.label, s.description, s.sort, s.is_public, TRUE
-FROM (VALUES
-    ('site_name',          '"XinFramework"'::jsonb, '"XinFramework"'::jsonb, 'string', '站点名称', '显示在页面标题、登录页等位置', 1, TRUE),
-    ('site_logo',          '""'::jsonb,              '""'::jsonb,             'image',  '站点 Logo', '建议 PNG/SVG，背景透明', 2, TRUE),
-    ('site_favicon',       '""'::jsonb,              '""'::jsonb,             'image',  'Favicon',  '浏览器标签图标', 3, TRUE),
-    ('site_copyright',     '""'::jsonb,              '""'::jsonb,             'string', '版权信息', '页面底部显示', 4, TRUE),
-    ('site_icp',           '""'::jsonb,              '""'::jsonb,             'string', 'ICP 备案号', '中国大陆站点必填', 5, TRUE),
-    ('site_locale_default','"zh-CN"'::jsonb,         '"zh-CN"'::jsonb,        'select', '默认语言', 'zh-CN / en-US', 6, TRUE),
-    ('login_background',   '""'::jsonb,              '""'::jsonb,             'image',  '登录页背景', '登录页右侧大图', 7, TRUE)
-) AS s(key, value, default_value, type, label, description, sort, is_public)
-ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
-
--- security items
-INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, validation, sort, is_public, is_system)
-SELECT 1,
-       (SELECT id FROM config_groups WHERE code = 'security' AND tenant_id = 1 AND is_deleted = FALSE),
-       s.key, s.value, s.default_value, s.type, s.label, s.description, s.validation, s.sort, FALSE, TRUE
-FROM (VALUES
-    ('password_min_length', '8'::jsonb,    '8'::jsonb,    'number', '密码最小长度',     '新建/修改密码时校验',     '{"min":6,"max":32,"required":true}'::jsonb, 1),
-    ('password_complexity', '"standard"'::jsonb, '"standard"'::jsonb, 'select', '密码复杂度', 'low/standard/strong', '[{"label":"低(纯字母数字)","value":"low"},{"label":"标准(字母+数字)","value":"standard"},{"label":"强(字母+数字+符号)","value":"strong"}]'::jsonb, 2),
-    ('session_timeout_min', '30'::jsonb,   '30'::jsonb,   'number', '会话超时(分钟)',   '空闲超过此时间强制下线',   '{"min":5,"max":1440,"required":true}'::jsonb, 3),
-    ('max_login_attempts',  '5'::jsonb,    '5'::jsonb,    'number', '最大登录失败次数', '超过后锁定账户',           '{"min":1,"max":20,"required":true}'::jsonb, 4),
-    ('lock_duration_min',   '5'::jsonb,    '5'::jsonb,    'number', '锁定时长(分钟)',   '失败次数超限后的锁定时长', '{"min":1,"max":1440,"required":true}'::jsonb, 5)
-) AS s(key, value, default_value, type, label, description, validation, sort)
-ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
-
--- email items
-INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_readonly, is_system)
-SELECT 1,
-       (SELECT id FROM config_groups WHERE code = 'email' AND tenant_id = 1 AND is_deleted = FALSE),
-       s.key, s.value, s.default_value, s.type, s.label, s.description, s.sort, FALSE, s.is_readonly, TRUE
-FROM (VALUES
-    ('smtp_host',     '""'::jsonb,         '""'::jsonb,         'string',   'SMTP 主机',   '如 smtp.example.com',  1, FALSE),
-    ('smtp_port',     '465'::jsonb,        '465'::jsonb,        'number',   'SMTP 端口',   '常用 25/465/587',     2, FALSE),
-    ('smtp_user',     '""'::jsonb,         '""'::jsonb,         'string',   'SMTP 用户',   '通常为邮箱地址',       3, FALSE),
-    ('smtp_password', '""'::jsonb,         '""'::jsonb,         'password', 'SMTP 密码',   '授权码或登录密码',     4, TRUE),
-    ('smtp_from',     '""'::jsonb,         '""'::jsonb,         'string',   '发件人邮箱',  '邮件 From 头',         5, FALSE),
-    ('smtp_use_tls',  'true'::jsonb,       'true'::jsonb,       'boolean',  '启用 TLS',    '465 通常 TLS，587 STARTTLS', 6, FALSE)
-) AS s(key, value, default_value, type, label, description, sort, is_readonly)
-ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
-
--- feature_flag items
-INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_system)
-SELECT 1,
-       (SELECT id FROM config_groups WHERE code = 'feature_flag' AND tenant_id = 1 AND is_deleted = FALSE),
-       s.key, s.value, s.default_value, s.type, s.label, s.description, s.sort, FALSE, TRUE
-FROM (VALUES
-    ('enable_registration', 'true'::jsonb, 'true'::jsonb, 'boolean', '开放注册', '允许外部用户自助注册', 1),
-    ('enable_audit_log',    'true'::jsonb, 'true'::jsonb, 'boolean', '审计日志', '记录关键操作审计日志', 2)
-) AS s(key, value, default_value, type, label, description, sort)
-ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
-
--- ============================================
 -- 🖼️ flag 模块业务菜单 seed（写在 framework.sql 末尾是因为 flag.sql 字母序在 framework 之前，
--- 但 seed 需要 tenants/menus 表，故统一放 __template__ 段；first_install.go 全量复制到新租户）
+-- 但 seed 需要 tenants/menus 表，故统一放 bootstrap 段；first_install.go 全量复制到新租户）
 -- ============================================
 
 -- 顶级：相框管理
 INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
-SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
        'frames', '相框管理', '头像框与活动空间', '', '/frames', 'FrameIcon', 6, 0, '', TRUE, TRUE
-ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+ON CONFLICT (tenant_id, code) WHERE scope = 'tenant' AND is_deleted = FALSE DO NOTHING;
 
 -- 顶级：头像管理
 INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
-SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
        'avatars', '头像管理', '用户头像与分类', '', '/avatars', 'ImageIcon', 7, 0, '', TRUE, TRUE
-ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+ON CONFLICT (tenant_id, code) WHERE scope = 'tenant' AND is_deleted = FALSE DO NOTHING;
 
 -- 子菜单：相框列表、相框分类（parent = frames）
 INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
-SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
        s.code, s.name, s.subtitle, s.url, s.path, s.icon, s.sort,
-       (SELECT id FROM menus WHERE code = 'frames' AND tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) AND is_deleted = FALSE),
+       (SELECT id FROM menus WHERE code = 'frames' AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
        '', TRUE, TRUE
 FROM (VALUES
     ('frame-list',        '相框列表', '', '', '/frames',           'FileIcon',  1),
     ('frame-categories',  '相框分类', '', '', '/frame-categories', 'ListIcon',  2)
 ) AS s(code, name, subtitle, url, path, icon, sort)
-ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+ON CONFLICT (tenant_id, code) WHERE scope = 'tenant' AND is_deleted = FALSE DO NOTHING;
 
 -- 子菜单：头像列表、头像分类（parent = avatars）
 INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
-SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
+SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
        s.code, s.name, s.subtitle, s.url, s.path, s.icon, s.sort,
-       (SELECT id FROM menus WHERE code = 'avatars' AND tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) AND is_deleted = FALSE),
+       (SELECT id FROM menus WHERE code = 'avatars' AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
        '', TRUE, TRUE
 FROM (VALUES
     ('avatar-list',        '头像列表', '', '', '/avatars',           'FileIcon',  1),
     ('avatar-categories',  '头像分类', '', '', '/avatar-categories', 'ListIcon',  2)
 ) AS s(code, name, subtitle, url, path, icon, sort)
-ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
+ON CONFLICT (tenant_id, code) WHERE scope = 'tenant' AND is_deleted = FALSE DO NOTHING;
 
 -- 重建 frames/avatars 子菜单的 ancestors（与 first_install.go 2c 段一致）
 UPDATE menus SET ancestors = parent_id::text
-WHERE tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE)
+WHERE tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE)
   AND code IN ('frame-list', 'frame-categories', 'avatar-list', 'avatar-categories')
   AND parent_id > 0 AND is_deleted = FALSE;
 
--- 🔑 flag 资源 seed（__template__ 租户；first_install.go 会全量复制）
+-- 🔑 flag 资源 seed（bootstrap 租户；first_install.go 会全量复制）
 -- 让 flag 模块的菜单可被角色授权 / RBAC 校验
 INSERT INTO resources (tenant_id, menu_id, code, name, action, description, sort, status)
-SELECT (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE),
-       (SELECT id FROM menus WHERE code = s.menu_code AND tenant_id = (SELECT id FROM tenants WHERE code = '__template__' AND is_deleted = FALSE) AND is_deleted = FALSE),
+SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
+       (SELECT id FROM menus WHERE code = s.menu_code AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
        s.code, s.name, s.action, s.description, s.sort, 1
 FROM (VALUES
     ('flag:list',   '查询相框/头像', 'list',   '查询相框、头像、活动空间',  1, 'frames'),

@@ -394,7 +394,7 @@ curl http://localhost:8087/api/v1/flag/frames
 # 登录后创建相框
 TOKEN=$(curl -s -X POST http://localhost:8087/api/v1/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"account":"admin","password":"...","tenant_code":"default"}' \
+  -d '{"account":"admin","password":"...","tenant_code":"bootstrap"}' \
   | jq -r '.data.token')
 
 curl -X POST http://localhost:8087/api/v1/flag/frames \

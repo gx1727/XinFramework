@@ -501,7 +501,7 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8087/api/v1/health
 psql -h db -U xin_user -d xin -c '\dt'
 
 # 5. 默认租户存在
-psql -h db -U xin_user -d xin -c "SELECT * FROM tenants WHERE code='default';"
+psql -h db -U xin_user -d xin -c "SELECT * FROM tenants WHERE code='bootstrap';"
 
 # 6. Redis 连通
 redis-cli -h redis ping
@@ -509,7 +509,7 @@ redis-cli -h redis ping
 # 7. 能登录
 curl -X POST http://localhost:8087/api/v1/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"account":"admin","password":"...","tenant_code":"default"}'
+  -d '{"account":"admin","password":"...","tenant_code":"bootstrap"}'
 ```
 
 任一步失败，看 [`framework/cmd.go`](../framework/cmd.go) 和 [quickstart.md 常见问题](quickstart.md#9-常见问题)。

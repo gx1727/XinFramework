@@ -346,7 +346,7 @@ func (s *Service) getOrCreateDefaultTenant(ctx context.Context) (*tenantLocal, e
 	err = q.QueryRow(ctx, `
 		SELECT id, code, name, status
 		FROM tenants
-		WHERE code = 'default' AND is_deleted = FALSE
+		WHERE code = 'bootstrap' AND is_deleted = FALSE
 		LIMIT 1
 	`).Scan(&tenant.ID, &tenant.Code, &tenant.Name, &tenant.Status)
 	if err == nil {
@@ -359,7 +359,7 @@ func (s *Service) getOrCreateDefaultTenant(ctx context.Context) (*tenantLocal, e
 	var newTenantID uint
 	err = q.QueryRow(ctx, `
 		INSERT INTO tenants (code, name, status, created_at, updated_at)
-		VALUES ('default', 'Default Tenant', 1, NOW(), NOW())
+		VALUES ('bootstrap', 'Bootstrap Tenant', 1, NOW(), NOW())
 		RETURNING id
 	`).Scan(&newTenantID)
 	if err != nil {
@@ -367,8 +367,8 @@ func (s *Service) getOrCreateDefaultTenant(ctx context.Context) (*tenantLocal, e
 	}
 
 	tenant.ID = newTenantID
-	tenant.Code = "default"
-	tenant.Name = "Default Tenant"
+	tenant.Code = "bootstrap"
+	tenant.Name = "Bootstrap Tenant"
 	tenant.Status = 1
 	return &tenant, nil
 }

@@ -6,7 +6,7 @@
 -- 注意：本文件只做建表 + 索引 + RLS，不写 seed。
 -- 4 个预置分组 (site/security/email/feature_flag) + 19 个预置项 +
 -- 1 个菜单 (config) + 5 个资源 (config:list/get/create/update/delete)
--- 在 migrations/framework.sql 的 `__template__` 段写入。
+-- 在 migrations/framework.sql 的 `bootstrap` 段写入。
 -- 这样字母序执行时 config.sql 跑在 framework.sql 前后都不依赖。
 -- ============================================
 

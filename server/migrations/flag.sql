@@ -170,6 +170,6 @@ CREATE POLICY tenant_isolation_policy ON flag_user_generated USING (tenant_id = 
 CREATE POLICY tenant_isolation_policy ON flag_avatar_categories USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 CREATE POLICY tenant_isolation_policy ON flag_avatars USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::BIGINT);
 
--- 注意：flag 模块的菜单/资源 seed 已搬到 migrations/framework.sql 末尾的 __template__ 段。
+-- 注意：flag 模块的菜单/资源 seed 已搬到 migrations/framework.sql 末尾的 bootstrap 段。
 -- 原因：flag.sql 按字母序在 framework.sql 之前跑，但 menu/resource seed 依赖 tenants/menus 表。
--- 拆分原则：flag.sql 只建表，seed 跟 __template__ 一起进 framework.sql（与 config 模块一致）。
+-- 拆分原则：flag.sql 只建表，seed 跟 bootstrap 一起进 framework.sql（与 config 模块一致）。
