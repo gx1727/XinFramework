@@ -1,11 +1,9 @@
 import { PageLayout } from "@/components/page-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 
 export function AnalyticsPage() {
-  const t = useTranslation()
-
   return (
     <PageLayout>
       <div className="px-4 lg:px-6">

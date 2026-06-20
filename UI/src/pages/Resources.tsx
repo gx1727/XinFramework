@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PlusIcon, SearchIcon, EditIcon, TrashIcon, KeyIcon, RefreshCw } from "lucide-react"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 import { resourceApi, menuApi, type ResourceItem, type MenuItem } from "@/api"
 import { FormDialog } from "@/components/schema/DynamicForm"
 import type { FormSchema } from "@/types/schema"
@@ -31,7 +31,6 @@ const mockResources: ResourceItem[] = [
 ]
 
 export function ResourcesPage() {
-  const t = useTranslation()
   const [resources, setResources] = useState<ResourceItem[]>([])
   const [menus, setMenus] = useState<MenuItem[]>([])
   const [total, setTotal] = useState(0)

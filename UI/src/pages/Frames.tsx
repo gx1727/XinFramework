@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { ImageIcon, PlusIcon, SearchIcon, EditIcon, TrashIcon, UploadIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { toast } from "sonner"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 import { frameApi, frameCategoryApi, assetApi, type FrameItem, type FrameCategoryItem, ApiError } from "@/api"
 
 const mockFrames: FrameItem[] = [
@@ -146,7 +146,6 @@ function ImageUpload({
 }
 
 export function FramesPage() {
-  const t = useTranslation()
   const [frames, setFrames] = useState<FrameItem[]>([])
   const [categories, setCategories] = useState<FrameCategoryItem[]>([])
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)

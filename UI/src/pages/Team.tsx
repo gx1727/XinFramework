@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { SearchIcon, PlusIcon, MailIcon, MessageSquareIcon, UsersIcon } from "lucide-react"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 
 const mockTeamMembers = [
   { id: 1, name: "张三", avatar: "", role: "超级管理员", email: "zhangsan@example.com", status: "online", projects: 5 },
@@ -24,8 +24,6 @@ const mockTeams = [
 ]
 
 export function TeamPage() {
-  const t = useTranslation()
-
   return (
     <PageLayout>
       <div className="px-4 lg:px-6">

@@ -1,13 +1,11 @@
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { useTranslation } from "@/locales"
-import { LanguageSwitcher } from "@/components/language-switcher"
+import { t } from "@/locales"
 import { Switch } from "@/components/ui/switch"
 import { useTheme } from "@/components/theme-provider"
 import { useConfigItem } from "@/stores/configStore"
 
 export function SiteHeader() {
-  const t = useTranslation()
   const { theme, setTheme } = useTheme()
   const siteName = useConfigItem("site", "site_name") as string | undefined
   const headerTitle = siteName || t.header.documents
@@ -35,7 +33,6 @@ export function SiteHeader() {
               onCheckedChange={toggleTheme}
             />
           </div>
-          <LanguageSwitcher />
         </div>
       </div>
     </header>

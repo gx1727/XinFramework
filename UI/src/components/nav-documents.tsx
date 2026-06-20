@@ -17,7 +17,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { MoreHorizontalIcon, FolderIcon, ShareIcon, Trash2Icon } from "lucide-react"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 
 export function NavDocuments({
   items,
@@ -29,7 +29,6 @@ export function NavDocuments({
   }[]
 }) {
   const { isMobile } = useSidebar()
-  const t = useTranslation()
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">

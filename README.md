@@ -126,7 +126,7 @@ curl http://localhost:8087/api/v1/health
 | 文件 | 内容 |
 | --- | --- |
 | [UI/README.md](file:///d:/work/xin/XinFramework/UI/README.md) | 前端快速上手 |
-| [UI/AGENTS.md](file:///d:/work/xin/XinFramework/UI/AGENTS.md) | 前端设计约定（i18n / Schema / mock 切换） |
+| [UI/AGENTS.md](file:///d:/work/xin/XinFramework/UI/AGENTS.md) | 前端设计约定（文案 / Schema / mock 切换） |
 
 ### 工具
 

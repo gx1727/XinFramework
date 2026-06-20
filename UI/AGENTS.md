@@ -11,7 +11,7 @@
 - **图标**：lucide-react
 - **路由**：react-router-dom v6（`App.tsx` 集中 lazy）
 - **状态**：zustand（`stores/authStore`, `stores/menuStore`）
-- **i18n**：自研，`UI/src/locales/{zh-CN,en-US}.ts`；`LocaleKeys = typeof zhCN`
+- **文案**：仅简体中文；`UI/src/locales/zh-CN.ts`；`t = zhCN` 直接作为静态对象使用
 - **HTTP**：原生 `fetch` + `ApiError`（带 JWT 自动 refresh）
 - **图标选择**：lucide-react 优先；shadcn 默认有 30+ 常用图标
 
@@ -28,7 +28,7 @@ UI/src/
 │   ├── app-sidebar.tsx    # 侧边栏（按 menuStore 动态生成）
 │   ├── page-layout.tsx    # 全局布局（Auth + Sidebar + Header）
 │   └── ...
-├── locales/{zh-CN,en-US}.ts
+├── locales/zh-CN.ts       # 简体中文文案（`t = zhCN`，无 i18n 切换）
 ├── pages/                 # 每个模块一个 .tsx（Menus / Users / Roles / Dicts / Configs / Flags / ...）
 ├── stores/{authStore,menuStore}.ts
 ├── types/schema.ts        # FormSchema / FormItemSchema / TableSchema / ...
@@ -37,13 +37,13 @@ UI/src/
 
 ## 3. 关键约定
 
-### 3.1 i18n
+### 3.1 文案（简体中文）
 
-- `zh-CN.ts` 是**类型源头**：`export type LocaleKeys = typeof zhCN`
-- `en-US.ts` 必须**满足 `LocaleKeys` 类型**，即每个 key 都要有
-- 加新 key **先加 zh-CN**（否则 `LocaleKeys` 不包含，TypeScript 报红）
-- 前端用 `useTranslation()` 获取 `t`：`t.pages.users?.name || "姓名"`
-- 找不到时 `t.pages.users?.name` 是 `undefined`，用 `|| "姓名"` 兜底
+- 唯一文案源：`UI/src/locales/zh-CN.ts`，导出 `export type LocaleKeys = typeof zhCN`。
+- `UI/src/locales/index.ts` 直接把 `zhCN` 重新导出为 `t`：`import { t } from "@/locales"`。
+- 用法：`t.pages.users.title`（对象访问，无 hook、无 store）。
+- 不再做语言切换、不要 `useTranslation()`；`localeStore.ts` 与 `language-switcher.tsx` 已删除。
+- 现有 `t.pages.users?.name || "姓名"` 这种 optional chaining + 兜底写法可以保留；新增文案直接 `t.xxx.yyy` 即可。
 
 ### 3.2 Schema 驱动
 
@@ -121,7 +121,7 @@ export function XxxPage() {
 
 | 关注点 | 路径 |
 |---|---|
-| i18n 类型源头 | `UI/src/locales/zh-CN.ts` |
+| 文案（zh-CN） | `UI/src/locales/zh-CN.ts` |
 | 路由 | `UI/src/App.tsx` |
 | API 全部端点 | `UI/src/api/client.ts` |
 | 侧边栏（动态） | `UI/src/components/app-sidebar.tsx` |
@@ -201,20 +201,19 @@ export function XxxPage() {
 
 1. 在 `client.ts` 加 `xxxApi = { list, get, create, update, delete }`
 2. 在 `App.tsx` 加 `lazy(() => import("@/pages/Xxx"))` + `<Route path="/xxx" element={<XxxPage />} />`
-3. 在 `zh-CN.ts` 加 `pages.xxx` 块 + `en-US.ts` 同步
+3. 在 `zh-CN.ts` 加 `pages.xxx` 块（无需再同步其他语言）
 4. 在 `migrations/framework.sql` 加菜单和资源（参考现有 seed 格式）
 5. 写 `pages/Xxx.tsx`：
    - fetch + try/catch + setError
    - useMockFallback state（localStorage 持久化）
    - 顶部 ErrorBar + 数据源徽章
-   - form schema（useMemo 依赖 dialogMode + t）
+   - form schema（useMemo 依赖 dialogMode，无需把 `t` 放进 deps）
    - table + delete confirm + FormDialog
 
-### 改既有 i18n key
+### 改既有文案
 
-1. 改 `zh-CN.ts`（先）
-2. 改 `en-US.ts`（保持 `LocaleKeys` 一致）
-3. `tsc --noEmit` 验证
+1. 改 `zh-CN.ts`
+2. `tsc --noEmit` 验证（确保所有引用点类型仍合法）
 
 ### 给后端端点加前端 API
 

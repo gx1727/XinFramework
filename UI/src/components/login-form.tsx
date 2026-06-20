@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { useAuthStore } from "@/stores/authStore"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 
 export function LoginForm({
   className,
@@ -17,7 +17,6 @@ export function LoginForm({
 }: React.ComponentProps<"form">) {
   const navigate = useNavigate()
   const { login, isLoading, error, clearError, isAuthenticated } = useAuthStore()
-  const t = useTranslation()
 
   useEffect(() => {
     if (isAuthenticated) {

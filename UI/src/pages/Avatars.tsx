@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
 import { ImageIcon, PlusIcon, SearchIcon, EditIcon, TrashIcon, UploadIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { toast } from "sonner"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 import { avatarApi, avatarCategoryApi, assetApi, type AvatarItem, type AvatarCategoryItem, ApiError } from "@/api"
 
 const mockAvatars: AvatarItem[] = []
@@ -134,7 +134,6 @@ function ImageUpload({
 }
 
 export function AvatarsPage() {
-  const t = useTranslation()
   const [avatars, setAvatars] = useState<AvatarItem[]>([])
   const [categories, setCategories] = useState<AvatarCategoryItem[]>([])
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)

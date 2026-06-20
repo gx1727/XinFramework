@@ -34,7 +34,7 @@ import {
   ImageIcon,
   FrameIcon,
 } from "lucide-react"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 import { useMenuStore } from "@/stores/menuStore"
 import type { MenuItem } from "@/stores/menuStore"
 import { useConfigItem } from "@/stores/configStore"
@@ -62,7 +62,6 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const t = useTranslation()
   const { menus, fetchMenus } = useMenuStore()
   const siteName = useConfigItem("site", "site_name") as string | undefined
   const siteLogo = useConfigItem("site", "site_logo") as string | undefined

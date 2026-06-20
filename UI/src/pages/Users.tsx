@@ -25,7 +25,7 @@ import {
   XIcon,
   FolderTreeIcon,
 } from "lucide-react"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 import { userApi, organizationApi, type UserItem, type OrganizationItem } from "@/api"
 import { FormDialog } from "@/components/schema/DynamicForm"
 import type { FormSchema } from "@/types/schema"
@@ -285,7 +285,6 @@ function flattenOrgOptions(nodes: OrgNode[], depth = 0): { label: string; value:
 }
 
 export function UsersPage() {
-  const t = useTranslation()
   const [allUsers, setAllUsers] = useState<UserItem[]>([])
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(true)

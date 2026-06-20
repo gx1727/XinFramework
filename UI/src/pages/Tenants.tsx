@@ -172,45 +172,45 @@ export function TenantsPage() {
     if (formMode === "create") {
       items.push({
         field: "code",
-        label: t("pages.tenants.form.codeLabel"),
+        label: t.pages.tenants.form.codeLabel,
         type: "text",
         required: true,
         placeholder: "如 acme、beta",
-        tooltip: t("pages.tenants.form.codeTooltip"),
+        tooltip: t.pages.tenants.form.codeTooltip,
       })
     }
     items.push({
       field: "name",
-      label: t("pages.tenants.form.nameLabel"),
+      label: t.pages.tenants.form.nameLabel,
       type: "text",
       required: true,
-      placeholder: t("pages.tenants.form.namePlaceholder"),
+      placeholder: t.pages.tenants.form.namePlaceholder,
     })
     items.push({
       field: "contact",
-      label: t("pages.tenants.form.contactLabel"),
+      label: t.pages.tenants.form.contactLabel,
       type: "text",
     })
     items.push({
       field: "phone",
-      label: t("pages.tenants.form.phoneLabel"),
+      label: t.pages.tenants.form.phoneLabel,
       type: "text",
     })
     items.push({
       field: "email",
-      label: t("pages.tenants.form.emailLabel"),
+      label: t.pages.tenants.form.emailLabel,
       type: "email",
     })
     if (formMode === "edit") {
       items.push({
         field: "_region",
-        label: t("pages.tenants.form.regionTitle"),
+        label: t.pages.tenants.form.regionTitle,
         type: "divider",
       })
-      items.push({ field: "province", label: t("pages.tenants.form.provinceLabel"), type: "text" })
-      items.push({ field: "city", label: t("pages.tenants.form.cityLabel"), type: "text" })
-      items.push({ field: "area", label: t("pages.tenants.form.areaLabel"), type: "text" })
-      items.push({ field: "address", label: t("pages.tenants.form.addressLabel"), type: "text" })
+      items.push({ field: "province", label: t.pages.tenants.form.provinceLabel, type: "text" })
+      items.push({ field: "city", label: t.pages.tenants.form.cityLabel, type: "text" })
+      items.push({ field: "area", label: t.pages.tenants.form.areaLabel, type: "text" })
+      items.push({ field: "address", label: t.pages.tenants.form.addressLabel, type: "text" })
     }
     return { items }
   }, [formMode])
@@ -313,20 +313,20 @@ export function TenantsPage() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Building2Icon className="h-6 w-6" />
-              {t("pages.tenants.title")}
+              {t.pages.tenants.title}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {t("pages.tenants.subtitle")}
+              {t.pages.tenants.subtitle}
             </p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={load} disabled={isLoading}>
               <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
-              {t("pages.tenants.refresh")}
+              {t.pages.tenants.refresh}
             </Button>
             <Button size="sm" onClick={openCreate}>
               <PlusIcon className="h-4 w-4 mr-2" />
-              {t("pages.tenants.create")}
+              {t.pages.tenants.create}
             </Button>
           </div>
         </div>
@@ -336,7 +336,7 @@ export function TenantsPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                {t("pages.tenants.stats.total")}
+                {t.pages.tenants.stats.total}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -349,7 +349,7 @@ export function TenantsPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                {t("pages.tenants.stats.active")}
+                {t.pages.tenants.stats.active}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -362,7 +362,7 @@ export function TenantsPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                {t("pages.tenants.stats.disabled")}
+                {t.pages.tenants.stats.disabled}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -377,16 +377,16 @@ export function TenantsPage() {
         {/* Table（搜索 + 状态筛选直接放在 CardHeader，与 Users.tsx 风格一致） */}
         <Card>
           <CardHeader>
-            <CardTitle>{t("pages.tenants.list")}</CardTitle>
+            <CardTitle>{t.pages.tenants.list}</CardTitle>
             <CardDescription>
-              {t("pages.tenants.total")} {filtered.length} {t("pages.tenants.unit")}
+              {t.pages.tenants.total} {filtered.length} {t.pages.tenants.unit}
             </CardDescription>
             <div className="flex items-center gap-2 pt-2">
               {/* 搜索框：max-w-sm 与 Users.tsx / Organizations.tsx 一致 */}
               <div className="relative flex-1 max-w-sm">
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder={t("pages.tenants.searchPlaceholder")}
+                  placeholder={t.pages.tenants.searchPlaceholder}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-9"
@@ -400,12 +400,12 @@ export function TenantsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t("pages.tenants.filter.all")}</SelectItem>
+                  <SelectItem value="all">{t.pages.tenants.filter.all}</SelectItem>
                   <SelectItem value="active">
-                    {t("pages.tenants.filter.active")}
+                    {t.pages.tenants.filter.active}
                   </SelectItem>
                   <SelectItem value="disabled">
-                    {t("pages.tenants.filter.disabled")}
+                    {t.pages.tenants.filter.disabled}
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -421,13 +421,13 @@ export function TenantsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[60px]">ID</TableHead>
-                  <TableHead>{t("pages.tenants.columns.code")}</TableHead>
-                  <TableHead>{t("pages.tenants.columns.name")}</TableHead>
-                  <TableHead>{t("pages.tenants.columns.contact")}</TableHead>
-                  <TableHead>{t("pages.tenants.columns.status")}</TableHead>
-                  <TableHead>{t("pages.tenants.columns.createdAt")}</TableHead>
+                  <TableHead>{t.pages.tenants.columns.code}</TableHead>
+                  <TableHead>{t.pages.tenants.columns.name}</TableHead>
+                  <TableHead>{t.pages.tenants.columns.contact}</TableHead>
+                  <TableHead>{t.pages.tenants.columns.status}</TableHead>
+                  <TableHead>{t.pages.tenants.columns.createdAt}</TableHead>
                   <TableHead className="text-right">
-                    {t("pages.tenants.columns.actions")}
+                    {t.pages.tenants.columns.actions}
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -438,7 +438,7 @@ export function TenantsPage() {
                       colSpan={7}
                       className="text-center text-muted-foreground py-8"
                     >
-                      {isLoading ? "加载中..." : t("pages.tenants.empty")}
+                      {isLoading ? "加载中..." : t.pages.tenants.empty}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -471,11 +471,11 @@ export function TenantsPage() {
                       <TableCell>
                         {tenant.status === 1 ? (
                           <Badge variant="default" className="bg-green-600">
-                            {t("pages.tenants.status.active")}
+                            {t.pages.tenants.status.active}
                           </Badge>
                         ) : (
                           <Badge variant="secondary">
-                            {t("pages.tenants.status.disabled")}
+                            {t.pages.tenants.status.disabled}
                           </Badge>
                         )}
                       </TableCell>
@@ -488,7 +488,7 @@ export function TenantsPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => openEdit(tenant)}
-                            title={t("pages.tenants.actions.edit")}
+                            title={t.pages.tenants.actions.edit}
                           >
                             <EditIcon className="h-4 w-4" />
                           </Button>
@@ -498,8 +498,8 @@ export function TenantsPage() {
                             onClick={() => handleToggleStatus(tenant)}
                             title={
                               tenant.status === 1
-                                ? t("pages.tenants.actions.disable")
-                                : t("pages.tenants.actions.enable")
+                                ? t.pages.tenants.actions.disable
+                                : t.pages.tenants.actions.enable
                             }
                           >
                             <PowerIcon
@@ -513,7 +513,7 @@ export function TenantsPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleSoftDelete(tenant)}
-                            title={t("pages.tenants.actions.softDelete")}
+                            title={t.pages.tenants.actions.softDelete}
                           >
                             <TrashIcon className="h-4 w-4 text-amber-600" />
                           </Button>
@@ -534,8 +534,8 @@ export function TenantsPage() {
         onOpenChange={setFormOpen}
         title={
           formMode === "create"
-            ? t("pages.tenants.form.createTitle")
-            : t("pages.tenants.form.editTitle")
+            ? t.pages.tenants.form.createTitle
+            : t.pages.tenants.form.editTitle
         }
         width={520}
         schema={tenantFormSchema}
@@ -551,22 +551,22 @@ export function TenantsPage() {
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangleIcon className="h-5 w-5 text-amber-500" />
               {confirmOpen?.type === "purge"
-                ? t("pages.tenants.confirm.purgeTitle")
+                ? t.pages.tenants.confirm.purgeTitle
                 : confirmOpen?.type === "soft-delete"
-                  ? t("pages.tenants.confirm.deleteTitle")
-                  : t("pages.tenants.confirm.statusTitle")}
+                  ? t.pages.tenants.confirm.deleteTitle
+                  : t.pages.tenants.confirm.statusTitle}
             </DialogTitle>
             <DialogDescription>
               {confirmOpen?.type === "purge" && (
                 <>
-                  {t("pages.tenants.confirm.purgeDesc")
+                  {t.pages.tenants.confirm.purgeDesc
                     .replace("{code}", confirmOpen.tenant.code)
                     .replace("{name}", confirmOpen.tenant.name)}
                 </>
               )}
               {confirmOpen?.type === "soft-delete" && (
                 <>
-                  {t("pages.tenants.confirm.deleteDesc").replace(
+                  {t.pages.tenants.confirm.deleteDesc.replace(
                     "{name}",
                     confirmOpen.tenant.name,
                   )}
@@ -574,13 +574,13 @@ export function TenantsPage() {
               )}
               {confirmOpen?.type === "toggle-status" && (
                 <>
-                  {t("pages.tenants.confirm.statusDesc")
+                  {t.pages.tenants.confirm.statusDesc
                     .replace("{name}", confirmOpen.tenant.name)
                     .replace(
                       "{action}",
                       confirmOpen.nextStatus === 1
-                        ? t("pages.tenants.actions.enable")
-                        : t("pages.tenants.actions.disable"),
+                        ? t.pages.tenants.actions.enable
+                        : t.pages.tenants.actions.disable,
                     )}
                 </>
               )}
@@ -588,15 +588,15 @@ export function TenantsPage() {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmOpen(null)}>
-              {t("pages.tenants.confirm.cancel")}
+              {t.pages.tenants.confirm.cancel}
             </Button>
             <Button
               variant={confirmOpen?.type === "purge" ? "destructive" : "default"}
               onClick={executeConfirm}
             >
               {confirmOpen?.type === "purge"
-                ? t("pages.tenants.confirm.purgeOk")
-                : t("pages.tenants.confirm.ok")}
+                ? t.pages.tenants.confirm.purgeOk
+                : t.pages.tenants.confirm.ok}
             </Button>
           </DialogFooter>
         </DialogContent>

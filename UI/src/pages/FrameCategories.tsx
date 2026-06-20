@@ -9,7 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFo
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
 import { PlusIcon, EditIcon, TrashIcon } from "lucide-react"
 import { toast } from "sonner"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 import { frameCategoryApi, type FrameCategoryItem, ApiError } from "@/api"
 
 const mockCategories: FrameCategoryItem[] = []
@@ -33,7 +33,6 @@ const defaultFormData: CategoryFormData = {
 }
 
 export function FrameCategoriesPage() {
-  const t = useTranslation()
   const [categories, setCategories] = useState<FrameCategoryItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [sheetOpen, setSheetOpen] = useState(false)

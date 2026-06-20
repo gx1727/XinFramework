@@ -9,14 +9,13 @@ import {
   FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 
 export function SignupForm({
   className,
   ...props
 }: React.ComponentProps<"form">) {
   const navigate = useNavigate()
-  const t = useTranslation()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

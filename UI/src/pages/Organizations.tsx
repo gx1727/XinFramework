@@ -35,7 +35,7 @@ import {
   PowerOffIcon,
   PowerIcon,
 } from "lucide-react"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 import { organizationApi, type OrganizationItem } from "@/api"
 import { FormDialog } from "@/components/schema/DynamicForm"
 import type { FormSchema } from "@/types/schema"
@@ -147,7 +147,6 @@ const mockOrgTree: TreeOrgItem[] = [
 ]
 
 export function OrganizationsPage() {
-  const t = useTranslation()
   const [orgTree, setOrgTree] = useState<TreeOrgItem[]>([])
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
   const [searchTerm, setSearchTerm] = useState("")
@@ -858,7 +857,6 @@ function OrgTreeRow({
   searchTerm,
   renderTypeBadge,
 }: OrgTreeRowProps) {
-  const t = useTranslation()
   const hasChildren = item.children && item.children.length > 0
   const isExpanded = expandedIds.has(item.id) || !!searchTerm
 

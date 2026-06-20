@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar"
 import { EllipsisVerticalIcon, CircleUserRoundIcon, CreditCardIcon, BellIcon, LogOutIcon } from "lucide-react"
 import { useAuthStore } from "@/stores/authStore"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 
 export function NavUser({
   user,
@@ -35,7 +35,6 @@ export function NavUser({
   const { isMobile } = useSidebar()
   const navigate = useNavigate()
   const logout = useAuthStore((state) => state.logout)
-  const t = useTranslation()
 
   const handleLogout = () => {
     logout()

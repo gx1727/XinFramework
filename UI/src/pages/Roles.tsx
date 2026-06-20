@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PlusIcon, ShieldIcon, UsersIcon, LayoutDashboardIcon, EditIcon, TrashIcon, RefreshCw, CheckSquare, Square, ChevronDown, ChevronRight } from "lucide-react"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 import { roleApi, menuApi, resourceApi, organizationApi, type RoleItem, type MenuItem, type ResourceItem, type OrganizationItem } from "@/api"
 import { FormDialog } from "@/components/schema/DynamicForm"
 import type { FormSchema } from "@/types/schema"
@@ -42,7 +42,6 @@ const mockStats = {
 }
 
 export function RolesPage() {
-  const t = useTranslation()
   const [roles, setRoles] = useState<RoleItem[]>([])
   const [stats, setStats] = useState(mockStats)
   const [isLoading, setIsLoading] = useState(true)

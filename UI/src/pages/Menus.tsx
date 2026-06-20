@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PlusIcon, SearchIcon, EditIcon, TrashIcon, ChevronRightIcon, ChevronDownIcon, RefreshCw } from "lucide-react"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 import { menuApi, type MenuItem } from "@/api"
 import { FormDialog } from "@/components/schema/DynamicForm"
 import type { FormSchema } from "@/types/schema"
@@ -54,7 +54,6 @@ const mockMenuTree: TreeMenuItem[] = [
 ]
 
 export function MenusPage() {
-  const t = useTranslation()
   const [menus, setMenus] = useState<TreeMenuItem[]>([])
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
   const [searchTerm, setSearchTerm] = useState("")

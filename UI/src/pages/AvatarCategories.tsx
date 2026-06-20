@@ -9,7 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFo
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
 import { PlusIcon, EditIcon, TrashIcon } from "lucide-react"
 import { toast } from "sonner"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 import { avatarCategoryApi, type AvatarCategoryItem, ApiError } from "@/api"
 
 const mockCategories: AvatarCategoryItem[] = []
@@ -35,7 +35,6 @@ const defaultFormData: CategoryFormData = {
 }
 
 export function AvatarCategoriesPage() {
-  const t = useTranslation()
   const [categories, setCategories] = useState<AvatarCategoryItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [sheetOpen, setSheetOpen] = useState(false)

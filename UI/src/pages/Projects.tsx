@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PlusIcon, SearchIcon, FolderIcon, MoreHorizontalIcon } from "lucide-react"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 
 const mockProjects = [
   { id: 1, name: "企业管理系统", description: "公司内部管理系统", status: "active", tasks: 45, members: 8, progress: 78 },
@@ -15,8 +15,6 @@ const mockProjects = [
 ]
 
 export function ProjectsPage() {
-  const t = useTranslation()
-
   return (
     <PageLayout>
       <div className="px-4 lg:px-6">

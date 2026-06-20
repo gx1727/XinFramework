@@ -25,7 +25,7 @@ import {
   AlertCircleIcon,
   DatabaseIcon,
 } from "lucide-react"
-import { useTranslation } from "@/locales"
+import { t } from "@/locales"
 import { dictApi, type DictItem as Dict, type DictValueItem } from "@/api"
 import { FormDialog } from "@/components/schema/DynamicForm"
 import type { FormSchema } from "@/types/schema"
@@ -64,7 +64,6 @@ const mockItems: Record<number, DictValueItem[]> = {
 }
 
 export function DictsPage() {
-  const t = useTranslation()
   const [dicts, setDicts] = useState<Dict[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedId, setSelectedId] = useState<number | null>(null)
