@@ -63,7 +63,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { menus, fetchMenus } = useMenuStore()
+  const { menus, fetchMenus, error: menuError } = useMenuStore()
   const siteName = useConfigItem("site", "site_name") as string | undefined
   const siteLogo = useConfigItem("site", "site_logo") as string | undefined
   const sidebarTitle = siteName || "XinFramework"
@@ -72,15 +72,23 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     fetchMenus()
   }, [fetchMenus])
 
-  const buildNavItems = (menuList: MenuItem[]): { title: string; url: string; icon?: React.ReactNode; children?: { title: string; url: string; icon?: React.ReactNode }[] }[] => {
+  const buildNavItems = (
+    menuList: UnifiedMenuItem[],
+  ): {
+    title: string
+    url: string
+    icon?: React.ReactNode
+    children?: { title: string; url: string; icon?: React.ReactNode }[]
+  }[] => {
     return menuList
       .filter((menu) => menu.parent_id === 0)
       .sort((a, b) => a.sort - b.sort)
       .map((menu) => {
+        const IconComp = iconMap[menu.icon || ""] || FileIcon
         const item = {
           title: menu.name,
           url: menu.path || menu.url || "#",
-          icon: iconMap[menu.icon || ""] ? React.createElement(iconMap[menu.icon || ""]) : <FileIcon />,
+          icon: React.createElement(IconComp),
         }
         if (menu.children && menu.children.length > 0) {
           return {
@@ -90,7 +98,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               .map((child) => ({
                 title: child.name,
                 url: child.path || child.url || "#",
-                icon: iconMap[child.icon || ""] ? React.createElement(iconMap[child.icon || ""]) : <FileIcon />,
+                icon: React.createElement(iconMap[child.icon || ""] || FileIcon),
               })),
           }
         }

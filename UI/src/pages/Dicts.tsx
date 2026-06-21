@@ -23,7 +23,6 @@ import {
   ListIcon,
   CheckIcon,
   AlertCircleIcon,
-  DatabaseIcon,
 } from "lucide-react"
 import { t } from "@/locales"
 import { dictApi, type DictItem as Dict, type DictValueItem } from "@/api"
@@ -38,30 +37,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
-import { Checkbox } from "@/components/ui/checkbox"
-
-// Mock fallback data
-const mockDicts: Dict[] = [
-  { id: 1, code: "gender", name: "性别", sort: 1, status: 1, item_count: 2, created_at: "2026-04-26 10:00:00" },
-  { id: 2, code: "user_status", name: "用户状态", sort: 2, status: 1, item_count: 2, created_at: "2026-04-26 10:00:00" },
-  { id: 3, code: "education", name: "学历", sort: 3, status: 1, item_count: 3, created_at: "2026-04-26 10:00:00" },
-]
-
-const mockItems: Record<number, DictValueItem[]> = {
-  1: [
-    { id: 11, dict_id: 1, code: "male", name: "男", sort: 1, status: 1 },
-    { id: 12, dict_id: 1, code: "female", name: "女", sort: 2, status: 1 },
-  ],
-  2: [
-    { id: 21, dict_id: 2, code: "active", name: "启用", sort: 1, status: 1 },
-    { id: 22, dict_id: 2, code: "disabled", name: "停用", sort: 2, status: 1 },
-  ],
-  3: [
-    { id: 31, dict_id: 3, code: "bachelor", name: "本科", sort: 1, status: 1 },
-    { id: 32, dict_id: 3, code: "master", name: "硕士", sort: 2, status: 1 },
-    { id: 33, dict_id: 3, code: "doctor", name: "博士", sort: 3, status: 1 },
-  ],
-}
 
 export function DictsPage() {
   const [dicts, setDicts] = useState<Dict[]>([])
@@ -72,11 +47,6 @@ export function DictsPage() {
   const [isLoadingItems, setIsLoadingItems] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [dataSource, setDataSource] = useState<"api" | "mock" | null>(null)
-  const [useMockFallback, setUseMockFallback] = useState(() => {
-    if (typeof window === "undefined") return false
-    return localStorage.getItem("dict_use_mock") === "true"
-  })
 
   const [dictDialogOpen, setDictDialogOpen] = useState(false)
   const [dictDialogMode, setDictDialogMode] = useState<"add" | "edit">("add")
@@ -112,39 +82,18 @@ export function DictsPage() {
       const res = await dictApi.list({ page: 1, size: 200 })
       const list = res?.list ?? []
       setDicts(list)
-      setDataSource("api")
       if (list.length > 0 && selectedId == null) {
         setSelectedId(list[0].id)
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       setError(`加载字典失败：${msg}`)
-      if (useMockFallback) {
-        setDicts(mockDicts)
-        setDataSource("mock")
-        if (mockDicts.length > 0 && selectedId == null) {
-          setSelectedId(mockDicts[0].id)
-        }
-      } else {
-        setDicts([])
-        setSelectedId(null)
-      }
+      setDicts([])
+      setSelectedId(null)
     } finally {
       setIsLoading(false)
     }
-  }, [selectedId, useMockFallback])
-
-  // dev 开关同步到 localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("dict_use_mock", useMockFallback ? "true" : "false")
-      if (useMockFallback) {
-        // 切到 mock 时立即加载
-        fetchDicts()
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [useMockFallback])
+  }, [selectedId])
 
   const fetchItems = useCallback(async (dictId: number) => {
     setIsLoadingItems(true)
@@ -155,15 +104,11 @@ export function DictsPage() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       setError(`加载字典项失败：${msg}`)
-      if (useMockFallback) {
-        setItems(mockItems[dictId] ?? [])
-      } else {
-        setItems([])
-      }
+      setItems([])
     } finally {
       setIsLoadingItems(false)
     }
-  }, [useMockFallback])
+  }, [])
 
   useEffect(() => {
     fetchDicts()
@@ -446,21 +391,6 @@ export function DictsPage() {
               {t.pages.dicts?.subtitle || "维护系统下拉/枚举等数据字典及其字典项"}
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            {dataSource && (
-              <Badge variant={dataSource === "api" ? "default" : "secondary"} className="text-[10px]">
-                <DatabaseIcon className="h-3 w-3 mr-0.5" />
-                {dataSource === "api" ? "实时数据" : "Mock 数据（开发模式）"}
-              </Badge>
-            )}
-            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
-              <Checkbox
-                checked={useMockFallback}
-                onCheckedChange={(v) => setUseMockFallback(Boolean(v))}
-              />
-              失败时使用 mock
-            </label>
-          </div>
         </div>
         {error && (
           <div className="flex items-start gap-2 p-3 rounded-md border border-destructive/40 bg-destructive/5 text-sm">
@@ -471,7 +401,6 @@ export function DictsPage() {
               <div className="text-muted-foreground text-xs mt-1">
                 提示：请确认后端服务已启动（<code className="text-xs">http://localhost:8087</code>），
                 且当前用户拥有 <code className="text-xs">dict:list</code> 权限。
-                开启「失败时使用 mock」可在后端未启时继续演示。
               </div>
             </div>
             <Button variant="ghost" size="sm" onClick={fetchDicts}>重试</Button>

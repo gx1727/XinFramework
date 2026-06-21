@@ -21,6 +21,8 @@ export interface LoginResponse {
     real_name?: string
     avatar?: string
     email?: string
+    // 平台级角色（与后端 User.PlatformRoles 对齐）；空数组表示非平台角色
+    platform_roles?: string[]
   }
 }
 

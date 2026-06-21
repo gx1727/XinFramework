@@ -223,19 +223,26 @@ export function XxxPage() {
 
 ### 后端模块 ↔ 前端页面映射
 
-| 后端模块 | 前端页面 | 路径 |
-|---|---|---|
-| auth | Login.tsx | `/login` |
-| user | Users.tsx | `/users` |
-| role | Roles.tsx | `/roles` |
-| menu | Menus.tsx | `/menus` |
-| organization | Organizations.tsx | `/organizations` |
-| resource | Resources.tsx | `/resources` |
-| asset | Assets.tsx | `/asset` |
-| dict | Dicts.tsx | `/dicts` |
-| config | Configs.tsx | `/config` |
-| flag | FlagFrames.tsx / FlagSpaces.tsx / ... | `/flag/*` |
-| cms | CmsPosts.tsx | `/cms/posts` |
-| tenant | Tenants.tsx（仅 super_admin） | `/tenants` |
-| system | SystemInfo.tsx | `/system` |
-| weixin | （无独立页面） | — |
+| 后端模块 | 前端页面 | 路径 | 前端 API | 后端路径 |
+|---|---|---|---|---|
+| auth | Login.tsx | `/login` | `authApi` | `/auth/*` |
+| user | Users.tsx | `/users` | `userApi` | `/users/*` |
+| role | Roles.tsx | `/roles` | `roleApi` | `/roles/*` |
+| menu (租户域) | Menus.tsx（Tab: 租户菜单） | `/menus` | `menuApi` | `/menus/*` |
+| menu (平台域) | Menus.tsx（Tab: 平台菜单，仅 super_admin） | `/menus` | `platformMenuApi` | `/admin/platform-menus/*` |
+| organization | Organizations.tsx | `/organizations` | `organizationApi` | `/organizations/*` |
+| resource | Resources.tsx | `/resources` | `resourceApi` | `/resources/*` |
+| asset | Assets.tsx | `/asset` | `assetApi` | `/asset/*` |
+| dict | Dicts.tsx | `/dicts` | `dictApi` | `/dicts/*` |
+| config | Configs.tsx | `/configs` | `configApi` | `/configs/*` |
+| flag | FlagFrames.tsx / FlagSpaces.tsx / ... | `/flag/*` | `frameApi` 等 | `/flag/*` |
+| cms | CmsPosts.tsx | `/cms/posts` | — | `/cms/*` |
+| **platform_tenant**（仅 super_admin） | **Tenants.tsx** | **`/tenants`** | **`tenantApi`** | **`/admin/platform-tenants/*`** |
+| system | SystemInfo.tsx | `/system` | `systemApi` | `/system/*` |
+| weixin | （无独立页面） | — | — | `/weixin/*` |
+
+> **关键约定**：
+>
+> - 前端路由 `/tenants`、`/menus` 保持稳定（用户视角的页面路径）；后端 API 路径是 `/admin/platform-tenants/*`、`/admin/platform-menus/*`（super_admin 域）。
+> - 同一前端页面可能调多个后端 API（如 `Menus.tsx` 同时调 `menuApi` 和 `platformMenuApi`）。
+> - `super_admin` 判断：前端用 `useAuthStore().user?.platform_roles?.includes("super_admin")`；后端用 `RequirePlatformRole("super_admin")` 中间件。

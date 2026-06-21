@@ -249,6 +249,7 @@ func (s *Service) Login(ctx context.Context, req loginRequest) (*LoginResult, er
 	res.User.RealName = identity.RealName
 	res.User.Avatar = identity.Avatar
 	res.User.Email = identity.Email
+	res.User.PlatformRoles = tokens.platformRoles
 	return res, nil
 }
 
@@ -387,6 +388,7 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 	res.User.Code = newUserCode
 	res.User.Role = "user"
 	res.User.RealName = req.RealName
+	res.User.PlatformRoles = tokens.platformRoles
 	// nickname/avatar/email 暂未在注册时收集，留空字符串（DB 列也未填）
 	return res, nil
 }

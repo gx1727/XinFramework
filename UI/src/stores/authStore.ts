@@ -13,6 +13,8 @@ interface User {
   real_name?: string
   avatar?: string
   email?: string
+  // 平台级角色（如 super_admin），与后端 LoginResponse.user.platform_roles 对齐
+  platform_roles?: string[]
 }
 
 interface AuthState {

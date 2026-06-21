@@ -20,6 +20,10 @@ type User struct {
 	RealName string `json:"real_name,omitempty"`
 	Avatar   string `json:"avatar,omitempty"`
 	Email    string `json:"email,omitempty"`
+
+	// PlatformRoles 平台级角色列表（super_admin 等），与 JWT claims 对齐，
+	// 让前端能在不解析 JWT 的前提下判断是否能访问 /admin/* 平台域路由。
+	PlatformRoles []string `json:"platform_roles,omitempty"`
 }
 
 type LoginResult struct {

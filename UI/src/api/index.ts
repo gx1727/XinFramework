@@ -35,6 +35,12 @@ export {
 } from "./menu"
 
 export {
+  platformMenuApi,
+  type PlatformMenuItem,
+  hasPlatformRole,
+} from "./platformMenu"
+
+export {
   roleApi,
   type RoleItem,
 } from "./role"
