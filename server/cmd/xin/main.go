@@ -39,7 +39,7 @@ func main() {
 		log.Fatalf("config load failed: %v", err)
 	}
 
-	app, err := framework.Boot(cfg)
+	app, rt, err := framework.Boot(cfg)
 	if err != nil {
 		log.Fatalf("boot init failed: %v", err)
 	}
@@ -76,5 +76,5 @@ func main() {
 		flag.Module(app),
 	}
 
-	framework.Serve(cfg, app, modules)
+framework.Serve(cfg, app, rt, modules)
 }

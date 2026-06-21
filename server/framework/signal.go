@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"gx1727.com/xin/framework/internal/core/boot"
-	"gx1727.com/xin/framework/internal/core/server"
 	"gx1727.com/xin/framework/pkg/appx"
 )
 
@@ -52,14 +51,14 @@ func waitForProcess(pid int, timeout time.Duration) {
 	}
 }
 
-func waitForSignal(srv *server.XinServer, app *appx.App) {
+func waitForSignal(rt *Runtime, app *appx.App) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, notifySignals()...)
 
 	sig := <-sigCh
 	log.Printf("Received signal: %v", sig)
 
-	if err := srv.Shutdown(30 * time.Second); err != nil {
+	if err := rt.Server.Shutdown(30 * time.Second); err != nil {
 		log.Printf("server shutdown error: %v", err)
 	}
 	boot.Shutdown(app)

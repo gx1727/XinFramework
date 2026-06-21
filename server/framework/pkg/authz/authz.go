@@ -14,7 +14,11 @@
 // module's Register phase.
 package authz
 
-import "context"
+import (
+	"context"
+
+	"gx1727.com/xin/framework/pkg/permission"
+)
 
 // Authorization is the public surface apps can consume.
 //
@@ -38,6 +42,13 @@ type Authorization interface {
 	//
 	// Apps that don't need the concrete type can ignore the value.
 	LoadDataScope(ctx context.Context, userID uint) (interface{}, error)
+
+	// LoadUserSecurityContext loads the full security context for a user
+	// in one round-trip (used by the auth middleware on every request).
+	// Signature is shared with framework/internal/core/middleware.SecurityContextLoader
+	// so the middleware can consume Authorization directly without an
+	// additional wrapper.
+	LoadUserSecurityContext(ctx context.Context, userID uint) (map[string]bool, []string, *permission.DataScope, int64, error)
 
 	// InvalidateUser clears cached permissions / data scope for the user.
 	InvalidateUser(ctx context.Context, userID uint) error

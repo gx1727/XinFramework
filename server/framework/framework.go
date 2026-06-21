@@ -2,9 +2,9 @@
 //
 // 阶段设计（重构后）：
 //  1. main.go 加载 config (config.Load)
-//  2. main.go 构造 *appx.App (boot.Init)
+//  2. main.go 构造 (*appx.App, *Runtime) (framework.Boot → boot.Init)
 //  3. main.go 显式调用每个模块的 Module(app) 拿到 []plugin.Module
-//  4. main.go 调用 framework.Serve(cfg, app, modules) 启动服务
+//  4. main.go 调用 framework.Serve(cfg, app, rt, modules) 启动服务
 //
 // 不再有 framework.Run(cfg) 这类把上面四步打包的便捷函数。
 // 不再依赖 plugin.Apps() 的全局注册表 + side-effect import。
@@ -15,6 +15,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/internal/core/boot"
 	"gx1727.com/xin/framework/internal/core/middleware"
 	"gx1727.com/xin/framework/pkg/appx"
@@ -33,28 +34,28 @@ const (
 //
 // 调用方负责：
 //   - 加载 config
-//   - 调用 boot.Init(cfg) 拿到 *appx.App
+//   - 调用 framework.Boot(cfg) 拿到 (*appx.App, *Runtime)
 //   - 显式构造各模块的 []plugin.Module 列表
 //
 // Serve 负责：
 //   - 跑 migrate
-//   - 对每个模块调 Init()，期间各模块向 app.AppContext 写自己的 repository
+//   - 对每个模块调 Init()，期间各模块向 rt.AppCtx 写自己的 repository
 //   - 装全局中间件 + 调每个模块的 Register() 注册路由
 //   - 启 HTTP server，阻塞到收到信号后优雅退出
-func Serve(cfg *config.Config, app *appx.App, modules []plugin.Module) {
+func Serve(cfg *config.Config, app *appx.App, rt *Runtime, modules []plugin.Module) {
 	if err := migrate.Run(app.DB, "migrations"); err != nil {
 		log.Fatalf("migrations failed: %v", err)
 	}
 
 	enabled := enabledSet(cfg)
 
-	// Init 阶段：每个模块把自己的依赖写进 AppContext
+	// Init 阶段：每个模块把自己的依赖写进 rt.AppCtx
 	for _, m := range modules {
 		if !enabled[m.Name()] {
 			log.Printf("module %s not enabled (skip init)", m.Name())
 			continue
 		}
-		ctx, w := buildAppContextPair(app.AppContext)
+		ctx, w := buildAppContextPair(rt.AppCtx)
 		if err := m.Init(ctx, w); err != nil {
 			log.Fatalf("module %s init failed: %v", m.Name(), err)
 		}
@@ -62,14 +63,14 @@ func Serve(cfg *config.Config, app *appx.App, modules []plugin.Module) {
 	}
 
 	// 配置全局中间件 + 路由
-	setupRouter(app, modules)
+	setupRouter(cfg, app.DB, rt, modules)
 
 	// 启动 HTTP server
 	addr := fmt.Sprintf("%s:%d", cfg.App.Host, cfg.App.Port)
 	log.Printf("server starting on %s", addr)
 
 	go func() {
-		if err := app.Server.Start(addr); err != nil {
+		if err := rt.Server.Start(addr); err != nil {
 			log.Fatalf("server start failed: %v", err)
 		}
 	}()
@@ -78,14 +79,21 @@ func Serve(cfg *config.Config, app *appx.App, modules []plugin.Module) {
 		log.Printf("sd_notify ready: %v", err)
 	}
 
-	waitForSignal(app.Server, app)
+	waitForSignal(rt, app)
 }
 
 // Boot 公开包外可用的 boot 入口，封装 internal/core/boot.Init。
 //
 // main.go 没法直接 import internal 包，所以通过这个薄包装调用。
-func Boot(cfg *config.Config) (*appx.App, error) {
-	return boot.Init(cfg)
+// 返回 (*appx.App, *Runtime, error)：
+//   - app 传给每个模块的 Module(app) 构造函数；
+//   - rt 供 framework 内部（HTTP server / 模块装配 / 信号处理）使用。
+func Boot(cfg *config.Config) (*appx.App, *Runtime, error) {
+	app, srv, appCtx, err := boot.Init(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return app, &Runtime{Server: srv, AppCtx: appCtx}, nil
 }
 
 // enabledSet 把 cfg.Module 列表转成 set 方便 O(1) 查询。
@@ -106,19 +114,18 @@ func buildAppContextPair(appCtx *plugin.AppContext) (plugin.Reader, plugin.Write
 	return appCtx, appCtx
 }
 
-func setupRouter(app *appx.App, modules []plugin.Module) {
-	srv := app.Server
-	cfg := app.Config
+func setupRouter(cfg *config.Config, db *pgxpool.Pool, rt *Runtime, modules []plugin.Module) {
+	r := rt.Server.Engine
 
 	// 注册全局中间件（按执行顺序）
-	srv.Engine.Use(middleware.Recovery())      // 1. 异常恢复，最先执行以捕获所有下游 panic
-	srv.Engine.Use(middleware.RequestID())     // 2. 请求ID，尽早标记每次请求
-	srv.Engine.Use(middleware.CORS(&cfg.CORS)) // 3. CORS 预检请求处理
-	srv.Engine.Use(middleware.ClientIP())      // 4. 客户端 IP 注入 ctx（供 audit 使用）
-	srv.Engine.Use(middleware.Logger())        // 5. 日志（依赖 RequestID）
+	r.Use(middleware.Recovery())      // 1. 异常恢复，最先执行以捕获所有下游 panic
+	r.Use(middleware.RequestID())     // 2. 请求ID，尽早标记每次请求
+	r.Use(middleware.CORS(&cfg.CORS)) // 3. CORS 预检请求处理
+	r.Use(middleware.ClientIP())      // 4. 客户端 IP 注入 ctx（供 audit 使用）
+	r.Use(middleware.Logger())        // 5. 日志（依赖 RequestID）
 
 	// 注册所有模块的路由
-	registerModules(srv.Engine, cfg, app, modules)
+	registerModules(r, cfg, db, rt.AppCtx, modules)
 }
 
 // registerModules 注册已启用模块的路由（所有模块统一处理，无内置/外部之分）。
@@ -130,30 +137,35 @@ func setupRouter(app *appx.App, modules []plugin.Module) {
 //
 // 三组 RouterGroup 都通过 plugin.Module.Register(ctx, public, tenant, protected)
 // 传给业务模块，由模块自行选择挂在哪一组。
-func registerModules(r *gin.Engine, cfg *config.Config, app *appx.App, modules []plugin.Module) {
+func registerModules(r *gin.Engine, cfg *config.Config, db *pgxpool.Pool, appCtx *plugin.AppContext, modules []plugin.Module) {
 	v1 := r.Group("/api/v1")
+
+	// Session / Authz 由 AppCtx 持有——boot.Init 已分别在 NewAppContext 和
+	// SetAuthz 阶段填充，Register 阶段读取必非 nil。
+	sm := appCtx.Session()
+	authzSvc := appCtx.Authz()
 
 	// public：可选登录，公开读
 	public := v1.Group("")
-	public.Use(middleware.OptionalAuth(&cfg.JWT, app.SessionMgr, app.Authz, app.DB))
+	public.Use(middleware.OptionalAuth(&cfg.JWT, sm, authzSvc, db))
 
 	// tenant：必须登录 + 必须携带有效 tenant_id > 0（业务域）
 	// 挂载点为 ""——模块直接挂资源路径，例如 tenant.Group("/users") → /api/v1/users
 	tenant := v1.Group("")
-	tenant.Use(middleware.Auth(&cfg.JWT, app.SessionMgr, app.Authz, app.DB))
+	tenant.Use(middleware.Auth(&cfg.JWT, sm, authzSvc, db))
 	tenant.Use(pkgmiddleware.RequireTenantContext())
 
 	// protected：必须登录（语义上是 platform 域）
 	// 平台模块（platform_tenant / platform_menu / config platform 域 / dict platform 域）
 	// 自己在内部追加 RequirePlatformRole("super_admin")
 	protected := v1.Group("/platform")
-	protected.Use(middleware.Auth(&cfg.JWT, app.SessionMgr, app.Authz, app.DB))
+	protected.Use(middleware.Auth(&cfg.JWT, sm, authzSvc, db))
 
 	enabled := enabledSet(cfg)
 	// Same Reader that Init used. By the time we reach Register,
 	// every module has finished its Init phase, so ctx.Reader exposes
 	// all repositories that were populated during Init.
-	var ctx plugin.Reader = app.AppContext
+	var ctx plugin.Reader = appCtx
 
 	for _, m := range modules {
 		if !enabled[m.Name()] {

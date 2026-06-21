@@ -1,5 +1,10 @@
-// Package boot 启动编排：构造 App，把基础设施（DB、Config、Session、Authz）
-// 装进 *appx.App 并暴露给后续阶段。
+// Package boot 启动编排：构造业务模块依赖的 *appx.App（Config + DB），
+// 以及 framework 内部使用的 HTTP server 与 AppContext。
+//
+// 资源分工：
+//   - *appx.App：暴露给业务模块的最小依赖容器
+//   - *server.XinServer / *plugin.AppContext：framework 内部运行时资源，
+//     封装在 framework.Runtime 里，不传给业务模块
 //
 // Phase 5 改动：
 //   - 完全删除 globalApp / Pool() / Config() 等过渡期访问器
@@ -27,22 +32,29 @@ import (
 	"gx1727.com/xin/framework/pkg/session"
 )
 
-// Init 构造 *appx.App：打开数据库、加载配置、初始化缓存、session、权限服务。
-// 进程级资源都装进返回的 App，调用方负责显式传给模块。
-func Init(cfg *config.Config) (*appx.App, error) {
+// Init 构造进程级资源并返回 (App, HTTP server, AppContext)。
+//
+//   - app 暴露给业务模块（Config + DB）；
+//   - srv / appCtx 仅供 framework 内部使用，封装到 framework.Runtime 后传给
+//     Serve / signal 处理等 framework 内部代码。
+//
+// Session / Authz 等共享资源由 appCtx 持有：Session 在 NewAppContext 时填充，
+// Authz 在本函数末尾 SetAuthz 填充；framework 通过 rt.AppCtx.Session() /
+// rt.AppCtx.Authz() 读取，不必再单独持有。
+func Init(cfg *config.Config) (*appx.App, *server.XinServer, *plugin.AppContext, error) {
 	logger.Init(cfg.Log.Dir, cfg.Log.Level)
 
 	ctx := context.Background()
 	pool, err := db.Init(ctx, &cfg.Database)
 	if err != nil {
-		return nil, fmt.Errorf("db init failed: %w", err)
+		return nil, nil, nil, fmt.Errorf("db init failed: %w", err)
 	}
 
 	dict.Init(pool)
 
 	if err := cache.Init(&cfg.Redis); err != nil {
 		pool.Close()
-		return nil, fmt.Errorf("cache init failed: %w", err)
+		return nil, nil, nil, fmt.Errorf("cache init failed: %w", err)
 	}
 
 	var sm session.SessionManager
@@ -71,18 +83,16 @@ func Init(cfg *config.Config) (*appx.App, error) {
 	authzSvc := authz.Wrap(authzService)
 	appCtx.SetAuthz(authzSvc)
 
-	app := &appx.App{
-		Config:      cfg,
-		DB:          pool,
-		SessionMgr:  sm,
-		Server:      server.New(cfg),
-		PermService: permService,
-		Authz:       authzService,
-		AppContext:  appCtx,
-	}
-	_ = authzSvc // kept for future use; currently only AppContext.Authz is read
+	srv := server.New(cfg)
 
-	return app, nil
+	app := &appx.App{
+		Config: cfg,
+		DB:     pool,
+	}
+
+	_ = permService // kept for potential future internal use; not exposed via App
+
+	return app, srv, appCtx, nil
 }
 
 // Shutdown 释放资源。

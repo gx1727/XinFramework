@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"gx1727.com/xin/framework/pkg/config"
+	"gx1727.com/xin/framework/pkg/permission"
 )
 
 // -----------------------------------------------------------------------------
@@ -110,6 +111,9 @@ func (fakeAuthz) LoadPermissions(context.Context, uint) (map[string]bool, error)
 }
 func (fakeAuthz) LoadRoles(context.Context, uint) ([]string, error)          { return nil, nil }
 func (fakeAuthz) LoadDataScope(context.Context, uint) (interface{}, error)    { return nil, nil }
+func (fakeAuthz) LoadUserSecurityContext(context.Context, uint) (map[string]bool, []string, *permission.DataScope, int64, error) {
+	return nil, nil, nil, 0, nil
+}
 func (fakeAuthz) InvalidateUser(context.Context, uint) error                 { return nil }
 func (fakeAuthz) InvalidateRole(context.Context, uint) error                 { return nil }
 func (fakeAuthz) InvalidateResource(context.Context, uint) error             { return nil }
