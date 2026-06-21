@@ -264,7 +264,7 @@ func (s *Service) Login(ctx context.Context, req tenantLoginRequest) (*LoginResu
 //  3. 至少有一个 platform_role（如 super_admin）
 //  4. 生成 token，tenant_id 固定 0
 //
-// 成功后 token 仅能访问 /api/v1/admin/* 平台域路由。
+// 成功后 token 仅能访问 /api/v1/platform/* 平台域路由。
 func (s *Service) PlatformLogin(ctx context.Context, req platformLoginRequest) (*LoginResult, error) {
 	if s.db == nil || s.accountRepo == nil || s.platformRp == nil {
 		return nil, ErrBackendUnavailable

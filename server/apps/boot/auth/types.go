@@ -5,8 +5,8 @@ import "gx1727.com/xin/framework/pkg/resp"
 // LoginScope 登录作用域：tenant（业务租户登录） / platform（平台管理员登录）
 //
 // 决定 token 中 tenant_id 含义与后续能访问的路由空间：
-//   - tenant   → tenant_id > 0，可访问 /api/v1/t/*（业务域）
-//   - platform → tenant_id = 0，可访问 /api/v1/admin/*（平台域）
+//   - tenant   → tenant_id > 0，可访问 /api/v1/* 业务域（Auth + RequireTenantContext）
+//   - platform → tenant_id = 0，可访问 /api/v1/platform/* 平台域（Auth + RequirePlatformRole）
 type LoginScope string
 
 const (

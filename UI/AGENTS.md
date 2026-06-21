@@ -229,20 +229,28 @@ export function XxxPage() {
 | user | Users.tsx | `/users` | `userApi` | `/users/*` |
 | role | Roles.tsx | `/roles` | `roleApi` | `/roles/*` |
 | menu (租户域) | Menus.tsx（Tab: 租户菜单） | `/menus` | `menuApi` | `/menus/*` |
-| menu (平台域) | Menus.tsx（Tab: 平台菜单，仅 super_admin） | `/menus` | `platformMenuApi` | `/admin/platform-menus/*` |
+| menu (平台域) | Menus.tsx（Tab: 平台菜单，仅 super_admin） | `/menus` | `platformMenuApi` | `/platform/menus/*` |
 | organization | Organizations.tsx | `/organizations` | `organizationApi` | `/organizations/*` |
 | resource | Resources.tsx | `/resources` | `resourceApi` | `/resources/*` |
 | asset | Assets.tsx | `/asset` | `assetApi` | `/asset/*` |
 | dict | Dicts.tsx | `/dicts` | `dictApi` | `/dicts/*` |
-| config | Configs.tsx | `/configs` | `configApi` | `/configs/*` |
+| config | Configs.tsx | `/configs` | `configApi` | `/configs/*`、`/platform/configs/*`、`/public/configs` |
 | flag | FlagFrames.tsx / FlagSpaces.tsx / ... | `/flag/*` | `frameApi` 等 | `/flag/*` |
 | cms | CmsPosts.tsx | `/cms/posts` | — | `/cms/*` |
-| **platform_tenant**（仅 super_admin） | **Tenants.tsx** | **`/tenants`** | **`tenantApi`** | **`/admin/platform-tenants/*`** |
+| **platform_tenant**（仅 super_admin） | **Tenants.tsx** | **`/tenants`** | **`tenantApi`** | **`/platform/tenants/*`** |
 | system | SystemInfo.tsx | `/system` | `systemApi` | `/system/*` |
 | weixin | （无独立页面） | — | — | `/weixin/*` |
 
 > **关键约定**：
 >
-> - 前端路由 `/tenants`、`/menus` 保持稳定（用户视角的页面路径）；后端 API 路径是 `/admin/platform-tenants/*`、`/admin/platform-menus/*`（super_admin 域）。
+> - 前端路由 `/tenants`、`/menus` 保持稳定（用户视角的页面路径）；后端 API 路径是 `/platform/tenants/*`、`/platform/menus/*`（super_admin 域）。
 > - 同一前端页面可能调多个后端 API（如 `Menus.tsx` 同时调 `menuApi` 和 `platformMenuApi`）。
 > - `super_admin` 判断：前端用 `useAuthStore().user?.platform_roles?.includes("super_admin")`；后端用 `RequirePlatformRole("super_admin")` 中间件。
+>
+> **路由约定**（与后端 [server/framework/framework.go](../server/framework/framework.go) 同步）：
+>
+> | 域 | 前缀 | 说明 |
+> |---|---|---|
+> | public | `/api/v1/public/*` 或 `/api/v1/<auth>` | 公开读（如 `/public/configs`、`/auth/tenant-login`） |
+> | tenant（业务） | `/api/v1/*` | 需登录 + tenant_id；模块直接挂资源路径，**无 `/t` 前缀** |
+> | platform（super_admin） | `/api/v1/platform/*` | 平台域 CRUD（`/platform/configs`、`/platform/dicts`、`/platform/tenants`、`/platform/menus`） |

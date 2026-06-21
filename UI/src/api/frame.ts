@@ -23,25 +23,25 @@ export interface FrameItem {
 
 export const frameApi = {
   list: (params?: { category_id?: number; page?: number; size?: number }) =>
-    api<PageResponse<FrameItem>>("/t/flag/frames", { params }),
+    api<PageResponse<FrameItem>>("/flag/frames", { params }),
 
   get: (id: number) =>
-    api<FrameItem>(`/t/flag/frames/${id}`),
+    api<FrameItem>(`/flag/frames/${id}`),
 
   create: (data: { name: string; category_id?: number; description?: string; preview_url?: string; template_url?: string; type?: string; sort?: number }) =>
-    api<FrameItem>("/t/flag/frames", {
+    api<FrameItem>("/flag/frames", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   update: (id: number, data: { id?: number; category_id?: number; name?: string; description?: string; preview_url?: string; template_url?: string; type?: string; sort?: number; status?: number }) =>
-    api(`/t/flag/frames/${id}`, {
+    api(`/flag/frames/${id}`, {
       method: "PUT",
       body: JSON.stringify({ id, ...data }),
     }),
 
   delete: (id: number) =>
-    api(`/t/flag/frames/${id}`, {
+    api(`/flag/frames/${id}`, {
       method: "DELETE",
     }),
 }

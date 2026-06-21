@@ -1,12 +1,12 @@
 // 平台菜单管理（super_admin 域）
 //
 // 与 apps/admin/platform_menu 后端对齐：
-//   GET    /admin/platform-menus
-//   GET    /admin/platform-menus/tree
-//   GET    /admin/platform-menus/:id
-//   POST   /admin/platform-menus
-//   PUT    /admin/platform-menus/:id
-//   DELETE /admin/platform-menus/:id
+//   GET    /platform/menus
+//   GET    /platform/menus/tree
+//   GET    /platform/menus/:id
+//   POST   /platform/menus
+//   PUT    /platform/menus/:id
+//   DELETE /platform/menus/:id
 //
 // 全部强制 super_admin 平台角色（中间件层短路），写操作走 db.RunInPlatformTx。
 
@@ -33,26 +33,26 @@ export interface PlatformMenuItem {
 
 export const platformMenuApi = {
   list: (params?: { page?: number; size?: number; root?: boolean }) =>
-    api<PageResponse<PlatformMenuItem>>("/admin/platform-menus", { params }),
+    api<PageResponse<PlatformMenuItem>>("/platform/menus", { params }),
 
-  tree: () => api<PlatformMenuItem[]>("/admin/platform-menus/tree"),
+  tree: () => api<PlatformMenuItem[]>("/platform/menus/tree"),
 
-  get: (id: number) => api<PlatformMenuItem>(`/admin/platform-menus/${id}`),
+  get: (id: number) => api<PlatformMenuItem>(`/platform/menus/${id}`),
 
   create: (data: Partial<PlatformMenuItem>) =>
-    api<PlatformMenuItem>("/admin/platform-menus", {
+    api<PlatformMenuItem>("/platform/menus", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   update: (id: number, data: Partial<PlatformMenuItem>) =>
-    api(`/admin/platform-menus/${id}`, {
+    api(`/platform/menus/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   delete: (id: number) =>
-    api(`/admin/platform-menus/${id}`, {
+    api(`/platform/menus/${id}`, {
       method: "DELETE",
     }),
 }

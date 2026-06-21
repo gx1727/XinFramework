@@ -11,8 +11,8 @@ import (
 const PlatformRoleSuperAdmin = "super_admin"
 
 // Register 注册两域路由：
-//   - tenant:    /api/v1/t/dicts          （业务域）
-//   - protected: /api/v1/admin/platform-dicts（平台域，super_admin）
+//   - tenant:    /api/v1/dicts           （业务域）
+//   - protected: /api/v1/platform/dicts  （平台域，super_admin）
 func Register(tenant *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
 	// ============ 业务消费入口（所有登录用户可访问） ============
 	d := tenant.Group("/dicts")
@@ -39,9 +39,9 @@ func Register(tenant *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
 		d.DELETE("/:id/items/:item_id/override", pkgmiddleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.DeleteOverride)
 	}
 
-	// ============ super_admin：平台字典 CRUD（/admin/* 域） ============
+	// ============ super_admin：平台字典 CRUD（/platform/* 域） ============
 	//     先用 RequirePlatformRole 网关挡住非 super_admin，再叠加资源 RBAC
-	pd := protected.Group("/platform-dicts")
+	pd := protected.Group("/dicts")
 	pd.Use(pkgmiddleware.RequirePlatformRole(PlatformRoleSuperAdmin))
 	{
 		pd.GET("", pkgmiddleware.Require(permission.P(permission.ResDict, permission.ActList)), h.ListPlatformDicts)

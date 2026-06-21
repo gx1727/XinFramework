@@ -33,25 +33,25 @@ export interface GenerateAvatarResponse {
 
 export const spaceApi = {
   list: () =>
-    api<SpaceItem[]>("/t/flag/spaces"),
+    api<SpaceItem[]>("/flag/spaces"),
 
   get: (code: string) =>
-    api<SpaceItem>(`/t/flag/spaces/${code}`),
+    api<SpaceItem>(`/flag/spaces/${code}`),
 
   create: (data: { name: string; description?: string; frame_id?: number; access_type?: string; start_at?: string; end_at?: string }) =>
-    api<SpaceItem>("/t/flag/spaces", {
+    api<SpaceItem>("/flag/spaces", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   update: (id: number, data: Partial<SpaceItem>) =>
-    api(`/t/flag/spaces/${id}`, {
+    api(`/flag/spaces/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   delete: (id: number) =>
-    api(`/t/flag/spaces/${id}`, {
+    api(`/flag/spaces/${id}`, {
       method: "DELETE",
     }),
 }

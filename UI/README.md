@@ -84,8 +84,12 @@ import { userApi, configApi, dictApi } from "@/api"
 const list = await userApi.list({ page: 1, size: 20 })
 const user = await userApi.create({ code: "u001", name: "张三" })
 
-// 配置中心（与后端 /config/* 对应）
-const items = await configApi.listItems({ group_code: "site" })
+// 配置中心（与后端三域路由对应）
+const groups = await configApi.listGroups()                    // GET /api/v1/configs
+const items  = await configApi.listItemsByGroup(groupId)        // GET /api/v1/configs/:id/items
+const pub    = await configApi.getPublic("site")                // GET /api/v1/public/configs
+// 平台域（super_admin）
+await configApi.createPlatformGroup({ code: "site", name: "站点" }) // POST /api/v1/platform/configs
 
 // 字典
 const dicts = await dictApi.list({ page: 1, size: 20 })

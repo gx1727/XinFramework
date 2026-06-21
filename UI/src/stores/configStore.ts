@@ -1,5 +1,14 @@
 import { create } from "zustand"
-import { configApi, type ConfigGroup, type ConfigItem, type ConfigItemType } from "@/api"
+import {
+  configApi,
+  type ConfigGroup,
+  type ConfigItem,
+  type ConfigItemType,
+  type CreatePlatformGroupRequest,
+  type CreatePlatformItemRequest,
+  type UpdatePlatformGroupRequest,
+  type UpdatePlatformItemRequest,
+} from "@/api"
 
 interface ConfigState {
   // 已加载的公共配置：groupCode -> { key -> value }
@@ -21,48 +30,25 @@ interface ConfigState {
   // 管理端
   loadGroups: () => Promise<ConfigGroup[]>
   loadItems: (groupId: number) => Promise<ConfigItem[]>
+  // 后端没有"全量 items"单端点；前端聚合 listGroups + 每 group listItemsByGroup
   loadAllItems: () => Promise<ConfigItem[]>
 
-  createGroup: (data: {
-    code: string
-    name: string
-    description?: string
-    icon?: string
-    sort?: number
-    is_public?: boolean
-  }) => Promise<ConfigGroup>
-  updateGroup: (
-    id: number,
-    data: {
-      name?: string
-      description?: string
-      icon?: string
-      sort?: number
-      is_public?: boolean
-      status?: number
-    }
-  ) => Promise<ConfigGroup>
+  createGroup: (data: CreatePlatformGroupRequest) => Promise<ConfigGroup>
+  updateGroup: (id: number, data: UpdatePlatformGroupRequest) => Promise<ConfigGroup>
   deleteGroup: (id: number) => Promise<void>
 
   createItem: (
     groupId: number,
-    data: {
-      key: string
-      value?: unknown
-      default_value?: unknown
-      type: ConfigItemType
-      label?: string
-      description?: string
-      options?: { label: string; value: string | number | boolean }[]
-      validation?: Record<string, unknown>
-      sort?: number
-      is_public?: boolean
-      is_readonly?: boolean
-    }
+    data: CreatePlatformItemRequest
   ) => Promise<ConfigItem>
-  updateItem: (id: number, data: { value?: unknown; is_public?: boolean; is_readonly?: boolean; label?: string; description?: string; sort?: number; status?: number }) => Promise<ConfigItem>
-  resetItem: (id: number) => Promise<ConfigItem>
-  deleteItem: (id: number) => Promise<void>
+  updateItem: (
+    groupId: number,
+    id: number,
+    data: UpdatePlatformItemRequest
+  ) => Promise<ConfigItem>
+  // "重置" 在新架构下 = 删除租户对 platform item 的 override
+  resetItem: (groupId: number, id: number) => Promise<void>
+  deleteItem: (groupId: number, id: number) => Promise<void>
 
   clear: () => void
 }
@@ -123,9 +109,10 @@ export const useConfigStore = create<ConfigState>()((set, get) => ({
   loadGroups: async () => {
     set({ isLoadingGroups: true, error: null })
     try {
-      const res = await configApi.listGroups()
-      set({ groups: res.list, isLoadingGroups: false })
-      return res.list
+      // 后端返回裸数组，不是 {list,total}
+      const list = await configApi.listGroups()
+      set({ groups: list, isLoadingGroups: false })
+      return list
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "加载配置分组失败"
       set({ error: msg, isLoadingGroups: false })
@@ -136,12 +123,12 @@ export const useConfigStore = create<ConfigState>()((set, get) => ({
   loadItems: async (groupId) => {
     set({ isLoadingItems: true, error: null })
     try {
-      const res = await configApi.listItemsByGroup(groupId)
+      const list = await configApi.listItemsByGroup(groupId)
       set((s) => ({
-        groupItems: { ...s.groupItems, [groupId]: res.list },
+        groupItems: { ...s.groupItems, [groupId]: list },
         isLoadingItems: false,
       }))
-      return res.list
+      return list
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "加载配置项失败"
       set({ error: msg, isLoadingItems: false })
@@ -150,16 +137,21 @@ export const useConfigStore = create<ConfigState>()((set, get) => ({
   },
 
   loadAllItems: async () => {
+    // 后端没有"一次取全量 items"的端点；前端聚合
     set({ isLoadingItems: true, error: null })
     try {
-      const res = await configApi.listAllItems()
-      const grouped: Record<number, ConfigItem[]> = {}
-      for (const it of res.list) {
-        if (!grouped[it.group_id]) grouped[it.group_id] = []
-        grouped[it.group_id].push(it)
-      }
-      set({ groupItems: grouped, isLoadingItems: false })
-      return res.list
+      const groups = await configApi.listGroups()
+      const lists = await Promise.all(
+        groups.map((g) => configApi.listItemsByGroup(g.id).catch(() => []))
+      )
+      const groupItems: Record<number, ConfigItem[]> = {}
+      const flat: ConfigItem[] = []
+      groups.forEach((g, i) => {
+        groupItems[g.id] = lists[i]
+        flat.push(...lists[i])
+      })
+      set({ groups, groupItems, isLoadingItems: false })
+      return flat
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "加载配置项失败"
       set({ error: msg, isLoadingItems: false })
@@ -168,7 +160,7 @@ export const useConfigStore = create<ConfigState>()((set, get) => ({
   },
 
   createGroup: async (data) => {
-    const g = await configApi.createGroup(data)
+    const g = await configApi.createPlatformGroup(data)
     set((s) => ({ groups: [...s.groups, g] }))
     if (g.is_public) refreshPublicByGroupCode(g.code)
     return g
@@ -176,7 +168,7 @@ export const useConfigStore = create<ConfigState>()((set, get) => ({
 
   updateGroup: async (id, data) => {
     const old = get().groups.find((g) => g.id === id)
-    const g = await configApi.updateGroup(id, data)
+    const g = await configApi.updatePlatformGroup(id, data)
     set((s) => ({ groups: s.groups.map((it) => (it.id === id ? g : it)) }))
     if (old?.is_public || g.is_public) {
       refreshPublicByGroupCode(old?.code || g.code)
@@ -186,7 +178,7 @@ export const useConfigStore = create<ConfigState>()((set, get) => ({
 
   deleteGroup: async (id) => {
     const old = get().groups.find((g) => g.id === id)
-    await configApi.deleteGroup(id)
+    await configApi.deletePlatformGroup(id)
     set((s) => {
       const next = { ...s.groupItems }
       delete next[id]
@@ -199,7 +191,7 @@ export const useConfigStore = create<ConfigState>()((set, get) => ({
   },
 
   createItem: async (groupId, data) => {
-    const it = await configApi.createItem(groupId, data)
+    const it = await configApi.createPlatformItem(groupId, data)
     set((s) => ({
       groupItems: {
         ...s.groupItems,
@@ -210,9 +202,9 @@ export const useConfigStore = create<ConfigState>()((set, get) => ({
     return it
   },
 
-  updateItem: async (id, data) => {
+  updateItem: async (groupId, id, data) => {
     const old = findItemInState(get().groupItems, id)
-    const it = await configApi.updateItem(id, data)
+    const it = await configApi.updatePlatformItem(groupId, id, data)
     set((s) => {
       const next = { ...s.groupItems }
       for (const gid in next) {
@@ -224,23 +216,25 @@ export const useConfigStore = create<ConfigState>()((set, get) => ({
     return it
   },
 
-  resetItem: async (id) => {
+  resetItem: async (groupId, id) => {
+    // 新架构下"重置"语义 = 删除租户对 platform item 的 override
     const old = findItemInState(get().groupItems, id)
-    const it = await configApi.resetItem(id)
+    await configApi.deleteOverride(groupId, id)
     set((s) => {
       const next = { ...s.groupItems }
       for (const gid in next) {
-        next[gid] = next[gid].map((x) => (x.id === id ? it : x))
+        next[gid] = next[gid].map((x) =>
+          x.id === id ? { ...x, value: x.default_value } : x
+        )
       }
       return { groupItems: next }
     })
-    if (it.is_public) invalidateItemPublicCache(it.group_id)
-    return it
+    if (old?.is_public) invalidateItemPublicCache(old.group_id)
   },
 
-  deleteItem: async (id) => {
+  deleteItem: async (groupId, id) => {
     const old = findItemInState(get().groupItems, id)
-    await configApi.deleteItem(id)
+    await configApi.deletePlatformItem(groupId, id)
     set((s) => {
       const next = { ...s.groupItems }
       for (const gid in next) {
@@ -290,3 +284,6 @@ export function useConfigItem(group: string, key: string): unknown {
 export function useConfigGroup(group: string): Record<string, unknown> {
   return useConfigStore((s) => s.publicCache[group] || {})
 }
+
+// 仅占位——避免 type-only import 在某些打包器下被消除
+export type _ConfigItemTypeAlias = ConfigItemType

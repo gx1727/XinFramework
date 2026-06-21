@@ -6,7 +6,7 @@
 //	| tenant_id     | 来自 ctx.TenantID（租户内）  | 恒为 0（硬编码，平台级）       |
 //	| DB 事务上下文 | RunInTenantTx                | RunInPlatformTx（bypass RLS）  |
 //	| 中间件        | Require(permission.P(...))   | RequirePlatformRole("super_admin") |
-//	| 路由前缀      | /api/v1/menus                | /api/v1/admin/platform-menus  |
+//	| 路由前缀      | /api/v1/menus                | /api/v1/platform/menus        |
 //	| 错误码段      | 5001-5099                    | 15001-15999                   |
 //
 // 两套 API 共享同一张 menus 表（靠 tenant_id 区分），但代码完全独立，

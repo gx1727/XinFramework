@@ -45,7 +45,7 @@ func RequireAll(specs ...permission.Spec) gin.HandlerFunc {
 // 不允许跨 module 导入。
 // RequireTenantContext 校验当前 token 携带有效的 tenant_id（> 0）。
 //
-// 用途：挂在租户业务域路由组（如 /api/v1/t/*）上，挡住 platform 域登录的 token。
+// 用途：挂在租户业务域路由组（如 /api/v1/* 业务域）上，挡住 platform 域登录的 token。
 // 错误码 3003（"租户上下文缺失"）。
 //
 // 注意：必须挂在 Auth 中间件之后（依赖 XinContext.TenantID）。

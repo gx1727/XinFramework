@@ -10,9 +10,9 @@
 //	}
 //
 // 三组 RouterGroup 语义：
-//   - public     → /api/v1/*             （OptionalAuth，公开）
-//   - tenant     → /api/v1/t/*           （Auth + RequireTenantContext，业务域）
-//   - protected  → /api/v1/admin/*       （Auth，平台域；模块内部追加 RequirePlatformRole）
+//   - public     → /api/v1/*             （OptionalAuth，公开；需隔离的子资源挂 /public/<x>）
+//   - tenant     → /api/v1/*             （Auth + RequireTenantContext，业务域；模块直接挂资源路径，无 /t 前缀）
+//   - protected  → /api/v1/platform/*    （Auth，平台域；模块内部追加 RequirePlatformRole）
 //
 // 历史背景：旧版本有 NewModule / NewModuleLegacy / NewModuleWithOpts
 // 三种构造器外加 ModuleOption / WithInit 等兼容 API，全部在 Phase 2
@@ -26,9 +26,9 @@ type Module interface {
 	Name() string
 	Init(ctx Reader, w Writer) error
 	// Register 注册路由到三组 RouterGroup：
-	//   - public:     公开接口（无需登录 / OptionalAuth）
-	//   - tenant:     业务域（/t/*，Auth + RequireTenantContext）
-	//   - protected:  平台域（/admin/*，Auth；模块内部追加 RequirePlatformRole）
+//   - public:     公开接口（无需登录 / OptionalAuth；冲突时挂 /public/<x>）
+//   - tenant:     业务域（Auth + RequireTenantContext；模块直接挂资源路径）
+//   - protected:  平台域（/platform/*，Auth；模块内部追加 RequirePlatformRole）
 	Register(ctx Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup)
 	Shutdown(ctx Reader) error
 }

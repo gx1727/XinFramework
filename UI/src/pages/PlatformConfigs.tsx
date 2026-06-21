@@ -21,8 +21,8 @@ export function PlatformConfigsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              平台级配置项（scope=platform）的 CRUD 入口。Phase 0022 后续接入，
-              当前与 /admin/platform-configs/* 后端端点已就绪。
+              平台级配置项（scope=platform）的 CRUD 入口。
+              当前与 /platform/configs/* 后端端点已就绪。
             </p>
           </CardContent>
         </Card>

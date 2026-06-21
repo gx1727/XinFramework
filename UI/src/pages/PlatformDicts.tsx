@@ -19,7 +19,7 @@ export function PlatformDictsPage() {
           <CardContent>
             <p className="text-sm text-muted-foreground">
               平台级数据字典（scope=platform / visibility=public）的 CRUD 入口。
-              Phase 0022 后续接入，当前与 /admin/platform-dicts/* 后端端点已就绪。
+              当前与 /platform/dicts/* 后端端点已就绪。
             </p>
           </CardContent>
         </Card>

@@ -23,25 +23,25 @@ export interface AvatarItem {
 
 export const avatarApi = {
   list: (params?: { category_id?: number; user_id?: number; type?: string; page?: number; size?: number }) =>
-    api<PageResponse<AvatarItem>>("/t/flag/avatars", { params }),
+    api<PageResponse<AvatarItem>>("/flag/avatars", { params }),
 
   get: (id: number) =>
-    api<AvatarItem>(`/t/flag/avatars/${id}`),
+    api<AvatarItem>(`/flag/avatars/${id}`),
 
   create: (data: { source_url: string; category_id?: number; name?: string; thumbnail_url?: string; file_size?: number; width?: number; height?: number; is_public?: boolean }) =>
-    api<AvatarItem>("/t/flag/avatars", {
+    api<AvatarItem>("/flag/avatars", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   update: (id: number, data: { name?: string; category_id?: number; source_url: string; thumbnail_url?: string; is_public?: boolean; status?: number }) =>
-    api(`/t/flag/avatars/${id}`, {
+    api(`/flag/avatars/${id}`, {
       method: "PUT",
       body: JSON.stringify({ id, ...data }),
     }),
 
   delete: (id: number) =>
-    api(`/t/flag/avatars/${id}`, {
+    api(`/flag/avatars/${id}`, {
       method: "DELETE",
     }),
 }

@@ -11,27 +11,24 @@ import (
 // 仅允许持有该平台角色的账号访问。
 const PlatformRoleSuperAdmin = "super_admin"
 
-// Register 把平台租户管理路由挂到 protected 下的 /admin/platform-tenants。
+// Register 把平台租户管理路由挂到 /api/v1/platform/tenants。
 //
 // 路径约定（与 apps/admin/platform_menu 一致）：
-//   - /admin 子空间表示"平台管理域"
-//   - /platform-tenants 明确语义（不是租户业务里的 tenant）
+//   - /platform 子空间表示"平台管理域"
+//   - /tenants 直接挂资源（无 /platform-tenants 这层嵌套）
 //
 // 中间件顺序：
 //  1. protected.Use(middleware.Auth(...))            // 来自 framework.go：注入 XinContext
-//  2. adminGroup := protected.Group("/admin",
+//  2. g := protected.Group("/tenants",
 //                       pkgmiddleware.RequirePlatformRole("super_admin"))
-//  3. g := adminGroup.Group("/platform-tenants")     // 本函数
-//  4. 各路由上叠加 pkgmiddleware.Require(permission.P(...)) 做资源级权限细分
+//  3. 各路由上叠加 pkgmiddleware.Require(permission.P(...)) 做资源级权限细分
 //
 // 即使持有 super_admin，仍需满足资源权限码（tenant:create / update / delete / list）。
 // 两个守卫都过才算合法——避免任何 tenant admin 仅凭资源权限码越权。
 func Register(protected *gin.RouterGroup, h *Handler) {
-	adminGroup := protected.Group("/admin",
+	g := protected.Group("/tenants",
 		pkgmiddleware.RequirePlatformRole(PlatformRoleSuperAdmin),
 	)
-
-	g := adminGroup.Group("/platform-tenants")
 	{
 		g.POST("", pkgmiddleware.Require(permission.P(permission.ResTenant, permission.ActCreate)), h.Create)
 		g.PUT("/:id", pkgmiddleware.Require(permission.P(permission.ResTenant, permission.ActUpdate)), h.Update)

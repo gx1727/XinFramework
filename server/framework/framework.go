@@ -1,10 +1,10 @@
 // Package framework 是显式 Build 阶段的总入口。
 //
 // 阶段设计（重构后）：
-//   1. main.go 加载 config (config.Load)
-//   2. main.go 构造 *appx.App (boot.Init)
-//   3. main.go 显式调用每个模块的 Module(app) 拿到 []plugin.Module
-//   4. main.go 调用 framework.Serve(cfg, app, modules) 启动服务
+//  1. main.go 加载 config (config.Load)
+//  2. main.go 构造 *appx.App (boot.Init)
+//  3. main.go 显式调用每个模块的 Module(app) 拿到 []plugin.Module
+//  4. main.go 调用 framework.Serve(cfg, app, modules) 启动服务
 //
 // 不再有 framework.Run(cfg) 这类把上面四步打包的便捷函数。
 // 不再依赖 plugin.Apps() 的全局注册表 + side-effect import。
@@ -123,10 +123,10 @@ func setupRouter(app *appx.App, modules []plugin.Module) {
 
 // registerModules 注册已启用模块的路由（所有模块统一处理，无内置/外部之分）。
 //
-// 路由空间（Phase 0022 拆分）：
-//   - public     → /api/v1/*             （OptionalAuth，公开）
-//   - tenant     → /api/v1/t/*           （Auth + RequireTenantContext，业务域）
-//   - protected  → /api/v1/admin/*       （Auth + RequirePlatformRole，平台域）
+// 路由空间（重构后）：
+//   - public     → /api/v1/*             （OptionalAuth，公开；需隔离的子资源挂 /public/<x>）
+//   - tenant     → /api/v1/*             （Auth + RequireTenantContext，业务域；模块直接挂资源路径，无 /t 前缀）
+//   - protected  → /api/v1/platform/*    （Auth + RequirePlatformRole，平台域）
 //
 // 三组 RouterGroup 都通过 plugin.Module.Register(ctx, public, tenant, protected)
 // 传给业务模块，由模块自行选择挂在哪一组。
@@ -138,14 +138,15 @@ func registerModules(r *gin.Engine, cfg *config.Config, app *appx.App, modules [
 	public.Use(middleware.OptionalAuth(&cfg.JWT, app.SessionMgr, app.Authz, app.DB))
 
 	// tenant：必须登录 + 必须携带有效 tenant_id > 0（业务域）
-	tenant := v1.Group("/t")
+	// 挂载点为 ""——模块直接挂资源路径，例如 tenant.Group("/users") → /api/v1/users
+	tenant := v1.Group("")
 	tenant.Use(middleware.Auth(&cfg.JWT, app.SessionMgr, app.Authz, app.DB))
 	tenant.Use(pkgmiddleware.RequireTenantContext())
 
-	// protected：必须登录（保留原名，向后兼容；语义上是 platform 域）
+	// protected：必须登录（语义上是 platform 域）
 	// 平台模块（platform_tenant / platform_menu / config platform 域 / dict platform 域）
 	// 自己在内部追加 RequirePlatformRole("super_admin")
-	protected := v1.Group("/admin")
+	protected := v1.Group("/platform")
 	protected.Use(middleware.Auth(&cfg.JWT, app.SessionMgr, app.Authz, app.DB))
 
 	enabled := enabledSet(cfg)
@@ -159,10 +160,10 @@ func registerModules(r *gin.Engine, cfg *config.Config, app *appx.App, modules [
 			log.Printf("module %s not enabled (skip register)", m.Name())
 			continue
 		}
-		// Phase 0022：三组 RouterGroup（public / tenant / protected）
-		// - public:  公开路由（login / health / public/*）
-		// - tenant:  业务域路由（/t/users、/t/configs 等）
-		// - protected: 平台域路由（/admin/platform-*）
+		// 三组 RouterGroup（public / tenant / protected）
+		// - public:    公开路由（/auth/*、/health、/public/configs 等）
+		// - tenant:    业务域路由（/users、/menus、/configs 等；无 /t 前缀）
+		// - protected: 平台域路由（/platform/configs、/platform/dicts、/platform/tenants、/platform/menus）
 		m.Register(ctx, public, tenant, protected)
 	}
 }
