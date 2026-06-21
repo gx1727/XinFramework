@@ -93,7 +93,7 @@ curl http://localhost:8087/api/v1/health
 
 ## 认证（/auth/*）
 
-### POST `/auth/login`
+### POST `/auth/tenant-login`
 
 无需认证。
 
@@ -157,7 +157,7 @@ curl http://localhost:8087/api/v1/health
 { "refresh_token": "..." }
 ```
 
-**响应**：同 `/auth/login`。
+**响应**：同 `/auth/tenant-login`。
 
 ### POST `/auth/logout`
 
@@ -175,7 +175,7 @@ curl http://localhost:8087/api/v1/health
 
 ## 用户（/users/*, /user/*）
 
-### GET `/users`
+### GET `/t/users`
 
 需要登录 + `user:list`。
 
@@ -188,7 +188,7 @@ curl http://localhost:8087/api/v1/health
 | `page` | int | 默认 1 |
 | `size` | int | 默认 20，最大 200 |
 
-### POST `/users`
+### POST `/t/users`
 
 需要登录 + `user:create`。
 
@@ -208,11 +208,11 @@ curl http://localhost:8087/api/v1/health
 }
 ```
 
-### GET `/users/:id` / PUT `/users/:id` / PATCH `/users/:id`
+### GET `/t/users/:id` / PUT `/t/users/:id` / PATCH `/t/users/:id`
 
 需要登录 + `user:list` / `user:update`。PATCH 是部分更新。
 
-### PUT `/users/:id/status` / PUT `/users/:id/org`
+### PUT `/t/users/:id/status` / PUT `/t/users/:id/org`
 
 需要登录 + `user:update`。
 
@@ -221,7 +221,7 @@ curl http://localhost:8087/api/v1/health
 { "org_id": 5 }
 ```
 
-### GET `/user/profile` / PUT `/user/profile` / POST `/user/avatar`
+### GET `/t/user/profile` / PUT `/t/user/profile` / POST `/t/user/avatar`
 
 需要登录（不带 RBAC spec）。
 
@@ -229,7 +229,7 @@ curl http://localhost:8087/api/v1/health
 
 ## 角色（/roles/*）
 
-### GET `/roles` / GET `/roles/:id` / POST `/roles` / PUT `/roles/:id` / PATCH `/roles/:id` / DELETE `/roles/:id`
+### GET `/t/roles` / GET `/t/roles/:id` / POST `/t/roles` / PUT `/t/roles/:id` / PATCH `/t/roles/:id` / DELETE `/t/roles/:id`
 
 需要登录 + `role:list` / `role:list` / `role:create` / `role:update` / `role:update` / `role:delete`。
 
@@ -245,7 +245,7 @@ curl http://localhost:8087/api/v1/health
 }
 ```
 
-### GET `/roles/:id/permissions` / POST `/roles/:id/permissions`
+### GET `/t/roles/:id/permissions` / POST `/t/roles/:id/permissions`
 
 需要登录 + `role:list` / `role:update`。返回/接受资源码列表。
 
@@ -253,7 +253,7 @@ curl http://localhost:8087/api/v1/health
 { "resource_codes": ["user:create", "user:update", "flag:list"] }
 ```
 
-### GET `/roles/:id/data-scopes` / PUT `/roles/:id/data-scopes`
+### GET `/t/roles/:id/data-scopes` / PUT `/t/roles/:id/data-scopes`
 
 需要登录 + `role:list` / `role:update`。
 
@@ -261,7 +261,7 @@ curl http://localhost:8087/api/v1/health
 { "type": 2, "org_ids": [3, 5, 7] }
 ```
 
-### GET `/roles/:id/menus` / PUT `/roles/:id/menus`
+### GET `/t/roles/:id/menus` / PUT `/t/roles/:id/menus`
 
 需要登录 + `role:list` / `role:update`。
 
@@ -350,11 +350,11 @@ curl http://localhost:8087/api/v1/health
 
 ## 菜单（/menus/*）
 
-### GET `/menus/tree`
+### GET `/t/menus/tree`
 
 需要登录 + `menu:list`。
 
-### POST `/menus`
+### POST `/t/menus`
 
 需要登录 + `menu:create`。
 
@@ -373,11 +373,11 @@ curl http://localhost:8087/api/v1/health
 
 ## 组织（/organizations/*）
 
-### GET `/organizations/tree`
+### GET `/t/organizations/tree`
 
 需要登录 + `organization:list`。
 
-### POST `/organizations`
+### POST `/t/organizations`
 
 需要登录 + `organization:create`。
 
@@ -396,7 +396,7 @@ curl http://localhost:8087/api/v1/health
 
 ## 资源（/resources/*）
 
-### GET `/resources/my`
+### GET `/t/resources/my`
 
 需要登录（不带 RBAC spec）。**返回当前用户能点哪些按钮**。
 
@@ -410,7 +410,7 @@ curl http://localhost:8087/api/v1/health
 }
 ```
 
-### GET `/resources/by-menu/:menu_id`
+### GET `/t/resources/by-menu/:menu_id`
 
 需要登录 + `resource:list`。
 
@@ -422,31 +422,31 @@ curl http://localhost:8087/api/v1/health
 
 | Method | Path | Spec |
 |---|---|---|
-| GET | `/dicts` | `dict:list` |
-| GET | `/dicts/:id` | `dict:get` |
-| POST | `/dicts` | `dict:create` |
-| PUT | `/dicts/:id` | `dict:update` |
-| DELETE | `/dicts/:id` | `dict:delete` |
-| GET | `/dicts/:id/items` | `dict:list` |
-| POST | `/dicts/:id/items` | `dict:update` |
-| PUT | `/dicts/:id/items/:item_id` | `dict:update` |
-| DELETE | `/dicts/:id/items/:item_id` | `dict:update` |
-| GET | `/dicts/resolve` | `dict:get` |
-| POST | `/dicts/resolve/batch` | `dict:get` |
-| PUT | `/dicts/:id/items/:item_id/override` | `dict:update` |
-| DELETE | `/dicts/:id/items/:item_id/override` | `dict:update` |
+| GET | `/t/dicts` | `dict:list` |
+| GET | `/t/dicts/:id` | `dict:get` |
+| POST | `/t/dicts` | `dict:create` |
+| PUT | `/t/dicts/:id` | `dict:update` |
+| DELETE | `/t/dicts/:id` | `dict:delete` |
+| GET | `/t/dicts/:id/items` | `dict:list` |
+| POST | `/t/dicts/:id/items` | `dict:update` |
+| PUT | `/t/dicts/:id/items/:item_id` | `dict:update` |
+| DELETE | `/t/dicts/:id/items/:item_id` | `dict:update` |
+| GET | `/t/dicts/resolve` | `dict:get` |
+| POST | `/t/dicts/resolve/batch` | `dict:get` |
+| PUT | `/t/dicts/:id/items/:item_id/override` | `dict:update` |
+| DELETE | `/t/dicts/:id/items/:item_id/override` | `dict:update` |
 
 ### 平台路由（`/api/v1/dicts/platform*`，强制 super_admin）
 
 | Method | Path |
 |---|---|
-| GET | `/dicts/platform/:id/items` |
-| POST | `/dicts/platform/:id/items` |
-| PUT | `/dicts/platform/:id/items/:item_id` |
-| DELETE | `/dicts/platform/:id/items/:item_id` |
-| GET | `/dicts/platform/:id/visibility` |
-| POST | `/dicts/platform/:id/visibility` |
-| DELETE | `/dicts/platform/:id/visibility/:tenant_id` |
+| GET | `/admin/platform-dicts/:id/items` |
+| POST | `/admin/platform-dicts/:id/items` |
+| PUT | `/admin/platform-dicts/:id/items/:item_id` |
+| DELETE | `/admin/platform-dicts/:id/items/:item_id` |
+| GET | `/admin/platform-dicts/:id/visibility` |
+| POST | `/admin/platform-dicts/:id/visibility` |
+| DELETE | `/admin/platform-dicts/:id/visibility/:tenant_id` |
 
 `dict_items.extend` 是 JSONB 列，SQL 显式 `::jsonb` cast。
 
@@ -458,30 +458,30 @@ curl http://localhost:8087/api/v1/health
 
 | Method | Path | Spec | Handler |
 |---|---|---|---|
-| GET | `/configs` | `config:list` | ListGroups（按 tenant_id 过滤） |
-| GET | `/configs/:id` | `config:get` | GetGroup（resolve 合并） |
-| GET | `/configs/:id/items` | `config:list` | ListItemsByGroup |
-| POST | `/configs/:id/items/:item_id/override` | `config:update` | UpsertOverride |
-| DELETE | `/configs/:id/items/:item_id/override` | `config:update` | DeleteOverride |
-| GET | `/configs/resolve` | `config:list` | Resolve（`?code=site`） |
-| POST | `/configs/resolve/batch` | `config:list` | ResolveBatch |
+| GET | `/t/configs` | `config:list` | ListGroups（按 tenant_id 过滤） |
+| GET | `/t/configs/:id` | `config:get` | GetGroup（resolve 合并） |
+| GET | `/t/configs/:id/items` | `config:list` | ListItemsByGroup |
+| POST | `/t/configs/:id/items/:item_id/override` | `config:update` | UpsertOverride |
+| DELETE | `/t/configs/:id/items/:item_id/override` | `config:update` | DeleteOverride |
+| GET | `/t/configs/resolve` | `config:list` | Resolve（`?code=site`） |
+| POST | `/t/configs/resolve/batch` | `config:list` | ResolveBatch |
 
 ### 平台管理（`/api/v1/configs/platform*`，强制 super_admin）
 
 | Method | Path | Spec | Handler |
 |---|---|---|---|
-| GET | `/configs/platform` | `config:list` | ListGroups |
-| GET | `/configs/platform/:id` | `config:get` | GetGroup |
-| POST | `/configs/platform` | `config:create` | CreateGroup |
-| PUT | `/configs/platform/:id` | `config:update` | UpdateGroup |
-| DELETE | `/configs/platform/:id` | `config:delete` | DeleteGroup |
-| GET | `/configs/platform/:id/items` | `config:list` | ListItems |
-| POST | `/configs/platform/:id/items` | `config:create` | CreateItem |
-| PUT | `/configs/platform/:id/items/:item_id` | `config:update` | UpdateItem |
-| DELETE | `/configs/platform/:id/items/:item_id` | `config:delete` | DeleteItem |
-| GET | `/configs/platform/:id/visibility` | `config:list` | ListVisibility |
-| POST | `/configs/platform/:id/visibility` | `config:update` | UpsertVisibility |
-| DELETE | `/configs/platform/:id/visibility/:tenant_id` | `config:update` | DeleteVisibility |
+| GET | `/admin/platform-configs` | `config:list` | ListGroups |
+| GET | `/admin/platform-configs/:id` | `config:get` | GetGroup |
+| POST | `/admin/platform-configs` | `config:create` | CreateGroup |
+| PUT | `/admin/platform-configs/:id` | `config:update` | UpdateGroup |
+| DELETE | `/admin/platform-configs/:id` | `config:delete` | DeleteGroup |
+| GET | `/admin/platform-configs/:id/items` | `config:list` | ListItems |
+| POST | `/admin/platform-configs/:id/items` | `config:create` | CreateItem |
+| PUT | `/admin/platform-configs/:id/items/:item_id` | `config:update` | UpdateItem |
+| DELETE | `/admin/platform-configs/:id/items/:item_id` | `config:delete` | DeleteItem |
+| GET | `/admin/platform-configs/:id/visibility` | `config:list` | ListVisibility |
+| POST | `/admin/platform-configs/:id/visibility` | `config:update` | UpsertVisibility |
+| DELETE | `/admin/platform-configs/:id/visibility/:tenant_id` | `config:update` | DeleteVisibility |
 
 ### 公开读（`/api/v1/public/configs`，无需 auth）
 
@@ -578,7 +578,7 @@ curl http://localhost:8087/api/v1/health
 
 ## 资产（/asset/*）
 
-### POST `/asset/upload`
+### POST `/t/asset/upload`
 
 需要登录 + `asset:create`。**multipart/form-data**，字段名 `file`。
 
@@ -598,7 +598,7 @@ curl http://localhost:8087/api/v1/health
 
 存储后端由 `cfg.storage.provider` 决定。
 
-### DELETE `/asset/:id`
+### DELETE `/t/asset/:id`
 
 需要登录 + `asset:delete`。
 
@@ -606,7 +606,7 @@ curl http://localhost:8087/api/v1/health
 
 ## 系统管理（/system/*）
 
-### GET `/system/server-info`
+### GET `/t/system/server-info`
 
 需要登录 + `system:list`。
 
@@ -625,15 +625,15 @@ curl http://localhost:8087/api/v1/health
 }
 ```
 
-### POST `/system/clear-cache`
+### POST `/t/system/clear-cache`
 
 需要登录 + `system:update`。清空 Redis cache（保留 session）。
 
-### GET `/system/cache/info` / `/system/cache/keys`
+### GET `/t/system/cache/info` / `/t/system/cache/keys`
 
 需要登录 + `system:list`。keys 支持 `?pattern=&count=`。
 
-### GET `/system/cache/value/*key` / DELETE `/system/cache/keys/*key`
+### GET `/t/system/cache/value/*key` / DELETE `/t/system/cache/keys/*key`
 
 需要登录 + `system:list` / `system:update`。
 
@@ -662,7 +662,7 @@ curl http://localhost:8087/api/v1/health
 }
 ```
 
-### POST `/weixin/phone` / `/weixin/bind-phone`
+### POST `/weixin/phone` / `/t/weixin/bind-phone`
 
 phone 无需认证（前端用），bind-phone 需要登录。
 
@@ -672,11 +672,11 @@ phone 无需认证（前端用），bind-phone 需要登录。
 
 展示 extapi 模式。CMS 不直接连 RBAC 表。
 
-### GET `/cms/me` / `/cms/users` / `/cms/tenant`
+### GET `/t/cms/me` / `/t/cms/users` / `/t/cms/tenant`
 
 需要登录。返回当前用户 / 用户列表 / 当前租户（走 extapi）。
 
-### GET/POST/PUT/DELETE `/cms/posts`
+### GET/POST/PUT/DELETE `/t/cms/posts`
 
 需要登录。CMS 自有 posts 表。
 
@@ -686,19 +686,19 @@ phone 无需认证（前端用），bind-phone 需要登录。
 
 完整 RBAC + DataScope 演示。详见 [apps/flag/doc/api.md](../apps/flag/doc/api.md)。
 
-### GET `/flag/frames`
+### GET `/t/flag/frames`
 
 无需认证。公开浏览相框。
 
-### POST `/flag/frames`
+### POST `/t/flag/frames`
 
 需要登录 + `flag:create`。
 
-### GET `/flag/my-avatars`
+### GET `/t/flag/my-avatars`
 
 需要登录 + `flag:list`。**自动应用 DataScopeSelf**：只返回 `creator_id = 当前 userID` 的记录。
 
-### POST `/flag/generate`
+### POST `/t/flag/generate`
 
 需要登录 + `flag:create`。触发头像生成流程。
 

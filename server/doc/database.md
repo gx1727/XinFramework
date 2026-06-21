@@ -189,7 +189,7 @@ err := db.RunInPlatformTx(ctx, s.pool, func(txCtx context.Context) error {
 - 查询默认带 `WHERE is_deleted = FALSE`
 - 唯一索引都是部分索引：`UNIQUE INDEX ... WHERE is_deleted = FALSE`
 - "删除" 实际是 `UPDATE ... SET is_deleted = TRUE`，数据保留
-- "硬删"（物理 DELETE）只用于 `purge` 类操作（如 `POST /admin/platform-tenants/:id/purge`）
+- "硬删"（物理 DELETE）只用于 `purge` 类操作（如 `POST /api/v1/admin/platform-tenants/:id/purge`）
 
 ```sql
 CREATE UNIQUE INDEX uk_users_account ON users (tenant_id, account_id)

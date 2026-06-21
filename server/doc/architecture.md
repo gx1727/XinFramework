@@ -210,14 +210,19 @@ srv.Engine.Use(
 )
 ```
 
-然后在 `/api/v1` 路由组里挂两个分组：
+然后在 `/api/v1` 路由组里挂 **三组 RouterGroup**（Phase 0022 拆分）：
 
 ```go
 public := v1.Group("")
-public.Use(middleware.OptionalAuth(...))   // 可选登录
+public.Use(middleware.OptionalAuth(...))         // 可选登录
 
-protected := v1.Group("")
-protected.Use(middleware.Auth(...))        // 必须登录
+tenant := v1.Group("/t")
+tenant.Use(middleware.Auth(...))                  // 必须登录
+tenant.Use(pkgmiddleware.RequireTenantContext())  // 必须 tenant_id > 0
+
+protected := v1.Group("/admin")
+protected.Use(middleware.Auth(...))              // 必须登录（平台域）
+// 模块内部追加 RequirePlatformRole("super_admin")
 ```
 
 ### 5.1 Auth 中间件做了什么
@@ -230,12 +235,6 @@ protected.Use(middleware.Auth(...))        // 必须登录
 4. 把 `XinContext` 注入到 `c.Request.Context()`
 5. **懒加载** `UserContextLoader`（第一次有人 `MustNewUserContext(c)` 才查 DB）
 
-为什么不立即查权限？
-
-- `List` 路由可能只查元数据，不需要权限校验
-- `GetCurrentUser` 路由只需要身份，不需要数据范围
-- 懒加载 + `sync.Once` 保证单请求只查一次
-
 ### 5.2 RBAC 中间件
 
 [`framework/pkg/middleware/auth.go`](framework/pkg/middleware/auth.go) 暴露给业务模块用：
@@ -247,6 +246,8 @@ protected.Use(middleware.Auth(...))        // 必须登录
 | `RequireAll(specs...)` | 所有 spec 都必须满足 |
 | `RequireAuthenticated()` | 登录即可，不查 RBAC |
 | `RequirePlatformRole(roles...)` | 必须持有平台角色（跨租户） |
+| **`RequireTenantContext()`** | **Phase 0022 新增**：tenant_id > 0 才放行 |
+| **`RequirePlatformScope()`** | **Phase 0022 新增**：tenant_id == 0 才放行 |
 
 `Spec` 由 [`framework/pkg/permission/spec.go`](framework/pkg/permission/spec.go) 定义：
 
@@ -259,30 +260,86 @@ spec := permission.AuthOnly()            // 仅登录
 
 ## 6. 路由空间分布
 
-新版（Phase 0022+）所有路由分到 **3 个语义空间**：
+Phase 0022 终极拆分：所有路由分到 **3 个语义空间**，URL 自解释"我在哪个域"。
 
-| 空间 | 前缀 | Auth | 说明 |
+| 空间 | 前缀 | 中间件 | 说明 |
 |---|---|---|---|
-| **业务消费** | `/api/v1/<resource>` | Auth + Require(ResX) | 租户内业务接口（用户/角色/字典/配置等） |
-| **平台管理** | `/api/v1/admin/<platform_resource>` | Auth + RequirePlatformRole(super_admin) + Require(ResX) | super_admin 跨租户接口（平台菜单/平台租户） |
-| **公开访问** | `/api/v1/public/<resource>` | OptionalAuth | 不需登录，公共读（如 `/public/configs`） |
+| **业务消费** | `/api/v1/t/<resource>` | Auth + RequireTenantContext + Require(ResX) | 租户域业务接口（用户/角色/字典/配置等） |
+| **平台管理** | `/api/v1/admin/<platform_resource>` | Auth + RequirePlatformRole(super_admin) + Require(ResX) | super_admin 跨租户接口（平台菜单/平台租户/平台配置/平台字典） |
+| **公开访问** | `/api/v1/public/<resource>` 或 `/api/v1/<auth>` | OptionalAuth | 不需登录，公共读（如 `/public/configs`、`/auth/tenant-login`、`/auth/platform-login`） |
 
-**示例**：
+**完整示例**：
 
 ```
-/api/v1/users                       ← 业务：用户 CRUD
-/api/v1/dicts                       ← 业务：字典 CRUD
-/api/v1/configs                     ← 业务：租户视角配置
-/api/v1/configs/resolve             ← 业务：合并消费
-/api/v1/configs/:id/items/:item_id/override ← 业务：租户覆盖平台 item
+# 业务域（需登录 + tenant_id）
+POST   /api/v1/t/users
+GET    /api/v1/t/menus/tree
+GET    /api/v1/t/configs/resolve?code=site
+POST   /api/v1/t/configs/:id/items/:item_id/override
+GET    /api/v1/t/dicts/resolve
 
-/api/v1/admin/platform-menus        ← 平台：菜单管理（强制 super_admin）
-/api/v1/admin/platform-tenants      ← 平台：租户管理（强制 super_admin + tenant:*）
+# 平台域（强制 super_admin）
+GET    /api/v1/admin/platform-menus
+GET    /api/v1/admin/platform-menus/tree
+POST   /api/v1/admin/platform-tenants
+GET    /api/v1/admin/platform-configs
+GET    /api/v1/admin/platform-dicts
 
-/api/v1/public/configs              ← 公开：站点公开配置
+# 公开域（可选登录）
+POST   /api/v1/auth/tenant-login      (业务用户登录，必传 tenant_id)
+POST   /api/v1/auth/platform-login    (平台管理员登录，无需 tenant_id)
+POST   /api/v1/auth/register
+POST   /api/v1/auth/refresh
+GET    /api/v1/health
+GET    /api/v1/public/configs          (公开配置读)
+POST   /api/v1/weixin/login            (微信小程序登录)
 ```
 
-每个 platform 模块的 routes.go 都遵循 `adminGroup := protected.Group("/admin", RequirePlatformRole(...))` 模式（见 `apps/admin/platform_menu/routes.go`）。
+### 6.1 三组 RouterGroup 在代码中的对应
+
+```go
+// framework.go::registerModules
+v1 := r.Group("/api/v1")
+
+public := v1.Group("")                                 // /api/v1/*
+public.Use(middleware.OptionalAuth(...))
+
+tenant := v1.Group("/t")                                // /api/v1/t/*
+tenant.Use(middleware.Auth(...))
+tenant.Use(pkgmiddleware.RequireTenantContext())
+
+protected := v1.Group("/admin")                         // /api/v1/admin/*
+protected.Use(middleware.Auth(...))
+// 平台模块内部追加 RequirePlatformRole("super_admin")
+```
+
+业务模块接收三个 RouterGroup 引用，由模块决定把路由挂在哪一组：
+
+```go
+func (m *Module) RegFn(_ plugin.Reader,
+    public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
+    // public:    /api/v1/public/*            （OptionalAuth）
+    // tenant:    /api/v1/t/*                 （Auth + RequireTenantContext）
+    // protected: /api/v1/admin/*             （Auth；模块内加 RequirePlatformRole）
+}
+```
+
+每个 platform 模块的 routes.go 都遵循 `adminGroup := protected.Group("/admin/<x>", RequirePlatformRole(...))` 模式（见 `apps/admin/platform_menu/routes.go`、`apps/admin/platform_tenant/routes.go`）。
+
+### 6.2 兼容期路由
+
+过渡期保留以下兼容路径，客户端 SDK / 旧 curl 脚本不会立即失效：
+
+| 旧路径 | 重定向到 |
+|---|---|
+| `POST /api/v1/auth/login` | `POST /api/v1/auth/tenant-login`（handler 内部转发） |
+| `GET /api/v1/dashboard` | `GET /api/v1/app/dashboard` |
+| `GET /api/v1/tenants` | `GET /api/v1/platform/tenants` |
+| `GET /api/v1/menus` | `GET /api/v1/app/menus` |
+| `GET /api/v1/dicts` | `GET /api/v1/app/dicts` |
+| `GET /api/v1/configs` | `GET /api/v1/app/configs` |
+
+移除时机由后续 phase 决定（建议观察 1-2 个月无流量后下线）。
 
 ## 7. 响应协议
 
@@ -372,7 +429,8 @@ CREATE UNIQUE INDEX uk_users_account ON users (tenant_id, account_id)
 | 001x | cms/flag/cms 等示例业务补全 |
 | 0020 | platform_tenant 从 `apps/boot/tenant` 迁到 `apps/admin/platform_tenant` |
 | 0021 | 新增 platform_menu 模块（super_admin 域） |
-| **0022** | **config 模块完全重构**（路由 `/config/*` → `/configs/*`，加 Scope/Visibility/Override/Resolve 三层，错误码段迁移到 18xxx） |
+| 0022a | **config 模块完全重构**（路由 `/config/*` → `/configs/*`，加 Scope/Visibility/Override/Resolve 三层，错误码段迁移到 18xxx） |
+| **0022b** | **全分离 Phase C**：登录入口拆 `tenant-login` / `platform-login`；所有业务域路由 `/api/v1/<resource>` → `/api/v1/t/<resource>`；config/dict 平台域迁到 `/api/v1/admin/platform-<x>`；前端 `App.tsx` 拆 `/app/*` + `/platform/*`；login 拆 TenantLogin / PlatformLogin；`RequireTenantContext` / `RequirePlatformScope` 中间件 |
 
 ### 9.1 重构前 vs 重构后
 

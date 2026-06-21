@@ -156,11 +156,16 @@ func Module(app *appx.App) plugin.Module {
         InitFn: func(_ plugin.Reader, _ plugin.Writer) error {
             return nil
         },
-        RegFn: func(_ plugin.Reader, _, protected *gin.RouterGroup) {
+        // Phase 0022：RegFn 接收三组 RouterGroup
+        //   public     → /api/v1/public/*          （公开）
+        //   tenant     → /api/v1/t/*               （业务域，必须登录 + tenant_id）
+        //   protected  → /api/v1/admin/*           （平台域，必须 super_admin）
+        RegFn: func(_ plugin.Reader, public, tenant, protected *gin.RouterGroup) {
             pool := app.DB
             svc := NewService(pool)
             h := NewHandler(svc)
-            Register(protected, h)
+            // 业务模块挂到 tenant group（受 RequireTenantContext 中间件保护）
+            Register(tenant, h)
         },
     }
 }
@@ -369,11 +374,12 @@ func Module(app *appx.App) plugin.Module {
         InitFn: func(_ plugin.Reader, _ plugin.Writer) error {
             return nil
         },
-        RegFn: func(_ plugin.Reader, _, protected *gin.RouterGroup) {
+        // Phase 0022：平台域挂到 protected group（`/admin/platform-*`）
+        RegFn: func(_ plugin.Reader, public, tenant, protected *gin.RouterGroup) {
             pool := app.DB
             svc := NewService(pool, NewPostgresPlatformDictRepository(pool))
             h := NewHandler(svc)
-            Register(protected, h)
+            Register(protected, h)  // 平台域路由
         },
     }
 }
@@ -453,7 +459,7 @@ curl http://localhost:8087/api/v1/feedbacks   # 应该 200 或 403
 | JSONB 列写入报 `42804` | SQL 加 `::jsonb` cast |
 | 源文件编译报 `invalid BOM in the middle of the file` | 跑 `python scripts/strip_bom.py .` |
 | gin 同路径下不同 param name 冲突 | `:id` 与 `:code` 不可在同一 segment 共存，统一用 `:id` |
-| public / protected 同前缀 `/configs` 冲突 | public 路径改为 `/public/configs` |
+| public / protected 同前缀 `/configs` 冲突 | public 路径改为 `/public/configs`（Phase 0022 后：业务域迁到 `/t/configs`，平台域迁到 `/admin/platform-configs`，本问题几乎不复现） |
 
 ## 11. 下一步
 

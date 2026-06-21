@@ -241,7 +241,7 @@ server/
 | 001x | cms/flag/cms 等示例业务补全 |
 | 0020 | platform_tenant 从 `apps/boot/tenant` 迁到 `apps/admin/platform_tenant` |
 | 0021 | 新增 platform_menu 模块 |
-| **0022** | **config 完全重构**（路由 `/config/*` → `/configs/*`，Scope/Visibility/Override/Resolve，错误码段迁移到 18xxx） |
+| **0022** | **config 完全重构**（路由 `/config/*` → `/t/configs/*`，Scope/Visibility/Override/Resolve，错误码段迁移到 18xxx） |
 
 ## 贡献
 

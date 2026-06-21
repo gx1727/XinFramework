@@ -65,12 +65,12 @@ module:
 | Method | Path | Auth | Spec | Handler |
 |---|---|---|---|---|
 | GET | `/health` | public | — | `Health` |
-| GET | `/system/server-info` | protected | `system:list` | `ServerInfo` |
-| POST | `/system/clear-cache` | protected | `system:update` | `ClearCache` |
-| GET | `/system/cache/info` | protected | `system:list` | `CacheInfo` |
-| GET | `/system/cache/keys` | protected | `system:list` | `GetCacheKeys` |
-| GET | `/system/cache/value/*key` | protected | `system:list` | `GetCacheValue` |
-| DELETE | `/system/cache/keys/*key` | protected | `system:update` | `DeleteCacheKey` |
+| GET | `/t/system/server-info` | protected | `system:list` | `ServerInfo` |
+| POST | `/t/system/clear-cache` | protected | `system:update` | `ClearCache` |
+| GET | `/t/system/cache/info` | protected | `system:list` | `CacheInfo` |
+| GET | `/t/system/cache/keys` | protected | `system:list` | `GetCacheKeys` |
+| GET | `/t/system/cache/value/*key` | protected | `system:list` | `GetCacheValue` |
+| DELETE | `/t/system/cache/keys/*key` | protected | `system:update` | `DeleteCacheKey` |
 
 **数据表**：无（纯服务）。
 
@@ -84,7 +84,7 @@ module:
 
 | Method | Path | Auth | Handler |
 |---|---|---|---|
-| POST | `/auth/login` | public | `Login` |
+| POST | `/auth/tenant-login` | public | `Login` |
 | POST | `/auth/register` | public | `Register` |
 | POST | `/auth/refresh` | public | `Refresh` |
 | POST | `/auth/logout` | protected | `Logout` |
@@ -136,16 +136,16 @@ module:
 
 | Method | Path | Spec | Handler |
 |---|---|---|---|
-| GET | `/users` | `user:list` | `List` |
-| POST | `/users` | `user:create` | `Create` |
-| GET | `/users/:id` | `user:list` | `Get` |
-| PUT | `/users/:id` | `user:update` | `Update` |
-| PATCH | `/users/:id` | `user:update` | `Patch` |
-| PUT | `/users/:id/status` | `user:update` | `UpdateStatus` |
-| PUT | `/users/:id/org` | `user:update` | `UpdateOrg` |
-| GET | `/user/profile` | — | `Profile` |
-| POST | `/user/avatar` | — | `UploadAvatar` |
-| PUT | `/user/profile` | — | `UpdateProfile` |
+| GET | `/t/users` | `user:list` | `List` |
+| POST | `/t/users` | `user:create` | `Create` |
+| GET | `/t/users/:id` | `user:list` | `Get` |
+| PUT | `/t/users/:id` | `user:update` | `Update` |
+| PATCH | `/t/users/:id` | `user:update` | `Patch` |
+| PUT | `/t/users/:id/status` | `user:update` | `UpdateStatus` |
+| PUT | `/t/users/:id/org` | `user:update` | `UpdateOrg` |
+| GET | `/t/user/profile` | — | `Profile` |
+| POST | `/t/user/avatar` | — | `UploadAvatar` |
+| PUT | `/t/user/profile` | — | `UpdateProfile` |
 
 **数据表**：`users` / `user_roles`（受 RLS）。
 
@@ -159,19 +159,19 @@ module:
 
 | Method | Path | Spec | Handler |
 |---|---|---|---|
-| GET | `/roles` | `role:list` | `List` |
-| GET | `/roles/:id` | `role:list` | `Get` |
-| POST | `/roles` | `role:create` | `Create` |
-| PUT | `/roles/:id` | `role:update` | `Update` |
-| PATCH | `/roles/:id` | `role:update` | `Patch` |
-| DELETE | `/roles/:id` | `role:delete` | `Delete` |
-| GET | `/roles/:id/data-scopes` | `role:list` | `GetDataScopes` |
-| PUT | `/roles/:id/data-scopes` | `role:update` | `UpdateDataScopes` |
-| GET | `/roles/:id/menus` | `role:list` | `GetMenus` |
-| PUT | `/roles/:id/menus` | `role:update` | `AssignMenus` |
-| GET | `/roles/:id/permissions` | `role:list` | `GetPermissions` |
-| POST | `/roles/:id/permissions` | `role:update` | `AssignPermissions` |
-| GET | `/roles/:id/resources` | `role:list` | `GetResources` |
+| GET | `/t/roles` | `role:list` | `List` |
+| GET | `/t/roles/:id` | `role:list` | `Get` |
+| POST | `/t/roles` | `role:create` | `Create` |
+| PUT | `/t/roles/:id` | `role:update` | `Update` |
+| PATCH | `/t/roles/:id` | `role:update` | `Patch` |
+| DELETE | `/t/roles/:id` | `role:delete` | `Delete` |
+| GET | `/t/roles/:id/data-scopes` | `role:list` | `GetDataScopes` |
+| PUT | `/t/roles/:id/data-scopes` | `role:update` | `UpdateDataScopes` |
+| GET | `/t/roles/:id/menus` | `role:list` | `GetMenus` |
+| PUT | `/t/roles/:id/menus` | `role:update` | `AssignMenus` |
+| GET | `/t/roles/:id/permissions` | `role:list` | `GetPermissions` |
+| POST | `/t/roles/:id/permissions` | `role:update` | `AssignPermissions` |
+| GET | `/t/roles/:id/resources` | `role:list` | `GetResources` |
 
 **数据表**：`roles` / `user_roles` / `role_menus` / `role_resources`。
 
@@ -185,12 +185,12 @@ module:
 
 | Method | Path | Spec | Handler |
 |---|---|---|---|
-| GET | `/menus/tree` | `menu:list` | `Tree` |
-| GET | `/menus` | `menu:list` | `List` |
-| GET | `/menus/:id` | `menu:list` | `Get` |
-| POST | `/menus` | `menu:create` | `Create` |
-| PUT | `/menus/:id` | `menu:update` | `Update` |
-| DELETE | `/menus/:id` | `menu:delete` | `Delete` |
+| GET | `/t/menus/tree` | `menu:list` | `Tree` |
+| GET | `/t/menus` | `menu:list` | `List` |
+| GET | `/t/menus/:id` | `menu:list` | `Get` |
+| POST | `/t/menus` | `menu:create` | `Create` |
+| PUT | `/t/menus/:id` | `menu:update` | `Update` |
+| DELETE | `/t/menus/:id` | `menu:delete` | `Delete` |
 
 **数据表**：`menus` / `role_menus`（受 RLS）。
 
@@ -229,12 +229,12 @@ module:
 
 | Method | Path | Spec | Handler |
 |---|---|---|---|
-| GET | `/organizations/tree` | `organization:list` | `Tree` |
-| GET | `/organizations` | `organization:list` | `List` |
-| GET | `/organizations/:id` | `organization:list` | `Get` |
-| POST | `/organizations` | `organization:create` | `Create` |
-| PUT | `/organizations/:id` | `organization:update` | `Update` |
-| DELETE | `/organizations/:id` | `organization:delete` | `Delete` |
+| GET | `/t/organizations/tree` | `organization:list` | `Tree` |
+| GET | `/t/organizations` | `organization:list` | `List` |
+| GET | `/t/organizations/:id` | `organization:list` | `Get` |
+| POST | `/t/organizations` | `organization:create` | `Create` |
+| PUT | `/t/organizations/:id` | `organization:update` | `Update` |
+| DELETE | `/t/organizations/:id` | `organization:delete` | `Delete` |
 
 **数据表**：`organizations`（含 `parent_id` 递归 + `ancestors` 物化路径）。
 
@@ -250,10 +250,10 @@ module:
 
 | Method | Path | Spec | Handler |
 |---|---|---|---|
-| GET | `/roles/:id/permissions` | `role:list` | `GetPermissions` |
-| POST | `/roles/:id/permissions` | `role:update` | `AssignPermissions` |
-| PUT | `/roles/:id/permissions` | `role:update` | `AssignPermissions`（幂等） |
-| GET | `/roles/:id/resources` | `role:list` | `GetResources` |
+| GET | `/t/roles/:id/permissions` | `role:list` | `GetPermissions` |
+| POST | `/t/roles/:id/permissions` | `role:update` | `AssignPermissions` |
+| PUT | `/t/roles/:id/permissions` | `role:update` | `AssignPermissions`（幂等） |
+| GET | `/t/roles/:id/resources` | `role:list` | `GetResources` |
 
 **数据表**：`role_resources`（M:N join 表）。
 
@@ -267,13 +267,13 @@ module:
 
 | Method | Path | Spec | Handler |
 |---|---|---|---|
-| GET | `/resources` | `resource:list` | `List` |
-| GET | `/resources/:id` | `resource:list` | `Get` |
-| POST | `/resources` | `resource:create` | `Create` |
-| PUT | `/resources/:id` | `resource:update` | `Update` |
-| DELETE | `/resources/:id` | `resource:delete` | `Delete` |
-| GET | `/resources/by-menu/:menu_id` | `resource:list` | `GetByMenu` |
-| GET | `/resources/my` | — | `GetMyResources` |
+| GET | `/t/resources` | `resource:list` | `List` |
+| GET | `/t/resources/:id` | `resource:list` | `Get` |
+| POST | `/t/resources` | `resource:create` | `Create` |
+| PUT | `/t/resources/:id` | `resource:update` | `Update` |
+| DELETE | `/t/resources/:id` | `resource:delete` | `Delete` |
+| GET | `/t/resources/by-menu/:menu_id` | `resource:list` | `GetByMenu` |
+| GET | `/t/resources/my` | — | `GetMyResources` |
 
 **数据表**：`resources`。
 
@@ -287,26 +287,26 @@ module:
 
 | Method | Path | Spec | Handler |
 |---|---|---|---|
-| GET | `/dicts` | `dict:list` | `List` |
-| GET | `/dicts/:id` | `dict:get` | `Get` |
-| POST | `/dicts` | `dict:create` | `Create` |
-| PUT | `/dicts/:id` | `dict:update` | `Update` |
-| DELETE | `/dicts/:id` | `dict:delete` | `Delete` |
-| GET | `/dicts/:id/items` | `dict:list` | `ListItems` |
-| POST | `/dicts/:id/items` | `dict:update` | `CreateItem` |
-| PUT | `/dicts/:id/items/:item_id` | `dict:update` | `UpdateItem` |
-| DELETE | `/dicts/:id/items/:item_id` | `dict:update` | `DeleteItem` |
-| GET | `/dicts/resolve` | `dict:get` | `Resolve` |
-| POST | `/dicts/resolve/batch` | `dict:get` | `ResolveBatch` |
-| PUT | `/dicts/:id/items/:item_id/override` | `dict:update` | `UpsertOverride` |
-| DELETE | `/dicts/:id/items/:item_id/override` | `dict:update` | `DeleteOverride` |
-| GET | `/dicts/platform/:id/items` | `dict:list`（plat） | `ListPlatformItems` |
-| POST | `/dicts/platform/:id/items` | `dict:create`（plat） | `CreatePlatformItem` |
-| PUT | `/dicts/platform/:id/items/:item_id` | `dict:update`（plat） | `UpdatePlatformItem` |
-| DELETE | `/dicts/platform/:id/items/:item_id` | `dict:delete`（plat） | `DeletePlatformItem` |
-| GET | `/dicts/platform/:id/visibility` | `dict:list`（plat） | `ListVisibility` |
-| POST | `/dicts/platform/:id/visibility` | `dict:update`（plat） | `UpsertVisibility` |
-| DELETE | `/dicts/platform/:id/visibility/:tenant_id` | `dict:update`（plat） | `DeleteVisibility` |
+| GET | `/t/dicts` | `dict:list` | `List` |
+| GET | `/t/dicts/:id` | `dict:get` | `Get` |
+| POST | `/t/dicts` | `dict:create` | `Create` |
+| PUT | `/t/dicts/:id` | `dict:update` | `Update` |
+| DELETE | `/t/dicts/:id` | `dict:delete` | `Delete` |
+| GET | `/t/dicts/:id/items` | `dict:list` | `ListItems` |
+| POST | `/t/dicts/:id/items` | `dict:update` | `CreateItem` |
+| PUT | `/t/dicts/:id/items/:item_id` | `dict:update` | `UpdateItem` |
+| DELETE | `/t/dicts/:id/items/:item_id` | `dict:update` | `DeleteItem` |
+| GET | `/t/dicts/resolve` | `dict:get` | `Resolve` |
+| POST | `/t/dicts/resolve/batch` | `dict:get` | `ResolveBatch` |
+| PUT | `/t/dicts/:id/items/:item_id/override` | `dict:update` | `UpsertOverride` |
+| DELETE | `/t/dicts/:id/items/:item_id/override` | `dict:update` | `DeleteOverride` |
+| GET | `/admin/platform-dicts/:id/items` | `dict:list`（plat） | `ListPlatformItems` |
+| POST | `/admin/platform-dicts/:id/items` | `dict:create`（plat） | `CreatePlatformItem` |
+| PUT | `/admin/platform-dicts/:id/items/:item_id` | `dict:update`（plat） | `UpdatePlatformItem` |
+| DELETE | `/admin/platform-dicts/:id/items/:item_id` | `dict:delete`（plat） | `DeletePlatformItem` |
+| GET | `/admin/platform-dicts/:id/visibility` | `dict:list`（plat） | `ListVisibility` |
+| POST | `/admin/platform-dicts/:id/visibility` | `dict:update`（plat） | `UpsertVisibility` |
+| DELETE | `/admin/platform-dicts/:id/visibility/:tenant_id` | `dict:update`（plat） | `DeleteVisibility` |
 
 **数据表**：`dicts` / `dict_items`。
 
@@ -322,8 +322,8 @@ module:
 
 | Method | Path | Spec | Handler |
 |---|---|---|---|
-| POST | `/asset/upload` | `asset:create` | `Upload` |
-| DELETE | `/asset/:id` | `asset:delete` | `Delete` |
+| POST | `/t/asset/upload` | `asset:create` | `Upload` |
+| DELETE | `/t/asset/:id` | `asset:delete` | `Delete` |
 
 **数据表**：`file_assets`。
 
@@ -337,34 +337,34 @@ module:
 
 **路由**：
 
-#### 业务消费（`/api/v1/configs`）
+#### 业务消费（`/api/v1/t/configs`）
 
 | Method | Path | Spec | Handler |
 |---|---|---|---|
-| GET | `/configs` | `config:list` | `ListGroups` |
-| GET | `/configs/:id` | `config:get` | `GetGroup` |
-| GET | `/configs/:id/items` | `config:list` | `ListItemsByGroup` |
-| POST | `/configs/:id/items/:item_id/override` | `config:update` | `UpsertOverride` |
-| DELETE | `/configs/:id/items/:item_id/override` | `config:update` | `DeleteOverride` |
-| GET | `/configs/resolve` | `config:list` | `Resolve`（`?code=`） |
-| POST | `/configs/resolve/batch` | `config:list` | `ResolveBatch` |
+| GET | `/t/configs` | `config:list` | `ListGroups` |
+| GET | `/t/configs/:id` | `config:get` | `GetGroup` |
+| GET | `/t/configs/:id/items` | `config:list` | `ListItemsByGroup` |
+| POST | `/t/configs/:id/items/:item_id/override` | `config:update` | `UpsertOverride` |
+| DELETE | `/t/configs/:id/items/:item_id/override` | `config:update` | `DeleteOverride` |
+| GET | `/t/configs/resolve` | `config:list` | `Resolve`（`?code=`） |
+| POST | `/t/configs/resolve/batch` | `config:list` | `ResolveBatch` |
 
-#### 平台管理（`/api/v1/configs/platform`，强制 `super_admin`）
+#### 平台管理（`/api/v1/admin/platform-configs`，强制 `super_admin`）
 
 | Method | Path | Spec | Handler |
 |---|---|---|---|
-| GET | `/configs/platform` | `config:list` | `ListGroups` |
-| GET | `/configs/platform/:id` | `config:get` | `GetGroup` |
-| POST | `/configs/platform` | `config:create` | `CreateGroup` |
-| PUT | `/configs/platform/:id` | `config:update` | `UpdateGroup` |
-| DELETE | `/configs/platform/:id` | `config:delete` | `DeleteGroup` |
-| GET | `/configs/platform/:id/items` | `config:list` | `ListItems` |
-| POST | `/configs/platform/:id/items` | `config:create` | `CreateItem` |
-| PUT | `/configs/platform/:id/items/:item_id` | `config:update` | `UpdateItem` |
-| DELETE | `/configs/platform/:id/items/:item_id` | `config:delete` | `DeleteItem` |
-| GET | `/configs/platform/:id/visibility` | `config:list` | `ListVisibility` |
-| POST | `/configs/platform/:id/visibility` | `config:update` | `UpsertVisibility` |
-| DELETE | `/configs/platform/:id/visibility/:tenant_id` | `config:update` | `DeleteVisibility` |
+| GET | `/admin/platform-configs` | `config:list` | `ListGroups` |
+| GET | `/admin/platform-configs/:id` | `config:get` | `GetGroup` |
+| POST | `/admin/platform-configs` | `config:create` | `CreateGroup` |
+| PUT | `/admin/platform-configs/:id` | `config:update` | `UpdateGroup` |
+| DELETE | `/admin/platform-configs/:id` | `config:delete` | `DeleteGroup` |
+| GET | `/admin/platform-configs/:id/items` | `config:list` | `ListItems` |
+| POST | `/admin/platform-configs/:id/items` | `config:create` | `CreateItem` |
+| PUT | `/admin/platform-configs/:id/items/:item_id` | `config:update` | `UpdateItem` |
+| DELETE | `/admin/platform-configs/:id/items/:item_id` | `config:delete` | `DeleteItem` |
+| GET | `/admin/platform-configs/:id/visibility` | `config:list` | `ListVisibility` |
+| POST | `/admin/platform-configs/:id/visibility` | `config:update` | `UpsertVisibility` |
+| DELETE | `/admin/platform-configs/:id/visibility/:tenant_id` | `config:update` | `DeleteVisibility` |
 
 #### 公开读（`/api/v1/public/configs`，无需 auth）
 
@@ -388,7 +388,7 @@ module:
 - `access = 'editable'` → 租户可读可改（默认）
 - 可针对单租户 `tenant_id`，或用 `*`（通配）
 
-**Resolve 算法**（`GET /configs/resolve?code=site`）：
+**Resolve 算法**（`GET /t/configs/resolve?code=site`）：
 
 1. 取 platform group（按 code 找到 `tenant_id = 0` 的 group）
 2. 检查当前租户在 `config_visibility` 表的 access
@@ -411,15 +411,15 @@ module:
 
 | Method | Path | Auth | Handler |
 |---|---|---|---|
-| GET | `/cms/ping` | public | `Ping` |
-| GET | `/cms/me` | protected | `GetCurrentUser` |
-| GET | `/cms/users` | protected | `ListUsers` |
-| GET | `/cms/tenant` | protected | `GetTenant` |
-| GET | `/cms/posts` | protected | `ListPosts` |
-| GET | `/cms/posts/:id` | protected | `GetPost` |
-| POST | `/cms/posts` | protected | `CreatePost` |
-| PUT | `/cms/posts/:id` | protected | `UpdatePost` |
-| DELETE | `/cms/posts/:id` | protected | `DeletePost` |
+| GET | `/t/cms/ping` | public | `Ping` |
+| GET | `/t/cms/me` | protected | `GetCurrentUser` |
+| GET | `/t/cms/users` | protected | `ListUsers` |
+| GET | `/t/cms/tenant` | protected | `GetTenant` |
+| GET | `/t/cms/posts` | protected | `ListPosts` |
+| GET | `/t/cms/posts/:id` | protected | `GetPost` |
+| POST | `/t/cms/posts` | protected | `CreatePost` |
+| PUT | `/t/cms/posts/:id` | protected | `UpdatePost` |
+| DELETE | `/t/cms/posts/:id` | protected | `DeletePost` |
 
 **数据表**：`posts`（cms 自有，`migrations/cms.sql`）。
 
@@ -435,16 +435,16 @@ module:
 
 | Method | Path | Auth | Spec | Handler |
 |---|---|---|---|---|
-| GET | `/flag/frames` | public | — | `ListFrames` |
-| GET | `/flag/frames/:id` | public | — | `GetFrame` |
-| POST | `/flag/frames` | protected | `flag:create` | `CreateFrame` |
-| PUT | `/flag/frames/:id` | protected | `flag:update` | `UpdateFrame` |
-| DELETE | `/flag/frames/:id` | protected | `flag:delete` | `DeleteFrame` |
-| GET | `/flag/spaces` | protected | `flag:list` | `ListSpaces` |
-| POST | `/flag/spaces` | protected | `flag:create` | `CreateSpace` |
-| GET | `/flag/avatars` | public | — | `ListAvatars` |
-| POST | `/flag/generate` | protected | `flag:create` | `GenerateAvatar` |
-| GET | `/flag/my-avatars` | protected | `flag:list` | `ListMyAvatars`（自动 DataScopeSelf） |
+| GET | `/t/flag/frames` | public | — | `ListFrames` |
+| GET | `/t/flag/frames/:id` | public | — | `GetFrame` |
+| POST | `/t/flag/frames` | protected | `flag:create` | `CreateFrame` |
+| PUT | `/t/flag/frames/:id` | protected | `flag:update` | `UpdateFrame` |
+| DELETE | `/t/flag/frames/:id` | protected | `flag:delete` | `DeleteFrame` |
+| GET | `/t/flag/spaces` | protected | `flag:list` | `ListSpaces` |
+| POST | `/t/flag/spaces` | protected | `flag:create` | `CreateSpace` |
+| GET | `/t/flag/avatars` | public | — | `ListAvatars` |
+| POST | `/t/flag/generate` | protected | `flag:create` | `GenerateAvatar` |
+| GET | `/t/flag/my-avatars` | protected | `flag:list` | `ListMyAvatars`（自动 DataScopeSelf） |
 
 **数据表**：`frames` / `frame_categories` / `spaces` / `avatars` / `avatar_categories`（见 [migrations/flag.sql](../migrations/flag.sql)）。
 
@@ -465,7 +465,7 @@ module:
 | GET | `/weixin/ping` | public | `Ping` |
 | POST | `/weixin/login` | public | `Login`（code2Session） |
 | POST | `/weixin/phone` | public | `GetPhoneNumber` |
-| POST | `/weixin/bind-phone` | protected | `BindPhone` |
+| POST | `/t/weixin/bind-phone` | protected | `BindPhone` |
 
 **配置**：从 `config/weixin.yaml` 读 `appid` / `secret` / `token` / `encoding_aes_key`。
 

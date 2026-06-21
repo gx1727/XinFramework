@@ -321,6 +321,8 @@ public / protected 都挂在 `/api/v1` 同前缀下，路径冲突。**修改方
 - public 端用独立前缀（如 `/public/configs`）
 - 或者把 public 路由移到 protected 下用 OptionalAuth 替代 Auth
 
+> Phase 0022 已经把租户域路由统一迁到 `/api/v1/t/<resource>`，业务域与平台域（`/api/v1/admin/*`）完全分离，本问题在新代码里几乎不会复现。
+
 ### 9.9 gin panic: ':id' in new path conflicts with existing wildcard ':code'
 
 gin 不允许同 segment 不同 param name。统一用 `:id`（业务层用 `:code` 的放到 query 参数：`?code=`）。

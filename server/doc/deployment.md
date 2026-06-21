@@ -460,7 +460,7 @@ psql -h db -U xin_user -d xin -c "SELECT * FROM tenants WHERE code='bootstrap';"
 
 redis-cli -h redis ping
 
-curl -X POST http://localhost:8087/api/v1/auth/login \
+curl -X POST http://localhost:8087/api/v1/auth/tenant-login \
   -H 'Content-Type: application/json' \
   -d '{"account":"admin","password":"...","tenant_code":"bootstrap"}'
 ```

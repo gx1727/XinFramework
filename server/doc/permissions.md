@@ -398,8 +398,8 @@ if uc.IsSuperAdmin() {
 |---|---|---|
 | `platform_tenant` | `/admin/platform-tenants` | super_admin + `ResTenant.*` |
 | `platform_menu` | `/admin/platform-menus` | super_admin（单层） |
-| `config` 平台域 | `/configs/platform` | super_admin + `ResConfig.*` |
-| `dict` 平台域 | `/dicts/platform` | super_admin + `ResDict.*` |
+| `config` 平台域 | `/t/configs/platform` | super_admin + `ResConfig.*` |
+| `dict` 平台域 | `/t/dicts/platform` | super_admin + `ResDict.*` |
 
 挂载方式：
 
