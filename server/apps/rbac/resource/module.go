@@ -20,7 +20,7 @@ func Module(app *appx.App) plugin.Module {
 			pool := app.DB
 			authzSvc := ctx.Authz()
 			h := NewHandler(NewService(NewResourceRepository(pool), authzSvc))
-			Register(protected, h)
+			Register(tenant, h)
 		},
 	}
 }

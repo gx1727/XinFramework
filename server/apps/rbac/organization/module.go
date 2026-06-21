@@ -21,7 +21,7 @@ func Module(app *appx.App) plugin.Module {
 		RegFn: func(_ plugin.Reader, _ *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
 			pool := app.DB
 			h := NewHandler(NewService(pool, NewOrganizationRepository(pool)))
-			Register(protected, h)
+			Register(tenant, h)
 		},
 	}
 }

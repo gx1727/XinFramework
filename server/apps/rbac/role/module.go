@@ -29,7 +29,7 @@ func Module(app *appx.App) plugin.Module {
 				NewRoleMenuRepository(pool),
 				authzSvc,
 			))
-			Register(protected, h)
+			Register(tenant, h)
 		},
 	}
 }

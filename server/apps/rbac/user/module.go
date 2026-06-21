@@ -70,7 +70,7 @@ func Module(app *appx.App) plugin.Module {
 				assetSvc,
 				accountRepo,
 			))
-			Register(protected, h)
+			Register(tenant, h)
 		},
 	}
 }

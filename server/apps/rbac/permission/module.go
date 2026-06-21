@@ -23,7 +23,7 @@ func Module(app *appx.App) plugin.Module {
 			roleResourceRepo := NewRoleResourceRepository(pool)
 			authzSvc := ctx.Authz()
 			h := NewHandler(NewService(pool, roleResourceRepo, authzSvc))
-			Register(protected, h)
+			Register(tenant, h)
 		},
 	}
 }
