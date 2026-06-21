@@ -16,7 +16,7 @@ func Module(app *appx.App) plugin.Module {
 		InitFn: func(_ plugin.Reader, _ plugin.Writer) error {
 			return nil
 		},
-		RegFn: func(ctx plugin.Reader, _ *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(ctx plugin.Reader, _ *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
 			pool := app.DB
 			authzSvc := ctx.Authz()
 			h := NewHandler(NewService(NewResourceRepository(pool), authzSvc))

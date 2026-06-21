@@ -76,12 +76,12 @@ export const configApi = {
   getPublic: (group: string, tenantId?: number) => {
     const params: Record<string, string | number> = { group }
     if (tenantId) params.tenant_id = tenantId
-    return api<PublicConfigResponse>("/config", { params })
+    return api<PublicConfigResponse>("/t/config", { params })
   },
 
   // 管理端
   listGroups: () =>
-    api<{ list: ConfigGroup[]; total: number }>("/config/groups"),
+    api<{ list: ConfigGroup[]; total: number }>("/t/config/groups"),
 
   createGroup: (data: {
     code: string
@@ -91,7 +91,7 @@ export const configApi = {
     sort?: number
     is_public?: boolean
   }) =>
-    api<ConfigGroup>("/config/groups", {
+    api<ConfigGroup>("/t/config/groups", {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -107,16 +107,16 @@ export const configApi = {
       status?: number
     }
   ) =>
-    api<ConfigGroup>(`/config/groups/${id}`, {
+    api<ConfigGroup>(`/t/config/groups/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   deleteGroup: (id: number) =>
-    api(`/config/groups/${id}`, { method: "DELETE" }),
+    api(`/t/config/groups/${id}`, { method: "DELETE" }),
 
   listItemsByGroup: (groupId: number) =>
-    api<{ list: ConfigItem[]; total: number }>(`/config/groups/${groupId}/items`),
+    api<{ list: ConfigItem[]; total: number }>(`/t/config/groups/${groupId}/items`),
 
   createItem: (
     groupId: number,
@@ -134,13 +134,13 @@ export const configApi = {
       is_readonly?: boolean
     }
   ) =>
-    api<ConfigItem>(`/config/groups/${groupId}/items`, {
+    api<ConfigItem>(`/t/config/groups/${groupId}/items`, {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   listAllItems: () =>
-    api<{ list: ConfigItem[]; total: number }>("/config/items"),
+    api<{ list: ConfigItem[]; total: number }>("/t/config/items"),
 
   updateItem: (
     id: number,
@@ -154,14 +154,14 @@ export const configApi = {
       status?: number
     }
   ) =>
-    api<ConfigItem>(`/config/items/${id}`, {
+    api<ConfigItem>(`/t/config/items/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   resetItem: (id: number) =>
-    api<ConfigItem>(`/config/items/${id}/reset`, { method: "POST" }),
+    api<ConfigItem>(`/t/config/items/${id}/reset`, { method: "POST" }),
 
   deleteItem: (id: number) =>
-    api(`/config/items/${id}`, { method: "DELETE" }),
+    api(`/t/config/items/${id}`, { method: "DELETE" }),
 }

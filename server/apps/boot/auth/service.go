@@ -210,7 +210,8 @@ func (s *Service) loadPlatformRoles(ctx context.Context, userID uint) []string {
 	return roles
 }
 
-func (s *Service) Login(ctx context.Context, req loginRequest) (*LoginResult, error) {
+// Login 租户域登录（业务用户）。需要传 tenant_id；user 必须绑到该 tenant。
+func (s *Service) Login(ctx context.Context, req tenantLoginRequest) (*LoginResult, error) {
 	identity, err := ResolveLoginIdentity(ctx, s.db, req.Account, req.TenantID)
 	if err != nil {
 		switch {
@@ -240,6 +241,7 @@ func (s *Service) Login(ctx context.Context, req loginRequest) (*LoginResult, er
 	res := &LoginResult{
 		Token:        tokens.accessToken,
 		RefreshToken: tokens.refreshToken,
+		Scope:        LoginScopeTenant,
 	}
 	res.User.ID = identity.UserID
 	res.User.TenantID = identity.TenantID
@@ -250,6 +252,70 @@ func (s *Service) Login(ctx context.Context, req loginRequest) (*LoginResult, er
 	res.User.Avatar = identity.Avatar
 	res.User.Email = identity.Email
 	res.User.PlatformRoles = tokens.platformRoles
+	return res, nil
+}
+
+// PlatformLogin 平台域登录（super_admin 等）。
+//
+// 不传 tenant_id：平台管理员不属于任何租户。
+// 验证流程：
+//  1. accounts 表（不受 RLS）查账号 + 验证密码
+//  2. 账号状态必须启用
+//  3. 至少有一个 platform_role（如 super_admin）
+//  4. 生成 token，tenant_id 固定 0
+//
+// 成功后 token 仅能访问 /api/v1/admin/* 平台域路由。
+func (s *Service) PlatformLogin(ctx context.Context, req platformLoginRequest) (*LoginResult, error) {
+	if s.db == nil || s.accountRepo == nil || s.platformRp == nil {
+		return nil, ErrBackendUnavailable
+	}
+
+	// 1. accounts 表查账号
+	passwordHash, accountID, accountStatus, err := s.accountRepo.GetPasswordAndStatus(ctx, req.Account)
+	if err != nil {
+		if errors.Is(err, errAccountNotFound) {
+			return nil, ErrPlatformLoginAccountNotFound
+		}
+		return nil, ErrBackendUnavailable
+	}
+	if accountStatus != 1 {
+		return nil, ErrPlatformLoginDisabled
+	}
+
+	// 2. 验密码
+	ok, err := verifyPassword(passwordHash, req.Password)
+	if err != nil || !ok {
+		return nil, ErrInvalidAccountOrPassword
+	}
+
+	// 3. 查 platform_roles
+	platformRoles, err := s.platformRp.GetRolesByAccountID(ctx, accountID)
+	if err != nil {
+		return nil, ErrBackendUnavailable
+	}
+	if len(platformRoles) == 0 {
+		return nil, ErrPlatformLoginNotAdmin
+	}
+
+	// 4. 生成 token，tenant_id = 0（platform 域语义）
+	//    role 用 "_platform" 占位（不在 tenants / roles 表里）
+	tokens, err := s.generateTokens(ctx, 0, 0, "_platform")
+	if err != nil {
+		return nil, err
+	}
+
+	res := &LoginResult{
+		Token:        tokens.accessToken,
+		RefreshToken: tokens.refreshToken,
+		Scope:        LoginScopePlatform,
+		User: User{
+			ID:            accountID, // 这里 ID 是 account_id（不是 user_id），因为平台用户可能没绑 user
+			TenantID:      0,
+			Code:          req.Account,
+			Role:          "_platform",
+			PlatformRoles: platformRoles,
+		},
+	}
 	return res, nil
 }
 
@@ -382,6 +448,7 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 	res := &registerResult{
 		Token:        tokens.accessToken,
 		RefreshToken: tokens.refreshToken,
+		Scope:        LoginScopeTenant,
 	}
 	res.User.ID = newUserID
 	res.User.TenantID = req.TenantID

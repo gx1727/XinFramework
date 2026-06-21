@@ -12,7 +12,7 @@ import (
 func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "cms",
-		RegFn: func(_ plugin.Reader, public *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(_ plugin.Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
 			h := NewHandler(app.DB)
 			Register(h, public, protected)
 		},

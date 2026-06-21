@@ -20,57 +20,57 @@ export interface RoleItem {
 
 export const roleApi = {
   list: (params?: { keyword?: string; page?: number; size?: number }) =>
-    api<PageResponse<RoleItem>>("/roles", { params }),
+    api<PageResponse<RoleItem>>("/t/roles", { params }),
 
   get: (id: number) =>
-    api<RoleItem>(`/roles/${id}`),
+    api<RoleItem>(`/t/roles/${id}`),
 
   create: (data: Partial<RoleItem>) =>
-    api<RoleItem>("/roles", {
+    api<RoleItem>("/t/roles", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   update: (id: number, data: Partial<RoleItem>) =>
-    api(`/roles/${id}`, {
+    api(`/t/roles/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   patch: (id: number, data: Partial<RoleItem>) =>
-    api(`/roles/${id}`, {
+    api(`/t/roles/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
 
   delete: (id: number) =>
-    api(`/roles/${id}`, {
+    api(`/t/roles/${id}`, {
       method: "DELETE",
     }),
 
   getMenus: (id: number) =>
-    api<{ menu_ids: number[] }>(`/roles/${id}/menus`),
+    api<{ menu_ids: number[] }>(`/t/roles/${id}/menus`),
 
   setMenus: (id: number, menuIds: number[]) =>
-    api(`/roles/${id}/menus`, {
+    api(`/t/roles/${id}/menus`, {
       method: "PUT",
       body: JSON.stringify({ menu_ids: menuIds }),
     }),
 
   getDataScopes: (id: number) =>
-    api<{ org_ids: number[] }>(`/roles/${id}/data-scopes`),
+    api<{ org_ids: number[] }>(`/t/roles/${id}/data-scopes`),
 
   setDataScopes: (id: number, orgIds: number[]) =>
-    api(`/roles/${id}/data-scopes`, {
+    api(`/t/roles/${id}/data-scopes`, {
       method: "PUT",
       body: JSON.stringify({ org_ids: orgIds }),
     }),
 
   getPermissions: (id: number) =>
-    api<{ list: ResourceItem[] }>(`/roles/${id}/permissions`),
+    api<{ list: ResourceItem[] }>(`/t/roles/${id}/permissions`),
 
   setPermissions: (id: number, resourceIds: number[]) =>
-    api(`/roles/${id}/permissions`, {
+    api(`/t/roles/${id}/permissions`, {
       method: "PUT",
       body: JSON.stringify({ resource_ids: resourceIds }),
     }),

@@ -14,22 +14,22 @@ export interface FrameCategoryItem {
 
 export const frameCategoryApi = {
   list: () =>
-    api<FrameCategoryItem[]>("/flag/frames-categories"),
+    api<FrameCategoryItem[]>("/t/flag/frames-categories"),
 
   create: (data: { code: string; name: string; type?: string; sort?: number }) =>
-    api<FrameCategoryItem>("/flag/frames-categories", {
+    api<FrameCategoryItem>("/t/flag/frames-categories", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   update: (id: number, data: Partial<FrameCategoryItem>) =>
-    api(`/flag/frames-categories/${id}`, {
+    api(`/t/flag/frames-categories/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   delete: (id: number) =>
-    api(`/flag/frames-categories/${id}`, {
+    api(`/t/flag/frames-categories/${id}`, {
       method: "DELETE",
     }),
 }

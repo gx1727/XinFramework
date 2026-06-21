@@ -12,9 +12,9 @@ import (
 func Module(_ *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "system",
-		RegFn: func(_ plugin.Reader, public *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(_ plugin.Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
 			h := NewHandler()
-			Register(public, protected, h)
+			Register(public, tenant, protected, h)
 		},
 	}
 }

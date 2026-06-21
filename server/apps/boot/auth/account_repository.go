@@ -150,3 +150,36 @@ func (r *PostgresAccountRepository) Exists(ctx context.Context, account string) 
 	}
 	return exists, nil
 }
+
+// GetPasswordAndStatus 取账号的 password_hash + id + status。
+// 用于 platform-login：账号可能未绑 user 行（无 tenant），所以走 accounts 表直接验证。
+//
+// account 字段：username / phone / email 任一即可，按优先级匹配（username 最先）。
+// 返回 (passwordHash, accountID, status, err)：
+//   - passwordHash 用于 verifyPassword
+//   - accountID 用于查 platform_roles
+//   - status 必须 == 1 才能登录
+func (r *PostgresAccountRepository) GetPasswordAndStatus(ctx context.Context, account string) (string, uint, int8, error) {
+	q, err := db.GetQuerier(ctx, r.db)
+	if err != nil {
+		return "", 0, 0, err
+	}
+
+	var passwordHash string
+	var id uint
+	var status int8
+	err = q.QueryRow(ctx, `
+		SELECT id, password, status FROM accounts
+		WHERE is_deleted = FALSE
+		AND (username = $1 OR phone = $1 OR email = $1)
+		ORDER BY (username = $1) DESC
+		LIMIT 1
+	`, account).Scan(&id, &passwordHash, &status)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", 0, 0, errAccountNotFound
+		}
+		return "", 0, 0, err
+	}
+	return passwordHash, id, status, nil
+}

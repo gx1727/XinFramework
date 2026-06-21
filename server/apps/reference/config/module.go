@@ -40,11 +40,11 @@ func Module(app *appx.App) plugin.Module {
 		},
 
 		// RegFn: 注册三组路由（业务 + 平台 + 公共）
-		RegFn: func(_ plugin.Reader, public *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(_ plugin.Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
 			bh := NewBusinessHandler(svc)
 			ph := NewPlatformHandler(svc)
 			pubh := NewPublicHandler(svc)
-			Register(public, protected, bh, ph, pubh)
+			Register(public, tenant, protected, bh, ph, pubh)
 		},
 	}
 }

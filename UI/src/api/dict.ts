@@ -30,46 +30,46 @@ export interface DictValueItem {
 
 export const dictApi = {
   list: (params?: { keyword?: string; page?: number; size?: number }) =>
-    api<PageResponse<DictItem>>("/dicts", { params }),
+    api<PageResponse<DictItem>>("/t/dicts", { params }),
 
   get: (id: number) =>
-    api<DictItem>(`/dicts/${id}`),
+    api<DictItem>(`/t/dicts/${id}`),
 
   create: (data: { code: string; name: string; sort?: number; extend?: Record<string, unknown> }) =>
-    api<DictItem>("/dicts", {
+    api<DictItem>("/t/dicts", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   update: (id: number, data: { name: string; sort?: number; status?: number; extend?: Record<string, unknown> }) =>
-    api(`/dicts/${id}`, {
+    api(`/t/dicts/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   delete: (id: number) =>
-    api(`/dicts/${id}`, {
+    api(`/t/dicts/${id}`, {
       method: "DELETE",
     }),
 
   // ???
   listItems: (dictId: number) =>
-    api<PageResponse<DictValueItem>>(`/dicts/${dictId}/items`),
+    api<PageResponse<DictValueItem>>(`/t/dicts/${dictId}/items`),
 
   createItem: (dictId: number, data: { code: string; name: string; sort?: number; extend?: Record<string, unknown> }) =>
-    api<DictValueItem>(`/dicts/${dictId}/items`, {
+    api<DictValueItem>(`/t/dicts/${dictId}/items`, {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   updateItem: (dictId: number, itemId: number, data: { name: string; sort?: number; status?: number; extend?: Record<string, unknown> }) =>
-    api(`/dicts/${dictId}/items/${itemId}`, {
+    api(`/t/dicts/${dictId}/items/${itemId}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   deleteItem: (dictId: number, itemId: number) =>
-    api(`/dicts/${dictId}/items/${itemId}`, {
+    api(`/t/dicts/${dictId}/items/${itemId}`, {
       method: "DELETE",
     }),
 }

@@ -1,17 +1,17 @@
 // Package config 通用配置 - 路由注册
 //
-// 与 apps/reference/dict 的路由结构对齐：
+// Phase 0022 拆分：业务域 / 平台域 / 公开域 三个独立 RouterGroup。
 //
-//   /api/v1/configs                       业务消费 + 租户自建（Require ResConfig）
+//   /api/v1/t/configs                     业务消费 + 租户自建（Require ResConfig）
 //     GET    /                            ListGroups
-//     GET    /:id                         GetGroup（按 id 查并 resolve）
+//     GET    /:id                         GetGroup
 //     GET    /:id/items                   ListItemsByGroup
 //     POST   /:id/items/:item_id/override UpsertOverride
 //     DELETE /:id/items/:item_id/override DeleteOverride
 //     GET    /resolve                     Resolve（?code=xxx 合并消费）
 //     POST   /resolve/batch               ResolveBatch
 //
-//   /api/v1/configs/platform              super_admin 平台 CRUD
+//   /api/v1/admin/platform-configs        super_admin 平台 CRUD
 //     RequirePlatformRole("super_admin") + Require ResConfig
 //     GET    /                            ListPlatformGroups
 //     GET    /:id                         GetPlatformGroup
@@ -40,7 +40,12 @@ import (
 const PlatformRoleSuperAdmin = "super_admin"
 
 // Register 注册三组路由
-func Register(public *gin.RouterGroup, protected *gin.RouterGroup, bh *BusinessHandler, ph *PlatformHandler, pubh *PublicHandler) {
+//
+// 三组 RouterGroup 语义：
+//   - public:     /api/v1/public/configs   （公开读）
+//   - tenant:     /api/v1/t/configs        （业务域，Auth + RequireTenantContext）
+//   - protected:  /api/v1/admin/platform-configs（平台域，Auth + RequirePlatformRole）
+func Register(public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup, bh *BusinessHandler, ph *PlatformHandler, pubh *PublicHandler) {
 	// ============ Public（无需 auth，独立前缀避免与 /configs 冲突） ============
 	pub := public.Group("/public/configs")
 	{
@@ -48,7 +53,7 @@ func Register(public *gin.RouterGroup, protected *gin.RouterGroup, bh *BusinessH
 	}
 
 	// ============ Business（业务消费 + 租户自建） ============
-	biz := protected.Group("/configs")
+	biz := tenant.Group("/configs")
 	biz.Use(pkgmiddleware.Require(permission.P(permission.ResConfig, permission.ActList))) // 默认要求 list 权限
 	{
 		// 合并消费端点（最高频）
@@ -65,8 +70,8 @@ func Register(public *gin.RouterGroup, protected *gin.RouterGroup, bh *BusinessH
 		biz.DELETE("/:id/items/:item_id/override", pkgmiddleware.Require(permission.P(permission.ResConfig, permission.ActUpdate)), bh.DeleteOverride)
 	}
 
-	// ============ Platform（super_admin 平台 CRUD） ============
-	plat := protected.Group("/configs/platform")
+	// ============ Platform（super_admin 平台 CRUD，挂在 /admin/* 域） ============
+	plat := protected.Group("/platform-configs")
 	plat.Use(pkgmiddleware.RequirePlatformRole(PlatformRoleSuperAdmin))
 	{
 		// Group

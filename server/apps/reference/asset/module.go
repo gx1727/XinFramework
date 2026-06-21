@@ -17,7 +17,7 @@ import (
 func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "asset",
-		RegFn: func(_ plugin.Reader, public *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(_ plugin.Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
 			cfg := app.Config
 			pool := app.DB
 			// 创建 storage

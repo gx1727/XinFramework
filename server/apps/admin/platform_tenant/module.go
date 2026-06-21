@@ -29,7 +29,7 @@ func Module(app *appx.App) plugin.Module {
 			w.SetTenantRepo(&tenantPkgAdapter{repo: NewTenantRepository(pool)})
 			return nil
 		},
-		RegFn: func(_ plugin.Reader, _ *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(_ plugin.Reader, _ *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
 			pool := app.DB
 			h := NewHandler(NewService(pool, NewTenantRepository(pool)))
 			Register(protected, h)

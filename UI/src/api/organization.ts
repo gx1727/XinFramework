@@ -20,28 +20,28 @@ export interface OrganizationItem {
 
 export const organizationApi = {
   list: (params?: { keyword?: string; parent_id?: number; page?: number; size?: number }) =>
-    api<PageResponse<OrganizationItem>>("/organizations", { params }),
+    api<PageResponse<OrganizationItem>>("/t/organizations", { params }),
 
   tree: () =>
-    api<{ tree: OrganizationItem[] }>("/organizations/tree"),
+    api<{ tree: OrganizationItem[] }>("/t/organizations/tree"),
 
   get: (id: number) =>
-    api<OrganizationItem>(`/organizations/${id}`),
+    api<OrganizationItem>(`/t/organizations/${id}`),
 
   create: (data: Partial<OrganizationItem>) =>
-    api<OrganizationItem>("/organizations", {
+    api<OrganizationItem>("/t/organizations", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   update: (id: number, data: Partial<OrganizationItem>) =>
-    api(`/organizations/${id}`, {
+    api(`/t/organizations/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   delete: (id: number) =>
-    api(`/organizations/${id}`, {
+    api(`/t/organizations/${id}`, {
       method: "DELETE",
     }),
 }

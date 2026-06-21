@@ -6,8 +6,8 @@ import (
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
-func Register(protected *gin.RouterGroup, h *Handler) {
-	menus := protected.Group("/menus")
+func Register(tenant *gin.RouterGroup, h *Handler) {
+	menus := tenant.Group("/menus")
 	{
 		menus.GET("/tree", middleware.Require(permission.P(permission.ResMenu, permission.ActList)), h.Tree)
 		menus.GET("", middleware.Require(permission.P(permission.ResMenu, permission.ActList)), h.List)

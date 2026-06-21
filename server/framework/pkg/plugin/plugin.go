@@ -1,13 +1,18 @@
 // Package plugin 模块契约与全局注册表。
 //
-// Module 接口（精简后）：
+// Module 接口（Phase 0022 拆分）：
 //
 //	type Module interface {
 //	    Name() string
 //	    Init(ctx Reader, w Writer) error
-//	    Register(ctx Reader, public, protected *gin.RouterGroup)
+//	    Register(ctx Reader, public, tenant, protected *gin.RouterGroup)
 //	    Shutdown(ctx Reader) error
 //	}
+//
+// 三组 RouterGroup 语义：
+//   - public     → /api/v1/*             （OptionalAuth，公开）
+//   - tenant     → /api/v1/t/*           （Auth + RequireTenantContext，业务域）
+//   - protected  → /api/v1/admin/*       （Auth，平台域；模块内部追加 RequirePlatformRole）
 //
 // 历史背景：旧版本有 NewModule / NewModuleLegacy / NewModuleWithOpts
 // 三种构造器外加 ModuleOption / WithInit 等兼容 API，全部在 Phase 2
@@ -20,12 +25,16 @@ import "github.com/gin-gonic/gin"
 type Module interface {
 	Name() string
 	Init(ctx Reader, w Writer) error
-	Register(ctx Reader, public *gin.RouterGroup, protected *gin.RouterGroup)
+	// Register 注册路由到三组 RouterGroup：
+	//   - public:     公开接口（无需登录 / OptionalAuth）
+	//   - tenant:     业务域（/t/*，Auth + RequireTenantContext）
+	//   - protected:  平台域（/admin/*，Auth；模块内部追加 RequirePlatformRole）
+	Register(ctx Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup)
 	Shutdown(ctx Reader) error
 }
 
 // ModuleFunc 是简单模块的 Register 回调形状（无需 Init/Shutdown）。
-type ModuleFunc func(ctx Reader, public *gin.RouterGroup, protected *gin.RouterGroup)
+type ModuleFunc func(ctx Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup)
 
 // BaseModule 是 Module 接口的默认实现。所有字段可选，nil 字段视为 noop。
 //
@@ -47,9 +56,9 @@ func (m *BaseModule) Init(ctx Reader, w Writer) error {
 	return m.InitFn(ctx, w)
 }
 
-func (m *BaseModule) Register(ctx Reader, public *gin.RouterGroup, protected *gin.RouterGroup) {
+func (m *BaseModule) Register(ctx Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
 	if m.RegFn != nil {
-		m.RegFn(ctx, public, protected)
+		m.RegFn(ctx, public, tenant, protected)
 	}
 }
 

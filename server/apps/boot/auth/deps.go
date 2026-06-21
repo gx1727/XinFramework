@@ -18,6 +18,9 @@ type SessionManager interface {
 // PlatformRoleRepository 平台级角色访问接口（最小子集，登录阶段使用）
 type PlatformRoleRepository interface {
 	GetRolesByUserID(ctx context.Context, userID uint) ([]string, error)
+	// GetRolesByAccountID 直接按 account_id 查（用于 platform-login，
+	// 此时 user 可能未绑 user 行）
+	GetRolesByAccountID(ctx context.Context, accountID uint) ([]string, error)
 }
 
 type Dependencies struct {

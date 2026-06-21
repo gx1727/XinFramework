@@ -12,7 +12,7 @@ import (
 func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "flag",
-		RegFn: func(ctx plugin.Reader, public *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(ctx plugin.Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
 			pool := app.DB
 			if ctx != nil {
 				if p := ctx.DB(); p != nil {

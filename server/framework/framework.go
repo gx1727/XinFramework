@@ -19,6 +19,7 @@ import (
 	"gx1727.com/xin/framework/internal/core/middleware"
 	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/config"
+	pkgmiddleware "gx1727.com/xin/framework/pkg/middleware"
 	"gx1727.com/xin/framework/pkg/migrate"
 	"gx1727.com/xin/framework/pkg/plugin"
 )
@@ -121,12 +122,30 @@ func setupRouter(app *appx.App, modules []plugin.Module) {
 }
 
 // registerModules 注册已启用模块的路由（所有模块统一处理，无内置/外部之分）。
+//
+// 路由空间（Phase 0022 拆分）：
+//   - public     → /api/v1/*             （OptionalAuth，公开）
+//   - tenant     → /api/v1/t/*           （Auth + RequireTenantContext，业务域）
+//   - protected  → /api/v1/admin/*       （Auth + RequirePlatformRole，平台域）
+//
+// 三组 RouterGroup 都通过 plugin.Module.Register(ctx, public, tenant, protected)
+// 传给业务模块，由模块自行选择挂在哪一组。
 func registerModules(r *gin.Engine, cfg *config.Config, app *appx.App, modules []plugin.Module) {
 	v1 := r.Group("/api/v1")
+
+	// public：可选登录，公开读
 	public := v1.Group("")
 	public.Use(middleware.OptionalAuth(&cfg.JWT, app.SessionMgr, app.Authz, app.DB))
 
-	protected := v1.Group("")
+	// tenant：必须登录 + 必须携带有效 tenant_id > 0（业务域）
+	tenant := v1.Group("/t")
+	tenant.Use(middleware.Auth(&cfg.JWT, app.SessionMgr, app.Authz, app.DB))
+	tenant.Use(pkgmiddleware.RequireTenantContext())
+
+	// protected：必须登录（保留原名，向后兼容；语义上是 platform 域）
+	// 平台模块（platform_tenant / platform_menu / config platform 域 / dict platform 域）
+	// 自己在内部追加 RequirePlatformRole("super_admin")
+	protected := v1.Group("/admin")
 	protected.Use(middleware.Auth(&cfg.JWT, app.SessionMgr, app.Authz, app.DB))
 
 	enabled := enabledSet(cfg)
@@ -140,6 +159,10 @@ func registerModules(r *gin.Engine, cfg *config.Config, app *appx.App, modules [
 			log.Printf("module %s not enabled (skip register)", m.Name())
 			continue
 		}
-		m.Register(ctx, public, protected)
+		// Phase 0022：三组 RouterGroup（public / tenant / protected）
+		// - public:  公开路由（login / health / public/*）
+		// - tenant:  业务域路由（/t/users、/t/configs 等）
+		// - protected: 平台域路由（/admin/platform-*）
+		m.Register(ctx, public, tenant, protected)
 	}
 }

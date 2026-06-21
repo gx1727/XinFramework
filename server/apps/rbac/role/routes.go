@@ -6,8 +6,8 @@ import (
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
-func Register(protected *gin.RouterGroup, h *Handler) {
-	roles := protected.Group("/roles")
+func Register(tenant *gin.RouterGroup, h *Handler) {
+	roles := tenant.Group("/roles")
 	{
 		roles.GET("", middleware.Require(permission.P(permission.ResRole, permission.ActList)), h.List)
 		roles.GET("/:id", middleware.Require(permission.P(permission.ResRole, permission.ActList)), h.Get)

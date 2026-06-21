@@ -1,4 +1,4 @@
-// 菜单
+// 菜单（业务域：/t/menus/*）
 
 import { api, type PageResponse } from "./common"
 
@@ -23,28 +23,28 @@ export interface MenuItem {
 
 export const menuApi = {
   list: (params?: { page?: number; size?: number; root?: boolean }) =>
-    api<PageResponse<MenuItem>>("/menus", { params }),
+    api<PageResponse<MenuItem>>("/t/menus", { params }),
 
   tree: () =>
-    api<MenuItem[]>("/menus/tree"),
+    api<MenuItem[]>("/t/menus/tree"),
 
   get: (id: number) =>
-    api<MenuItem>(`/menus/${id}`),
+    api<MenuItem>(`/t/menus/${id}`),
 
   create: (data: Partial<MenuItem>) =>
-    api<MenuItem>("/menus", {
+    api<MenuItem>("/t/menus", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   update: (id: number, data: Partial<MenuItem>) =>
-    api(`/menus/${id}`, {
+    api(`/t/menus/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   delete: (id: number) =>
-    api(`/menus/${id}`, {
+    api(`/t/menus/${id}`, {
       method: "DELETE",
     }),
 }

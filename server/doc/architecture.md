@@ -2,7 +2,7 @@
 
 > XinFramework 最关键的设计文档。第一次接触代码从这里开始。
 >
-> 最后更新：2026-06（config 重构 + platform_menu/platform_tenant 模块化后）
+> 最后更新：2026-06（Phase 0022 全分离：业务/平台/公开 三域路由 + 登录入口分离）
 
 ## 1. 单 Go Module 结构
 
@@ -141,7 +141,7 @@ func Module(app *appx.App) plugin.Module {
 
 定义见 [`framework/pkg/config/config.go`](framework/pkg/config/config.go) `alwaysOnModules` / `optOutModules`。
 
-## 4. AppContext：唯一的依赖容器
+## 4. AppContext：唯一的依赖容器（Phase 0022 不变）
 
 [`framework/pkg/plugin/appcontext.go`](framework/pkg/plugin/appcontext.go) 是整个重构的成果物。**两件不变量**：
 

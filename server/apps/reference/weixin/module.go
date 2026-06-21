@@ -25,7 +25,7 @@ func Module(app *appx.App) plugin.Module {
 			SetGlobalConfig(app.Config)
 			return InitConfig()
 		},
-		RegFn: func(ctx plugin.Reader, public *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(ctx plugin.Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
 			accountRepo := ctx.AccountRepo()
 			accountAuthRepo := ctx.AccountAuthRepo()
 			tenantRepo := ctx.TenantRepo()

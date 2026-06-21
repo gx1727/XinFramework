@@ -43,6 +43,40 @@ func RequireAll(specs ...permission.Spec) gin.HandlerFunc {
 // 此函数从 framework/internal/core/middleware/auth.go 提升而来，
 // 因为 apps/boot/tenant 等外部业务模块需要使用它，而 internal/
 // 不允许跨 module 导入。
+// RequireTenantContext 校验当前 token 携带有效的 tenant_id（> 0）。
+//
+// 用途：挂在租户业务域路由组（如 /api/v1/t/*）上，挡住 platform 域登录的 token。
+// 错误码 3003（"租户上下文缺失"）。
+//
+// 注意：必须挂在 Auth 中间件之后（依赖 XinContext.TenantID）。
+func RequireTenantContext() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		xc := xinContext.New(c)
+		if xc == nil || xc.TenantID == 0 {
+			resp.Forbidden(c, "此接口要求租户上下文，请使用租户域登录")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+// RequirePlatformScope 校验当前 token 是 platform 域登录（scope=platform）。
+//
+// 用途：挂在平台域路由组上，挡住 tenant 域登录的 token。
+// 配合 RequirePlatformRole("super_admin") 使用效果最佳。
+func RequirePlatformScope() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		xc := xinContext.New(c)
+		if xc == nil || xc.TenantID != 0 {
+			resp.Forbidden(c, "此接口仅限平台域登录访问")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
 func RequirePlatformRole(roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if len(roles) == 0 {

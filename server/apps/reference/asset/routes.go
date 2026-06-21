@@ -6,9 +6,9 @@ import (
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
-func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *FileHandler) {
+func Register(public *gin.RouterGroup, tenant *gin.RouterGroup, h *FileHandler) {
 	// Asset routes group
-	assetGroup := protected.Group("/asset")
+	assetGroup := tenant.Group("/asset")
 
 	{
 		// Upload endpoint

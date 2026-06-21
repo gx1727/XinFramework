@@ -4,7 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
+func Register(public *gin.RouterGroup, tenant *gin.RouterGroup, h *Handler) {
 	public.GET("/weixin/ping", func(c *gin.Context) {
 		// Health check
 	})
@@ -14,5 +14,5 @@ func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
 	public.POST("/weixin/phone", h.GetPhoneNumber)
 
 	// 需要登录的接口
-	protected.POST("/weixin/bind-phone", h.BindPhone)
+	tenant.POST("/weixin/bind-phone", h.BindPhone)
 }

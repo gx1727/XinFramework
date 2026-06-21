@@ -18,28 +18,28 @@ export interface ResourceItem {
 
 export const resourceApi = {
   list: (params?: { menu_id?: number; action?: string; page?: number; size?: number }) =>
-    api<PageResponse<ResourceItem>>("/resources", { params }),
+    api<PageResponse<ResourceItem>>("/t/resources", { params }),
 
   get: (id: number) =>
-    api<ResourceItem>(`/resources/${id}`),
+    api<ResourceItem>(`/t/resources/${id}`),
 
   create: (data: Partial<ResourceItem>) =>
-    api<ResourceItem>("/resources", {
+    api<ResourceItem>("/t/resources", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   update: (id: number, data: Partial<ResourceItem>) =>
-    api(`/resources/${id}`, {
+    api(`/t/resources/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   delete: (id: number) =>
-    api(`/resources/${id}`, {
+    api(`/t/resources/${id}`, {
       method: "DELETE",
     }),
 
   byMenu: (menuId: number) =>
-    api<ResourceItem[]>(`/resources/by-menu/${menuId}`),
+    api<ResourceItem[]>(`/t/resources/by-menu/${menuId}`),
 }

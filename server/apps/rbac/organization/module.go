@@ -18,7 +18,7 @@ func Module(app *appx.App) plugin.Module {
 			w.SetOrgRepo(NewOrganizationRepository(pool))
 			return nil
 		},
-		RegFn: func(_ plugin.Reader, _ *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(_ plugin.Reader, _ *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
 			pool := app.DB
 			h := NewHandler(NewService(pool, NewOrganizationRepository(pool)))
 			Register(protected, h)

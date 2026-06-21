@@ -19,7 +19,7 @@ func Module(app *appx.App) plugin.Module {
 			w.SetRoleRepo(NewRoleRepository(pool))
 			return nil
 		},
-		RegFn: func(ctx plugin.Reader, _ *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(ctx plugin.Reader, _ *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
 			pool := app.DB
 			authzSvc := ctx.Authz()
 			h := NewHandler(NewService(

@@ -22,39 +22,39 @@ export interface UserItem {
 
 export const userApi = {
   list: (params?: { keyword?: string; org_id?: number; page?: number; size?: number }) =>
-    api<PageResponse<UserItem>>("/users", { params }),
+    api<PageResponse<UserItem>>("/t/users", { params }),
 
   get: (id: number) =>
-    api<UserItem>(`/users/${id}`),
+    api<UserItem>(`/t/users/${id}`),
 
   create: (data: Partial<UserItem> & { username: string, password?: string }) =>
-    api<UserItem>("/users", {
+    api<UserItem>("/t/users", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   updateStatus: (id: number, status: number) =>
-    api(`/users/${id}/status`, {
+    api(`/t/users/${id}/status`, {
       method: "PUT",
       body: JSON.stringify({ id, status }),
     }),
 
   patch: (id: number, data: Partial<UserItem>) =>
-    api(`/users/${id}`, {
+    api(`/t/users/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
 
   delete: (id: number) =>
-    api(`/users/${id}`, {
+    api(`/t/users/${id}`, {
       method: "DELETE",
     }),
 
   getProfile: () =>
-    api<UserItem>("/user/profile"),
+    api<UserItem>("/t/user/profile"),
 
   updateProfile: (data: { nickName: string; avatarUrl?: string }) =>
-    api("/user/profile", {
+    api("/t/user/profile", {
       method: "PUT",
       body: JSON.stringify(data),
     }),
@@ -62,7 +62,7 @@ export const userApi = {
   uploadAvatar: (file: File) => {
     const formData = new FormData()
     formData.append("file", file)
-    return api<{ url: string }>("/user/avatar", {
+    return api<{ url: string }>("/t/user/avatar", {
       method: "POST",
       body: formData,
       headers: {

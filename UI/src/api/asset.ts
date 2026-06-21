@@ -18,7 +18,7 @@ export const assetApi = {
       (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`
     }
 
-    return fetch(`${API_BASE_URL}/asset/upload`, {
+    return fetch(`${API_BASE_URL}/t/asset/upload`, {
       method: "POST",
       headers,
       body: formData,

@@ -57,6 +57,9 @@ type AccountRepository interface {
 	GetByEmail(ctx context.Context, email string) (*Account, error)
 	Create(ctx context.Context, username, phone, email, realName, passwordHash string) (*Account, error)
 	Exists(ctx context.Context, account string) (bool, error)
+	// GetPasswordAndStatus 取账号的 password_hash + id + status，用于 platform-login。
+	// 注意：account 在 DB 中可能是 username / phone / email 任一，按顺序匹配。
+	GetPasswordAndStatus(ctx context.Context, account string) (passwordHash string, accountID uint, status int8, err error)
 }
 
 // AccountAuthRepository is the third-party auth binding data access.

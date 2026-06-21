@@ -7,12 +7,16 @@ import (
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
-func Register(public *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
+// Register 注册 system 路由。
+//   - public:    /health              （公开）
+//   - tenant:    /t/system/*          （业务域运维，需 tenant）
+//   - protected: /admin/system/*      （平台域运维，需 super_admin，暂留空）
+func Register(public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
 	public.GET("/health", func(c *gin.Context) {
 		resp.Success(c, gin.H{"status": "ok"})
 	})
 
-	system := protected.Group("/system")
+	system := tenant.Group("/system")
 	{
 		system.GET("/server-info", pkgmiddleware.Require(permission.P(permission.ResSystem, permission.ActList)), h.ServerInfo)
 		system.POST("/clear-cache", pkgmiddleware.Require(permission.P(permission.ResSystem, permission.ActUpdate)), h.ClearCache)
