@@ -24,7 +24,7 @@ func TestValidateModules_UserListIsWhitelist(t *testing.T) {
 	if err := validateModules(c); err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
-	want := []string{"system", "auth", "tenant", "weixin"}
+	want := []string{"system", "auth", "platform_tenant", "weixin"}
 	assertModuleList(t, c.Module, want)
 }
 
@@ -35,7 +35,7 @@ func TestValidateModules_AlwaysOnStaysEvenIfNotInUserList(t *testing.T) {
 		t.Fatalf("unexpected err: %v", err)
 	}
 	got := c.Module
-	for _, must := range []string{"system", "auth", "tenant"} {
+	for _, must := range []string{"system", "auth", "platform_tenant"} {
 		if !contains(got, must) {
 			t.Errorf("alwaysOn module %q missing from %v", must, got)
 		}

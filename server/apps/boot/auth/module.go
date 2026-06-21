@@ -3,7 +3,7 @@ package auth
 import (
 	"github.com/gin-gonic/gin"
 
-	"gx1727.com/xin/apps/boot/tenant"
+	"gx1727.com/xin/apps/admin/platform_tenant"
 	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/plugin"
@@ -30,7 +30,7 @@ func Module(app *appx.App) plugin.Module {
 				}
 			}
 
-			tenantRepo := tenant.NewTenantRepository(pool)
+			tenantRepo := platformtenant.NewTenantRepository(pool)
 			if ctx != nil {
 				if tr := ctx.TenantRepo(); tr != nil {
 					_ = tr

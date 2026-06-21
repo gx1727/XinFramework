@@ -1,4 +1,4 @@
-package tenant
+package platformtenant
 
 import (
 	"context"
@@ -10,12 +10,20 @@ import (
 	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
 )
 
-// Module returns the tenant module as a BaseModule.
+// Module returns the platform_tenant module as a BaseModule.
 //
 // Phase 5：显式接收 *appx.App。
+//
+// 模块名约定："platform_tenant"（与 apps/rbac/menu / apps/admin/platform_menu 一致）。
+// 在 cfg.Module: 里以 "platform_tenant" 标识，且属于 alwaysOn 列表（启动必需）。
+//
+// 本模块的双重职责：
+//  1. 提供 super_admin 用的租户 CRUD API（路由挂 /admin/platform-tenants）
+//  2. 把自己的 TenantRepository 写进 AppContext.Writer，
+//     让 framework 的 extapi.Provider、其他业务模块跨模块读取租户数据
 func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
-		NameStr: "tenant",
+		NameStr: "platform_tenant",
 		InitFn: func(_ plugin.Reader, w plugin.Writer) error {
 			pool := app.DB
 			w.SetTenantRepo(&tenantPkgAdapter{repo: NewTenantRepository(pool)})
@@ -29,8 +37,12 @@ func Module(app *appx.App) plugin.Module {
 	}
 }
 
-// tenantPkgAdapter wraps apps/boot/tenant's TenantRepository so it
+// tenantPkgAdapter wraps apps/admin/platform_tenant's TenantRepository so it
 // satisfies pkg/tenant.TenantRepository (returns *pkg/tenant.TenantRecord).
+//
+// 历史背景：本模块从 apps/boot/tenant 重命名而来，原本就有这个 adapter。
+// Phase 5 重构后，pkg/tenant.TenantRepository 仍然是 framework 暴露给跨模块
+// 消费者（cms、extapi）的"窄接口"，platform_tenant 通过 adapter 提供实现。
 type tenantPkgAdapter struct {
 	repo TenantRepository
 }

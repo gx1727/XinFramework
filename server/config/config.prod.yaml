@@ -10,6 +10,7 @@ database:
 # 不写这段会从 config.yaml 继承，可能引入 dev 才需要的模块（如 debug/seed）。
 # 部署前请审一遍：每多一个模块 = 多一份攻击面。
 module:
+  - platform_menu
   - menu
   - user
   - role

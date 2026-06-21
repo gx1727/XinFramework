@@ -1,62 +1,244 @@
-// Package config 通用配置 - HTTP 处理器
+// Package config 通用配置 - HTTP handler
+//
+// 拆分为三组：
+//
+//	BusinessHandler: 业务消费 / 租户自建（GET /configs/*, /configs/resolve*）
+//	PlatformHandler: super_admin 平台 CRUD（/configs/platform/*）
+//	PublicHandler:    公开读（GET /configs/public/*）
+//
+// 这样与 dict 模块的 handler 拆分对齐。
 package config
 
 import (
-	"errors"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/framework/pkg/context"
+
+	xinContext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
-type Handler struct {
+// ============================================================================
+// BusinessHandler — 业务消费 / 租户自建
+// ============================================================================
+
+type BusinessHandler struct {
 	svc *Service
 }
 
-func NewHandler(svc *Service) *Handler {
-	return &Handler{svc: svc}
+func NewBusinessHandler(svc *Service) *BusinessHandler {
+	return &BusinessHandler{svc: svc}
 }
 
-// =============== Group ===============
-
-// ListGroups 列出当前租户的所有配置分组
-func (h *Handler) ListGroups(c *gin.Context) {
-	uc := context.NewUserContext(c)
-	groups, err := h.svc.ListGroups(c.Request.Context(), uc.TenantID)
+// ListGroups 租户自建 group 列表
+func (h *BusinessHandler) ListGroups(c *gin.Context) {
+	tenantID := xinContext.New(c).GetTenantID()
+	if tenantID == 0 {
+		resp.Error(c, 400, "missing tenant_id")
+		return
+	}
+	list, err := h.svc.repo.ListGroups(c.Request.Context(), tenantID)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
 	}
-	resp.Success(c, gin.H{"list": groups, "total": len(groups)})
+	resp.Success(c, list)
 }
 
-// CreateGroup 新建分组
-func (h *Handler) CreateGroup(c *gin.Context) {
-	uc := context.NewUserContext(c)
-	var req createGroupRequest
+// GetGroup 租户视角查单个 group（支持 platform + tenant override 合并）
+func (h *BusinessHandler) GetGroup(c *gin.Context) {
+	id, err := parseIDParam(c, "id")
+	if err != nil {
+		resp.BadRequest(c, "无效的ID参数")
+		return
+	}
+	tenantID := xinContext.New(c).GetTenantID()
+	if tenantID == 0 {
+		resp.Error(c, 400, "missing tenant_id")
+		return
+	}
+	g, err := h.svc.repo.GetGroupByID(c.Request.Context(), id)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+	rc, err := h.svc.Resolve(c.Request.Context(), tenantID, g.Code)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+	resp.Success(c, rc)
+}
+
+// ListItemsByGroup 租户查某 group 下所有 item（含 override）
+func (h *BusinessHandler) ListItemsByGroup(c *gin.Context) {
+	id, err := parseIDParam(c, "id")
+	if err != nil {
+		resp.BadRequest(c, "无效的ID参数")
+		return
+	}
+	tenantID := xinContext.New(c).GetTenantID()
+	if tenantID == 0 {
+		resp.Error(c, 400, "missing tenant_id")
+		return
+	}
+	items, err := h.svc.repo.ListItemsByGroup(c.Request.Context(), id)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+	// RLS 已经隔离，无需再过滤 tenant_id
+	resp.Success(c, items)
+}
+
+// Resolve 业务合并消费端点（与 dict 对齐）
+func (h *BusinessHandler) Resolve(c *gin.Context) {
+	tenantID := xinContext.New(c).GetTenantID()
+	if tenantID == 0 {
+		resp.Error(c, 400, "missing tenant_id")
+		return
+	}
+	code := c.Query("code")
+	if code == "" {
+		resp.BadRequest(c, "missing code")
+		return
+	}
+	rc, err := h.svc.Resolve(c.Request.Context(), tenantID, code)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+	resp.Success(c, rc)
+}
+
+// ResolveBatch 批量 resolve（避免 N+1）
+func (h *BusinessHandler) ResolveBatch(c *gin.Context) {
+	var req struct {
+		Codes []string `json:"codes" binding:"required"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		resp.BadRequest(c, "请求参数格式错误")
 		return
 	}
-	g, err := h.svc.CreateGroup(c.Request.Context(), uc.TenantID, req)
+	tenantID := xinContext.New(c).GetTenantID()
+	if tenantID == 0 {
+		resp.Error(c, 400, "missing tenant_id")
+		return
+	}
+	all, err := h.svc.ResolveAll(c.Request.Context(), tenantID)
 	if err != nil {
-		if errors.Is(err, ErrGroupCodeExists) {
-			resp.Error(c, 409, "分组编码已存在")
-			return
+		resp.HandleError(c, err)
+		return
+	}
+	out := make(map[string]*ResolvedConfig, len(req.Codes))
+	for _, code := range req.Codes {
+		if rc, ok := all[code]; ok {
+			out[code] = rc
 		}
+	}
+	resp.Success(c, out)
+}
+
+// UpsertOverride 租户覆盖 platform item
+func (h *BusinessHandler) UpsertOverride(c *gin.Context) {
+	platformItemID, err := parseIDParam(c, "item_id")
+	if err != nil {
+		resp.BadRequest(c, "无效的 item_id 参数")
+		return
+	}
+	var req struct {
+		Value interface{} `json:"value"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.BadRequest(c, "请求参数格式错误")
+		return
+	}
+	tenantID := xinContext.New(c).GetTenantID()
+	if tenantID == 0 {
+		resp.Error(c, 400, "missing tenant_id")
+		return
+	}
+	out, err := h.svc.UpsertOverride(c.Request.Context(), tenantID, platformItemID, req.Value)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+	resp.Success(c, out)
+}
+
+// DeleteOverride 租户删除对 platform item 的覆盖
+func (h *BusinessHandler) DeleteOverride(c *gin.Context) {
+	platformItemID, err := parseIDParam(c, "item_id")
+	if err != nil {
+		resp.BadRequest(c, "无效的 item_id 参数")
+		return
+	}
+	tenantID := xinContext.New(c).GetTenantID()
+	if tenantID == 0 {
+		resp.Error(c, 400, "missing tenant_id")
+		return
+	}
+	if err := h.svc.DeleteOverride(c.Request.Context(), tenantID, platformItemID); err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+	resp.Success(c, gin.H{"ok": true})
+}
+
+// ============================================================================
+// PlatformHandler — super_admin 平台 CRUD
+// ============================================================================
+
+type PlatformHandler struct {
+	svc *Service
+}
+
+func NewPlatformHandler(svc *Service) *PlatformHandler {
+	return &PlatformHandler{svc: svc}
+}
+
+func (h *PlatformHandler) ListGroups(c *gin.Context) {
+	list, err := h.svc.ListPlatformGroups(c.Request.Context())
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+	resp.Success(c, list)
+}
+
+func (h *PlatformHandler) GetGroup(c *gin.Context) {
+	id, err := parseIDParam(c, "id")
+	if err != nil {
+		resp.BadRequest(c, "无效的ID参数")
+		return
+	}
+	g, err := h.svc.repo.GetGroupByID(c.Request.Context(), id)
+	if err != nil {
 		resp.HandleError(c, err)
 		return
 	}
 	resp.Success(c, g)
 }
 
-// UpdateGroup 更新分组
-func (h *Handler) UpdateGroup(c *gin.Context) {
-	uc := context.NewUserContext(c)
-	id, err := parseUint(c.Param("id"))
+func (h *PlatformHandler) CreateGroup(c *gin.Context) {
+	var req createGroupRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.BadRequest(c, "请求参数格式错误")
+		return
+	}
+	scope := c.DefaultQuery("scope", "platform")
+	g, err := h.svc.CreateGroup(c.Request.Context(), req, scope)
 	if err != nil {
-		resp.BadRequest(c, "无效的分组ID")
+		resp.HandleError(c, err)
+		return
+	}
+	resp.Success(c, g)
+}
+
+func (h *PlatformHandler) UpdateGroup(c *gin.Context) {
+	id, err := parseIDParam(c, "id")
+	if err != nil {
+		resp.BadRequest(c, "无效的ID参数")
 		return
 	}
 	var req updateGroupRequest
@@ -64,84 +246,45 @@ func (h *Handler) UpdateGroup(c *gin.Context) {
 		resp.BadRequest(c, "请求参数格式错误")
 		return
 	}
-	g, err := h.svc.UpdateGroup(c.Request.Context(), uc.TenantID, id, req)
+	g, err := h.svc.UpdateGroup(c.Request.Context(), id, req)
 	if err != nil {
-		if errors.Is(err, ErrGroupNotFound) {
-			resp.Error(c, 404, "分组不存在")
-			return
-		}
 		resp.HandleError(c, err)
 		return
 	}
 	resp.Success(c, g)
 }
 
-// DeleteGroup 删除分组
-func (h *Handler) DeleteGroup(c *gin.Context) {
-	uc := context.NewUserContext(c)
-	id, err := parseUint(c.Param("id"))
+func (h *PlatformHandler) DeleteGroup(c *gin.Context) {
+	id, err := parseIDParam(c, "id")
 	if err != nil {
-		resp.BadRequest(c, "无效的分组ID")
+		resp.BadRequest(c, "无效的ID参数")
 		return
 	}
-	if err := h.svc.DeleteGroup(c.Request.Context(), uc.TenantID, id); err != nil {
-		if errors.Is(err, ErrGroupNotFound) {
-			resp.Error(c, 404, "分组不存在")
-			return
-		}
-		if errors.Is(err, ErrGroupIsSystem) {
-			resp.Error(c, 403, "系统预置分组不可删除")
-			return
-		}
-		if errors.Is(err, ErrGroupHasItems) {
-			resp.Error(c, 409, err.Error())
-			return
-		}
+	if err := h.svc.DeleteGroup(c.Request.Context(), id); err != nil {
 		resp.HandleError(c, err)
 		return
 	}
 	resp.Success(c, gin.H{"ok": true})
 }
 
-// =============== Item ===============
-
-// ListItemsByGroup 列出某分组下的所有项
-func (h *Handler) ListItemsByGroup(c *gin.Context) {
-	uc := context.NewUserContext(c)
-	groupID, err := parseUint(c.Param("id"))
+func (h *PlatformHandler) ListItems(c *gin.Context) {
+	id, err := parseIDParam(c, "id")
 	if err != nil {
-		resp.BadRequest(c, "无效的分组ID")
+		resp.BadRequest(c, "无效的ID参数")
 		return
 	}
-	items, err := h.svc.ListItemsByGroup(c.Request.Context(), uc.TenantID, groupID)
-	if err != nil {
-		if errors.Is(err, ErrGroupNotFound) {
-			resp.Error(c, 404, "分组不存在")
-			return
-		}
-		resp.HandleError(c, err)
-		return
-	}
-	resp.Success(c, gin.H{"list": items, "total": len(items)})
-}
-
-// ListAllItems 列出当前租户所有项（用于批量编辑场景）
-func (h *Handler) ListAllItems(c *gin.Context) {
-	uc := context.NewUserContext(c)
-	items, err := h.svc.ListItemsByTenant(c.Request.Context(), uc.TenantID)
+	items, err := h.svc.ListPlatformItems(c.Request.Context(), id)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
 	}
-	resp.Success(c, gin.H{"list": items, "total": len(items)})
+	resp.Success(c, items)
 }
 
-// CreateItem 在指定分组下新增项
-func (h *Handler) CreateItem(c *gin.Context) {
-	uc := context.NewUserContext(c)
-	groupID, err := parseUint(c.Param("id"))
+func (h *PlatformHandler) CreateItem(c *gin.Context) {
+	id, err := parseIDParam(c, "id")
 	if err != nil {
-		resp.BadRequest(c, "无效的分组ID")
+		resp.BadRequest(c, "无效的ID参数")
 		return
 	}
 	var req createItemRequest
@@ -149,32 +292,18 @@ func (h *Handler) CreateItem(c *gin.Context) {
 		resp.BadRequest(c, "请求参数格式错误")
 		return
 	}
-	item, err := h.svc.CreateItem(c.Request.Context(), uc.TenantID, groupID, req)
+	item, err := h.svc.CreateItem(c.Request.Context(), id, req)
 	if err != nil {
-		if errors.Is(err, ErrGroupNotFound) {
-			resp.Error(c, 404, "分组不存在")
-			return
-		}
-		if errors.Is(err, ErrItemKeyExists) {
-			resp.Error(c, 409, "项 key 已存在")
-			return
-		}
-		if errors.Is(err, ErrInvalidValueForType) || errors.Is(err, ErrValueNotInOptions) || errors.Is(err, ErrInvalidItemType) {
-			resp.Error(c, 400, err.Error())
-			return
-		}
 		resp.HandleError(c, err)
 		return
 	}
 	resp.Success(c, item)
 }
 
-// UpdateItem 更新项（值 + 元数据）
-func (h *Handler) UpdateItem(c *gin.Context) {
-	uc := context.NewUserContext(c)
-	id, err := parseUint(c.Param("id"))
+func (h *PlatformHandler) UpdateItem(c *gin.Context) {
+	id, err := parseIDParam(c, "id")
 	if err != nil {
-		resp.BadRequest(c, "无效的项ID")
+		resp.BadRequest(c, "无效的ID参数")
 		return
 	}
 	var req updateItemRequest
@@ -182,113 +311,141 @@ func (h *Handler) UpdateItem(c *gin.Context) {
 		resp.BadRequest(c, "请求参数格式错误")
 		return
 	}
-	item, err := h.svc.UpdateItem(c.Request.Context(), uc.TenantID, id, req)
+	item, err := h.svc.UpdateItem(c.Request.Context(), id, req)
 	if err != nil {
-		if errors.Is(err, ErrItemNotFound) {
-			resp.Error(c, 404, "项不存在")
-			return
-		}
-		if errors.Is(err, ErrItemIsReadonly) {
-			resp.Error(c, 403, "该项只读，不可修改")
-			return
-		}
-		if errors.Is(err, ErrInvalidValueForType) || errors.Is(err, ErrValueNotInOptions) {
-			resp.Error(c, 400, err.Error())
-			return
-		}
 		resp.HandleError(c, err)
 		return
 	}
 	resp.Success(c, item)
 }
 
-// ResetItem 恢复默认
-func (h *Handler) ResetItem(c *gin.Context) {
-	uc := context.NewUserContext(c)
-	id, err := parseUint(c.Param("id"))
+func (h *PlatformHandler) DeleteItem(c *gin.Context) {
+	id, err := parseIDParam(c, "id")
 	if err != nil {
-		resp.BadRequest(c, "无效的项ID")
+		resp.BadRequest(c, "无效的ID参数")
 		return
 	}
-	item, err := h.svc.ResetItem(c.Request.Context(), uc.TenantID, id)
-	if err != nil {
-		if errors.Is(err, ErrItemNotFound) {
-			resp.Error(c, 404, "项不存在")
-			return
-		}
-		if errors.Is(err, ErrItemIsReadonly) {
-			resp.Error(c, 403, "该项只读")
-			return
-		}
-		resp.HandleError(c, err)
-		return
-	}
-	resp.Success(c, item)
-}
-
-// DeleteItem 删除项
-func (h *Handler) DeleteItem(c *gin.Context) {
-	uc := context.NewUserContext(c)
-	id, err := parseUint(c.Param("id"))
-	if err != nil {
-		resp.BadRequest(c, "无效的项ID")
-		return
-	}
-	if err := h.svc.DeleteItem(c.Request.Context(), uc.TenantID, id); err != nil {
-		if errors.Is(err, ErrItemNotFound) {
-			resp.Error(c, 404, "项不存在")
-			return
-		}
-		if errors.Is(err, ErrItemIsSystem) {
-			resp.Error(c, 403, "系统预置项不可删除")
-			return
-		}
+	if err := h.svc.DeleteItem(c.Request.Context(), id); err != nil {
 		resp.HandleError(c, err)
 		return
 	}
 	resp.Success(c, gin.H{"ok": true})
 }
 
-// =============== Public 公共读 ===============
+// ===== Visibility =====
 
-// GetPublic 公共读：取当前租户某分组下的所有 is_public 项，扁平化为 key→value
-func (h *Handler) GetPublic(c *gin.Context) {
-	groupCode := c.Query("group")
-	if groupCode == "" {
-		resp.BadRequest(c, "缺少 group 参数")
+func (h *PlatformHandler) ListVisibility(c *gin.Context) {
+	id, err := parseIDParam(c, "id")
+	if err != nil {
+		resp.BadRequest(c, "无效的ID参数")
 		return
 	}
-	tenantID := resolveTenantID(c)
-	values, err := h.svc.GetPublicByGroup(c.Request.Context(), tenantID, groupCode)
+	list, err := h.svc.ListVisibility(c.Request.Context(), id)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+	resp.Success(c, list)
+}
+
+func (h *PlatformHandler) UpsertVisibility(c *gin.Context) {
+	id, err := parseIDParam(c, "id")
+	if err != nil {
+		resp.BadRequest(c, "无效的ID参数")
+		return
+	}
+	var req struct {
+		TenantID uint   `json:"tenant_id" binding:"required"`
+		Access   string `json:"access" binding:"required,oneof=invisible readonly editable"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.BadRequest(c, "请求参数格式错误")
+		return
+	}
+	v, err := h.svc.UpsertVisibility(c.Request.Context(), id, req.TenantID, req.Access)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+	resp.Success(c, v)
+}
+
+func (h *PlatformHandler) DeleteVisibility(c *gin.Context) {
+	id, err := parseIDParam(c, "id")
+	if err != nil {
+		resp.BadRequest(c, "无效的ID参数")
+		return
+	}
+	tenantID, err := parseIDParam(c, "tenant_id")
+	if err != nil {
+		resp.BadRequest(c, "无效的 tenant_id 参数")
+		return
+	}
+	if err := h.svc.DeleteVisibility(c.Request.Context(), id, tenantID); err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+	resp.Success(c, gin.H{"ok": true})
+}
+
+// ============================================================================
+// PublicHandler — 公开读（无需鉴权）
+// ============================================================================
+
+type PublicHandler struct {
+	svc *Service
+}
+
+func NewPublicHandler(svc *Service) *PublicHandler {
+	return &PublicHandler{svc: svc}
+}
+
+// GetPublic 按 group code 取公开配置（is_public=TRUE 的 group 下所有 item）
+//
+// 用 X-Tenant-ID header 兜底识别租户（无 auth 也可用）。
+func (h *PublicHandler) GetPublic(c *gin.Context) {
+	tenantID := xinContext.New(c).GetTenantID()
+	if tenantID == 0 {
+		// 从 header 兜底
+		headerVal := c.GetHeader("X-Tenant-ID")
+		if headerVal != "" {
+			if tid, err := strconv.ParseUint(headerVal, 10, 64); err == nil {
+				tenantID = uint(tid)
+			}
+		}
+	}
+	if tenantID == 0 {
+		resp.Error(c, 400, "missing tenant_id")
+		return
+	}
+	items, err := h.svc.ListPublicItems(c.Request.Context(), tenantID)
 	if err != nil {
 		resp.HandleError(c, err)
 		return
 	}
 	resp.Success(c, publicConfigResponse{
-		Group:  groupCode,
-		Values: values,
+		Group:  "public",
+		Values: indexByKey(items),
 	})
 }
 
-// resolveTenantID 公共接口解析租户 ID：优先 X-Tenant-ID header；其次 query ?tenant_id；最后 0（公开）
-func resolveTenantID(c *gin.Context) uint {
-	if v := c.GetHeader("X-Tenant-ID"); v != "" {
-		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
-			return uint(id)
-		}
+func indexByKey(items []ConfigItem) map[string]interface{} {
+	out := make(map[string]interface{}, len(items))
+	for i := range items {
+		out[items[i].Key] = items[i].Value
 	}
-	if v := c.Query("tenant_id"); v != "" {
-		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
-			return uint(id)
-		}
-	}
-	return 0
+	return out
 }
 
-func parseUint(s string) (uint, error) {
-	v, err := strconv.ParseUint(s, 10, 64)
+// parseIDParam 解析 :id 类路径参数
+func parseIDParam(c *gin.Context, param string) (uint, error) {
+	str := c.Param(param)
+	if str == "" {
+		return 0, strconv.ErrSyntax
+	}
+	n, err := strconv.ParseUint(str, 10, 64)
 	if err != nil {
 		return 0, err
 	}
-	return uint(v), nil
+	return uint(n), nil
 }

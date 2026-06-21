@@ -8,7 +8,10 @@ type createGroupRequest struct {
 	Description *string `json:"description" binding:"omitempty,max=255"`
 	Icon        *string `json:"icon" binding:"omitempty,max=64"`
 	Sort        int     `json:"sort"`
+	IsSystem    bool    `json:"is_system"`
 	IsPublic    bool    `json:"is_public"`
+	// TenantID 仅 scope=tenant 时使用（platform scope 强制 0）
+	TenantID uint `json:"tenant_id,omitempty"`
 }
 
 // Group 更新请求
@@ -18,6 +21,7 @@ type updateGroupRequest struct {
 	Icon        *string `json:"icon" binding:"omitempty,max=64"`
 	Sort        *int    `json:"sort"`
 	IsPublic    *bool   `json:"is_public"`
+	Visibility  *string `json:"visibility" binding:"omitempty,oneof=public tenant_only hidden"`
 	Status      *int8   `json:"status"`
 }
 
@@ -34,6 +38,7 @@ type createItemRequest struct {
 	Sort         int         `json:"sort"`
 	IsPublic     bool        `json:"is_public"`
 	IsReadonly   bool        `json:"is_readonly"`
+	IsSystem     bool        `json:"is_system"`
 }
 
 // Item 更新请求

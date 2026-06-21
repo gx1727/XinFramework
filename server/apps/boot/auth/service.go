@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"gx1727.com/xin/apps/boot/tenant"
+	"gx1727.com/xin/apps/admin/platform_tenant"
 
 	"context"
 	"errors"
@@ -144,7 +144,7 @@ type Service struct {
 	config      *config.Config
 	session     SessionManager
 	accountRepo AccountRepository
-	tenantRepo  tenant.TenantRepository
+	tenantRepo  platformtenant.TenantRepository
 	platformRp  PlatformRoleRepository
 }
 
@@ -308,7 +308,7 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 
 		t, err := s.tenantRepo.GetByID(ctx, req.TenantID)
 		if err != nil {
-			if errors.Is(err, tenant.ErrTenantNotFoundDB) {
+			if errors.Is(err, platformtenant.ErrTenantNotFoundDB) {
 				return ErrTenantNotFound
 			}
 			return ErrRegisterFailed

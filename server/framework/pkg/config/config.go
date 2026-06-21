@@ -309,12 +309,12 @@ func envCSV(key string, target *[]string) {
 // alwaysOnModules 启动必需，配置无法禁用。
 //
 // 这些模块要么承载进程级基础设施（system 提供 health/cache stats），
-// 要么被 auth 中间件或框架其它部分隐式依赖（auth / tenant）。
+// 要么被 auth 中间件或框架其它部分隐式依赖（auth / platform_tenant）。
 // 关闭它们会导致框架不可用，因此不允许在 module: 里"删一行"就关掉。
 var alwaysOnModules = []string{
 	"system",
 	"auth",
-	"tenant",
+	"platform_tenant",
 }
 
 // optOutModules 默认启用，但用户在 module: 中显式列出模块时，改为白名单语义。

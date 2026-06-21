@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"gx1727.com/xin/apps/boot/tenant"
+	"gx1727.com/xin/apps/admin/platform_tenant"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/session"
 )
@@ -25,7 +25,7 @@ type Dependencies struct {
 	Config       *config.Config
 	Session      SessionManager
 	AccountRepo  AccountRepository
-	TenantRepo   tenant.TenantRepository
+	TenantRepo   platformtenant.TenantRepository
 	PlatformRepo PlatformRoleRepository
 }
 
@@ -52,6 +52,6 @@ func DefaultDependencies(cfg *config.Config, db *pgxpool.Pool, repos Repositorie
 
 type Repositories struct {
 	Account  AccountRepository
-	Tenant   tenant.TenantRepository
+	Tenant   platformtenant.TenantRepository
 	Platform PlatformRoleRepository
 }

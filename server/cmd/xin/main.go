@@ -12,8 +12,9 @@ package main
 import (
 	"log"
 
+	"gx1727.com/xin/apps/admin/platform_menu"
+	"gx1727.com/xin/apps/admin/platform_tenant"
 	"gx1727.com/xin/apps/boot/auth"
-	"gx1727.com/xin/apps/boot/tenant"
 	"gx1727.com/xin/apps/cms"
 	"gx1727.com/xin/apps/flag"
 	"gx1727.com/xin/apps/rbac/menu"
@@ -48,7 +49,10 @@ func main() {
 	modules := []plugin.Module{
 		// boot 阶段
 		auth.Module(app),
-		tenant.Module(app),
+
+		// 平台管理域（必须 super_admin 才能访问）
+		platformmenu.Module(app),
+		platformtenant.Module(app),
 
 		// rbac 套件
 		menu.Module(app),

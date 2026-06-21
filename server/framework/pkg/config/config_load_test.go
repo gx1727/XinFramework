@@ -29,14 +29,15 @@ func TestLoad_DevConfig_ModuleListMatchesSpec(t *testing.T) {
 		t.Fatalf("Load(%q) failed: %v", cfgPath, err)
 	}
 
-	// 期望：alwaysOn (3) + config.yaml 里显式列出的 12 项 = 15 项
+	// 期望：alwaysOn (3) + config.yaml 里显式列出的 13 项 = 16 项
 	// alwaysOn: system, auth, tenant
-	// config.yaml module: menu, user, role, resource, organization, dict, asset, permission, weixin, cms, flag, config
+	// config.yaml module: platform_menu, menu, user, role, resource, organization,
+	//                    dict, asset, permission, weixin, cms, flag, config
 	want := []string{
 		// alwaysOn
-		"system", "auth", "tenant",
+		"system", "auth", "platform_tenant",
 		// config.yaml 白名单
-		"menu", "user", "role", "resource", "organization",
+		"platform_menu", "menu", "user", "role", "resource", "organization",
 		"dict", "asset", "permission", "weixin", "cms", "flag", "config",
 	}
 
@@ -50,7 +51,7 @@ func TestLoad_DevConfig_ModuleListMatchesSpec(t *testing.T) {
 	}
 
 	// 同时验证 alwaysOn 三个确实在列表里（顺序敏感）
-	for i, m := range []string{"system", "auth", "tenant"} {
+	for i, m := range []string{"system", "auth", "platform_tenant"} {
 		if cfg.Module[i] != m {
 			t.Errorf("cfg.Module[%d]: got %q, want %q (full: %v)", i, cfg.Module[i], m, cfg.Module)
 		}

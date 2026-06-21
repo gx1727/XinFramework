@@ -55,14 +55,16 @@ log:
   level: info # debug | info | warn | error
 
 # module: 白名单 —— 列出本部署需要启用的全部业务模块。
-# 实际启动列表 = alwaysOn（system/auth/tenant，自动启用、不可关） + 本列表。
+# 实际启动列表 = alwaysOn（system/auth/platform_tenant，自动启用、不可关） + 本列表。
 # "module: 删一行" 即可关闭对应模块（除 alwaysOn 外）。
-# 可选范围（与 cmd/xin/main.go 的 side-effect import 对齐）：
-#   boot/      : auth, tenant
+# 可选范围（与 cmd/xin/main.go 的 Module(app) 调用对齐）：
+#   boot/      : auth
+#   admin/     : platform_menu, platform_tenant  (平台管理域，需 super_admin)
 #   rbac/      : menu, user, role, resource, organization, permission
 #   reference/ : dict, asset, weixin
 #   apps/      : system, cms, flag
 module:
+  - platform_menu
   - menu
   - user
   - role
