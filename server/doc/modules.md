@@ -1,14 +1,16 @@
 # 模块清单
 
-> 当前共 **15 个 module**。`alwaysOn` 的 3 个无法关闭；其余由 `cfg.Module` 白名单控制。
+> 当前共 **16 个 module**。按 `cfg.Module` 行为分 3 类：3 个 alwaysOn、8 个 optOut、5 个 optional。
+>
+> 文档版本：2026-06（config 重构 + platform_menu/platform_tenant 模块化后）
 
 ## 总览
 
-| Name | 类型 | 错误码段 | 数据表 | 默认 |
+| Name | 类型 | 错误码段 | 主要表 / 资源 | 默认 |
 |---|---|---|---|---|
 | [system](#system) | alwaysOn | 11001-11999 | — | ✅ |
 | [auth](#auth) | alwaysOn | 1001-1999 | accounts / account_auths / account_roles / user_codes | ✅ |
-| [tenant](#tenant) | alwaysOn | 3001-3999 | tenants | ✅ |
+| [platform_tenant](#platform_tenant) | alwaysOn | 3001-3999 | tenants | ✅ |
 | [user](#user) | optOut | 2001-2999 | users / user_roles | ✅ |
 | [role](#role) | optOut | 4001-4999 | roles | ✅ |
 | [menu](#menu) | optOut | 5001-5999 | menus / role_menus | ✅ |
@@ -17,12 +19,13 @@
 | [resource](#resource) | optOut | 8001-8999 | resources | ✅ |
 | [dict](#dict) | optOut | 10001-10999 | dicts / dict_items | ✅ |
 | [asset](#asset) | optOut | 9001-9999 | file_assets | ✅ |
-| [config](#config) | optOut | 14001-14999 | config_groups / config_items | ✅ |
-| [cms](#cms) | optional | — (示例) | posts | optional |
-| [flag](#flag) | optional | 13001-13999 | frames / spaces / avatars ... | optional |
-| [weixin](#weixin) | optional | 12001-12999 | — | optional |
+| [config](#config) | optional | 18001-18999 | config_groups / config_items / config_visibility | 显式 |
+| [platform_menu](#platform_menu) | optional | 15001-15999 | menus（tenant_id=0 子集） | 显式 |
+| [weixin](#weixin) | optional | 12001-12999 | — | 显式 |
+| [cms](#cms) | optional | — (示例) | posts | 显式 |
+| [flag](#flag) | optional | 13001-13999 | frames / spaces / avatars | 显式 |
 
-> `alwaysOn` = 启动必需，无法关闭（在 `framework/pkg/config/config.go` 中硬编码）。
+> `alwaysOn` = 启动必需，无法关闭（在 [`framework/pkg/config/config.go`](../framework/pkg/config/config.go) 中硬编码）。
 > `optOut` = 默认启用，写 `module:` 时视为白名单，需要显式列出来。
 > `optional` = 默认不启用，需要在 `cfg.Module` 显式列出。
 
@@ -30,7 +33,7 @@
 
 ```yaml
 # config/config.yaml
-module: []                    # 留空 = 启用全部 optOut（9 个）
+module: []                    # 留空 = 启用 alwaysOn + 全部 optOut（11 个），不启用 optional
 # 或
 module:
   - user
@@ -41,13 +44,15 @@ module:
   - resource
   - asset
   - dict
-  - config
-  # - flag                     # optional 模块不列就不开
-  # - cms
+  # optional 不列就不开
+  # - config
+  # - platform_menu
   # - weixin
+  # - cms
+  # - flag
 ```
 
-`alwaysOn` 的 system / auth / tenant **永远会加载**，即使从 module 列表里删了也会自动加回去。
+`alwaysOn` 的 `system` / `auth` / `platform_tenant` **永远会加载**，即使从 module 列表里删了也会自动加回去。
 
 ---
 
@@ -55,7 +60,7 @@ module:
 
 **职责**：health check + 运维 cache 操作入口。
 
-**路由**：
+**路由**（前缀 `/api/v1`）：
 
 | Method | Path | Auth | Spec | Handler |
 |---|---|---|---|---|
@@ -77,12 +82,12 @@ module:
 
 **路由**：
 
-| Method | Path | Auth | Spec | Handler |
-|---|---|---|---|---|
-| POST | `/auth/login` | public | — | `Login` |
-| POST | `/auth/register` | public | — | `Register` |
-| POST | `/auth/refresh` | public | — | `Refresh` |
-| POST | `/auth/logout` | protected | — | `Logout` |
+| Method | Path | Auth | Handler |
+|---|---|---|---|
+| POST | `/auth/login` | public | `Login` |
+| POST | `/auth/register` | public | `Register` |
+| POST | `/auth/refresh` | public | `Refresh` |
+| POST | `/auth/logout` | protected | `Logout` |
 
 **数据表**：
 
@@ -99,25 +104,27 @@ module:
 
 ---
 
-## tenant
+## platform_tenant  ⭐ (alwaysOn, Phase 0020)
 
-**职责**：租户 CRUD。**唯一必须挂平台角色守卫**的模块。
+**职责**：租户 CRUD。**唯一 alwaysOn 平台管理模块**，强制 `super_admin` 平台角色。
 
-**路由**（全部 protected，且额外要求 `super_admin` 平台角色）：
+**路由**（全部位于 `/api/v1/admin/platform-tenants`，`RequirePlatformRole("super_admin")` + `Require(ResTenant.*)` 双层守卫）：
 
 | Method | Path | Spec | Handler |
 |---|---|---|---|
-| POST | `/tenants` | `tenant:create` | `Create` |
-| PUT | `/tenants/:id` | `tenant:update` | `Update` |
-| PUT | `/tenants/:id/status` | `tenant:update` | `UpdateStatus` |
-| DELETE | `/tenants/:id` | `tenant:delete` | `Delete`（软删） |
-| POST | `/tenants/:id/purge` | `tenant:delete` | `Purge`（硬删） |
-| GET | `/tenants/:id` | `tenant:list` | `Get` |
-| GET | `/tenants` | `tenant:list` | `List` |
+| GET | `/admin/platform-tenants` | `tenant:list` | `List` |
+| GET | `/admin/platform-tenants/:id` | `tenant:list` | `Get` |
+| POST | `/admin/platform-tenants` | `tenant:create` | `Create` |
+| PUT | `/admin/platform-tenants/:id` | `tenant:update` | `Update` |
+| PUT | `/admin/platform-tenants/:id/status` | `tenant:update` | `UpdateStatus` |
+| DELETE | `/admin/platform-tenants/:id` | `tenant:delete` | `Delete`（软删） |
+| POST | `/admin/platform-tenants/:id/purge` | `tenant:delete` | `Purge`（硬删） |
 
 **数据表**：`tenants`（不受 RLS）。
 
-**安全设计**：租户管理属于**跨租户特权**，`RequirePlatformRole("super_admin")` 在分组级别强制要求，普通租户内 admin 仅凭资源权限码也无法访问。
+**安全设计**：路由在 `adminGroup` 分组下用 `RequirePlatformRole("super_admin")` 短路所有非 super_admin 请求；super_admin 仍需满足资源权限码（`tenant:create` / `update` / `delete` / `list`）做细粒度校验。
+
+**演进**：Phase 0020 之前位于 `apps/boot/tenant`，路由为 `/api/v1/tenants`；现统一到 `/api/v1/admin/platform-tenants`，错误码段沿用 3001-3999（与未来业务层 tenant 模块共用）。
 
 ---
 
@@ -133,7 +140,7 @@ module:
 | POST | `/users` | `user:create` | `Create` |
 | GET | `/users/:id` | `user:list` | `Get` |
 | PUT | `/users/:id` | `user:update` | `Update` |
-| PATCH | `/users/:id` | `user:update` | `Patch`（部分更新） |
+| PATCH | `/users/:id` | `user:update` | `Patch` |
 | PUT | `/users/:id/status` | `user:update` | `UpdateStatus` |
 | PUT | `/users/:id/org` | `user:update` | `UpdateOrg` |
 | GET | `/user/profile` | — | `Profile` |
@@ -141,8 +148,6 @@ module:
 | PUT | `/user/profile` | — | `UpdateProfile` |
 
 **数据表**：`users` / `user_roles`（受 RLS）。
-
-**特殊**：`/user/profile` 系列不带 RBAC spec——用户改自己 profile 不需要 RBAC 校验（已经登录了）。
 
 ---
 
@@ -164,16 +169,17 @@ module:
 | PUT | `/roles/:id/data-scopes` | `role:update` | `UpdateDataScopes` |
 | GET | `/roles/:id/menus` | `role:list` | `GetMenus` |
 | PUT | `/roles/:id/menus` | `role:update` | `AssignMenus` |
+| GET | `/roles/:id/permissions` | `role:list` | `GetPermissions` |
+| POST | `/roles/:id/permissions` | `role:update` | `AssignPermissions` |
+| GET | `/roles/:id/resources` | `role:list` | `GetResources` |
 
 **数据表**：`roles` / `user_roles` / `role_menus` / `role_resources`。
-
-**跨模块依赖**：写 `AppContext.RoleRepo`，从 `AppContext.Authz()` 取 Authorization 用于**失效缓存**（角色变更 → 关联用户权限缓存全失效）。
 
 ---
 
 ## menu
 
-**职责**：菜单树 CRUD（纯 UI 导航数据，不参与 RBAC）。
+**职责**：租户内菜单树 CRUD（平台菜单由 `platform_menu` 模块管理）。
 
 **路由**：
 
@@ -186,9 +192,32 @@ module:
 | PUT | `/menus/:id` | `menu:update` | `Update` |
 | DELETE | `/menus/:id` | `menu:delete` | `Delete` |
 
-**数据表**：`menus` / `role_menus`。
+**数据表**：`menus` / `role_menus`（受 RLS）。
 
-**注意**：`menus` 自身不含 RBAC 权限——菜单是导航，真正决定按钮是否可点的是 `resources`（按钮/API）。`/roles/:id/menus` 在 role 模块里管理。
+---
+
+## platform_menu  ⭐ (optional, Phase 0021)
+
+**职责**：平台级菜单管理。`menus` 表中 `tenant_id = 0` 的子集，由 super_admin 跨租户维护。
+
+**路由**（全部位于 `/api/v1/admin/platform-menus`，group 级 `RequirePlatformRole("super_admin")`）：
+
+| Method | Path | Handler |
+|---|---|---|
+| GET | `/admin/platform-menus` | `List` |
+| GET | `/admin/platform-menus/tree` | `Tree` |
+| GET | `/admin/platform-menus/:id` | `Get` |
+| POST | `/admin/platform-menus` | `Create` |
+| PUT | `/admin/platform-menus/:id` | `Update` |
+| DELETE | `/admin/platform-menus/:id` | `Delete` |
+
+**数据表**：`menus`（用 `WHERE tenant_id = 0` 过滤；强制 `platformTenantID = 0`）。
+
+**关键约定**：
+
+- 平台菜单与租户菜单共享 `menus` 表，靠 `tenant_id` 区分（`0` = 平台）
+- 所有写操作走 `db.RunInPlatformTx` 跳过 RLS
+- 模板参考 [`apps/admin/platform_menu/`](apps/admin/platform_menu/)（Phase 0021 后新加的命名约定样板）
 
 ---
 
@@ -215,7 +244,7 @@ module:
 
 ## permission
 
-**职责**：角色-资源（按钮/API）分配。**菜单权限已迁移到 role 模块的 `/roles/:id/menus`**。
+**职责**：角色-资源（按钮/API）分配。
 
 **路由**：
 
@@ -227,8 +256,6 @@ module:
 | GET | `/roles/:id/resources` | `role:list` | `GetResources` |
 
 **数据表**：`role_resources`（M:N join 表）。
-
-**跨模块依赖**：写 `AppContext.PermRepo`（实际是 `RoleResourceRepository`）。从 `AppContext.Authz()` 取 Authorization，角色权限变更 → 失效缓存。
 
 ---
 
@@ -246,17 +273,15 @@ module:
 | PUT | `/resources/:id` | `resource:update` | `Update` |
 | DELETE | `/resources/:id` | `resource:delete` | `Delete` |
 | GET | `/resources/by-menu/:menu_id` | `resource:list` | `GetByMenu` |
-| GET | `/resources/my` | — | `GetMyResources`（返回当前用户可见的资源） |
+| GET | `/resources/my` | — | `GetMyResources` |
 
 **数据表**：`resources`。
-
-**注意**：`/resources/my` 是给前端用的——列出当前用户能点哪些按钮，用来动态渲染 UI。不带 RBAC spec，因为本身就是返回"我有啥权限"的接口。
 
 ---
 
 ## dict
 
-**职责**：数据字典（可层级化，带 items 子表）。
+**职责**：数据字典（带 items 子表，支持层级）。
 
 **路由**：
 
@@ -271,6 +296,17 @@ module:
 | POST | `/dicts/:id/items` | `dict:update` | `CreateItem` |
 | PUT | `/dicts/:id/items/:item_id` | `dict:update` | `UpdateItem` |
 | DELETE | `/dicts/:id/items/:item_id` | `dict:update` | `DeleteItem` |
+| GET | `/dicts/resolve` | `dict:get` | `Resolve` |
+| POST | `/dicts/resolve/batch` | `dict:get` | `ResolveBatch` |
+| PUT | `/dicts/:id/items/:item_id/override` | `dict:update` | `UpsertOverride` |
+| DELETE | `/dicts/:id/items/:item_id/override` | `dict:update` | `DeleteOverride` |
+| GET | `/dicts/platform/:id/items` | `dict:list`（plat） | `ListPlatformItems` |
+| POST | `/dicts/platform/:id/items` | `dict:create`（plat） | `CreatePlatformItem` |
+| PUT | `/dicts/platform/:id/items/:item_id` | `dict:update`（plat） | `UpdatePlatformItem` |
+| DELETE | `/dicts/platform/:id/items/:item_id` | `dict:delete`（plat） | `DeletePlatformItem` |
+| GET | `/dicts/platform/:id/visibility` | `dict:list`（plat） | `ListVisibility` |
+| POST | `/dicts/platform/:id/visibility` | `dict:update`（plat） | `UpsertVisibility` |
+| DELETE | `/dicts/platform/:id/visibility/:tenant_id` | `dict:update`（plat） | `DeleteVisibility` |
 
 **数据表**：`dicts` / `dict_items`。
 
@@ -295,30 +331,75 @@ module:
 
 ---
 
-## config
+## config  ⭐ (Phase 0022 重构)
 
-**职责**：租户配置中心（分组 + 键值项）。
+**职责**：租户配置中心（分组 + 键值项），支持 **Platform / Override / Visibility / Resolve** 四层模型。
 
 **路由**：
 
-| Method | Path | Auth | Spec | Handler |
-|---|---|---|---|---|
-| GET | `/config/groups` | protected | `config:list` | `ListGroups` |
-| POST | `/config/groups` | protected | `config:create` | `CreateGroup` |
-| PUT | `/config/groups/:id` | protected | `config:update` | `UpdateGroup` |
-| DELETE | `/config/groups/:id` | protected | `config:delete` | `DeleteGroup` |
-| GET | `/config/items` | protected | `config:list` | `ListItems` |
-| GET | `/config/items/:id` | protected | `config:get` | `GetItem` |
-| POST | `/config/items` | protected | `config:create` | `CreateItem` |
-| PUT | `/config/items/:id` | protected | `config:update` | `UpdateItem` |
-| DELETE | `/config/items/:id` | protected | `config:delete` | `DeleteItem` |
-| GET | `/config/:group_code/public` | public | — | `GetPublic`（无需登录，按 group + code 拿公开项） |
+#### 业务消费（`/api/v1/configs`）
 
-**数据表**：`config_groups` / `config_items`（受 RLS）。
+| Method | Path | Spec | Handler |
+|---|---|---|---|
+| GET | `/configs` | `config:list` | `ListGroups` |
+| GET | `/configs/:id` | `config:get` | `GetGroup` |
+| GET | `/configs/:id/items` | `config:list` | `ListItemsByGroup` |
+| POST | `/configs/:id/items/:item_id/override` | `config:update` | `UpsertOverride` |
+| DELETE | `/configs/:id/items/:item_id/override` | `config:update` | `DeleteOverride` |
+| GET | `/configs/resolve` | `config:list` | `Resolve`（`?code=`） |
+| POST | `/configs/resolve/batch` | `config:list` | `ResolveBatch` |
 
-**JSONB**：`config_items.value` / `default_value` / `options` / `validation` 均为 `JSONB`（SQL 显式 `::jsonb` cast）。`req.Value` 可为 `null`，走 `COALESCE($N::jsonb, value)` fallback。
+#### 平台管理（`/api/v1/configs/platform`，强制 `super_admin`）
 
-**审计**：`POST/PUT/DELETE` 会在 `db.RunInTenantTx` 内调 `audit.Log` 写 `db_logs`（事务内）。审计失败不会回滚业务（审计是 best-effort）。
+| Method | Path | Spec | Handler |
+|---|---|---|---|
+| GET | `/configs/platform` | `config:list` | `ListGroups` |
+| GET | `/configs/platform/:id` | `config:get` | `GetGroup` |
+| POST | `/configs/platform` | `config:create` | `CreateGroup` |
+| PUT | `/configs/platform/:id` | `config:update` | `UpdateGroup` |
+| DELETE | `/configs/platform/:id` | `config:delete` | `DeleteGroup` |
+| GET | `/configs/platform/:id/items` | `config:list` | `ListItems` |
+| POST | `/configs/platform/:id/items` | `config:create` | `CreateItem` |
+| PUT | `/configs/platform/:id/items/:item_id` | `config:update` | `UpdateItem` |
+| DELETE | `/configs/platform/:id/items/:item_id` | `config:delete` | `DeleteItem` |
+| GET | `/configs/platform/:id/visibility` | `config:list` | `ListVisibility` |
+| POST | `/configs/platform/:id/visibility` | `config:update` | `UpsertVisibility` |
+| DELETE | `/configs/platform/:id/visibility/:tenant_id` | `config:update` | `DeleteVisibility` |
+
+#### 公开读（`/api/v1/public/configs`，无需 auth）
+
+| Method | Path | Handler |
+|---|---|---|
+| GET | `/public/configs` | `GetPublic` |
+
+**数据表**：`config_groups` / `config_items` / `config_visibility`（受 RLS）。
+
+**Scope 模型**：
+
+- `scope = 'platform'` → 全平台共享，存于 `config_items` 但 `platform_item_id IS NULL` 且 `tenant_id = 0`
+- `scope = 'tenant'` → 租户私有，存于 `config_items` 且 `tenant_id = <租户>`
+- `is_override = TRUE` → 租户覆盖平台 item
+- `platform_item_id` → 指向被覆盖的平台 item
+
+**Visibility 模型**（`config_visibility` 表）：
+
+- `access = 'invisible'` → 租户不可见
+- `access = 'readonly'` → 租户可读不可改
+- `access = 'editable'` → 租户可读可改（默认）
+- 可针对单租户 `tenant_id`，或用 `*`（通配）
+
+**Resolve 算法**（`GET /configs/resolve?code=site`）：
+
+1. 取 platform group（按 code 找到 `tenant_id = 0` 的 group）
+2. 检查当前租户在 `config_visibility` 表的 access
+3. 合并 platform items + 租户 overrides + visibility 规则
+4. 返回扁平 `map[string]interface{}` 形式
+
+**JSONB**：`config_items.value` / `default_value` / `options` / `validation` 均为 `JSONB`（SQL 显式 `::jsonb` cast）。
+
+**审计**：`POST/PUT/DELETE` 在 `db.RunInPlatformTx` / `db.RunInTenantTx` 内调 `audit.Log` 写 `db_logs`（事务内）。审计失败不回滚业务。
+
+**迁移**：`migrations/config_alignment.sql`（Phase 0022 新加）做 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS scope / visibility` + 新建 `config_visibility` 表，幂等。
 
 ---
 
@@ -350,7 +431,7 @@ module:
 
 **职责**：**示例业务**——头像、相框、虚拟空间管理。展示完整的多表关联 + 数据范围应用。
 
-**路由**：
+**路由**（节选，完整见 [`apps/flag/doc/api.md`](../apps/flag/doc/api.md)）：
 
 | Method | Path | Auth | Spec | Handler |
 |---|---|---|---|---|
@@ -359,34 +440,17 @@ module:
 | POST | `/flag/frames` | protected | `flag:create` | `CreateFrame` |
 | PUT | `/flag/frames/:id` | protected | `flag:update` | `UpdateFrame` |
 | DELETE | `/flag/frames/:id` | protected | `flag:delete` | `DeleteFrame` |
-| GET | `/flag/frame-categories` | public | — | `ListFrameCategories` |
-| POST | `/flag/frame-categories` | protected | `flag:create` | `CreateFrameCategory` |
-| PUT | `/flag/frame-categories/:id` | protected | `flag:update` | `UpdateFrameCategory` |
-| DELETE | `/flag/frame-categories/:id` | protected | `flag:delete` | `DeleteFrameCategory` |
-| GET | `/flag/spaces/:code` | public | — | `GetSpaceByCode` |
-| POST | `/flag/spaces` | protected | `flag:create` | `CreateSpace` |
-| PUT | `/flag/spaces/:id` | protected | `flag:update` | `UpdateSpace` |
-| DELETE | `/flag/spaces/:id` | protected | `flag:delete` | `DeleteSpace` |
 | GET | `/flag/spaces` | protected | `flag:list` | `ListSpaces` |
-| GET | `/flag/avatar-categories` | public | — | `ListAvatarCategories` |
-| POST | `/flag/avatar-categories` | protected | `flag:create` | `CreateAvatarCategory` |
-| PUT | `/flag/avatar-categories/:id` | protected | `flag:update` | `UpdateAvatarCategory` |
-| DELETE | `/flag/avatar-categories/:id` | protected | `flag:delete` | `DeleteAvatarCategory` |
+| POST | `/flag/spaces` | protected | `flag:create` | `CreateSpace` |
 | GET | `/flag/avatars` | public | — | `ListAvatars` |
-| GET | `/flag/avatars/:id` | public | — | `GetAvatar` |
-| POST | `/flag/avatars` | protected | `flag:create` | `CreateAvatar` |
-| PUT | `/flag/avatars/:id` | protected | `flag:update` | `UpdateAvatar` |
-| DELETE | `/flag/avatars/:id` | protected | `flag:delete` | `DeleteAvatar` |
 | POST | `/flag/generate` | protected | `flag:create` | `GenerateAvatar` |
-| GET | `/flag/my-avatars` | protected | `flag:list` | `ListMyAvatars` |
+| GET | `/flag/my-avatars` | protected | `flag:list` | `ListMyAvatars`（自动 DataScopeSelf） |
 
 **数据表**：`frames` / `frame_categories` / `spaces` / `avatars` / `avatar_categories`（见 [migrations/flag.sql](../migrations/flag.sql)）。
 
 **DataScope 集成**：`ListMyAvatars` 用 `DataScopeSelf` 自动只返回 `creator_id = 当前 userID` 的记录。
 
-**JSONB**：`flag_frames.template_config` 是 `JSONB`（SQL 显式 `::jsonb` cast；Go 端 `Frame.TemplateConfig` 是 `string` 字段，由 `nullStr()` 包成 `string` 或 `nil`）。
-
-详见 [apps/flag/doc/api.md](../apps/flag/doc/api.md)。
+**JSONB**：`flag_frames.template_config` 是 `JSONB`（SQL 显式 `::jsonb` cast）。
 
 ---
 
@@ -411,30 +475,31 @@ module:
 
 ## 附录：启动日志示例
 
-正常启动会看到 15 条 `module X initialized`：
+正常启动会看到 16 条 `module X initialized`：
 
 ```
-2026/06/19 08:33:06 module auth initialized
-2026/06/19 08:33:06 module tenant initialized
-2026/06/19 08:33:06 module system initialized
-2026/06/19 08:33:06 module user initialized
-2026/06/19 08:33:06 module role initialized
-2026/06/19 08:33:06 module menu initialized
-2026/06/19 08:33:06 module organization initialized
-2026/06/19 08:33:06 module permission initialized
-2026/06/19 08:33:06 module resource initialized
-2026/06/19 08:33:06 module asset initialized
-2026/06/19 08:33:06 module dict initialized
-2026/06/19 08:33:06 module config initialized
-2026/06/19 08:33:06 module cms initialized
-2026/06/19 08:33:06 module flag initialized
-2026/06/19 08:33:06 module weixin initialized
+2026/06/21 module auth initialized
+2026/06/21 module platform_tenant initialized
+2026/06/21 module platform_menu initialized
+2026/06/21 module menu initialized
+2026/06/21 module organization initialized
+2026/06/21 module permission initialized
+2026/06/21 module resource initialized
+2026/06/21 module role initialized
+2026/06/21 module user initialized
+2026/06/21 module asset initialized
+2026/06/21 module dict initialized
+2026/06/21 module config initialized
+2026/06/21 module weixin initialized
+2026/06/21 module system initialized
+2026/06/21 module cms initialized
+2026/06/21 module flag initialized
 ```
 
-如果某 module 没在 `cfg.Module` 列表里，会打：
+如果某 optional module 没在 `cfg.Module` 列表里，会打：
 
 ```
-2026/06/19 08:33:06 module cms registered but not enabled (skip)
+2026/06/21 module config registered but not enabled (skip)
 ```
 
 `alwaysOn` 模块不会被 skip，无论 `cfg.Module` 怎么配都会加载。

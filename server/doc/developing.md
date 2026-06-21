@@ -1,6 +1,9 @@
 # 开发指南：新增一个业务模块
 
-> 用一个具体例子带你走完新增模块的全流程。示例：加一个 `feedback`（用户反馈）模块。
+> 用具体例子带你走完新增模块的全流程。两个模板：
+>
+> - **业务模块**（租户域）：`feedback`（用户反馈）
+> - **平台管理模块**（`/admin/*` 域）：`platform_dict`（平台字典管理）
 
 ## 0. 前提：理解现有架构
 
@@ -13,29 +16,27 @@
 ## 1. 标准 8 步流程
 
 ```
-1. SQL 迁移           migrations/feedback.sql
-2. 公共接口定义       framework/pkg/rbac/{feedback}.go（可选）
-3. 业务模块           apps/feedback/{handler,service,repository,model,module,routes}.go
-4. 错误码             apps/feedback/errors.go
+1. SQL 迁移           migrations/<feature>.sql
+2. 公共接口定义       framework/pkg/<scope>/<feature>.go（可选）
+3. 业务模块           apps/<scope>/<feature>/{handler,service,repository,model,module,routes}.go
+4. 错误码             apps/<scope>/<feature>/errors.go
 5. 在 main.go 注册    cmd/xin/main.go
 6. 在 cfg.Module 启用 config/config.yaml
-7. 资源码 seed（可选）migrations/feedback.sql 末尾 INSERT INTO resources
-8. 单元测试（可选）   apps/feedback/*_test.go
+7. 资源码 seed（可选）migrations/<feature>.sql 末尾 INSERT INTO resources
+8. 单元测试（可选）   apps/<scope>/<feature>/*_test.go
 ```
 
-下面逐步展开。
+下面先讲**业务模块**（Step A），再讲**平台管理模块**差异（Step B）。
 
 ---
+
+# Step A：业务模块模板（租户域）
 
 ## 2. SQL 迁移（Step 1）
 
 新建 `migrations/feedback.sql`：
 
 ```sql
--- ============================================
--- Feedback 模块表
--- ============================================
-
 CREATE TABLE IF NOT EXISTS feedbacks
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -43,26 +44,23 @@ CREATE TABLE IF NOT EXISTS feedbacks
     creator_id BIGINT      NOT NULL,
     title      VARCHAR(128) NOT NULL,
     content    TEXT         NOT NULL,
-    status     SMALLINT    DEFAULT 1,           -- 1=待处理 2=处理中 3=已处理
+    status     SMALLINT    DEFAULT 1,
     reply      TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     is_deleted BOOLEAN     DEFAULT FALSE
 );
 
--- RLS
 ALTER TABLE feedbacks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE feedbacks FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON feedbacks
     USING (tenant_id::text = current_setting('app.tenant_id', true));
 
--- 索引
 CREATE INDEX IF NOT EXISTS idx_feedbacks_tenant_status ON feedbacks (tenant_id, status)
     WHERE is_deleted = FALSE;
 CREATE INDEX IF NOT EXISTS idx_feedbacks_creator ON feedbacks (creator_id)
     WHERE is_deleted = FALSE;
 
--- Seed：资源码
 INSERT INTO resources (code, action, name, menu_id, status, is_deleted)
 VALUES
     ('feedback', 'list',   '查看反馈', NULL, 1, FALSE),
@@ -72,15 +70,11 @@ VALUES
 ON CONFLICT (code, action) DO NOTHING;
 ```
 
-> 软删除 + RLS + 物化索引 + 资源码 seed 是规范。
->
-> 如果表里有 JSONB 列，记得 SQL 写 `value = $N::jsonb`（见 [database.md §9.2](database.md#92-️-pgx-jsonb-写入必须-jsonb-cast)）。
-
----
+如果表里有 JSONB 列，SQL 写 `value = $N::jsonb`（见 [database.md §9.2](database.md#92-️-pgx-jsonb-写入必须-jsonb-cast)）。
 
 ## 3. 公共接口定义（Step 2，可选）
 
-如果你的模块要给其他模块提供 Repository（跨模块消费），在 `framework/pkg/rbac/` 里加个窄接口文件：
+仅当要给其他模块消费时才需要：
 
 ```go
 // framework/pkg/rbac/feedback.go
@@ -106,45 +100,22 @@ type Feedback struct {
 }
 ```
 
-然后 `AppContext.Reader` 接口加一行：
-
-```go
-// framework/pkg/plugin/appcontext.go
-type Reader interface {
-    // ...
-    FeedbackRepo() rbac.FeedbackRepository
-}
-```
-
-`Writer` 加一行：
-
-```go
-type Writer interface {
-    // ...
-    SetFeedbackRepo(r rbac.FeedbackRepository)
-}
-```
-
-`AppContext` struct 加一个字段 + 2 个方法。**编译会引导你完成所有必要的接线**（所有用 `ctx.FeedbackRepo()` 的地方都会报错，直到你注册了 module）。
-
-> 如果你的模块**不**给其他模块用，跳过这步，直接在 apps 里实现完整 repo。
-
----
+`AppContext.Reader/Writer` 各加一行。**编译会引导你完成所有必要的接线**。
 
 ## 4. 业务模块文件（Step 3）
 
-新建 `apps/feedback/` 目录，8 个文件：
+新建 `apps/feedback/`，8 个文件：
 
 ```
 apps/feedback/
-├── errors.go            # 错误码 + ErrXxx
-├── model.go             # 业务 struct
-├── repository.go        # DB 访问
-├── service.go           # 业务逻辑
-├── handler.go           # gin handler
-├── routes.go            # 路由注册
-├── module.go            # plugin.Module 实现
-└── config.go（可选）     # 模块私有配置
+├── errors.go
+├── model.go
+├── repository.go
+├── service.go
+├── handler.go
+├── routes.go
+├── module.go
+└── types.go（可选，Request/Response 结构）
 ```
 
 ### 4.1 errors.go
@@ -162,203 +133,13 @@ var (
 )
 ```
 
-错误码走 `flag` 段（`13001-13999`），如果你的 module 已经在用就要避让。可用区段：
+错误码走空段。可用区段见 [architecture.md §7.1](architecture.md#71-错误码分段管理)。
 
-| 区段 | 模块 |
-|---|---|
-| 1001-1999 | auth |
-| 11001-11999 | system |
-| 12001-12999 | weixin |
-| 13001-13999 | flag |
-| 14001-14999 | config |
+### 4.2 model.go / repository.go / service.go / handler.go / routes.go
 
-### 4.2 model.go
+参考现有 `apps/rbac/user/` 或 `apps/reference/dict/` 的同名文件，模式完全一致。
 
-```go
-package feedback
-
-import "time"
-
-type Feedback struct {
-    ID        uint      `json:"id"`
-    TenantID  uint      `json:"tenant_id"`
-    CreatorID uint      `json:"creator_id"`
-    Title     string    `json:"title"`
-    Content   string    `json:"content"`
-    Status    int16     `json:"status"`
-    Reply     string    `json:"reply,omitempty"`
-    CreatedAt time.Time `json:"created_at"`
-    UpdatedAt time.Time `json:"updated_at"`
-}
-```
-
-### 4.3 repository.go
-
-```go
-package feedback
-
-import (
-    "context"
-    "github.com/jackc/pgx/v5/pgxpool"
-    "gx1727.com/xin/framework/pkg/db"
-)
-
-type Repository struct {
-    db *pgxpool.Pool
-}
-
-func NewRepository(pool *pgxpool.Pool) *Repository {
-    return &Repository{db: pool}
-}
-
-func (r *Repository) List(ctx context.Context, tenantID, creatorID uint, page, size int) ([]Feedback, int64, error) {
-    q, err := db.GetQuerier(ctx)
-    if err != nil { return nil, 0, err }
-
-    var total int64
-    if err := q.QueryRow(ctx,
-        `SELECT COUNT(*) FROM feedbacks
-         WHERE tenant_id = $1 AND creator_id = $2 AND is_deleted = FALSE`,
-        tenantID, creatorID,
-    ).Scan(&total); err != nil {
-        return nil, 0, err
-    }
-
-    rows, err := q.Query(ctx,
-        `SELECT id, tenant_id, creator_id, title, content, status, COALESCE(reply, ''), created_at, updated_at
-         FROM feedbacks
-         WHERE tenant_id = $1 AND creator_id = $2 AND is_deleted = FALSE
-         ORDER BY created_at DESC
-         LIMIT $3 OFFSET $4`,
-        tenantID, creatorID, size, (page-1)*size,
-    )
-    if err != nil { return nil, 0, err }
-    defer rows.Close()
-
-    var out []Feedback
-    for rows.Next() {
-        var f Feedback
-        if err := rows.Scan(&f.ID, &f.TenantID, &f.CreatorID, &f.Title, &f.Content, &f.Status, &f.Reply, &f.CreatedAt, &f.UpdatedAt); err != nil {
-            return nil, 0, err
-        }
-        out = append(out, f)
-    }
-    return out, total, nil
-}
-
-// GetByID, Create, UpdateReply ... 略
-```
-
-### 4.4 service.go
-
-```go
-package feedback
-
-import (
-    "context"
-    "github.com/jackc/pgx/v5/pgxpool"
-    xinContext "gx1727.com/xin/framework/pkg/context"
-)
-
-type Service struct {
-    repo *Repository
-}
-
-func NewService(pool *pgxpool.Pool) *Service {
-    return &Service{repo: NewRepository(pool)}
-}
-
-func (s *Service) List(ctx context.Context, page, size int) ([]Feedback, int64, error) {
-    uc := xinContext.MustNewUserContext(ctx)
-    return s.repo.List(ctx, uc.TenantID, uc.UserID, page, size)
-}
-
-// Create, UpdateReply ... 略
-```
-
-### 4.5 handler.go
-
-```go
-package feedback
-
-import (
-    "strconv"
-    "github.com/gin-gonic/gin"
-    "gx1727.com/xin/framework/pkg/resp"
-)
-
-type Handler struct {
-    svc *Service
-}
-
-func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
-
-func (h *Handler) List(c *gin.Context) {
-    page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-    size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
-
-    list, total, err := h.svc.List(c.Request.Context(), page, size)
-    if err != nil {
-        resp.HandleError(c, err)
-        return
-    }
-    resp.Paginate(c, total, list)
-}
-
-func (h *Handler) Create(c *gin.Context) {
-    var req struct {
-        Title   string `json:"title" binding:"required"`
-        Content string `json:"content" binding:"required"`
-    }
-    if err := c.ShouldBindJSON(&req); err != nil {
-        resp.BadRequest(c, err.Error())
-        return
-    }
-    id, err := h.svc.Create(c.Request.Context(), req.Title, req.Content)
-    if err != nil {
-        resp.HandleError(c, err)
-        return
-    }
-    resp.Success(c, gin.H{"id": id})
-}
-
-// ... UpdateReply, Delete 略
-```
-
-### 4.6 routes.go
-
-```go
-package feedback
-
-import (
-    "github.com/gin-gonic/gin"
-    "gx1727.com/xin/framework/pkg/middleware"
-    "gx1727.com/xin/framework/pkg/permission"
-)
-
-func Register(protected *gin.RouterGroup, h *Handler) {
-    g := protected.Group("/feedbacks")
-    {
-        g.GET("",    middleware.Require(permission.P(permission.ResFeedback, permission.ActList)),   h.List)
-        g.POST("",   middleware.Require(permission.P(permission.ResFeedback, permission.ActCreate)), h.Create)
-        g.GET("/:id",middleware.Require(permission.P(permission.ResFeedback, permission.ActList)),   h.Get)
-        g.PUT("/:id",middleware.Require(permission.P(permission.ResFeedback, permission.ActUpdate)), h.Update)
-        g.DELETE("/:id",middleware.Require(permission.P(permission.ResFeedback, permission.ActDelete)), h.Delete)
-    }
-}
-```
-
-> **重要**：Resource 码需要先在 `resources` 表里 seed（见 Step 1 的 SQL），然后才能用 `permission.P(...)` 引用。
->
-> 如果要新增 `ResFeedback` 常量，在 [`framework/pkg/permission/constants.go`](../framework/pkg/permission/constants.go) 加：
->
-> ```go
-> ResFeedback = "feedback"
-> ```
-
-### 4.7 module.go
-
-**Phase 5 之后**：`Module(app *appx.App)` 显式接收 `*appx.App`，不再用 `init()` 副作用注册，也不用 `db.Get()` / `bootx.Pool()` 等全局访问器。
+### 4.3 module.go
 
 ```go
 package feedback
@@ -369,19 +150,14 @@ import (
     "gx1727.com/xin/framework/pkg/plugin"
 )
 
-// Module returns the feedback module as a BaseModule.
 func Module(app *appx.App) plugin.Module {
     return &plugin.BaseModule{
         NameStr: "feedback",
-        InitFn: func(_ plugin.Reader, w plugin.Writer) error {
-            // 初始化逻辑（如资源 seed、配置校验）
-            // 如果要给其他模块用，调 w.SetFeedbackRepo(...)
+        InitFn: func(_ plugin.Reader, _ plugin.Writer) error {
             return nil
         },
         RegFn: func(_ plugin.Reader, _, protected *gin.RouterGroup) {
             pool := app.DB
-            cfg := app.Config
-            _ = cfg
             svc := NewService(pool)
             h := NewHandler(svc)
             Register(protected, h)
@@ -390,79 +166,37 @@ func Module(app *appx.App) plugin.Module {
 }
 ```
 
-> `app.DB` / `app.Config` 是 `framework/pkg/appx` 公开的进程级资源，由 `framework.Boot(cfg)` 构造。当前唯一推荐的访问方式。
-
----
-
 ## 5. 在 main.go 注册（Step 5）
 
-**Phase 5 之后不再用** `_ "..."` side-effect import。改成在 [cmd/xin/main.go](../cmd/xin/main.go) 显式调用：
-
 ```go
-import (
-    "gx1727.com/xin/apps/feedback"   // 显式 import，无下划线
-    // ...
-)
+import "gx1727.com/xin/apps/feedback"
 
 modules := []plugin.Module{
-    // ...
     feedback.Module(app),
-    // ...
 }
 ```
-
----
 
 ## 6. 在 cfg.Module 启用（Step 6）
 
-[config/config.yaml](../config/config.yaml) 加 `- feedback`：
-
 ```yaml
+# config/config.yaml
 module:
-  - user
-  - role
-  - feedback     # ← 加这一行
-  # ...
+  - feedback
 ```
 
-如果你希望它默认启用，把它加到 [`framework/pkg/config/config.go`](../framework/pkg/config/config.go) 的 `optOutModules` 列表里：
-
-```go
-var optOutModules = []string{
-    "menu", "user", "role", "resource", "organization", "dict", "asset",
-    "permission", "config",
-    "feedback",   // ← 默认启用
-}
-```
-
----
+默认启用（optOut）则加到 `framework/pkg/config/config.go` 的 `optOutModules`。
 
 ## 7. 资源码 seed（Step 7）
 
-在 `migrations/feedback.sql` 末尾加（见 Step 1 的 SQL 示例）：
-
-```sql
-INSERT INTO resources (code, action, name, menu_id, status, is_deleted)
-VALUES ('feedback', 'list', '查看反馈', NULL, 1, FALSE), ...
-ON CONFLICT (code, action) DO NOTHING;
-```
-
-然后在 [`framework/pkg/permission/constants.go`](../framework/pkg/permission/constants.go) 加常量：
+见 Step 1 的 SQL 示例 + [`framework/pkg/permission/constants.go`](../framework/pkg/permission/constants.go) 加常量：
 
 ```go
 const (
     ResFeedback = "feedback"
-    // ...
 )
 ```
 
-> 如果不加常量，可以在 routes.go 里直接写字符串：`permission.P("feedback", "list")`。
-
----
-
 ## 8. 测试（Step 8）
-
-`apps/feedback/service_test.go`：
 
 ```go
 package feedback
@@ -474,7 +208,6 @@ import (
 
 func TestService_List_NoRows(t *testing.T) {
     s := &Service{repo: NewRepository(nil)}
-    // 没 db pool，期望走 nil-db fallback 分支
     _, _, err := s.List(context.Background(), 1, 20)
     if err == nil {
         t.Error("expected error from nil pool, got nil")
@@ -482,34 +215,147 @@ func TestService_List_NoRows(t *testing.T) {
 }
 ```
 
-跑：
-
-```bash
-go test -v ./apps/feedback/...
-```
-
 ---
 
-## 9. 完整代码模板
+# Step B：平台管理模块模板（`/admin/*` 域）
 
-**最小** 模板：[apps/reference/dict/](../apps/reference/dict/)
+适用于 `platform_menu` / `platform_tenant` / `platform_dict` / 未来 `platform_user` 等。
+
+**与业务模块的 4 个关键差异**：
+
+1. 路径前缀统一 `/admin/<platform_resource>`
+2. `adminGroup := protected.Group("/admin", RequirePlatformRole("super_admin"))` 分组级守卫
+3. 数据表 `tenant_id = 0`（平台域）或独立的 `config_visibility` 类跨租户表
+4. 写操作用 `db.RunInPlatformTx(ctx, pool, fn)` 跳过 RLS
+
+## B.1 SQL 迁移
+
+如果给现有表加平台维度（如给 `dicts` 加 platform scope），用 `*_alignment.sql`：
+
+```sql
+-- migrations/dict_alignment.sql
+ALTER TABLE dicts ADD COLUMN IF NOT EXISTS scope VARCHAR(16) DEFAULT 'tenant';
+ALTER TABLE dicts ADD COLUMN IF NOT EXISTS visibility VARCHAR(16) DEFAULT 'private';
+-- scope: 'platform' | 'tenant'
+-- visibility: 'public' | 'tenant_only' | 'hidden'
+
+CREATE TABLE IF NOT EXISTS dict_visibility (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    dict_id     BIGINT      NOT NULL REFERENCES dicts(id) ON DELETE CASCADE,
+    tenant_id   BIGINT      NOT NULL DEFAULT 0,
+    access      VARCHAR(16) NOT NULL,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (dict_id, tenant_id)
+);
+```
+
+如果是新表（平台独立），自由创建。
+
+## B.2 业务模块文件
+
+位置：`apps/admin/platform_dict/`（用 `apps/admin/` 命名空间，与业务模块区分）。
 
 ```
-apps/reference/dict/
-├── errors.go            ← 错误码
-├── handler.go           ← gin handler
-├── model.go             ← struct
-├── module.go            ← BaseModule 完整实现
-├── repository.go        ← pgx CRUD
-├── routes.go            ← 路由注册（标准模式）
-├── service.go           ← 业务
-└── types.go             ← Request/Response 类型
+apps/admin/platform_dict/
+├── errors.go
+├── handler.go
+├── routes.go
+├── service.go
+├── repository.go
+├── model.go
+├── module.go
+└── types.go
 ```
 
-完整模板在 [`apps/reference/dict/module.go`](../apps/reference/dict/module.go)：
+### B.2.1 errors.go
+
+错误码段从 `resp/errors.go` 选空段。`platform_menu` 用 15001，`platform_tenant` 复用 3xxx，新加的 `platform_dict` 用 17xxx：
 
 ```go
-package dict
+package platformdict
+
+import "gx1727.com/xin/framework/pkg/resp"
+
+var (
+    ErrDictNotFound   = resp.Err(17001, "平台字典不存在")
+    ErrDictCodeExists = resp.Err(17002, "平台字典 code 已存在")
+    // ...
+)
+```
+
+### B.2.2 routes.go（**关键差异**）
+
+```go
+package platformdict
+
+import (
+    "github.com/gin-gonic/gin"
+
+    pkgmiddleware "gx1727.com/xin/framework/pkg/middleware"
+    "gx1727.com/xin/framework/pkg/permission"
+)
+
+func Register(protected *gin.RouterGroup, h *Handler) {
+    // 分组级 super_admin 守卫
+    adminGroup := protected.Group("/admin",
+        pkgmiddleware.RequirePlatformRole("super_admin"))
+
+    g := adminGroup.Group("/platform-dicts")
+    {
+        // 平台 dict CRUD
+        g.GET("", pkgmiddleware.Require(permission.P(permission.ResDict, permission.ActList)), h.List)
+        g.GET("/:id", pkgmiddleware.Require(permission.P(permission.ResDict, permission.ActGet)), h.Get)
+        g.POST("", pkgmiddleware.Require(permission.P(permission.ResDict, permission.ActCreate)), h.Create)
+        g.PUT("/:id", pkgmiddleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.Update)
+        g.DELETE("/:id", pkgmiddleware.Require(permission.P(permission.ResDict, permission.ActDelete)), h.Delete)
+
+        // visibility 子路由
+        g.GET("/:id/visibility", pkgmiddleware.Require(permission.P(permission.ResDict, permission.ActList)), h.ListVisibility)
+        g.POST("/:id/visibility", pkgmiddleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.UpsertVisibility)
+        g.DELETE("/:id/visibility/:tenant_id", pkgmiddleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.DeleteVisibility)
+    }
+}
+```
+
+**双层守卫**：
+
+- `adminGroup.Use(RequirePlatformRole("super_admin"))`：group 级短路所有非 super_admin
+- 各路由 `Require(ResDict.*)`：super_admin 内做资源码细分
+
+> 单层守卫（只 super_admin）：如果模块不允许业务层 admin 越权，用单层（参考 `platform_menu`）。
+>
+> 双层守卫（super_admin + ResX）：如果 super_admin 也需细分权限，用双层（参考 `platform_tenant`）。
+
+### B.2.3 service.go（**关键差异**）
+
+平台域写操作用 `db.RunInPlatformTx` 跳过 RLS：
+
+```go
+func (s *Service) CreateGroup(ctx context.Context, req CreateGroupReq) (*DictGroup, error) {
+    var out *DictGroup
+    err := db.RunInPlatformTx(ctx, s.pool, func(txCtx context.Context) error {
+        var err error
+        out, err = s.repo.CreatePlatformDict(txCtx, 0, CreateDictRepoReq{
+            Code:      req.Code,
+            Name:      req.Name,
+            Scope:     "platform",
+            Visibility: "public",
+        })
+        return err
+    })
+    if err != nil {
+        return nil, err
+    }
+    return out, nil
+}
+```
+
+> 关键常量：`platformTenantID = 0` —— 平台域数据 `tenant_id` 强制写 0，不接受外部传入。
+
+### B.2.4 module.go
+
+```go
+package platformdict
 
 import (
     "github.com/gin-gonic/gin"
@@ -517,79 +363,103 @@ import (
     "gx1727.com/xin/framework/pkg/plugin"
 )
 
-// Phase 5：显式接收 *appx.App，依赖显式注入。
 func Module(app *appx.App) plugin.Module {
     return &plugin.BaseModule{
-        NameStr: "dict",
+        NameStr: "platform_dict",
+        InitFn: func(_ plugin.Reader, _ plugin.Writer) error {
+            return nil
+        },
         RegFn: func(_ plugin.Reader, _, protected *gin.RouterGroup) {
             pool := app.DB
-            h := NewHandler(NewService(pool, NewPostgresDictRepository(pool)))
+            svc := NewService(pool, NewPostgresPlatformDictRepository(pool))
+            h := NewHandler(svc)
             Register(protected, h)
         },
     }
 }
 ```
 
-**完整业务模板**（带审计、DataScope、JSONB）：[apps/reference/config/](../apps/reference/config/)
+## B.3 在 main.go 注册
+
+```go
+import "gx1727.com/xin/apps/admin/platformdict"
+
+modules := []plugin.Module{
+    platformdict.Module(app),
+}
+```
+
+## B.4 错误码段
+
+参考 [`architecture.md §7.1`](architecture.md#71-错误码分段管理) 选空段。已用段：
+
+| 段 | 占用 |
+|---|---|
+| 1000-1999 | auth |
+| 2000-2999 | user |
+| 3000-3999 | tenant / platform_tenant |
+| 4000-4999 | role |
+| 5000-5999 | menu（platform_menu 复用） |
+| 6000-7999 | org / permission |
+| 8000-8999 | resource |
+| 9000-9999 | asset |
+| 10000-10999 | dict |
+| 11000-11999 | system |
+| 12000-12999 | weixin |
+| 13000-13999 | flag |
+| **15000-15999** | platform_menu |
+| **18000-18999** | config |
+| **17xxx / 19xxx+** | 留给未来 platform_* / 新模块 |
 
 ---
 
-## 10. 验收清单
+# 通用步骤
 
-新增模块后，提交前跑：
+## 9. 验收清单
 
 ```bash
-# 1. 编译
 go build ./...
-
-# 2. vet
 go vet ./...
-
-# 3. 已有测试不挂
 go test ./...
-
-# 4. BOM 检查（CI gate）
 python scripts/strip_bom.py --check .
 
-# 5. 启动 + smoke test
 go run ./cmd/xin run &
 sleep 3
-curl http://localhost:8087/api/v1/feedbacks   # 应该 200 或 403，不能 panic
 curl http://localhost:8087/api/v1/health      # 必须 200
+curl http://localhost:8087/api/v1/feedbacks   # 应该 200 或 403
 ```
 
 启动日志应该看到：
 
 ```
-2026/06/19 ... module feedback initialized
+2026/06/21 module feedback initialized
+2026/06/21 module platform_dict initialized
 ```
 
----
-
-## 11. 常见陷阱
+## 10. 常见陷阱
 
 | 陷阱 | 解决 |
 |---|---|
-| 忘记在 main.go 显式 import 模块（不再用 `_` 副作用） | `feedback.Module(app)` 没被加进 `[]plugin.Module`，启动看不到 |
+| 忘记在 main.go 显式 import 模块 | `feedback.Module(app)` 没被加进 `[]plugin.Module` |
 | 忘记加 `cfg.Module` | module 在列表里但 Init/Register 跳过 |
-| 错误码和别的模块撞了 | 查 [`resp/errors.go`](../framework/pkg/resp/errors.go) 选空段 |
+| 错误码和别的模块撞了 | 查 `resp/errors.go` 选空段 |
 | 资源码没 seed，`Permission.P` 直接写字符串 | 可以工作，但失去 IDE 自动补全 |
-| 还在用 `db.Get()` / `bootx.Pool()` | 这俩已删，改用 `app.DB` 显式注入 |
+| 还在用 `db.Get()` / `bootx.Pool()` | 已删，改用 `app.DB` 显式注入 |
 | RLS 没建，跨租户泄漏 | `ALTER TABLE xxx ENABLE ROW LEVEL SECURITY` + `FORCE` |
-| 没加 `is_deleted = FALSE` filter | 删除的数据会混进 List |
-| 唯一索引不是 partial index | 删除后无法重建 |
-| 事务里需要 ctx 自动拿 tx | 用 `db.GetQuerier(ctx, pool)` 让 ctx 找 tx |
-| `super_admin` 平台角色没 bypass 你的中间件 | 确认你的 Require 在 [`framework/pkg/middleware/auth.go`](../framework/pkg/middleware/auth.go) `requireWithSpecs` 里有 `if uc.IsSuperAdmin() { c.Next(); return }` 短路 |
-| JSONB 列写入报 `42804` | SQL 加 `::jsonb` cast（见 [database.md §9.2](database.md#92-️-pgx-jsonb-写入必须-jsonb-cast)） |
+| 平台模块忘加 `RequirePlatformRole` | 路由在 `/admin/*` 域必须 super_admin 守卫 |
+| 平台模块忘用 `db.RunInPlatformTx` | 平台域写操作会受 RLS 限制失败 |
+| 平台模块 `tenant_id` 传错 | 强制 `platformTenantID = 0`，不接受外部传入 |
+| `super_admin` 平台角色没 bypass 你的中间件 | 检查 `requireWithSpecs` 短路逻辑 |
+| JSONB 列写入报 `42804` | SQL 加 `::jsonb` cast |
 | 源文件编译报 `invalid BOM in the middle of the file` | 跑 `python scripts/strip_bom.py .` |
+| gin 同路径下不同 param name 冲突 | `:id` 与 `:code` 不可在同一 segment 共存，统一用 `:id` |
+| public / protected 同前缀 `/configs` 冲突 | public 路径改为 `/public/configs` |
 
----
-
-## 12. 下一步
+## 11. 下一步
 
 | 你想... | 看 |
 |---|---|
-| 看所有可用中间件 | [architecture.md#5-中间件链](architecture.md#5-中间件链) |
+| 看所有可用中间件 | [architecture.md §5](architecture.md#5-中间件链) |
 | 理解 RBAC | [permissions.md](permissions.md) |
 | 部署你的新模块 | [deployment.md](deployment.md) |
-| 写测试 | [developing.md#8-测试](#8-测试-step-8) |
+| 看完整 API | [api.md](api.md) |

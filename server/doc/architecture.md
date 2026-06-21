@@ -1,6 +1,8 @@
 # 架构总览
 
 > XinFramework 最关键的设计文档。第一次接触代码从这里开始。
+>
+> 最后更新：2026-06（config 重构 + platform_menu/platform_tenant 模块化后）
 
 ## 1. 单 Go Module 结构
 
@@ -34,13 +36,20 @@ cmd/xin ──→ framework ──→ apps
 
 ```go
 func main() {
-    cfg, _ := config.Load("config/config.yaml")              // 1. 配置
-    app, _ := framework.Boot(cfg)                            // 2. 装配 *appx.App
-    modules := []plugin.Module{                              // 3. 显式模块列表
-        auth.Module(app), tenant.Module(app),
-        user.Module(app), /* ... 共 15 个 */
+    cfg, err := config.Load("config/config.yaml")        // 1. 配置
+    app, err := framework.Boot(cfg)                      // 2. 装配 *appx.App
+    modules := []plugin.Module{                          // 3. 显式模块列表（16 个）
+        // alwaysOn
+        auth.Module(app), platformtenant.Module(app), system.Module(app),
+        // optOut
+        menu.Module(app), user.Module(app), role.Module(app),
+        organization.Module(app), permission.Module(app), resource.Module(app),
+        asset.Module(app), dict.Module(app),
+        // optional
+        refconfig.Module(app), platformmenu.Module(app),
+        weixin.Module(app), cms.Module(app), flag.Module(app),
     }
-    framework.Serve(cfg, app, modules)                       // 4. 启动
+    framework.Serve(cfg, app, modules)                   // 4. 启动
 }
 ```
 
@@ -93,15 +102,17 @@ type Module interface {
 实际形态用 `BaseModule` struct（避免每个 module 都写 method set）：
 
 ```go
-// Phase 5 之后统一形态
+// Phase 5 之后统一形态（Phase 0022 后稳定）
 func Module(app *appx.App) plugin.Module {
     return &plugin.BaseModule{
-        NameStr: "tenant",
+        NameStr: "platform_tenant",
         InitFn: func(_ plugin.Reader, w plugin.Writer) error {
+            // 写 own slot
             w.SetTenantRepo(&tenantRepoAdapter{repo: NewTenantRepository(app.DB)})
             return nil
         },
         RegFn: func(_ plugin.Reader, _, protected *gin.RouterGroup) {
+            // 注册路由
             h := NewHandler(NewService(app.DB, NewTenantRepository(app.DB)))
             Register(protected, h)
         },
@@ -120,6 +131,16 @@ func Module(app *appx.App) plugin.Module {
 
 到 Register 时，所有模块的 Init 已完成。`framework.go::setupRouter` 把 `app.AppContext` 作为 Reader 传给每个 module。
 
+### 3.3 三类模块（按 `cfg.Module` 行为）
+
+| 类型 | 数量 | 表现 |
+|---|---:|---|
+| **alwaysOn** | 3（`system`, `auth`, `platform_tenant`） | 启动必需，无法关闭，配置不列也加回去 |
+| **optOut** | 8（`menu`, `user`, `role`, `resource`, `organization`, `dict`, `asset`, `permission`） | 默认启用；用户写 `module:` 时切白名单语义（不列就关） |
+| **optional** | 5（`config`, `weixin`, `platform_menu`, `cms`, `flag`） | 默认不启用；必须在 `cfg.Module` 显式列出才加载 |
+
+定义见 [`framework/pkg/config/config.go`](framework/pkg/config/config.go) `alwaysOnModules` / `optOutModules`。
+
 ## 4. AppContext：唯一的依赖容器
 
 [`framework/pkg/plugin/appcontext.go`](framework/pkg/plugin/appcontext.go) 是整个重构的成果物。**两件不变量**：
@@ -127,7 +148,7 @@ func Module(app *appx.App) plugin.Module {
 1. **构造一次，终身不变**——在 `boot.Init` 中构造，后续只读
 2. **Reader / Writer 接口分离**——"读别人 repo" 和 "写别人 repo" 在类型系统上不可能
 
-### 4.1 接口定义
+### 4.1 接口定义（当前）
 
 ```go
 type Reader interface {
@@ -159,6 +180,15 @@ type Writer interface {
     SetPermRepo(rbac.RoleResourceRepository)
 }
 ```
+
+> 当前 AppContext 提供 **8 个跨模块 Repo slot**（Authz + 7 个 Repository）。新增跨模块接口的步骤：
+>
+> 1. 在 `framework/pkg/<scope>/xxx.go` 定义窄 interface + struct
+> 2. 在 appcontext.go Reader/Writer 接口加方法
+> 3. 在 `AppContext` struct 加字段 + getter/setter
+> 4. provider module 在 `InitFn` 调 `w.SetXxx(myRepo)`
+>
+> 编译会引导你走完整链路——任何缺漏都会编译失败。
 
 ### 4.2 为什么 AppContext 是 concrete struct 而非 interface？
 
@@ -227,7 +257,34 @@ spec := permission.AuthOnly()            // 仅登录
 
 **`super_admin` 平台角色自动 bypass 所有 RBAC**（spec 不需要写通配）。
 
-## 6. 响应协议
+## 6. 路由空间分布
+
+新版（Phase 0022+）所有路由分到 **3 个语义空间**：
+
+| 空间 | 前缀 | Auth | 说明 |
+|---|---|---|---|
+| **业务消费** | `/api/v1/<resource>` | Auth + Require(ResX) | 租户内业务接口（用户/角色/字典/配置等） |
+| **平台管理** | `/api/v1/admin/<platform_resource>` | Auth + RequirePlatformRole(super_admin) + Require(ResX) | super_admin 跨租户接口（平台菜单/平台租户） |
+| **公开访问** | `/api/v1/public/<resource>` | OptionalAuth | 不需登录，公共读（如 `/public/configs`） |
+
+**示例**：
+
+```
+/api/v1/users                       ← 业务：用户 CRUD
+/api/v1/dicts                       ← 业务：字典 CRUD
+/api/v1/configs                     ← 业务：租户视角配置
+/api/v1/configs/resolve             ← 业务：合并消费
+/api/v1/configs/:id/items/:item_id/override ← 业务：租户覆盖平台 item
+
+/api/v1/admin/platform-menus        ← 平台：菜单管理（强制 super_admin）
+/api/v1/admin/platform-tenants      ← 平台：租户管理（强制 super_admin + tenant:*）
+
+/api/v1/public/configs              ← 公开：站点公开配置
+```
+
+每个 platform 模块的 routes.go 都遵循 `adminGroup := protected.Group("/admin", RequirePlatformRole(...))` 模式（见 `apps/admin/platform_menu/routes.go`）。
+
+## 7. 响应协议
 
 [`framework/pkg/resp/resp.go`](framework/pkg/resp/resp.go)：
 
@@ -242,95 +299,101 @@ spec := permission.AuthOnly()            // 仅登录
 { "code": 0, "msg": "ok", "data": { "total": 100, "list": [ ... ] } }
 ```
 
-**错误码分段管理**（每个 module 一个区段，[`resp/errors.go`](framework/pkg/resp/errors.go)）：
+### 7.1 错误码分段管理
 
-| 区段 | module |
+[`framework/pkg/resp/errors.go`](framework/pkg/resp/errors.go) 集中定义，每个 module 一个 1000 段：
+
+| 区段 | module | 文件位置 |
+|---|---|---|
+| 1001-1999 | auth | apps/boot/auth |
+| 2001-2999 | user | apps/rbac/user |
+| 3001-3999 | tenant / **platform_tenant** | apps/rbac/... 或 apps/admin/platform_tenant |
+| 4001-4999 | role | apps/rbac/role |
+| 5001-5999 | menu | apps/rbac/menu |
+| 6001-6999 | organization | apps/rbac/organization |
+| 7001-7999 | permission | apps/rbac/permission |
+| 8001-8999 | resource | apps/rbac/resource |
+| 9001-9999 | asset | apps/reference/asset |
+| 10001-10999 | dict | apps/reference/dict |
+| 11001-11999 | system | apps/system |
+| 12001-12999 | weixin | apps/reference/weixin |
+| 13001-13999 | flag | apps/flag |
+| 15001-15999 | **platform_menu** | apps/admin/platform_menu |
+| 18001-18999 | **config**（Phase 0022 重构） | apps/reference/config |
+
+> **3001-3999 共用**：原 `tenant`（未来业务层租户管理）与 `platform_tenant`（平台管理）共享段，因为底层表相同、错误语义一致。
+>
+> **新增模块找段**：从 11000 段以上找空段；避开 14001-14999（旧 config 段已废弃）、15001-15999（platform_menu）、16001-17999（预留）、18001-18999（config）。
+
+## 8. 数据层核心约定
+
+### 8.1 多租户隔离（RLS）
+
+业务表通过 `db.RunInTenantTx(ctx, pool, tenantID, fn)` 自动 SET LOCAL `app.tenant_id`，配合 PG 的 Row-Level Security 策略实现强隔离。
+
+```go
+err := db.RunInTenantTx(ctx, s.pool, uc.TenantID, func(txCtx context.Context) error {
+    q, _ := db.GetQuerier(txCtx, s.pool)
+    // SQL 自动受 RLS 限制
+    return s.repo.GetByID(txCtx, userID)
+})
+```
+
+平台管理（如 `/admin/platform-tenants`）用 `db.RunInPlatformTx(ctx, pool, fn)` 跳过 RLS。详见 [database.md](database.md)。
+
+### 8.2 JSONB 字段（必须 `::jsonb` cast）
+
+9 个 JSONB 列：`db_logs.old_data/new_data`、`config_items.value/default_value/options/validation`、`dicts.extend`、`dict_items.extend`、`flag_frames.template_config`。
+
+pgx 默认把 Go `string` 当 `text` 发、`[]byte` 当 `bytea` 发，写 JSONB 列会报 `42804`。SQL 必须显式 `::jsonb` cast：
+
+```sql
+UPDATE t SET value = $1::jsonb WHERE id = $2
+UPDATE t SET value = COALESCE($1::jsonb, value) WHERE id = $2  -- patch 场景
+```
+
+### 8.3 软删除
+
+所有业务表都有 `is_deleted BOOLEAN DEFAULT FALSE`，唯一索引是 partial index：
+
+```sql
+CREATE UNIQUE INDEX uk_users_account ON users (tenant_id, account_id)
+    WHERE is_deleted = FALSE;
+```
+
+## 9. 重构历程（Phase 0-0022）
+
+| Phase | 内容 |
 |---|---|
-| 1001-1999 | auth |
-| 2001-2999 | user |
-| 3001-3999 | tenant |
-| 4001-4999 | role |
-| 5001-5999 | menu |
-| 6001-6999 | organization |
-| 7001-7999 | permission |
-| 8001-8999 | resource |
-| 9001-9999 | asset |
-| 10001-10999 | dict |
-| 11001-11999 | system |
-| 12001-12999 | weixin |
-| 13001-13999 | flag |
-| 14001-14999 | config |
+| 0 | 摸底：找到 16 个跨模块全局，409 处引用 |
+| 1-2 | 拆 module / AppContext 骨架 |
+| 3-4c | 删全局变量（authz/registry/ext_impl/middleware wrapper） |
+| 5 | 单 module + main.go 4 步显式 Build |
+| 001x | cms/flag/cms 等示例业务补全 |
+| 0020 | platform_tenant 从 `apps/boot/tenant` 迁到 `apps/admin/platform_tenant` |
+| 0021 | 新增 platform_menu 模块（super_admin 域） |
+| **0022** | **config 模块完全重构**（路由 `/config/*` → `/configs/*`，加 Scope/Visibility/Override/Resolve 三层，错误码段迁移到 18xxx） |
 
-## 7. 重构历程（Phase 0-5）
-
-Phase 0-3b 完成跨模块全局变量迁移到 AppContext；Phase 4-5 完成多 module 合并 + main.go 显式 Build。
-
-### 7.1 重构前 vs 重构后
+### 9.1 重构前 vs 重构后
 
 | 维度 | 重构前 | 重构后 |
 |---|---|---|
 | Go modules | 3 个（cmd/framework/apps） | **1 个**（`gx1727.com/xin`） |
 | 跨模块全局变量 | 12 个 | 1 个（`authz.Authorization` interface） |
+| 模块数 | 15 | **16**（+platform_menu） |
+| 路由空间 | 业务 + 业务 | 业务 + 平台（/admin）+ 公开（/public） |
 | 数据流传递方式 | 隐式（全局） | 显式（AppContext） |
 | 编译期可追踪 | ✗ | ✓（Reader/Writer 接口） |
-| Test mocking | 难（全局副作用） | 易（注入 fake Reader） |
-| 删 dead code | — | 525 行 |
 | P0 单测 | — | 36 个，3 包覆盖率 48.4% |
 
-### 7.2 Phase 时间线
-
-| Phase | 内容 | 关键改动 |
-|---|---|---|
-| **0** | 摸底 | 找到 16 个跨模块全局，409 处引用 |
-| **1** | go.mod 修复 | 拆出 framework / apps 两个独立 module |
-| **2** | AppContext 骨架 | 定义 Reader / Writer 接口，BaseModule 引入 |
-| **3** | auth + tenant | 删 `framework/pkg/auth/registry.go` 和 `tenant/registry.go` |
-| **3b** | rbac 4 件套 | user / role / organization / permission 走 AppContext |
-| **4** | authz | 删 `authz.global`、`service.globalAuthorizationService`、`boot.globalApp + AppInstance()`；8 处 apps cache 失效切到 `ctx.Authz()` |
-| **4b** | ext_impl | 删 `ext_impl/registry.go`（189 行死代码） |
-| **4c** | middleware | 删 `internal/middleware/auth.go` 5 个 wrapper 死函数（53 行） |
-| **5** | 单 module + 显式 Build | 合并 go.mod，main.go 4 步显式 |
-
-### 7.3 为什么这次重构值得做
-
-代码现在的状态：
-
-```go
-// apps/rbac/role/module.go（当前）
-func (m *Module) RegFn(ctx plugin.Reader, _, protected *gin.RouterGroup) {
-    // 显式声明依赖：authz 必须存在
-    if authz := ctx.Authz(); authz != nil {
-        // ... 用 authz.InvalidateRole(roleID) 失效缓存
-    }
-    // 显式取 own repo
-    roleRepo := ctx.RoleRepo()
-    svc := NewService(roleRepo, ctx.Authz())
-    Register(protected, NewHandler(svc))
-}
-```
-
-对比之前：
-
-```go
-// apps/rbac/role/service.go（Phase 5 之前）
-func (s *Service) Update(...) error {
-    if err := s.repo.Update(...); err != nil { return err }
-    // 隐式查全局
-    if a := authz.Get(); a != nil { a.InvalidateRole(...) }
-    return nil
-}
-```
-
-**编译期保证 + 显式依赖 + 易测试 + 易追踪**——4 个 property 全 get。
-
-## 8. 延伸阅读
+## 10. 延伸阅读
 
 | 文档 | 内容 |
 |---|---|
 | [doc/quickstart.md](quickstart.md) | 装 PG、跑 migration、首次 `xin run` |
-| [doc/modules.md](modules.md) | 15 个 module 的清单和职责 |
-| [doc/database.md](database.md) | 表结构、RLS、迁移机制 |
+| [doc/modules.md](modules.md) | 16 个 module 的清单和职责 |
+| [doc/database.md](database.md) | 表结构、RLS、迁移机制、JSONB |
 | [doc/permissions.md](permissions.md) | RBAC + 数据范围 + 平台角色 |
-| [doc/developing.md](developing.md) | 新增 module 的标准 8 步 |
+| [doc/developing.md](developing.md) | 新增业务模块 / 平台模块的 8 步 |
 | [doc/deployment.md](deployment.md) | 编译、systemd、Docker |
-| [doc/api.md](api.md) | 路由的 API 参考 |
+| [doc/api.md](api.md) | 完整路由 API 参考 |

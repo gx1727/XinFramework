@@ -1,6 +1,11 @@
 # HTTP API 参考
 
-> 当前共 **100+ 路由**。Base path: `/api/v1`，分 `public`（游客可访问）和 `protected`（必须登录）。
+> 当前共 **120+ 路由**。Base path: `/api/v1`，分 3 个语义空间：
+> - `/api/v1/<resource>` — 业务消费（需登录 + ResX 权限）
+> - `/api/v1/admin/<platform_resource>` — 平台管理（需 super_admin + ResX）
+> - `/api/v1/public/<resource>` — 公开访问（OptionalAuth）
+>
+> 文档版本：2026-06（config 重构 + platform_menu/platform_tenant 后）
 
 ## 通用约定
 
@@ -52,7 +57,7 @@ JWT 由 `POST /api/v1/auth/login` 颁发。
 | 0 | 成功 |
 | 1001-1999 | auth |
 | 2001-2999 | user |
-| 3001-3999 | tenant |
+| 3001-3999 | tenant / platform_tenant |
 | 4001-4999 | role |
 | 5001-5999 | menu |
 | 6001-6999 | organization |
@@ -63,7 +68,8 @@ JWT 由 `POST /api/v1/auth/login` 颁发。
 | 11001-11999 | system |
 | 12001-12999 | weixin |
 | 13001-13999 | flag |
-| 14001-14999 | config |
+| 15001-15999 | platform_menu |
+| 18001-18999 | config |
 
 ---
 
@@ -95,9 +101,9 @@ curl http://localhost:8087/api/v1/health
 
 ```json
 {
-  "account": "admin",       // username / phone / email 任意一种
+  "account": "admin",
   "password": "your-password",
-  "tenant_code": "bootstrap"  // 必填
+  "tenant_code": "bootstrap"
 }
 ```
 
@@ -125,9 +131,9 @@ curl http://localhost:8087/api/v1/health
 
 ```json
 {
-  "account": "newuser",    // username / phone / email
+  "account": "newuser",
   "password": "...",
-  "phone": "13900139000",  // 任一即可
+  "phone": "13900139000",
   "email": "...",
   "tenant_code": "bootstrap"
 }
@@ -155,7 +161,7 @@ curl http://localhost:8087/api/v1/health
 
 ### POST `/auth/logout`
 
-需要登录。撤销当前 session，后续 token 立即失效。
+需要登录。撤销当前 session。
 
 **请求**：无 body。
 
@@ -167,33 +173,31 @@ curl http://localhost:8087/api/v1/health
 
 ---
 
-## 用户（/users/*）
+## 用户（/users/*, /user/*）
 
 ### GET `/users`
 
-需要登录 + `user:list` 权限。
+需要登录 + `user:list`。
 
 **Query**：
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| `tenant_id` | int | (super_admin 可跨租户查询) |
+| `tenant_id` | int | (super_admin 可跨租户) |
 | `keyword` | string | 模糊匹配 real_name / nickname / code |
 | `page` | int | 默认 1 |
 | `size` | int | 默认 20，最大 200 |
 
-**响应**：分页。
-
 ### POST `/users`
 
-需要登录 + `user:create` 权限。
+需要登录 + `user:create`。
 
 **请求**：
 
 ```json
 {
   "tenant_id": 1,
-  "account_id": 5,            // 已存在的 account.id
+  "account_id": 5,
   "code": "u001",
   "real_name": "张三",
   "nickname": "zhangsan",
@@ -204,63 +208,32 @@ curl http://localhost:8087/api/v1/health
 }
 ```
 
-### GET `/users/:id`
+### GET `/users/:id` / PUT `/users/:id` / PATCH `/users/:id`
 
-需要登录 + `user:list` 权限。
+需要登录 + `user:list` / `user:update`。PATCH 是部分更新。
 
-### PUT `/users/:id`
+### PUT `/users/:id/status` / PUT `/users/:id/org`
 
-需要登录 + `user:update` 权限。**整体替换**。
-
-### PATCH `/users/:id`
-
-需要登录 + `user:update` 权限。**部分更新**（只更新提供的字段）。
-
-### PUT `/users/:id/status`
-
-需要登录 + `user:update` 权限。
-
-**请求**：
+需要登录 + `user:update`。
 
 ```json
-{ "status": 1 }   // 1=启用, 0=禁用
-```
-
-### PUT `/users/:id/org`
-
-需要登录 + `user:update` 权限。**调岗**。
-
-**请求**：
-
-```json
+{ "status": 1 }
 { "org_id": 5 }
 ```
 
-### GET `/user/profile`
+### GET `/user/profile` / PUT `/user/profile` / POST `/user/avatar`
 
-需要登录。返回**当前**用户的 profile。
-
-### POST `/user/avatar`
-
-需要登录。multipart/form-data，字段名 `file`。
-
-### PUT `/user/profile`
-
-需要登录。更新当前用户的 profile（real_name / nickname / email / phone / avatar）。
+需要登录（不带 RBAC spec）。
 
 ---
 
 ## 角色（/roles/*）
 
-### GET `/roles`
+### GET `/roles` / GET `/roles/:id` / POST `/roles` / PUT `/roles/:id` / PATCH `/roles/:id` / DELETE `/roles/:id`
 
-需要登录 + `role:list`。
+需要登录 + `role:list` / `role:list` / `role:create` / `role:update` / `role:update` / `role:delete`。
 
-### POST `/roles`
-
-需要登录 + `role:create`。
-
-**请求**：
+**POST /roles 请求**：
 
 ```json
 {
@@ -272,49 +245,25 @@ curl http://localhost:8087/api/v1/health
 }
 ```
 
-`data_scope.type` 取值见 [permissions.md](permissions.md#3-数据范围-datascope) 的 5 种类型。
+### GET `/roles/:id/permissions` / POST `/roles/:id/permissions`
 
-### GET `/roles/:id/permissions`
-
-需要登录 + `role:list`。返回该角色被授权的资源码（`resource:action` 列表）。
-
-### POST `/roles/:id/permissions`
-
-需要登录 + `role:update`。
-
-**请求**：
+需要登录 + `role:list` / `role:update`。返回/接受资源码列表。
 
 ```json
 { "resource_codes": ["user:create", "user:update", "flag:list"] }
 ```
 
-### PUT `/roles/:id/permissions`
+### GET `/roles/:id/data-scopes` / PUT `/roles/:id/data-scopes`
 
-需要登录 + `role:update`。幂等：完全替换角色的资源码集合。
-
-### GET `/roles/:id/data-scopes`
-
-需要登录 + `role:list`。
-
-### PUT `/roles/:id/data-scopes`
-
-需要登录 + `role:update`。
-
-**请求**：
+需要登录 + `role:list` / `role:update`。
 
 ```json
 { "type": 2, "org_ids": [3, 5, 7] }
 ```
 
-### GET `/roles/:id/menus`
+### GET `/roles/:id/menus` / PUT `/roles/:id/menus`
 
-需要登录 + `role:list`。返回该角色的菜单 ID 列表。
-
-### PUT `/roles/:id/menus`
-
-需要登录 + `role:update`。
-
-**请求**：
+需要登录 + `role:list` / `role:update`。
 
 ```json
 { "menu_ids": [1, 2, 5, 8] }
@@ -322,15 +271,19 @@ curl http://localhost:8087/api/v1/health
 
 ---
 
-## 租户（/tenants/*）
+## 平台租户（/admin/platform-tenants）  ⭐
 
-**所有租户管理路由额外要求 `super_admin` 平台角色**（普通租户内 admin 无法访问）。
+**所有路由额外要求 `super_admin` 平台角色**（在 `adminGroup` 分组上统一拦截），并叠加资源权限码。
 
-### GET `/tenants`
+### GET `/admin/platform-tenants`
 
-需要登录 + `super_admin` 平台角色 + `tenant:list` 权限。
+需要登录 + `super_admin` + `tenant:list`。
 
-### POST `/tenants`
+### GET `/admin/platform-tenants/:id`
+
+需要登录 + `super_admin` + `tenant:list`。
+
+### POST `/admin/platform-tenants`
 
 需要登录 + `super_admin` + `tenant:create`。
 
@@ -351,9 +304,47 @@ curl http://localhost:8087/api/v1/health
 }
 ```
 
-### POST `/tenants/:id/purge`
+### PUT `/admin/platform-tenants/:id` / PUT `/admin/platform-tenants/:id/status`
 
-需要登录 + `super_admin` + `tenant:delete`。**硬删除**（物理 DELETE）。
+需要登录 + `super_admin` + `tenant:update`。
+
+### DELETE `/admin/platform-tenants/:id`
+
+需要登录 + `super_admin` + `tenant:delete`。**软删**。
+
+### POST `/admin/platform-tenants/:id/purge`
+
+需要登录 + `super_admin` + `tenant:delete`。**硬删**（物理 DELETE，需先软删）。
+
+---
+
+## 平台菜单（/admin/platform-menus）  ⭐
+
+**所有路由额外要求 `super_admin` 平台角色**（group 级守卫，单层）。
+
+### GET `/admin/platform-menus`
+
+需要登录 + `super_admin`。返回平台菜单列表（`tenant_id = 0`）。
+
+### GET `/admin/platform-menus/tree`
+
+需要登录 + `super_admin`。返回树形。
+
+### GET `/admin/platform-menus/:id` / POST / PUT / DELETE
+
+需要登录 + `super_admin`。
+
+```json
+{
+  "parent_id": 0,
+  "code": "platform-config",
+  "name": "平台配置",
+  "path": "/admin/configs",
+  "icon": "settings",
+  "sort": 100,
+  "type": "menu"
+}
+```
 
 ---
 
@@ -361,17 +352,15 @@ curl http://localhost:8087/api/v1/health
 
 ### GET `/menus/tree`
 
-需要登录 + `menu:list`。返回完整树形结构。
+需要登录 + `menu:list`。
 
 ### POST `/menus`
 
 需要登录 + `menu:create`。
 
-**请求**：
-
 ```json
 {
-  "parent_id": 0,            // 0 = 顶级
+  "parent_id": 0,
   "code": "system",
   "name": "系统管理",
   "path": "/system",
@@ -386,13 +375,11 @@ curl http://localhost:8087/api/v1/health
 
 ### GET `/organizations/tree`
 
-需要登录 + `organization:list`。返回完整组织树。
+需要登录 + `organization:list`。
 
 ### POST `/organizations`
 
 需要登录 + `organization:create`。
-
-**请求**：
 
 ```json
 {
@@ -411,16 +398,13 @@ curl http://localhost:8087/api/v1/health
 
 ### GET `/resources/my`
 
-需要登录（不带 RBAC spec，任何登录用户都可调）。**返回当前用户能点哪些按钮**，前端用来动态渲染 UI。
-
-**响应**：
+需要登录（不带 RBAC spec）。**返回当前用户能点哪些按钮**。
 
 ```json
 {
   "code": 0, "msg": "ok",
   "data": [
     { "code": "user", "action": "list" },
-    { "code": "user", "action": "create" },
     { "code": "flag", "action": "list" }
   ]
 }
@@ -428,110 +412,167 @@ curl http://localhost:8087/api/v1/health
 
 ### GET `/resources/by-menu/:menu_id`
 
-需要登录 + `resource:list`。返回该菜单下挂的所有资源。
+需要登录 + `resource:list`。
 
 ---
 
 ## 字典（/dicts/*）
 
-### GET `/dicts/:id/items`
+### 业务路由（`/api/v1/dicts*`）
 
-需要登录 + `dict:list`。返回该字典的所有字典项（扁平列表）。
+| Method | Path | Spec |
+|---|---|---|
+| GET | `/dicts` | `dict:list` |
+| GET | `/dicts/:id` | `dict:get` |
+| POST | `/dicts` | `dict:create` |
+| PUT | `/dicts/:id` | `dict:update` |
+| DELETE | `/dicts/:id` | `dict:delete` |
+| GET | `/dicts/:id/items` | `dict:list` |
+| POST | `/dicts/:id/items` | `dict:update` |
+| PUT | `/dicts/:id/items/:item_id` | `dict:update` |
+| DELETE | `/dicts/:id/items/:item_id` | `dict:update` |
+| GET | `/dicts/resolve` | `dict:get` |
+| POST | `/dicts/resolve/batch` | `dict:get` |
+| PUT | `/dicts/:id/items/:item_id/override` | `dict:update` |
+| DELETE | `/dicts/:id/items/:item_id/override` | `dict:update` |
 
-### POST `/dicts/:id/items`
+### 平台路由（`/api/v1/dicts/platform*`，强制 super_admin）
 
-需要登录 + `dict:update`。
+| Method | Path |
+|---|---|
+| GET | `/dicts/platform/:id/items` |
+| POST | `/dicts/platform/:id/items` |
+| PUT | `/dicts/platform/:id/items/:item_id` |
+| DELETE | `/dicts/platform/:id/items/:item_id` |
+| GET | `/dicts/platform/:id/visibility` |
+| POST | `/dicts/platform/:id/visibility` |
+| DELETE | `/dicts/platform/:id/visibility/:tenant_id` |
 
-**请求**：
-
-```json
-{
-  "code": "active",
-  "name": "启用",
-  "sort": 1,
-  "parent_id": 0,
-  "extend": { /* JSONB */ }
-}
-```
-
-> `dict_items.extend` 是 JSONB 列，SQL 显式 `::jsonb` cast。
+`dict_items.extend` 是 JSONB 列，SQL 显式 `::jsonb` cast。
 
 ---
 
-## 配置中心（/config/*）
+## 配置中心（/configs/*, /public/configs）  ⭐ Phase 0022 重构
 
-### GET `/config/groups`
+### 业务消费（`/api/v1/configs*`）
 
-需要登录 + `config:list`。
+| Method | Path | Spec | Handler |
+|---|---|---|---|
+| GET | `/configs` | `config:list` | ListGroups（按 tenant_id 过滤） |
+| GET | `/configs/:id` | `config:get` | GetGroup（resolve 合并） |
+| GET | `/configs/:id/items` | `config:list` | ListItemsByGroup |
+| POST | `/configs/:id/items/:item_id/override` | `config:update` | UpsertOverride |
+| DELETE | `/configs/:id/items/:item_id/override` | `config:update` | DeleteOverride |
+| GET | `/configs/resolve` | `config:list` | Resolve（`?code=site`） |
+| POST | `/configs/resolve/batch` | `config:list` | ResolveBatch |
 
-### POST `/config/groups`
+### 平台管理（`/api/v1/configs/platform*`，强制 super_admin）
 
-需要登录 + `config:create`。
+| Method | Path | Spec | Handler |
+|---|---|---|---|
+| GET | `/configs/platform` | `config:list` | ListGroups |
+| GET | `/configs/platform/:id` | `config:get` | GetGroup |
+| POST | `/configs/platform` | `config:create` | CreateGroup |
+| PUT | `/configs/platform/:id` | `config:update` | UpdateGroup |
+| DELETE | `/configs/platform/:id` | `config:delete` | DeleteGroup |
+| GET | `/configs/platform/:id/items` | `config:list` | ListItems |
+| POST | `/configs/platform/:id/items` | `config:create` | CreateItem |
+| PUT | `/configs/platform/:id/items/:item_id` | `config:update` | UpdateItem |
+| DELETE | `/configs/platform/:id/items/:item_id` | `config:delete` | DeleteItem |
+| GET | `/configs/platform/:id/visibility` | `config:list` | ListVisibility |
+| POST | `/configs/platform/:id/visibility` | `config:update` | UpsertVisibility |
+| DELETE | `/configs/platform/:id/visibility/:tenant_id` | `config:update` | DeleteVisibility |
+
+### 公开读（`/api/v1/public/configs`，无需 auth）
+
+| Method | Path | 说明 |
+|---|---|---|
+| GET | `/public/configs` | 按 group + key 取公开项；公开判定基于 group `visibility = 'public'` |
+
+### 关键请求示例
+
+**POST /configs/platform**（创建 platform group）：
 
 ```json
 {
   "code": "site",
   "name": "站点配置",
-  "description": "..."
+  "description": "...",
+  "scope": "platform",
+  "visibility": "public",
+  "is_public": true
 }
 ```
 
-### PUT `/config/groups/:id` / DELETE `/config/groups/:id`
-
-需要登录 + `config:update` / `config:delete`。
-
-### GET `/config/items`
-
-需要登录 + `config:list`。支持 query：
-
-| 参数 | 类型 | 说明 |
-|---|---|---|
-| `group_code` | string | 按 group code 过滤 |
-| `keyword` | string | 模糊匹配 key / label |
-| `page` | int | 默认 1 |
-| `size` | int | 默认 20 |
-
-### GET `/config/items/:id`
-
-需要登录 + `config:get`。
-
-### POST `/config/items`
-
-需要登录 + `config:create`。
+**POST /configs/platform/:id/items**（创建 platform item）：
 
 ```json
 {
-  "group_id": 1,
   "key": "site.theme",
-  "value": "dark",                       // 任意 JSON（string/number/object/array）
+  "value": "dark",
   "default_value": "light",
-  "type": "string",                       // string/number/boolean/json
+  "type": "string",
   "label": "主题",
   "description": "...",
-  "options": [{"label": "深色", "value": "dark"}],   // JSONB
-  "validation": {"min": 0, "max": 100},             // JSONB
+  "options": [{"label": "深色", "value": "dark"}],
+  "validation": {"min": 0, "max": 100},
   "sort": 1,
-  "is_public": true,                      // true 时可通过 /:group_code/public 公开访问
+  "is_public": true,
   "is_readonly": false,
-  "status": 1
+  "is_system": false
 }
 ```
 
-### PUT `/config/items/:id`
+**POST /configs/:id/items/:item_id/override**（租户覆盖）：
 
-需要登录 + `config:update`。**触发审计日志**（写 `db_logs`）。
-
-### DELETE `/config/items/:id`
-
-需要登录 + `config:delete`。
-
-### GET `/config/:group_code/public`
-
-**公开**（无需登录），按 group + code 拿公开项。供前端初始化站点配置。
-
-```bash
-curl http://localhost:8087/api/v1/config/site/public?key=site.theme
+```json
+{ "value": "light" }
 ```
+
+**POST /configs/platform/:id/visibility**（平台限定租户可见性）：
+
+```json
+{ "tenant_id": 5, "access": "editable" }
+```
+
+**GET /configs/resolve?code=site**（业务合并消费）：
+
+```json
+{
+  "code": 0, "msg": "ok",
+  "data": {
+    "group": "site",
+    "values": {
+      "site.theme": "light",
+      "site.lang": "zh-CN"
+    }
+  }
+}
+```
+
+**错误码**（18001-18019）：
+
+| Code | 含义 |
+|---|---|
+| 18001 | config_group 不存在 |
+| 18002 | config_group code 已存在 |
+| 18003 | config_group 下有 item，无法删除 |
+| 18004 | 系统 group 不可修改 |
+| 18005 | config_item 不存在 |
+| 18006 | config_item key 已存在 |
+| 18007 | item 为只读 |
+| 18008 | 系统 item 不可修改 |
+| 18009 | item type 取值非法 |
+| 18010 | item value 与 type 不匹配 |
+| 18011 | item value 不在 options 范围 |
+| 18012 | 平台 group 不可被租户修改 |
+| 18013 | item 有租户覆盖，无法删除 |
+| 18014 | override 指向不存在的 platform item |
+| 18015 | config_group 对当前租户不可见 |
+| 18016 | config_group 为只读 |
+| 18017 | access 取值非法 |
+| 18018 | visibility 取值非法 |
+| 18019 | resolve 失败 |
 
 ---
 
@@ -555,7 +596,11 @@ curl http://localhost:8087/api/v1/config/site/public?key=site.theme
 }
 ```
 
-存储后端由 `cfg.storage.provider` 决定：`local` 写到 `./uploads/`，`cos` 写到腾讯云 COS。
+存储后端由 `cfg.storage.provider` 决定。
+
+### DELETE `/asset/:id`
+
+需要登录 + `asset:delete`。
 
 ---
 
@@ -565,14 +610,12 @@ curl http://localhost:8087/api/v1/config/site/public?key=site.theme
 
 需要登录 + `system:list`。
 
-**响应**：
-
 ```json
 {
   "code": 0, "msg": "ok",
   "data": {
     "go_version": "go1.25.0",
-    "start_time": "2026-06-19T08:33:06Z",
+    "start_time": "2026-06-21T08:33:06Z",
     "uptime_sec": 12345,
     "goroutines": 24,
     "mem_alloc_mb": 12.4,
@@ -584,30 +627,15 @@ curl http://localhost:8087/api/v1/config/site/public?key=site.theme
 
 ### POST `/system/clear-cache`
 
-需要登录 + `system:update`。清空所有 Redis cache（保留 session）。
+需要登录 + `system:update`。清空 Redis cache（保留 session）。
 
-### GET `/system/cache/info`
+### GET `/system/cache/info` / `/system/cache/keys`
 
-需要登录 + `system:list`。返回 Redis 服务器 info（`INFO` 命令的结果）。
+需要登录 + `system:list`。keys 支持 `?pattern=&count=`。
 
-### GET `/system/cache/keys`
+### GET `/system/cache/value/*key` / DELETE `/system/cache/keys/*key`
 
-需要登录 + `system:list`。
-
-**Query**：
-
-| 参数 | 类型 | 说明 |
-|---|---|---|
-| `pattern` | string | glob 模式，默认 `*` |
-| `count` | int | 默认 100 |
-
-### GET `/system/cache/value/*key`
-
-需要登录 + `system:list`。**路径参数 key 用 `/` 分隔**（gin 的 `*key` 语法）。
-
-### DELETE `/system/cache/keys/*key`
-
-需要登录 + `system:update`。
+需要登录 + `system:list` / `system:update`。
 
 ---
 
@@ -616,8 +644,6 @@ curl http://localhost:8087/api/v1/config/site/public?key=site.theme
 ### POST `/weixin/login`
 
 无需认证。
-
-**请求**：
 
 ```json
 { "code": "wx_jscode_here" }
@@ -631,70 +657,40 @@ curl http://localhost:8087/api/v1/config/site/public?key=site.theme
   "data": {
     "openid": "oXyz...",
     "session_key": "...",
-    "token": "eyJhbGciOiJIUzI1NiIs..."   // 与 /auth/login 同 shape
+    "token": "eyJhbGciOiJIUzI1NiIs..."
   }
 }
 ```
 
-### POST `/weixin/phone`
+### POST `/weixin/phone` / `/weixin/bind-phone`
 
-无需认证。
-
-**请求**：
-
-```json
-{ "code": "encrypted_data", "iv": "...", "encryptedData": "..." }
-```
-
-### POST `/weixin/bind-phone`
-
-需要登录。
+phone 无需认证（前端用），bind-phone 需要登录。
 
 ---
 
 ## 示例业务（/cms/*）
 
-展示 extapi 模式。CMS 模块**不直接连 RBAC 表**，通过 `extapi.Provider` 调用平台。
+展示 extapi 模式。CMS 不直接连 RBAC 表。
 
-### GET `/cms/me`
+### GET `/cms/me` / `/cms/users` / `/cms/tenant`
 
-需要登录。返回**当前登录用户**（走 `extapi.UserFacade.GetByID`）。
-
-### GET `/cms/users`
-
-需要登录。返回用户列表（走 `extapi.UserFacade.List`）。
-
-### GET `/cms/tenant`
-
-需要登录。返回当前租户（走 `extapi.TenantFacade.GetByID`）。
+需要登录。返回当前用户 / 用户列表 / 当前租户（走 extapi）。
 
 ### GET/POST/PUT/DELETE `/cms/posts`
 
-需要登录。CMS 自有 posts 表（在 `migrations/cms.sql`）。
+需要登录。CMS 自有 posts 表。
 
 ---
 
 ## 示例业务（/flag/*）
 
-完整的 RBAC + DataScope 演示。详见 [apps/flag/doc/api.md](../apps/flag/doc/api.md)。
+完整 RBAC + DataScope 演示。详见 [apps/flag/doc/api.md](../apps/flag/doc/api.md)。
 
 ### GET `/flag/frames`
 
 无需认证。公开浏览相框。
 
-### GET `/flag/frames/:id`
-
-无需认证。
-
 ### POST `/flag/frames`
-
-需要登录 + `flag:create`。
-
-### GET `/flag/avatars`
-
-无需认证。公开浏览头像。
-
-### POST `/flag/avatars`
 
 需要登录 + `flag:create`。
 
@@ -704,21 +700,7 @@ curl http://localhost:8087/api/v1/config/site/public?key=site.theme
 
 ### POST `/flag/generate`
 
-需要登录 + `flag:create`。触发头像生成流程（可能耗时）。
-
----
-
-## 错误码示例
-
-| 场景 | code | msg | HTTP |
-|---|---|---|---|
-| 成功 | 0 | ok | 200 |
-| 账号密码错误 | 1002 | 账号或密码错误 | 200 |
-| 未登录访问 protected | 401 | unauthorized | 401 |
-| 权限不足 | 403 | permission denied: user:create | 403 |
-| 资源不存在 | 3001 | 租户不存在 | 404 |
-| 参数校验失败 | 2002 | 用户名不能为空 | 400 |
-| 服务端异常 | 11001 | 服务器内部错误 | 500 |
+需要登录 + `flag:create`。触发头像生成流程。
 
 ---
 
@@ -747,7 +729,7 @@ curl http://localhost:8087/api/v1/config/site/public?key=site.theme
 
 - 必须挂载在 `Auth` 中间件之后
 - 持有任一指定平台角色 → 放行
-- 不持有 → 403 需要平台级角色 / 平台角色不足
+- 不持有 → 403 需要平台级角色
 
 ---
 
@@ -762,12 +744,22 @@ TOKEN=$(curl -s -X POST http://localhost:8087/api/v1/auth/login \
   -d '{"account":"admin","password":"your-password","tenant_code":"bootstrap"}' \
   | jq -r '.data.token')
 
-# 2. 调用 protected 接口
+# 2. 调用业务接口
 curl -s http://localhost:8087/api/v1/users \
-  -H "Authorization: Bearer $TOKEN" \
-  | jq
+  -H "Authorization: Bearer $TOKEN" | jq
 
-# 3. 注销
+# 3. 平台管理（需 super_admin）
+curl -s http://localhost:8087/api/v1/admin/platform-tenants \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+# 4. 配置合并消费
+curl -s "http://localhost:8087/api/v1/configs/resolve?code=site" \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+# 5. 公开配置（无需 token）
+curl -s http://localhost:8087/api/v1/public/configs | jq
+
+# 6. 注销
 curl -s -X POST http://localhost:8087/api/v1/auth/logout \
   -H "Authorization: Bearer $TOKEN"
 ```
