@@ -67,6 +67,7 @@ cmd/xin ──→ framework ──→ apps
 | Module 接口 | [framework/pkg/plugin/plugin.go](framework/pkg/plugin/plugin.go) |
 | 启动流程 | [framework/framework.go](framework/framework.go) |
 | 启动期装配 | [framework/internal/core/boot/boot.go](framework/internal/core/boot/boot.go) |
+| framework 内部 Runtime | [framework/runtime.go](framework/runtime.go) — 持有 Server + AppCtx，不传给业务模块 |
 | Auth 中间件 | [framework/internal/core/middleware/auth.go](framework/internal/core/middleware/auth.go) |
 | RBAC 中间件 | [framework/pkg/middleware/auth.go](framework/pkg/middleware/auth.go) |
 | DataScope 编译期 | [framework/pkg/permission/scope.go](framework/pkg/permission/scope.go) |
@@ -149,6 +150,8 @@ func OtherModule() plugin.Module {
 ### 7.1 模块骨架
 
 Phase 5 之后**统一形态**：`Module(app *appx.App) plugin.Module`，由 main.go 显式 import 并放进 `[]plugin.Module`：
+
+> **Phase 6 字段精简**：`appx.App` 只剩 `Config + DB` 两个字段（之前 7 个字段里的 `Server / PermService / Authz / SessionMgr / AppContext` 都是 framework 内部用的，apps/ 一个不引）。framework 内部资源（HTTP server、AppContext）走 `framework.Runtime`，不暴露给模块。`Module(app)` 签名不变。
 
 ```go
 // apps/feedback/module.go
@@ -423,8 +426,9 @@ resp.OK(c, data) / resp.HandleError(c, err)
 | Go modules | 单 module `gx1727.com/xin`（Phase 1 合并） |
 | 跨模块全局 | 1 个（`authz.Authorization` interface，无状态） |
 | `db.Get` / `config.Get` / `bootx` | 已删（Phase 4-5） |
-| main.go | 4 步显式 Build |
-| 模块入口 | 全部 `Module(app *appx.App) plugin.Module` |
+| `appx.App` 字段 | 仅 `Config + DB`（Phase 6 精简；framework 内部资源走 `framework.Runtime`） |
+| main.go | 4 步显式 Build（`Boot` 返回 `(*App, *Runtime, error)`，`Serve` 增加 `rt` 参数） |
+| 模块入口 | 全部 `Module(app *appx.App) plugin.Module`（签名不变） |
 | 模块数 | 15（3 alwaysOn + 9 optOut + 3 optional） |
 | 中间件 | 无 wrapper 重复；Require 全在 `pkg/middleware` |
 | extapi | Provider 模式；facade 从 ctx 拿 repo |
