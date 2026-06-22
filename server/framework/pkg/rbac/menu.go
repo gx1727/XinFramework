@@ -2,7 +2,6 @@ package rbac
 
 // Menu hook — reserved for future cross-module menu access.
 //
-// Phase 3 note: menu's struct shape varies by app — apps/rbac/menu
 // defines its own Menu struct. No framework-internal module currently
 // consumes menu cross-module, so the hook below is dormant. It's
 // exposed for symmetry with the other RBAC modules and for future

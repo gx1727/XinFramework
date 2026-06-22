@@ -3,7 +3,6 @@
 // (the producer) and apps/rbac/user + apps/reference/weixin (the
 // consumers).
 //
-// Phase 3 cleanup: the historical Register/Get global variables
 // are gone. Modules exchange tenant repositories through the
 // AppContext, not via this package.
 package tenant

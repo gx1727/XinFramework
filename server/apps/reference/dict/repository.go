@@ -288,8 +288,6 @@ func (r *PostgresDictRepository) DeleteItem(ctx context.Context, id uint) error 
 	return nil
 }
 
-// ============ Phase 0022: 平台字典 CRUD ============
-
 func (r *PostgresDictRepository) ListPlatformDicts(ctx context.Context, keyword string, page, size int) ([]Dict, int64, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {

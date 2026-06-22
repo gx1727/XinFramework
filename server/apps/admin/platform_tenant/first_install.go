@@ -47,7 +47,6 @@ type FirstInstallReport struct {
 //   - dicts + dict_items 用 code 重映射 dict_id
 //   - admin role 绑定所有菜单 + 超级资源 *:*（resources 复制时已包含）
 //
-// Phase 4: 显式传入 pool（free function，无 receiver）。
 func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminAccountID uint) (*FirstInstallReport, error) {
 	rep := &FirstInstallReport{}
 	q, err := db.GetQuerier(ctx, pool)

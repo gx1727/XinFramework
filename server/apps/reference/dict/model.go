@@ -109,8 +109,6 @@ type DictRepository interface {
 	UpdateItem(ctx context.Context, id uint, req UpdateDictItemRepoReq) error
 	DeleteItem(ctx context.Context, id uint) error
 
-	// ============ Phase 0022: platform / tenant 分层 ============
-
 	// 平台字典 CRUD（跨租户，绕过 RLS）
 	ListPlatformDicts(ctx context.Context, keyword string, page, size int) ([]Dict, int64, error)
 	GetPlatformDictByID(ctx context.Context, id uint) (*Dict, error)

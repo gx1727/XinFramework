@@ -254,8 +254,6 @@ func parseUint(s string) (uint, error) {
 	return uint(v), nil
 }
 
-// ============ Phase 0022: 平台字典 / visibility / override / resolve ============
-
 // Resolve 合并字典（业务最终消费入口）
 // GET /api/v1/dicts/resolve?code=user_status
 func (h *Handler) Resolve(c *gin.Context) {

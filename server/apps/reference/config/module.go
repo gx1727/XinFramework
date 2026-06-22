@@ -1,6 +1,5 @@
 // Package config 通用配置模块入口
 //
-// Phase 0022：与 apps/reference/dict 对齐架构：
 //   - 三 handler 拆分（Business / Platform / Public）
 //   - 路由 /configs 业务 + /configs/platform 平台 + /configs/public 公共
 //   - Resolve / Override / Visibility 三大业务能力
@@ -26,7 +25,6 @@ func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "config",
 
-		// InitFn: 启动期自检（保留 Phase 0021 行为）
 		InitFn: func(_ plugin.Reader, _ plugin.Writer) error {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()

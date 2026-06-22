@@ -53,8 +53,6 @@ type listItemsRequest struct {
 	DictID uint `form:"dict_id" binding:"required"`
 }
 
-// ============ Phase 0022: 平台字典 / visibility / override 类型 ============
-
 // platformDictCreateRequest super_admin 创建平台字典
 type platformDictCreateRequest struct {
 	Code       string                 `json:"code" binding:"required,max=32"`

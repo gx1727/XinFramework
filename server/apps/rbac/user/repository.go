@@ -151,7 +151,6 @@ func (r *PostgresUserRepository) GetByIDScoped(ctx context.Context, id uint) (*U
 
 // GetByAccount returns the user bound to (tenantID, accountID).
 //
-// Phase 3 note: this method satisfies pkgrbac.UserRepository.
 func (r *PostgresUserRepository) GetByAccount(ctx context.Context, tenantID, accountID uint) (*User, error) {
 	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {

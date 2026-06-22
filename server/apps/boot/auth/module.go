@@ -11,7 +11,6 @@ import (
 
 // Module returns the auth module as a BaseModule.
 //
-// Phase 5：显式接收 *appx.App，不再依赖 bootx.Pool() / bootx.Config()。
 // 也不再通过 init() 自动注册，main.go 显式调用 auth.Module(app) 即可。
 func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{

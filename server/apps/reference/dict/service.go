@@ -318,8 +318,6 @@ func refreshDictCache(parent context.Context, tenantID uint, code string) {
 	_ = dictpkg.RefreshDict(ctx, tenantID, code)
 }
 
-// ============ Phase 0022: 平台字典 / visibility / override ============
-
 // validateAccess 校验 access 取值
 func validateAccess(access string) error {
 	switch access {

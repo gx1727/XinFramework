@@ -9,7 +9,6 @@ import (
 
 // User struct 是跨 module 的 canonical 定义。
 //
-// 类型别名指向 framework/pkg/rbac.User —— Phase 3 后 apps/rbac/user
 // 与任何外部消费者共享同一个 struct 类型，避免类型分裂。
 type User = pkgrbac.User
 

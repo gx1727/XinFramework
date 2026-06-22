@@ -33,7 +33,6 @@ type Service struct {
 // 接收指针以便直接消费 repo.GetByXxx 返回的 *User；nil 时返回零值，
 // 避免在 UpdateOrg / Patch 等"读后写"路径上漏 nil check 导致 panic。
 //
-// Phase 6 抽出：之前 Get / List / Update / Patch / Profile / UpdateOrg 6 处
 // 重复构造 UserInfo 字面量，且 UpdateOrg 漏写 AccountID 字段（前端可见 bug）。
 // 统一通过此 helper 保证字段一致。
 func toUserInfo(u *User) UserInfo {

@@ -23,7 +23,6 @@ const TemplateTenantCode = "bootstrap"
 // 幂等：所有 INSERT 用 ON CONFLICT DO NOTHING，重复执行无副作用。
 // Bypass RLS：bootstrap 的 tenant_id 不为 0，必须用 RunInPlatformTx 才能写入。
 //
-// Phase 4: 显式传入 pool。
 func EnsureTemplateSeeded(ctx context.Context, pool *pgxpool.Pool) error {
 	return db.RunInPlatformTx(ctx, pool, func(ctx context.Context) error {
 		q, err := db.GetQuerier(ctx, pool)
@@ -288,7 +287,6 @@ func seedFeatureFlagItems(ctx context.Context, q db.Querier, tenantID uint) erro
 //
 // 幂等：parent_id 已为 0 时 no-op。
 //
-// Phase 4: 显式传入 pool。
 func HealConfigMenuParent(ctx context.Context, pool *pgxpool.Pool) error {
 	return db.RunInPlatformTx(ctx, pool, func(ctx context.Context) error {
 		q, err := db.GetQuerier(ctx, pool)

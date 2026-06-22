@@ -8,7 +8,6 @@ import (
 
 // Module returns the cms module as a BaseModule.
 //
-// Phase 5：显式接收 *appx.App，pool 透传给 handler。
 func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "cms",

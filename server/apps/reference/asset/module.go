@@ -13,7 +13,6 @@ import (
 
 // Module 返回 asset 模块的完整定义
 //
-// Phase 5：显式接收 *appx.App。
 func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "asset",

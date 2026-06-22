@@ -1,6 +1,5 @@
 // Package config 通用配置 - PostgreSQL 仓储
 //
-// Phase 0022：与 dict 对齐：
 //   - SELECT 包含 scope / visibility / extend
 //   - CreateGroup 加 scope 参数
 //   - 加 platform / tenant 区分的查询方法

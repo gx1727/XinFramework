@@ -9,7 +9,6 @@ import (
 
 // Module returns the organization module as a BaseModule.
 //
-// Phase 5：显式接收 *appx.App。
 func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "organization",

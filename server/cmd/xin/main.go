@@ -1,4 +1,3 @@
-// Command xin 是 XinFramework 启动入口（Phase 5 显式 Build 阶段）。
 //
 // 流程：
 //  1. config.Load("config/config.yaml")

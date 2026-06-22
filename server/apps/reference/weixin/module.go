@@ -11,12 +11,10 @@ import (
 // Module returns the weixin module as a BaseModule.
 //
 // weixin depends on apps/boot/{auth,tenant} and apps/rbac/{user,role}.
-// Phase 3 changes the lookup from the legacy pkgauth.Get/pkgtenant.Get
 // globals to AppContext.Reader. The Init phase runs once at boot and
 // calls InitConfig(); downstream dependencies are resolved lazily on
 // first request through the closed-over reader.
 //
-// Phase 5：显式接收 *appx.App。
 func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "weixin",

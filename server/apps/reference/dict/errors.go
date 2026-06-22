@@ -19,8 +19,6 @@ var (
 	// ErrDictHasItems 字典下仍有字典项，禁止删除
 	ErrDictHasItems = resp.Err(10005, "字典下仍有字典项，无法删除")
 
-	// ============ Phase 0022: platform / tenant 分层错误码 ============
-
 	// ErrPlatformDictImmutable 租户尝试改/删平台字典
 	ErrPlatformDictImmutable = resp.Err(10006, "平台字典不可由租户修改")
 
