@@ -3,7 +3,7 @@ package auth
 import (
 	"github.com/gin-gonic/gin"
 
-	"gx1727.com/xin/apps/admin/platform_tenant"
+	"gx1727.com/xin/apps/platform/tenant"
 	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/plugin"
@@ -21,7 +21,7 @@ func Module(app *appx.App) plugin.Module {
 			w.SetAccountAuthRepo(NewAccountAuthRepository(pool))
 			return nil
 		},
-		RegFn: func(ctx plugin.Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(ctx plugin.Reader, public *gin.RouterGroup, tenantGroup *gin.RouterGroup, protected *gin.RouterGroup) {
 			pool := app.DB
 			if ctx != nil {
 				if p := ctx.DB(); p != nil {
@@ -29,7 +29,7 @@ func Module(app *appx.App) plugin.Module {
 				}
 			}
 
-			tenantRepo := platformtenant.NewTenantRepository(pool)
+			tenantRepo := tenant.NewTenantRepository(pool)
 			if ctx != nil {
 				if tr := ctx.TenantRepo(); tr != nil {
 					_ = tr

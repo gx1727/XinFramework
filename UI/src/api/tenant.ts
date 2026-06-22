@@ -1,6 +1,6 @@
 // 平台租户管理（super_admin 域）
 //
-// 与 apps/admin/platform_tenant 后端对齐：
+// 与 apps/platform/tenant 后端对齐：
 //   GET    /platform/tenants
 //   GET    /platform/tenants/:id
 //   POST   /platform/tenants

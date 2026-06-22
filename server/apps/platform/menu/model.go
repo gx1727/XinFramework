@@ -2,7 +2,7 @@
 //
 // 与 apps/rbac/menu 的关键区别：
 //
-//	| 维度          | apps/rbac/menu              | apps/admin/platform_menu      |
+//	| 维度          | apps/rbac/menu              | apps/platform/menu      |
 //	| tenant_id     | 来自 ctx.TenantID（租户内）  | 恒为 0（硬编码，平台级）       |
 //	| DB 事务上下文 | RunInTenantTx                | RunInPlatformTx（bypass RLS）  |
 //	| 中间件        | Require(permission.P(...))   | RequirePlatformRole("super_admin") |
@@ -11,7 +11,7 @@
 //
 // 两套 API 共享同一张 menus 表（靠 tenant_id 区分），但代码完全独立，
 // 避免反向依赖 apps/rbac/。
-package platformmenu
+package menu
 
 import (
 	"context"

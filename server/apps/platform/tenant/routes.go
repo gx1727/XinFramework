@@ -1,4 +1,4 @@
-package platformtenant
+package tenant
 
 import (
 	"github.com/gin-gonic/gin"
@@ -13,7 +13,7 @@ const PlatformRoleSuperAdmin = "super_admin"
 
 // Register 把平台租户管理路由挂到 /api/v1/platform/tenants。
 //
-// 路径约定（与 apps/admin/platform_menu 一致）：
+// 路径约定（与 apps/platform/menu 一致）：
 //   - /platform 子空间表示"平台管理域"
 //   - /tenants 直接挂资源（无 /platform-tenants 这层嵌套）
 //

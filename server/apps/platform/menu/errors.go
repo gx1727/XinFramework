@@ -1,4 +1,4 @@
-package platformmenu
+package menu
 
 import (
 	"errors"

@@ -1,4 +1,4 @@
-package platformtenant
+package tenant
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 // Module returns the platform_tenant module as a BaseModule.
 //
 //
-// 模块名约定："platform_tenant"（与 apps/rbac/menu / apps/admin/platform_menu 一致）。
+// 模块名约定："platform_tenant"（与 apps/rbac/menu / apps/platform/menu 一致）。
 // 在 cfg.Module: 里以 "platform_tenant" 标识，且属于 alwaysOn 列表（启动必需）。
 //
 // 本模块的双重职责：
@@ -36,7 +36,7 @@ func Module(app *appx.App) plugin.Module {
 	}
 }
 
-// tenantPkgAdapter wraps apps/admin/platform_tenant's TenantRepository so it
+// tenantPkgAdapter wraps apps/platform/tenant's TenantRepository so it
 // satisfies pkg/tenant.TenantRepository (returns *pkg/tenant.TenantRecord).
 //
 // 历史背景：本模块从 apps/boot/tenant 重命名而来，原本就有这个 adapter。

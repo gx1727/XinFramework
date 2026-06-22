@@ -1,4 +1,4 @@
-package platformtenant
+package tenant
 
 import (
 	"context"

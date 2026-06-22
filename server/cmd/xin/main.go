@@ -10,11 +10,11 @@ package main
 import (
 	"log"
 
-	"gx1727.com/xin/apps/admin/platform_menu"
-	"gx1727.com/xin/apps/admin/platform_tenant"
 	"gx1727.com/xin/apps/boot/auth"
 	"gx1727.com/xin/apps/cms"
 	"gx1727.com/xin/apps/flag"
+	platformmenu "gx1727.com/xin/apps/platform/menu"
+	"gx1727.com/xin/apps/platform/tenant"
 	"gx1727.com/xin/apps/rbac/menu"
 	"gx1727.com/xin/apps/rbac/organization"
 	"gx1727.com/xin/apps/rbac/permission"
@@ -50,7 +50,7 @@ func main() {
 
 		// 平台管理域（必须 super_admin 才能访问）
 		platformmenu.Module(app),
-		platformtenant.Module(app),
+		tenant.Module(app),
 
 		// rbac 套件
 		menu.Module(app),

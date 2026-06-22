@@ -1,6 +1,6 @@
 // 平台菜单管理（super_admin 域）
 //
-// 与 apps/admin/platform_menu 后端对齐：
+// 与 apps/platform/menu 后端对齐：
 //   GET    /platform/menus
 //   GET    /platform/menus/tree
 //   GET    /platform/menus/:id
