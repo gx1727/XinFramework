@@ -89,17 +89,17 @@ func TestHasPermission_Precedence(t *testing.T) {
 	}
 }
 
-// TestIsSuperAdmin pairs with TestHasPermission_GlobalWildcard: a user
-// whose perm map carries "*:*" is a super admin.
-func TestIsSuperAdmin(t *testing.T) {
-	if IsSuperAdmin(map[string]bool{"*:*": true}) != true {
-		t.Error(`{"*:*":true} must report IsSuperAdmin=true`)
+// TestHasGlobalPermission pairs with TestHasPermission_GlobalWildcard: a user
+// whose perm map carries "*:*" is granted all permissions.
+func TestHasGlobalPermission(t *testing.T) {
+	if !HasGlobalPermission(map[string]bool{"*:*": true}) {
+		t.Error(`{"*:*":true} must report HasGlobalPermission=true`)
 	}
-	if IsSuperAdmin(map[string]bool{"user:*": true}) != false {
-		t.Error(`{"user:*":true} must NOT be super admin (resource-scoped wildcard)`)
+	if HasGlobalPermission(map[string]bool{"user:*": true}) {
+		t.Error(`{"user:*":true} must NOT be global (resource-scoped wildcard)`)
 	}
-	if IsSuperAdmin(nil) != false {
-		t.Error("nil perms must not be super admin")
+	if HasGlobalPermission(nil) {
+		t.Error("nil perms must not be global")
 	}
 }
 

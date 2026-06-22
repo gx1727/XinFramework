@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { useAuthStore } from "@/stores/authStore"
 import { t } from "@/locales"
+import { IdentityPickerDialog } from "@/components/identity-picker-dialog"
 
 type LoginMode = "tenant" | "platform"
 
@@ -21,15 +22,21 @@ export function LoginForm({
   const navigate = useNavigate()
   const tenantLogin = useAuthStore((s) => s.tenantLogin)
   const platformLogin = useAuthStore((s) => s.platformLogin)
+  const loginPrecheck = useAuthStore((s) => s.loginPrecheck)
+  const selectTenant = useAuthStore((s) => s.selectTenant)
   const isLoading = useAuthStore((s) => s.isLoading)
   const error = useAuthStore((s) => s.error)
   const clearError = useAuthStore((s) => s.clearError)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const scope = useAuthStore((s) => s.scope)
+  const availableIdentities = useAuthStore((s) => s.availableIdentities)
+  const platformAvailable = useAuthStore((s) => s.platformAvailable)
+  const availablePlatformRoles = useAuthStore((s) => s.availablePlatformRoles)
+  const clearIdentities = useAuthStore((s) => s.clearIdentities)
 
-  // platform 模式：tenantId 默认 1（兼容旧接口，但 platform-login 不读这个字段）
-  // tenant 模式：用户必须填 tenantId
-  const [tenantId, setTenantId] = useState<string>("1")
+  // 多身份账号登录：弹"选择身份"对话框
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pendingAccount, setPendingAccount] = useState<{ account: string; password: string } | null>(null)
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -41,26 +48,60 @@ export function LoginForm({
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     clearError()
+    clearIdentities()
 
     const formData = new FormData(e.currentTarget)
     const account = formData.get("account") as string
     const password = formData.get("password") as string
 
-    let success = false
     if (mode === "platform") {
-      success = await platformLogin(account, password)
-    } else {
-      const tid = parseInt(tenantId, 10) || 0
-      if (tid <= 0) {
-        clearError()
-        // 这里通过 setError 复用 store 不太直观，直接返回 false 让外层处理
-        return
-      }
-      success = await tenantLogin(account, password, tid)
+      // platform 模式：直接 platform-login（不 precheck）
+      await platformLogin(account, password)
+      return
     }
-    if (success) {
-      // useEffect 会处理跳转
+
+    // tenant 模式：precheck 智能分支（路径 B 多身份支持）
+    const result = await loginPrecheck(account, password)
+    if (!result) return  // precheck 失败，error 已在 store
+
+    const tenantCount = result.tenant_identities.length
+    const hasPlatform = result.platform_available
+
+    if (tenantCount === 0 && hasPlatform) {
+      // 纯平台账号
+      await platformLogin(account, password)
+      return
     }
+
+    if (tenantCount === 1 && !hasPlatform) {
+      // 单身份账号
+      await tenantLogin(account, password, result.tenant_identities[0].tenant_id)
+      return
+    }
+
+    // 多身份账号：弹"选择身份"对话框
+    setPendingAccount({ account, password })
+    setPickerOpen(true)
+  }
+
+  const handlePickerSelectTenant = async (tenantId: number) => {
+    if (!pendingAccount) return
+    setPickerOpen(false)
+    await selectTenant(pendingAccount.account, pendingAccount.password, tenantId)
+    setPendingAccount(null)
+  }
+
+  const handlePickerSelectPlatform = async () => {
+    if (!pendingAccount) return
+    setPickerOpen(false)
+    await platformLogin(pendingAccount.account, pendingAccount.password)
+    setPendingAccount(null)
+  }
+
+  const handlePickerCancel = () => {
+    setPickerOpen(false)
+    setPendingAccount(null)
+    clearIdentities()
   }
 
   return (
@@ -85,23 +126,6 @@ export function LoginForm({
         </div>
       )}
       <FieldGroup>
-        {mode === "tenant" && (
-          <Field>
-            <FieldLabel htmlFor="tenant_id">租户 ID</FieldLabel>
-            <Input
-              id="tenant_id"
-              name="tenant_id"
-              type="number"
-              min={1}
-              value={tenantId}
-              onChange={(e) => setTenantId(e.target.value)}
-              placeholder="1"
-              required
-              className="bg-background"
-              disabled={isLoading}
-            />
-          </Field>
-        )}
         <Field>
           <FieldLabel htmlFor="account">{t.auth.account}</FieldLabel>
           <Input
@@ -167,5 +191,17 @@ export function LoginForm({
         {t.auth.and} <a href="#">{t.auth.privacyPolicy}</a>.
       </div>
     </form>
+
+    <IdentityPickerDialog
+      open={pickerOpen}
+      onOpenChange={setPickerOpen}
+      identities={availableIdentities}
+      platformAvailable={platformAvailable}
+      platformRoles={availablePlatformRoles}
+      onSelectTenant={handlePickerSelectTenant}
+      onSelectPlatform={handlePickerSelectPlatform}
+      onCancel={handlePickerCancel}
+    />
+    </>
   )
 }

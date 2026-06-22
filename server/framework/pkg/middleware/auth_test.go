@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	pkgcontext "gx1727.com/xin/framework/pkg/context"
+	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/resp"
 )
@@ -59,15 +60,15 @@ func runOnce(c *gin.Context, handler gin.HandlerFunc) (aborted bool, status int)
 // Require
 // ============================================================================
 
-func TestRequire_SuperAdminBypassesAllChecks(t *testing.T) {
-	// super_admin with NO permissions at all — Require must still pass.
-	uc := makeUC(1, []string{"super_admin"}, nil)
+func TestRequire_PlatformSuperAdminBypassesAllChecks(t *testing.T) {
+	// Platform super_admin with NO permissions at all — Require must still pass.
+	uc := makeUC(1, []string{jwtpkg.PlatformRoleSuperAdmin}, nil)
 	c, _ := buildCtx(uc)
 
 	mw := Require(permission.P("user", "delete"))
 	aborted, _ := runOnce(c, mw)
 	if aborted {
-		t.Error("super admin must bypass Require even with empty Permissions")
+		t.Error("platform super admin must bypass Require even with empty Permissions")
 	}
 }
 
@@ -187,9 +188,9 @@ func TestRequireAll_OneMissingFails(t *testing.T) {
 // ============================================================================
 
 func TestRequirePlatformRole_MatchPasses(t *testing.T) {
-	uc := makeUC(1, []string{"super_admin"}, nil)
+	uc := makeUC(1, []string{jwtpkg.PlatformRoleSuperAdmin}, nil)
 	c, _ := buildCtx(uc)
-	mw := RequirePlatformRole("super_admin")
+	mw := RequirePlatformRole(jwtpkg.PlatformRoleSuperAdmin)
 	if aborted, _ := runOnce(c, mw); aborted {
 		t.Error("matching platform role should pass")
 	}
@@ -198,7 +199,7 @@ func TestRequirePlatformRole_MatchPasses(t *testing.T) {
 func TestRequirePlatformRole_NoMatchFails(t *testing.T) {
 	uc := makeUC(1, []string{"viewer"}, nil)
 	c, rec := buildCtx(uc)
-	mw := RequirePlatformRole("super_admin")
+	mw := RequirePlatformRole(jwtpkg.PlatformRoleSuperAdmin)
 	aborted, status := runOnce(c, mw)
 	if !aborted {
 		t.Error("non-matching role should be denied")

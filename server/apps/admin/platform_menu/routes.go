@@ -3,6 +3,7 @@ package platformmenu
 import (
 	"github.com/gin-gonic/gin"
 
+	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 	pkgmiddleware "gx1727.com/xin/framework/pkg/middleware"
 )
 
@@ -26,7 +27,7 @@ import (
 // "平台管理域"。这与 `/api/v1/menus`（租户域）形成清晰边界。
 func Register(protected *gin.RouterGroup, h *Handler) {
 	g := protected.Group("/menus",
-		pkgmiddleware.RequirePlatformRole("super_admin"),
+		pkgmiddleware.RequirePlatformRole(jwtpkg.PlatformRoleSuperAdmin),
 	)
 	{
 		g.GET("", h.List)

@@ -18,13 +18,21 @@ type XinContext struct {
 	PlatformRoles []string
 }
 
-// IsSuperAdmin 判断当前上下文是否携带 super_admin 平台角色
-func (x *XinContext) IsSuperAdmin() bool {
-	if x == nil {
+// HasPlatformRole 判断当前上下文是否携带指定的平台级角色。
+//
+// 平台角色独立于租户内 RBAC（permission.HasGlobalPermission），
+// 用于跨租户 / 平台级特权校验，如租户管理、平台字典、平台配置等。
+// 典型调用：HasPlatformRole(jwt.PlatformRoleSuperAdmin)。
+//
+// 与 RBAC 通配符判定的区别：
+//   - HasPlatformRole：检查 PlatformRoles 切片中的角色字符串
+//   - permission.HasGlobalPermission：检查 perms map 中的 "*:*" 通配符
+func (x *XinContext) HasPlatformRole(role string) bool {
+	if x == nil || role == "" {
 		return false
 	}
 	for _, r := range x.PlatformRoles {
-		if r == "super_admin" {
+		if r == role {
 			return true
 		}
 	}

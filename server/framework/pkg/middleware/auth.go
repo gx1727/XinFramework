@@ -3,6 +3,7 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 	xinContext "gx1727.com/xin/framework/pkg/context"
+	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/resp"
 )
@@ -107,7 +108,7 @@ func requireWithSpecs(mode string, specs ...permission.Spec) gin.HandlerFunc {
 		uc := xinContext.MustNewUserContext(c)
 
 		// 平台超级管理员：无视所有权限规格直接放行
-		if uc.IsSuperAdmin() {
+		if uc.HasPlatformRole(jwtpkg.PlatformRoleSuperAdmin) {
 			c.Next()
 			return
 		}

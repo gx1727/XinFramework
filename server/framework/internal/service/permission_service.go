@@ -170,7 +170,7 @@ func (s *PermissionService) LoadUserSecurityContext(ctx context.Context, userID 
 					perms = map[string]bool{"*:*": true}
 					allDS := permission.DataScope{Type: permission.DataScopeAll}
 					dsPtr = &allDS
-					roles = append(roles, "super_admin")
+					roles = append(roles, jwtpkg.PlatformRoleSuperAdmin)
 					return perms, roles, dsPtr, orgID, nil
 				}
 			}

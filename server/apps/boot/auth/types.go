@@ -1,6 +1,9 @@
 package auth
 
-import "gx1727.com/xin/framework/pkg/resp"
+import (
+	pkgauth "gx1727.com/xin/framework/pkg/auth"
+	"gx1727.com/xin/framework/pkg/resp"
+)
 
 // LoginScope 登录作用域：tenant（业务租户登录） / platform（平台管理员登录）
 //
@@ -21,11 +24,53 @@ var (
 	ErrPlatformLoginDisabled        = resp.Err(1014, "平台账号已禁用")
 )
 
+// 登录前置检查专用错误
+var (
+	ErrNoLoginIdentity = resp.Err(1015, "账号无可用登录身份（无 tenant 身份且无 platform 角色）")
+)
+
+// Refresh 切租户专用错误
+var (
+	ErrCrossTenantSwitchFromPlatform = resp.Err(1016, "平台 token 不能切换到租户，请用 platform-login 重新登录")
+)
+
 // tenantLoginRequest 租户域登录（业务用户）
 type tenantLoginRequest struct {
 	Account  string `json:"account" binding:"required"`
 	Password string `json:"password" binding:"required"`
 	TenantID uint   `json:"tenant_id" binding:"required"`
+}
+
+// loginPrecheckRequest 登录前置检查（账号密码 → 列出可用身份）。
+//
+// 用于"多身份账号"登录流程：账号可能在多个租户都有 users 记录。
+// 前端提交账号密码，服务器验证后返回所有可用身份，前端让用户选择后再
+// 调用 /auth/select-tenant（等价于 /auth/tenant-login）签发 token。
+//
+// 单身份账号可以跳过此步直接调 /auth/tenant-login 或 /auth/platform-login。
+type loginPrecheckRequest struct {
+	Account  string `json:"account" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+// loginPrecheckResult 登录前置检查的响应。
+//
+// 设计要点：
+//   - 不签发 token：前端调 precheck 后还要调 select-tenant 才拿到 token
+//   - platform_available: true 时前端可选择调 /auth/platform-login（不走 tenant）
+//   - tenant_identities 为空 + platform_available 为 false：账号无登录权限（403）
+//   - tenant_identities 为空 + platform_available 为 true：纯平台账号，precheck 后调 platform-login
+//   - tenant_identities 非空：列出所有可选身份，每个都能用 /auth/select-tenant 登录
+//
+// security note：响应里不含密码或敏感字段，仅展示用。
+type loginPrecheckResult struct {
+	AccountID         uint                          `json:"account_id"`
+	AccountStatus     int8                          `json:"account_status"`
+	RealName          string                        `json:"real_name,omitempty"`
+	Email             string                        `json:"email,omitempty"`
+	PlatformAvailable bool                          `json:"platform_available"`
+	PlatformRoles     []string                      `json:"platform_roles,omitempty"`
+	TenantIdentities  []pkgauth.TenantIdentity      `json:"tenant_identities"`
 }
 
 // platformLoginRequest 平台域登录（super_admin 等）
@@ -84,6 +129,11 @@ type registerResult struct {
 
 type refreshRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
+	// TenantID 可选；用于 Refresh 切租户（路径 B 多身份支持）。
+	//   - 0 或缺省：刷当前租户，沿用 refresh token 里的 TenantID（向后兼容）
+	//   - 非 0：切到新租户，账号必须在新租户有 users 记录，否则 403
+	//   - 不允许从 platform token 切到租户（platform token 没有 users 上下文）
+	TenantID uint `json:"tenant_id,omitempty"`
 }
 
 type refreshResult struct {

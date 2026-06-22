@@ -59,13 +59,14 @@ func GenerateWithPlatformRoles(cfg *config.JWTConfig, userID, tenantID uint, rol
 	return token.SignedString([]byte(cfg.Secret))
 }
 
-// IsSuperAdmin 便捷判断：claims 是否包含 super_admin 平台角色
-func (c *Claims) IsSuperAdmin() bool {
-	if c == nil {
+// HasPlatformRole 便捷判断：claims 是否包含指定的平台级角色。
+// 典型调用：HasPlatformRole(PlatformRoleSuperAdmin)。
+func (c *Claims) HasPlatformRole(role string) bool {
+	if c == nil || role == "" {
 		return false
 	}
 	for _, r := range c.PlatformRoles {
-		if r == PlatformRoleSuperAdmin {
+		if r == role {
 			return true
 		}
 	}

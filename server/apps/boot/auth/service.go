@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	pkgauth "gx1727.com/xin/framework/pkg/auth"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
@@ -255,6 +256,84 @@ func (s *Service) Login(ctx context.Context, req tenantLoginRequest) (*LoginResu
 	return res, nil
 }
 
+// LoginPrecheck 登录前置检查：验证账号密码后列出可用身份。
+//
+// 用途：账号可能在多个租户都有 users 记录，或同时是平台账号。
+// 前端先调此接口拿到身份列表，让用户选择后再调 /auth/select-tenant
+// 或 /auth/platform-login 签发 token。
+//
+// 错误码：
+//   - 账号/密码错 → ErrInvalidAccountOrPassword
+//   - 账号无任何身份（无 tenant 身份 + 无 platform 角色）→ ErrNoLoginIdentity
+//
+// 单身份账号也可以调此接口（precheck 返回 1 个 tenant 身份后，前端
+// 直接调 select-tenant 即可），但更直接的做法是跳过 precheck 直接
+// 调 /auth/tenant-login。
+func (s *Service) LoginPrecheck(ctx context.Context, req loginPrecheckRequest) (*loginPrecheckResult, error) {
+	if s.accountRepo == nil || s.platformRp == nil {
+		return nil, ErrBackendUnavailable
+	}
+
+	// 1. 验证账号密码
+	passwordHash, accountID, accountStatus, err := s.accountRepo.GetPasswordAndStatus(ctx, req.Account)
+	if err != nil {
+		if errors.Is(err, errAccountNotFound) {
+			return nil, ErrInvalidAccountOrPassword
+		}
+		return nil, ErrBackendUnavailable
+	}
+	if accountStatus != 1 {
+		return nil, ErrUserDisabled
+	}
+	ok, err := verifyPassword(passwordHash, req.Password)
+	if err != nil || !ok {
+		return nil, ErrInvalidAccountOrPassword
+	}
+
+	// 2. 列出所有 tenant 身份（跨租户，走 RLS bypass）
+	tenantIdentities, err := s.accountRepo.ListTenantIdentities(ctx, accountID)
+	if err != nil {
+		return nil, ErrBackendUnavailable
+	}
+
+	// 3. 查 platform 角色
+	platformRoles, err := s.platformRp.GetRolesByAccountID(ctx, accountID)
+	if err != nil {
+		return nil, ErrBackendUnavailable
+	}
+
+	// 4. 业务规则：账号必须至少有 1 个 tenant 身份 或 1 个 platform 角色
+	if len(tenantIdentities) == 0 && len(platformRoles) == 0 {
+		return nil, ErrNoLoginIdentity
+	}
+
+	// 5. 取账号展示信息（real_name / email）从第一个 tenant 身份或留空
+	realName := ""
+	email := ""
+	if len(tenantIdentities) > 0 {
+		realName = tenantIdentities[0].RealName
+		email = tenantIdentities[0].Email
+	}
+
+	return &loginPrecheckResult{
+		AccountID:         accountID,
+		AccountStatus:     accountStatus,
+		RealName:          realName,
+		Email:             email,
+		PlatformAvailable: len(platformRoles) > 0,
+		PlatformRoles:     platformRoles,
+		TenantIdentities:  tenantIdentities,
+	}, nil
+}
+
+// SelectTenant 等价于 Login（tenantLoginRequest）。仅作为语义别名：
+// 用于"precheck → 选择身份 → 签发 token"流程，与 /auth/tenant-login
+// 共享实现。前端可以从 precheck 返回的 tenant_identities 列表里选一个
+// tenant_id，然后调用此接口签发 token。
+func (s *Service) SelectTenant(ctx context.Context, req tenantLoginRequest) (*LoginResult, error) {
+	return s.Login(ctx, req)
+}
+
 // PlatformLogin 平台域登录（super_admin 等）。
 //
 // 不传 tenant_id：平台管理员不属于任何租户。
@@ -342,7 +421,56 @@ func (s *Service) Refresh(ctx context.Context, req refreshRequest) (*refreshResu
 		return nil, ErrInvalidRefreshToken
 	}
 
-	newTokens, err := s.generateTokens(ctx, claims.UserID, claims.TenantID, claims.Role)
+	// 默认沿用 refresh token 里的身份
+	targetTenantID := claims.TenantID
+	targetUserID := claims.UserID
+	targetRole := claims.Role
+
+	// 切租户流程（路径 B 多身份支持）
+	if req.TenantID > 0 && req.TenantID != claims.TenantID {
+		// 平台 token 不能切租户：platform token 的 UserID 是 account_id，
+		// 跟 users.id 是两个空间，没有"切到某个 user 身份"的语义。
+		if claims.TenantID == 0 {
+			return nil, ErrCrossTenantSwitchFromPlatform
+		}
+
+		// 1. 反查 account_id（当前 token 在 claims.TenantID 事务里，
+		//    RLS 自动放行该租户的 user 行）
+		if s.accountRepo == nil {
+			return nil, ErrBackendUnavailable
+		}
+		accountID, err := s.accountRepo.GetAccountIDByUserID(ctx, claims.UserID)
+		if err != nil {
+			if errors.Is(err, ErrAccountNotFound) {
+				return nil, ErrInvalidRefreshToken
+			}
+			return nil, ErrBackendUnavailable
+		}
+
+		// 2. 跨租户列账号所有身份
+		identities, err := s.accountRepo.ListTenantIdentities(ctx, accountID)
+		if err != nil {
+			return nil, ErrBackendUnavailable
+		}
+
+		// 3. 在 identities 里找目标 tenant_id
+		var found *pkgauth.TenantIdentity
+		for i := range identities {
+			if identities[i].TenantID == req.TenantID {
+				found = &identities[i]
+				break
+			}
+		}
+		if found == nil {
+			return nil, ErrTenantBindingNotFound
+		}
+
+		targetTenantID = found.TenantID
+		targetUserID = found.UserID
+		targetRole = found.Role
+	}
+
+	newTokens, err := s.generateTokens(ctx, targetUserID, targetTenantID, targetRole)
 	if err != nil {
 		return nil, err
 	}

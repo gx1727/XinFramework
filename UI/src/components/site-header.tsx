@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { GlobeIcon, BuildingIcon, LogOutIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useNavigate } from "react-router-dom"
+import { TenantSwitcher } from "@/components/tenant-switcher"
 
 export function SiteHeader() {
   const { theme, setTheme } = useTheme()
@@ -59,6 +60,7 @@ export function SiteHeader() {
         )}
 
         <div className="ml-auto flex items-center gap-4">
+          <TenantSwitcher />
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">深色模式</span>
             <Switch checked={isDark} onCheckedChange={toggleTheme} />
