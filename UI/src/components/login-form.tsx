@@ -64,7 +64,10 @@ export function LoginForm({
     const result = await loginPrecheck(account, password)
     if (!result) return  // precheck 失败，error 已在 store
 
-    const tenantCount = result.tenant_identities.length
+    // 防御：后端返回的 tenant_identities 理论上是 []（不是 null），
+    // 但加了保护避免后端契约变更导致前端崩。
+    const identities = result.tenant_identities ?? []
+    const tenantCount = identities.length
     const hasPlatform = result.platform_available
 
     if (tenantCount === 0 && hasPlatform) {
@@ -75,7 +78,7 @@ export function LoginForm({
 
     if (tenantCount === 1 && !hasPlatform) {
       // 单身份账号
-      await tenantLogin(account, password, result.tenant_identities[0].tenant_id)
+      await tenantLogin(account, password, identities[0].tenant_id)
       return
     }
 

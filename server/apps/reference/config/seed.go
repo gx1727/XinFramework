@@ -14,7 +14,7 @@ import (
 // TemplateTenantCode 与 apps/boot/tenant/first_install.go 保持一致
 const TemplateTenantCode = "bootstrap"
 
-// EnsureTemplateSeeded 启动期自检：如果 bootstrap 租户下没有 config_groups，
+// EnsureTemplateSeeded 启动期自检：如果 bootstrap 租户下没有 config_categories，
 // 自动补种 4 个预置分组 + 19 个预置项 + 1 个菜单 + 5 个资源。
 //
 // 目的：解决"已部署过老 framework.sql 的库"在新 framework.sql 加了 config seed
@@ -43,13 +43,13 @@ func EnsureTemplateSeeded(ctx context.Context, pool *pgxpool.Pool) error {
 			return nil
 		}
 
-		// 2) 检查 bootstrap 是否已有 config_groups
+		// 2) 检查 bootstrap 是否已有 config_categories
 		var n int
 		if err := q.QueryRow(ctx,
-			`SELECT COUNT(*) FROM config_groups WHERE tenant_id = $1 AND is_deleted = FALSE`,
+			`SELECT COUNT(*) FROM config_categories WHERE tenant_id = $1 AND is_deleted = FALSE`,
 			templateID,
 		).Scan(&n); err != nil {
-			return fmt.Errorf("count config_groups: %w", err)
+			return fmt.Errorf("count config_categories: %w", err)
 		}
 		if n > 0 {
 			// 已有数据，跳过 seed
@@ -69,7 +69,7 @@ func EnsureTemplateSeeded(ctx context.Context, pool *pgxpool.Pool) error {
 		}
 		for _, g := range groups {
 			if _, err := q.Exec(ctx, `
-				INSERT INTO config_groups
+				INSERT INTO config_categories
 					(tenant_id, code, name, description, icon, sort, is_system, is_public, status)
 				VALUES ($1, $2, $3, $4, $5, $6, TRUE, $7, 1)
 				ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING`,
@@ -144,10 +144,10 @@ func EnsureTemplateSeeded(ctx context.Context, pool *pgxpool.Pool) error {
 		}
 
 		// 10) 序列号兜底
-		if _, err := q.Exec(ctx, `SELECT setval('config_groups_id_seq', GREATEST(
-			(SELECT COALESCE(MAX(id), 0) FROM config_groups),
+		if _, err := q.Exec(ctx, `SELECT setval('config_categories_id_seq', GREATEST(
+			(SELECT COALESCE(MAX(id), 0) FROM config_categories),
 			$1 * 1000), true)`, templateID); err != nil {
-			return fmt.Errorf("setval config_groups_id_seq: %w", err)
+			return fmt.Errorf("setval config_categories_id_seq: %w", err)
 		}
 		if _, err := q.Exec(ctx, `SELECT setval('config_items_id_seq', GREATEST(
 			(SELECT COALESCE(MAX(id), 0) FROM config_items),
@@ -177,11 +177,11 @@ func seedSiteItems(ctx context.Context, q db.Querier, tenantID uint) error {
 	for _, it := range items {
 		if _, err := q.Exec(ctx, `
 			INSERT INTO config_items
-			    (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_system, status)
+			    (tenant_id, category_id, key, value, default_value, type, label, description, sort, is_public, is_system, status)
 			SELECT $1,
-			       (SELECT id FROM config_groups WHERE code = 'site' AND tenant_id = $1 AND is_deleted = FALSE),
+			       (SELECT id FROM config_categories WHERE code = 'site' AND tenant_id = $1 AND is_deleted = FALSE),
 			       $2, $3::jsonb, $4::jsonb, $5, $6, $7, $8, $9, TRUE, 1
-			ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING`,
+			ON CONFLICT (tenant_id, category_id, key) WHERE is_deleted = FALSE DO NOTHING`,
 			tenantID, it.key, it.val, it.defaultVal, it.typ, it.label, it.desc, it.sort, it.isPublic,
 		); err != nil {
 			return fmt.Errorf("seed site item %s: %w", it.key, err)
@@ -205,11 +205,11 @@ func seedSecurityItems(ctx context.Context, q db.Querier, tenantID uint) error {
 	for _, it := range items {
 		if _, err := q.Exec(ctx, `
 			INSERT INTO config_items
-			    (tenant_id, group_id, key, value, default_value, type, label, description, validation, sort, is_public, is_system, status)
+			    (tenant_id, category_id, key, value, default_value, type, label, description, validation, sort, is_public, is_system, status)
 			SELECT $1,
-			       (SELECT id FROM config_groups WHERE code = 'security' AND tenant_id = $1 AND is_deleted = FALSE),
+			       (SELECT id FROM config_categories WHERE code = 'security' AND tenant_id = $1 AND is_deleted = FALSE),
 			       $2, $3::jsonb, $4::jsonb, $5, $6, $7, $8::jsonb, $9, FALSE, TRUE, 1
-			ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING`,
+			ON CONFLICT (tenant_id, category_id, key) WHERE is_deleted = FALSE DO NOTHING`,
 			tenantID, it.key, it.val, it.defaultVal, it.typ, it.label, it.desc, it.validation, it.sort,
 		); err != nil {
 			return fmt.Errorf("seed security item %s: %w", it.key, err)
@@ -235,11 +235,11 @@ func seedEmailItems(ctx context.Context, q db.Querier, tenantID uint) error {
 	for _, it := range items {
 		if _, err := q.Exec(ctx, `
 			INSERT INTO config_items
-			    (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_readonly, is_system, status)
+			    (tenant_id, category_id, key, value, default_value, type, label, description, sort, is_public, is_readonly, is_system, status)
 			SELECT $1,
-			       (SELECT id FROM config_groups WHERE code = 'email' AND tenant_id = $1 AND is_deleted = FALSE),
+			       (SELECT id FROM config_categories WHERE code = 'email' AND tenant_id = $1 AND is_deleted = FALSE),
 			       $2, $3::jsonb, $4::jsonb, $5, $6, $7, $8, FALSE, $9, TRUE, 1
-			ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING`,
+			ON CONFLICT (tenant_id, category_id, key) WHERE is_deleted = FALSE DO NOTHING`,
 			tenantID, it.key, it.val, it.defaultVal, it.typ, it.label, it.desc, it.sort, it.isReadonly,
 		); err != nil {
 			return fmt.Errorf("seed email item %s: %w", it.key, err)
@@ -260,11 +260,11 @@ func seedFeatureFlagItems(ctx context.Context, q db.Querier, tenantID uint) erro
 	for _, it := range items {
 		if _, err := q.Exec(ctx, `
 			INSERT INTO config_items
-			    (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_system, status)
+			    (tenant_id, category_id, key, value, default_value, type, label, description, sort, is_public, is_system, status)
 			SELECT $1,
-			       (SELECT id FROM config_groups WHERE code = 'feature_flag' AND tenant_id = $1 AND is_deleted = FALSE),
+			       (SELECT id FROM config_categories WHERE code = 'feature_flag' AND tenant_id = $1 AND is_deleted = FALSE),
 			       $2, $3::jsonb, $4::jsonb, $5, $6, $7, $8, FALSE, TRUE, 1
-			ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING`,
+			ON CONFLICT (tenant_id, category_id, key) WHERE is_deleted = FALSE DO NOTHING`,
 			tenantID, it.key, it.val, it.defaultVal, it.typ, it.label, it.desc, it.sort,
 		); err != nil {
 			return fmt.Errorf("seed feature_flag item %s: %w", it.key, err)

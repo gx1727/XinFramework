@@ -225,9 +225,10 @@ func (r *PostgresAccountRepository) GetAccountIDByUserID(ctx context.Context, us
 // RLS：跨租户查 users / tenants / user_roles（均启用了 RLS），走
 // db.RunInPlatformTx 开启 app.bypass_rls='on' 绕过。
 //
-// 返回空切片（不是 nil）如果账号没有 tenant 身份。调用方负责区分"无身份"和"出错"。
+// 返回空切片（不是 nil）即使账号没有 tenant 身份——前端依赖 JSON [] 渲染，
+// nil 会序列化成 null 触发 .map() / .length 报错。
 func (r *PostgresAccountRepository) ListTenantIdentities(ctx context.Context, accountID uint) ([]pkgauth.TenantIdentity, error) {
-	var identities []pkgauth.TenantIdentity
+	identities := make([]pkgauth.TenantIdentity, 0)
 
 	err := db.RunInPlatformTx(ctx, r.db, func(ctx context.Context) error {
 		q, err := db.GetQuerier(ctx, r.db)

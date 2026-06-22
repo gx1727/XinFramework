@@ -220,8 +220,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
 
   fetchMenus: async () => {
     const useMock = get().useMockFallback
-    const user = useAuthStore.getState().user
-    const isSuperAdmin = (user?.platform_roles ?? []).includes("super_admin")
+    const scope = useAuthStore.getState().scope
 
     set({ isLoading: true, error: null })
 
@@ -233,35 +232,28 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     }
 
     // ---------- api 分支 ----------
+    // 路径 B 单身份登录：scope 决定走哪组菜单接口。
+    //   - tenant   : /menus/tree          (受 RequireTenantContext 约束)
+    //   - platform : /platform/menus/tree (受 RequirePlatformRole 约束)
+    //   - null     : 未登录或 token 异常，不调任何接口
     try {
+      if (scope === null) {
+        set({ menus: [], dataSource: "api", isLoading: false, error: null })
+        return
+      }
+
       let platformMenus: UnifiedMenuItem[] = []
       let tenantMenus: UnifiedMenuItem[] = []
 
-      // super_admin 才并发请求平台菜单；普通用户只请求租户菜单
-      const promises: Array<Promise<void>> = [
-        menuApi
-          .tree()
-          .then((res) => {
-            tenantMenus = ((res as MenuItem[]) ?? []).map(fromTenantMenu)
-          }),
-      ]
-      if (isSuperAdmin) {
-        promises.push(
-          platformMenuApi
-            .tree()
-            .then((res) => {
-              platformMenus = ((res as PlatformMenuItem[]) ?? []).map(
-                fromPlatformMenu,
-              )
-            })
-            // 平台菜单接口不可用时降级（不影响租户菜单渲染）
-            .catch((e) => {
-              console.warn("[menuStore] platform menus unavailable:", e)
-            }),
+      if (scope === "platform") {
+        const res = await platformMenuApi.tree()
+        platformMenus = ((res as PlatformMenuItem[]) ?? []).map(
+          fromPlatformMenu,
         )
+      } else {
+        const res = await menuApi.tree()
+        tenantMenus = ((res as MenuItem[]) ?? []).map(fromTenantMenu)
       }
-
-      await Promise.all(promises)
 
       const merged = mergeMenus(platformMenus, tenantMenus)
       set({ menus: merged, dataSource: "api", isLoading: false, error: null })

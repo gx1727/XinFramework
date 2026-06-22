@@ -38,14 +38,14 @@ const groupSelectCols = `
 	created_at, updated_at`
 
 const itemSelectCols = `
-	id, tenant_id, group_id, key, value, default_value,
+	id, tenant_id, category_id, key, value, default_value,
 	type, label, description, options, validation,
 	sort, is_public, is_readonly, is_system,
 	platform_item_id, is_override,
 	status, created_at, updated_at`
 
-func scanGroup(row pgx.Row) (ConfigGroup, error) {
-	var g ConfigGroup
+func scanGroup(row pgx.Row) (ConfigCategory, error) {
+	var g ConfigCategory
 	var extendStr string
 	err := row.Scan(
 		&g.ID, &g.TenantID, &g.Code, &g.Name,
@@ -69,7 +69,7 @@ func scanItem(row pgx.Row) (ConfigItem, error) {
 	var valueJSON, defaultValueJSON, optionsJSON, validationJSON []byte
 	var label, desc *string
 	err := row.Scan(
-		&item.ID, &item.TenantID, &item.GroupID, &item.Key,
+		&item.ID, &item.TenantID, &item.CategoryID, &item.Key,
 		&valueJSON, &defaultValueJSON,
 		&item.Type, &label, &desc, &optionsJSON, &validationJSON,
 		&item.Sort, &item.IsPublic, &item.IsReadonly, &item.IsSystem,
@@ -100,21 +100,21 @@ func scanItem(row pgx.Row) (ConfigItem, error) {
 // Group — Tenant 域
 // ============================================================================
 
-func (r *PostgresConfigRepository) ListGroups(ctx context.Context, tenantID uint) ([]ConfigGroup, error) {
+func (r *PostgresConfigRepository) ListGroups(ctx context.Context, tenantID uint) ([]ConfigCategory, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
 	rows, err := q.Query(ctx, `
 		SELECT `+groupSelectCols+`
-		FROM config_groups
+		FROM config_categories
 		WHERE is_deleted = FALSE AND tenant_id = $1
 		ORDER BY sort ASC, id ASC`, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("list groups: %w", err)
 	}
 	defer rows.Close()
-	list := make([]ConfigGroup, 0)
+	list := make([]ConfigCategory, 0)
 	for rows.Next() {
 		g, err := scanGroup(rows)
 		if err != nil {
@@ -125,14 +125,14 @@ func (r *PostgresConfigRepository) ListGroups(ctx context.Context, tenantID uint
 	return list, nil
 }
 
-func (r *PostgresConfigRepository) GetGroupByID(ctx context.Context, id uint) (*ConfigGroup, error) {
+func (r *PostgresConfigRepository) GetGroupByID(ctx context.Context, id uint) (*ConfigCategory, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
 	row := q.QueryRow(ctx, `
 		SELECT `+groupSelectCols+`
-		FROM config_groups WHERE is_deleted = FALSE AND id = $1`, id)
+		FROM config_categories WHERE is_deleted = FALSE AND id = $1`, id)
 	g, err := scanGroup(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -143,14 +143,14 @@ func (r *PostgresConfigRepository) GetGroupByID(ctx context.Context, id uint) (*
 	return &g, nil
 }
 
-func (r *PostgresConfigRepository) GetGroupByCode(ctx context.Context, tenantID uint, code string) (*ConfigGroup, error) {
+func (r *PostgresConfigRepository) GetGroupByCode(ctx context.Context, tenantID uint, code string) (*ConfigCategory, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
 	row := q.QueryRow(ctx, `
 		SELECT `+groupSelectCols+`
-		FROM config_groups
+		FROM config_categories
 		WHERE is_deleted = FALSE AND tenant_id = $1 AND code = $2
 		LIMIT 1`, tenantID, code)
 	g, err := scanGroup(row)
@@ -163,14 +163,14 @@ func (r *PostgresConfigRepository) GetGroupByCode(ctx context.Context, tenantID 
 	return &g, nil
 }
 
-func (r *PostgresConfigRepository) CreateGroup(ctx context.Context, tenantID uint, scope string, req CreateGroupRepoReq) (*ConfigGroup, error) {
+func (r *PostgresConfigRepository) CreateGroup(ctx context.Context, tenantID uint, scope string, req CreateGroupRepoReq) (*ConfigCategory, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
 	extendJSON, _ := json.Marshal(map[string]interface{}{})
 	row := q.QueryRow(ctx, `
-		INSERT INTO config_groups
+		INSERT INTO config_categories
 			(tenant_id, code, name, description, icon, sort, scope, visibility, is_system, is_public, status, extend)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, 'all', $8, $9, 1, $10)
 		RETURNING `+groupSelectCols,
@@ -186,13 +186,13 @@ func (r *PostgresConfigRepository) CreateGroup(ctx context.Context, tenantID uin
 	return &g, nil
 }
 
-func (r *PostgresConfigRepository) UpdateGroup(ctx context.Context, id uint, req UpdateGroupRepoReq) (*ConfigGroup, error) {
+func (r *PostgresConfigRepository) UpdateGroup(ctx context.Context, id uint, req UpdateGroupRepoReq) (*ConfigCategory, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
 	row := q.QueryRow(ctx, `
-		UPDATE config_groups SET
+		UPDATE config_categories SET
 			name        = COALESCE($2, name),
 			description = COALESCE($3, description),
 			icon        = COALESCE($4, icon),
@@ -220,7 +220,7 @@ func (r *PostgresConfigRepository) DeleteGroup(ctx context.Context, id uint) err
 		return err
 	}
 	tag, err := q.Exec(ctx, `
-		UPDATE config_groups SET is_deleted = TRUE, updated_at = NOW()
+		UPDATE config_categories SET is_deleted = TRUE, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete group: %w", err)
@@ -235,21 +235,21 @@ func (r *PostgresConfigRepository) DeleteGroup(ctx context.Context, id uint) err
 // Group — Platform 域
 // ============================================================================
 
-func (r *PostgresConfigRepository) ListPlatformGroups(ctx context.Context) ([]ConfigGroup, error) {
+func (r *PostgresConfigRepository) ListPlatformGroups(ctx context.Context) ([]ConfigCategory, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
 	rows, err := q.Query(ctx, `
 		SELECT `+groupSelectCols+`
-		FROM config_groups
+		FROM config_categories
 		WHERE is_deleted = FALSE AND scope = 'platform'
 		ORDER BY sort ASC, id ASC`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	list := make([]ConfigGroup, 0)
+	list := make([]ConfigCategory, 0)
 	for rows.Next() {
 		g, err := scanGroup(rows)
 		if err != nil {
@@ -260,14 +260,14 @@ func (r *PostgresConfigRepository) ListPlatformGroups(ctx context.Context) ([]Co
 	return list, nil
 }
 
-func (r *PostgresConfigRepository) GetPlatformGroupByCode(ctx context.Context, code string) (*ConfigGroup, error) {
+func (r *PostgresConfigRepository) GetPlatformGroupByCode(ctx context.Context, code string) (*ConfigCategory, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
 	row := q.QueryRow(ctx, `
 		SELECT `+groupSelectCols+`
-		FROM config_groups
+		FROM config_categories
 		WHERE is_deleted = FALSE AND scope = 'platform' AND code = $1
 		LIMIT 1`, code)
 	g, err := scanGroup(row)
@@ -284,7 +284,7 @@ func (r *PostgresConfigRepository) GetPlatformGroupByCode(ctx context.Context, c
 // Item
 // ============================================================================
 
-func (r *PostgresConfigRepository) ListItemsByGroup(ctx context.Context, groupID uint) ([]ConfigItem, error) {
+func (r *PostgresConfigRepository) ListItemsByGroup(ctx context.Context, categoryID uint) ([]ConfigItem, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
@@ -292,8 +292,8 @@ func (r *PostgresConfigRepository) ListItemsByGroup(ctx context.Context, groupID
 	rows, err := q.Query(ctx, `
 		SELECT `+itemSelectCols+`
 		FROM config_items
-		WHERE is_deleted = FALSE AND group_id = $1
-		ORDER BY sort ASC, id ASC`, groupID)
+		WHERE is_deleted = FALSE AND category_id = $1
+		ORDER BY sort ASC, id ASC`, categoryID)
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +318,7 @@ func (r *PostgresConfigRepository) ListItemsByTenant(ctx context.Context, tenant
 		SELECT `+itemSelectCols+`
 		FROM config_items
 		WHERE is_deleted = FALSE AND tenant_id = $1
-		ORDER BY group_id, sort ASC, id ASC`, tenantID)
+		ORDER BY category_id, sort ASC, id ASC`, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +334,7 @@ func (r *PostgresConfigRepository) ListItemsByTenant(ctx context.Context, tenant
 	return list, nil
 }
 
-func (r *PostgresConfigRepository) ListPlatformItemsByGroup(ctx context.Context, groupID uint) ([]ConfigItem, error) {
+func (r *PostgresConfigRepository) ListPlatformItemsByGroup(ctx context.Context, categoryID uint) ([]ConfigItem, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
@@ -342,8 +342,8 @@ func (r *PostgresConfigRepository) ListPlatformItemsByGroup(ctx context.Context,
 	rows, err := q.Query(ctx, `
 		SELECT `+itemSelectCols+`
 		FROM config_items
-		WHERE is_deleted = FALSE AND tenant_id = 0 AND group_id = $1
-		ORDER BY sort ASC, id ASC`, groupID)
+		WHERE is_deleted = FALSE AND tenant_id = 0 AND category_id = $1
+		ORDER BY sort ASC, id ASC`, categoryID)
 	if err != nil {
 		return nil, err
 	}
@@ -367,10 +367,10 @@ func (r *PostgresConfigRepository) ListPublicItemsByTenant(ctx context.Context, 
 	rows, err := q.Query(ctx, `
 		SELECT `+itemSelectCols+`
 		FROM config_items ci
-		JOIN config_groups cg ON cg.id = ci.group_id
+		JOIN config_categories cg ON cg.id = ci.category_id
 		WHERE ci.is_deleted = FALSE AND cg.is_deleted = FALSE AND cg.is_public = TRUE
 		  AND ci.tenant_id = $1 AND ci.is_public = TRUE
-		ORDER BY ci.group_id, ci.sort ASC, ci.id ASC`, tenantID)
+		ORDER BY ci.category_id, ci.sort ASC, ci.id ASC`, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -394,7 +394,7 @@ func (r *PostgresConfigRepository) ListPublicItemsByGroupCode(ctx context.Contex
 	rows, err := q.Query(ctx, `
 		SELECT `+itemSelectCols+`
 		FROM config_items ci
-		JOIN config_groups cg ON cg.id = ci.group_id
+		JOIN config_categories cg ON cg.id = ci.category_id
 		WHERE ci.is_deleted = FALSE AND cg.is_deleted = FALSE AND cg.is_public = TRUE
 		  AND ci.tenant_id = $1 AND ci.is_public = TRUE AND cg.code = $2
 		ORDER BY ci.sort ASC, ci.id ASC`, tenantID, groupCode)
@@ -431,7 +431,7 @@ func (r *PostgresConfigRepository) GetItemByID(ctx context.Context, id uint) (*C
 	return &it, nil
 }
 
-func (r *PostgresConfigRepository) CreateItem(ctx context.Context, tenantID, groupID uint, req CreateItemRepoReq) (*ConfigItem, error) {
+func (r *PostgresConfigRepository) CreateItem(ctx context.Context, tenantID, categoryID uint, req CreateItemRepoReq) (*ConfigItem, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
@@ -443,12 +443,12 @@ func (r *PostgresConfigRepository) CreateItem(ctx context.Context, tenantID, gro
 
 	row := q.QueryRow(ctx, `
 		INSERT INTO config_items
-			(tenant_id, group_id, key, value, default_value, type, label, description, options, validation,
+			(tenant_id, category_id, key, value, default_value, type, label, description, options, validation,
 			 sort, is_public, is_readonly, is_system, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
 		        $11, $12, $13, $14, 1)
 		RETURNING `+itemSelectCols,
-		tenantID, groupID, req.Key, valueJSON, defaultValueJSON, req.Type, req.Label, req.Description,
+		tenantID, categoryID, req.Key, valueJSON, defaultValueJSON, req.Type, req.Label, req.Description,
 		optionsJSON, validationJSON,
 		req.Sort, req.IsPublic, req.IsReadonly, req.IsSystem)
 	it, err := scanItem(row)
@@ -528,7 +528,7 @@ func (r *PostgresConfigRepository) DeleteItem(ctx context.Context, id uint) erro
 	return nil
 }
 
-func (r *PostgresConfigRepository) CountItemsByGroup(ctx context.Context, groupID uint) (int64, error) {
+func (r *PostgresConfigRepository) CountItemsByGroup(ctx context.Context, categoryID uint) (int64, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return 0, err
@@ -536,7 +536,7 @@ func (r *PostgresConfigRepository) CountItemsByGroup(ctx context.Context, groupI
 	var n int64
 	err = q.QueryRow(ctx, `
 		SELECT COUNT(*) FROM config_items
-		WHERE is_deleted = FALSE AND group_id = $1`, groupID).Scan(&n)
+		WHERE is_deleted = FALSE AND category_id = $1`, categoryID).Scan(&n)
 	if err != nil {
 		return 0, err
 	}
@@ -555,8 +555,8 @@ func (r *PostgresConfigRepository) UpsertOverride(ctx context.Context, tenantID,
 	valueJSON, _ := json.Marshal(value)
 	row := q.QueryRow(ctx, `
 		INSERT INTO config_items
-			(tenant_id, group_id, key, value, type, platform_item_id, is_override, status)
-		SELECT $1, ci.group_id, ci.key, $2::jsonb, ci.type, ci.id, TRUE, 1
+			(tenant_id, category_id, key, value, type, platform_item_id, is_override, status)
+		SELECT $1, ci.category_id, ci.key, $2::jsonb, ci.type, ci.id, TRUE, 1
 		FROM config_items ci
 		WHERE ci.id = $3 AND ci.tenant_id = 0 AND ci.is_deleted = FALSE
 		ON CONFLICT (tenant_id, platform_item_id) WHERE is_override = TRUE AND is_deleted = FALSE
@@ -594,14 +594,14 @@ func (r *PostgresConfigRepository) DeleteOverride(ctx context.Context, tenantID,
 // Visibility（平台 group 对租户的访问级别）
 // ============================================================================
 
-func (r *PostgresConfigRepository) ListVisibility(ctx context.Context, groupID uint) ([]ConfigVisibility, error) {
+func (r *PostgresConfigRepository) ListVisibility(ctx context.Context, categoryID uint) ([]ConfigVisibility, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
 	rows, err := q.Query(ctx, `
-		SELECT id, group_id, tenant_id, access, created_at, updated_at
-		FROM config_visibility WHERE group_id = $1`, groupID)
+		SELECT id, category_id, tenant_id, access, created_at, updated_at
+		FROM config_visibility WHERE category_id = $1`, categoryID)
 	if err != nil {
 		return nil, err
 	}
@@ -609,7 +609,7 @@ func (r *PostgresConfigRepository) ListVisibility(ctx context.Context, groupID u
 	list := make([]ConfigVisibility, 0)
 	for rows.Next() {
 		var v ConfigVisibility
-		if err := rows.Scan(&v.ID, &v.GroupID, &v.TenantID, &v.Access, &v.CreatedAt, &v.UpdatedAt); err != nil {
+		if err := rows.Scan(&v.ID, &v.CategoryID, &v.TenantID, &v.Access, &v.CreatedAt, &v.UpdatedAt); err != nil {
 			return nil, err
 		}
 		list = append(list, v)
@@ -617,30 +617,30 @@ func (r *PostgresConfigRepository) ListVisibility(ctx context.Context, groupID u
 	return list, nil
 }
 
-func (r *PostgresConfigRepository) UpsertVisibility(ctx context.Context, groupID, tenantID uint, access string) (*ConfigVisibility, error) {
+func (r *PostgresConfigRepository) UpsertVisibility(ctx context.Context, categoryID, tenantID uint, access string) (*ConfigVisibility, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
 	}
 	row := q.QueryRow(ctx, `
-		INSERT INTO config_visibility (group_id, tenant_id, access)
+		INSERT INTO config_visibility (category_id, tenant_id, access)
 		VALUES ($1, $2, $3)
-		ON CONFLICT (group_id, tenant_id) DO UPDATE SET access = EXCLUDED.access, updated_at = NOW()
-		RETURNING id, group_id, tenant_id, access, created_at, updated_at`,
-		groupID, tenantID, access)
+		ON CONFLICT (category_id, tenant_id) DO UPDATE SET access = EXCLUDED.access, updated_at = NOW()
+		RETURNING id, category_id, tenant_id, access, created_at, updated_at`,
+		categoryID, tenantID, access)
 	var v ConfigVisibility
-	if err := row.Scan(&v.ID, &v.GroupID, &v.TenantID, &v.Access, &v.CreatedAt, &v.UpdatedAt); err != nil {
+	if err := row.Scan(&v.ID, &v.CategoryID, &v.TenantID, &v.Access, &v.CreatedAt, &v.UpdatedAt); err != nil {
 		return nil, err
 	}
 	return &v, nil
 }
 
-func (r *PostgresConfigRepository) DeleteVisibility(ctx context.Context, groupID, tenantID uint) error {
+func (r *PostgresConfigRepository) DeleteVisibility(ctx context.Context, categoryID, tenantID uint) error {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return err
 	}
-	tag, err := q.Exec(ctx, `DELETE FROM config_visibility WHERE group_id = $1 AND tenant_id = $2`, groupID, tenantID)
+	tag, err := q.Exec(ctx, `DELETE FROM config_visibility WHERE category_id = $1 AND tenant_id = $2`, categoryID, tenantID)
 	if err != nil {
 		return err
 	}
@@ -670,10 +670,10 @@ func (r *PostgresConfigRepository) ResolveGroupForTenant(ctx context.Context, te
 	}
 
 	// 1) 找 platform group
-	var group ConfigGroup
+	var group ConfigCategory
 	err = q.QueryRow(ctx, `
 		SELECT `+groupSelectCols+`
-		FROM config_groups
+		FROM config_categories
 		WHERE is_deleted = FALSE AND scope = 'platform' AND code = $1
 		LIMIT 1`, groupCode).Scan(/* ... */)
 	if err != nil {
@@ -687,7 +687,7 @@ func (r *PostgresConfigRepository) ResolveGroupForTenant(ctx context.Context, te
 	// 重新写一次：
 	group, err = scanGroupFromQueryRow(q.QueryRow(ctx, `
 		SELECT `+groupSelectCols+`
-		FROM config_groups
+		FROM config_categories
 		WHERE is_deleted = FALSE AND scope = 'platform' AND code = $1
 		LIMIT 1`, groupCode))
 	if err != nil {
@@ -717,9 +717,9 @@ func (r *PostgresConfigRepository) ResolveGroupForTenant(ctx context.Context, te
 
 	// 5) 合并
 	out := &ResolvedConfig{
-		GroupID:   group.ID,
-		GroupCode: group.Code,
-		GroupName: group.Name,
+		CategoryID:   group.ID,
+		CategoryCode: group.Code,
+		CategoryName: group.Name,
 		Items:     make(map[string]ResolvedItem, len(platformItems)),
 	}
 	for _, it := range platformItems {
@@ -759,7 +759,7 @@ func (r *PostgresConfigRepository) ResolveAllForTenant(ctx context.Context, tena
 }
 
 // 内部辅助方法（避免重复 Query 构造）
-func (r *PostgresConfigRepository) listPlatformItemsByGroupInternal(ctx context.Context, groupID uint) ([]ConfigItem, error) {
+func (r *PostgresConfigRepository) listPlatformItemsByGroupInternal(ctx context.Context, categoryID uint) ([]ConfigItem, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
@@ -767,8 +767,8 @@ func (r *PostgresConfigRepository) listPlatformItemsByGroupInternal(ctx context.
 	rows, err := q.Query(ctx, `
 		SELECT `+itemSelectCols+`
 		FROM config_items
-		WHERE is_deleted = FALSE AND tenant_id = 0 AND group_id = $1
-		ORDER BY sort ASC, id ASC`, groupID)
+		WHERE is_deleted = FALSE AND tenant_id = 0 AND category_id = $1
+		ORDER BY sort ASC, id ASC`, categoryID)
 	if err != nil {
 		return nil, err
 	}
@@ -784,7 +784,7 @@ func (r *PostgresConfigRepository) listPlatformItemsByGroupInternal(ctx context.
 	return list, nil
 }
 
-func (r *PostgresConfigRepository) listOverrideItemsInternal(ctx context.Context, tenantID, groupID uint) ([]ConfigItem, error) {
+func (r *PostgresConfigRepository) listOverrideItemsInternal(ctx context.Context, tenantID, categoryID uint) ([]ConfigItem, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err
@@ -793,8 +793,8 @@ func (r *PostgresConfigRepository) listOverrideItemsInternal(ctx context.Context
 		SELECT `+itemSelectCols+`
 		FROM config_items
 		WHERE is_deleted = FALSE AND is_override = TRUE
-		  AND tenant_id = $1 AND group_id = $2
-		ORDER BY sort ASC, id ASC`, tenantID, groupID)
+		  AND tenant_id = $1 AND category_id = $2
+		ORDER BY sort ASC, id ASC`, tenantID, categoryID)
 	if err != nil {
 		return nil, err
 	}
@@ -813,7 +813,7 @@ func (r *PostgresConfigRepository) listOverrideItemsInternal(ctx context.Context
 // scanGroupFromQueryRow 是 scanGroup 的 pgx.Row 别名。
 // pgx.Row 接口和 pgx.Rows 接口的 Scan 方法签名相同，
 // 所以可以直接复用 scanGroup。
-func scanGroupFromQueryRow(row pgx.Row) (ConfigGroup, error) {
+func scanGroupFromQueryRow(row pgx.Row) (ConfigCategory, error) {
 	return scanGroup(row)
 }
 

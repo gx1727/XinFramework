@@ -54,11 +54,11 @@ func NewService(pool *pgxpool.Pool, repo ConfigRepository, cache *Cache) *Servic
 // ============================================================================
 
 // CreateGroup 创建配置分组（super_admin 调用）
-func (s *Service) CreateGroup(ctx context.Context, req createGroupRequest, scope string) (*ConfigGroup, error) {
+func (s *Service) CreateGroup(ctx context.Context, req createGroupRequest, scope string) (*ConfigCategory, error) {
 	if !isValidScope(scope) {
 		return nil, ErrInvalidVisibility
 	}
-	var out *ConfigGroup
+	var out *ConfigCategory
 	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
 		repoReq := CreateGroupRepoReq{
 			Code:        req.Code,
@@ -83,13 +83,13 @@ func (s *Service) CreateGroup(ctx context.Context, req createGroupRequest, scope
 	if s.cache != nil {
 		s.cache.InvalidateAll()
 	}
-	audit.Log(ctx, s.pool, audit.Entry{Action: "config_group:create", TableName: "config_groups", RecordID: uint(out.ID), OldData: nil, NewData: out})
+	audit.Log(ctx, s.pool, audit.Entry{Action: "config_category:create", TableName: "config_categories", RecordID: uint(out.ID), OldData: nil, NewData: out})
 	return out, nil
 }
 
 // UpdateGroup 修改配置分组（super_admin 调用）
-func (s *Service) UpdateGroup(ctx context.Context, id uint, req updateGroupRequest) (*ConfigGroup, error) {
-	var out *ConfigGroup
+func (s *Service) UpdateGroup(ctx context.Context, id uint, req updateGroupRequest) (*ConfigCategory, error) {
+	var out *ConfigCategory
 	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
 		var err error
 		out, err = s.repo.UpdateGroup(ctx, id, UpdateGroupRepoReq{
@@ -109,7 +109,7 @@ func (s *Service) UpdateGroup(ctx context.Context, id uint, req updateGroupReque
 	if s.cache != nil {
 		s.cache.InvalidateAll()
 	}
-	audit.Log(ctx, s.pool, audit.Entry{Action: "config_group:update", TableName: "config_groups", RecordID: uint(id), OldData: nil, NewData: out})
+	audit.Log(ctx, s.pool, audit.Entry{Action: "config_category:update", TableName: "config_categories", RecordID: uint(id), OldData: nil, NewData: out})
 	return out, nil
 }
 
@@ -132,13 +132,13 @@ func (s *Service) DeleteGroup(ctx context.Context, id uint) error {
 	if s.cache != nil {
 		s.cache.InvalidateAll()
 	}
-	audit.Log(ctx, s.pool, audit.Entry{Action: "config_group:delete", TableName: "config_groups", RecordID: uint(id), OldData: nil, NewData: nil})
+	audit.Log(ctx, s.pool, audit.Entry{Action: "config_category:delete", TableName: "config_categories", RecordID: uint(id), OldData: nil, NewData: nil})
 	return nil
 }
 
 // ListPlatformGroups 列全部平台 group
-func (s *Service) ListPlatformGroups(ctx context.Context) ([]ConfigGroup, error) {
-	var out []ConfigGroup
+func (s *Service) ListPlatformGroups(ctx context.Context) ([]ConfigCategory, error) {
+	var out []ConfigCategory
 	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
 		var err error
 		out, err = s.repo.ListPlatformGroups(ctx)
@@ -152,7 +152,7 @@ func (s *Service) ListPlatformGroups(ctx context.Context) ([]ConfigGroup, error)
 // ============================================================================
 
 // CreateItem 创建平台 item
-func (s *Service) CreateItem(ctx context.Context, groupID uint, req createItemRequest) (*ConfigItem, error) {
+func (s *Service) CreateItem(ctx context.Context, categoryID uint, req createItemRequest) (*ConfigItem, error) {
 	if !isValidType(req.Type) {
 		return nil, ErrInvalidItemType
 	}
@@ -176,7 +176,7 @@ func (s *Service) CreateItem(ctx context.Context, groupID uint, req createItemRe
 			IsSystem:     req.IsSystem,
 		}
 		var err error
-		out, err = s.repo.CreateItem(ctx, 0, groupID, repoReq)
+		out, err = s.repo.CreateItem(ctx, 0, categoryID, repoReq)
 		return err
 	})
 	if err != nil {
@@ -237,11 +237,11 @@ func (s *Service) DeleteItem(ctx context.Context, id uint) error {
 }
 
 // ListPlatformItems 列某平台 group 的所有 item
-func (s *Service) ListPlatformItems(ctx context.Context, groupID uint) ([]ConfigItem, error) {
+func (s *Service) ListPlatformItems(ctx context.Context, categoryID uint) ([]ConfigItem, error) {
 	var out []ConfigItem
 	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
 		var err error
-		out, err = s.repo.ListPlatformItemsByGroup(ctx, groupID)
+		out, err = s.repo.ListPlatformItemsByGroup(ctx, categoryID)
 		return err
 	})
 	return out, err
@@ -306,25 +306,25 @@ func (s *Service) DeleteOverride(ctx context.Context, tenantID, platformItemID u
 // ============================================================================
 
 // ListVisibility 列某 platform group 对各租户的访问级别
-func (s *Service) ListVisibility(ctx context.Context, groupID uint) ([]ConfigVisibility, error) {
+func (s *Service) ListVisibility(ctx context.Context, categoryID uint) ([]ConfigVisibility, error) {
 	var out []ConfigVisibility
 	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
 		var err error
-		out, err = s.repo.ListVisibility(ctx, groupID)
+		out, err = s.repo.ListVisibility(ctx, categoryID)
 		return err
 	})
 	return out, err
 }
 
 // UpsertVisibility super_admin 设置某 platform group 对某租户的访问级别
-func (s *Service) UpsertVisibility(ctx context.Context, groupID, tenantID uint, access string) (*ConfigVisibility, error) {
+func (s *Service) UpsertVisibility(ctx context.Context, categoryID, tenantID uint, access string) (*ConfigVisibility, error) {
 	if !isValidAccess(access) {
 		return nil, ErrInvalidAccess
 	}
 	var out *ConfigVisibility
 	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
 		var err error
-		out, err = s.repo.UpsertVisibility(ctx, groupID, tenantID, access)
+		out, err = s.repo.UpsertVisibility(ctx, categoryID, tenantID, access)
 		return err
 	})
 	if err != nil {
@@ -333,14 +333,14 @@ func (s *Service) UpsertVisibility(ctx context.Context, groupID, tenantID uint, 
 	if s.cache != nil {
 		s.cache.Invalidate(tenantID)
 	}
-	audit.Log(ctx, s.pool, audit.Entry{Action: "config_group:visibility_upsert", TableName: "config_visibility", RecordID: uint(out.ID), OldData: nil, NewData: out})
+	audit.Log(ctx, s.pool, audit.Entry{Action: "config_category:visibility_upsert", TableName: "config_visibility", RecordID: uint(out.ID), OldData: nil, NewData: out})
 	return out, nil
 }
 
 // DeleteVisibility 删除某 platform group 对某租户的访问级别（恢复默认 visibility 策略）
-func (s *Service) DeleteVisibility(ctx context.Context, groupID, tenantID uint) error {
+func (s *Service) DeleteVisibility(ctx context.Context, categoryID, tenantID uint) error {
 	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
-		return s.repo.DeleteVisibility(ctx, groupID, tenantID)
+		return s.repo.DeleteVisibility(ctx, categoryID, tenantID)
 	})
 	if err != nil {
 		return mapRepoError(err)
@@ -348,7 +348,7 @@ func (s *Service) DeleteVisibility(ctx context.Context, groupID, tenantID uint) 
 	if s.cache != nil {
 		s.cache.Invalidate(tenantID)
 	}
-	audit.Log(ctx, s.pool, audit.Entry{Action: "config_group:visibility_delete", TableName: "config_visibility", RecordID: uint(groupID), OldData: nil, NewData: nil})
+	audit.Log(ctx, s.pool, audit.Entry{Action: "config_category:visibility_delete", TableName: "config_visibility", RecordID: uint(categoryID), OldData: nil, NewData: nil})
 	return nil
 }
 

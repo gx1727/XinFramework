@@ -400,23 +400,24 @@ func NewPublicHandler(svc *Service) *PublicHandler {
 	return &PublicHandler{svc: svc}
 }
 
-// GetPublic 按 group code 取公开配置（is_public=TRUE 的 group 下所有 item）
+// GetPublic 取公开配置（is_public=TRUE 的 group 下所有 item）。
 //
-// 用 X-Tenant-ID header 兜底识别租户（无 auth 也可用）。
+// tenantID 解析顺序：UserContext → X-Tenant-ID header → 0（platform scope）。
+//
+//   - tenantID > 0：在该租户 RLS 上下文中查 ci.tenant_id = X 的公开项（含该租户自建的 tenant-scope 公开项 + 平台级公开项如未覆盖）
+//   - tenantID = 0 ：platform scope 模式（匿名场景也合法），RLS 过滤到 ci.tenant_id = 0 的 platform-scope 公开项
+//
+// 不强制要求传 tenant_id——公开读按设计对匿名/平台域开放。
 func (h *PublicHandler) GetPublic(c *gin.Context) {
 	tenantID := xinContext.New(c).GetTenantID()
 	if tenantID == 0 {
-		// 从 header 兜底
+		// 从 header 兜底（X-Tenant-ID 显式指定要看的租户）
 		headerVal := c.GetHeader("X-Tenant-ID")
 		if headerVal != "" {
 			if tid, err := strconv.ParseUint(headerVal, 10, 64); err == nil {
 				tenantID = uint(tid)
 			}
 		}
-	}
-	if tenantID == 0 {
-		resp.Error(c, 400, "missing tenant_id")
-		return
 	}
 	items, err := h.svc.ListPublicItems(c.Request.Context(), tenantID)
 	if err != nil {

@@ -45,7 +45,7 @@ export interface ConfigValidation {
   placeholder?: string
 }
 
-export interface ConfigGroup {
+export interface ConfigCategory {
   id: number
   tenant_id?: number
   code: string
@@ -65,7 +65,7 @@ export interface ConfigGroup {
 export interface ConfigItem {
   id: number
   tenant_id?: number
-  group_id: number
+  category_id: number
   key: string
   value?: unknown
   default_value?: unknown
@@ -152,15 +152,15 @@ export const configApi = {
   //
   // 受 RLS + RequireTenantContext 约束，
   // 租户看到的是 platform 可见 group ∪ 自己 tenant scope group。
-  listGroups: () => api<ConfigGroup[]>("/configs"),
+  listGroups: () => api<ConfigCategory[]>("/configs"),
 
-  // 取某 group 下所有 item（含 platform + tenant override 合并）
-  listItemsByGroup: (groupId: number) =>
-    api<ConfigItem[]>(`/configs/${groupId}/items`),
+  // 取某 category 下所有 item（含 platform + tenant override 合并）
+  listItemsByGroup: (categoryId: number) =>
+    api<ConfigItem[]>(`/configs/${categoryId}/items`),
 
   // 租户对某 platform item 的值覆盖（"重置" = 删 override，恢复平台默认值）
-  deleteOverride: (groupId: number, itemId: number) =>
-    api(`/configs/${groupId}/items/${itemId}/override`, {
+  deleteOverride: (categoryId: number, itemId: number) =>
+    api(`/configs/${categoryId}/items/${itemId}/override`, {
       method: "DELETE",
     }),
 
@@ -169,14 +169,14 @@ export const configApi = {
   // 挂在 /api/v1/platform/configs 下，需 RequirePlatformRole("super_admin")。
   // 前端如果用租户 token 调用会 403——这是后端设计。
   createPlatformGroup: (data: CreatePlatformGroupRequest) =>
-    api<ConfigGroup>("/platform/configs", {
+    api<ConfigCategory>("/platform/configs", {
       method: "POST",
       params: { scope: "platform" },
       body: JSON.stringify(data),
     }),
 
   updatePlatformGroup: (id: number, data: UpdatePlatformGroupRequest) =>
-    api<ConfigGroup>(`/platform/configs/${id}`, {
+    api<ConfigCategory>(`/platform/configs/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
@@ -184,27 +184,27 @@ export const configApi = {
   deletePlatformGroup: (id: number) =>
     api(`/platform/configs/${id}`, { method: "DELETE" }),
 
-  listPlatformItems: (groupId: number) =>
-    api<ConfigItem[]>(`/platform/configs/${groupId}/items`),
+  listPlatformItems: (categoryId: number) =>
+    api<ConfigItem[]>(`/platform/configs/${categoryId}/items`),
 
-  createPlatformItem: (groupId: number, data: CreatePlatformItemRequest) =>
-    api<ConfigItem>(`/platform/configs/${groupId}/items`, {
+  createPlatformItem: (categoryId: number, data: CreatePlatformItemRequest) =>
+    api<ConfigItem>(`/platform/configs/${categoryId}/items`, {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   updatePlatformItem: (
-    groupId: number,
+    categoryId: number,
     itemId: number,
     data: UpdatePlatformItemRequest
   ) =>
-    api<ConfigItem>(`/platform/configs/${groupId}/items/${itemId}`, {
+    api<ConfigItem>(`/platform/configs/${categoryId}/items/${itemId}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
-  deletePlatformItem: (groupId: number, itemId: number) =>
-    api(`/platform/configs/${groupId}/items/${itemId}`, {
+  deletePlatformItem: (categoryId: number, itemId: number) =>
+    api(`/platform/configs/${categoryId}/items/${itemId}`, {
       method: "DELETE",
     }),
 }

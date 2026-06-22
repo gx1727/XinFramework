@@ -1,4 +1,3 @@
-//
 // 流程：
 //  1. config.Load("config/config.yaml")
 //  2. boot.Init(cfg) → *appx.App
@@ -75,5 +74,5 @@ func main() {
 		flag.Module(app),
 	}
 
-framework.Serve(cfg, app, rt, modules)
+	framework.Serve(cfg, app, rt, modules)
 }

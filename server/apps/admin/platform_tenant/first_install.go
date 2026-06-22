@@ -12,12 +12,12 @@ import (
 )
 
 // TemplateTenantCode 模板租户的特殊 code。所有 first_install 流程从此租户复制
-// menus / resources / dicts / dict_items / config_groups / config_items。
+// menus / resources / dicts / dict_items / config_categories / config_items。
 //
 // 历史方案：曾有一个 __template__ (status=0) 作为克隆源 + default (status=1) 作为 admin 居住地。
 // 现已合并为单一 bootstrap 租户同时承担两个角色（admin 居住 + 新租户克隆源）。
 //   - status=1（激活），所以 admin 能登录看到所有模板数据
-//   - new_install.go 显式只克隆数据表（menus/resources/dicts/config_groups/config_items），
+//   - new_install.go 显式只克隆数据表（menus/resources/dicts/config_categories/config_items），
 //     不克隆 users / organizations / user_roles / role_data_scopes / tenant_user_seq
 //   - 这些"租户级独有"的数据每次首装独立创建
 const TemplateTenantCode = "bootstrap"
@@ -202,33 +202,33 @@ func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminA
 		return nil, fmt.Errorf("first-install count dict_items: %w", err)
 	}
 
-	// 6a) 复制 config_groups（先入主）
+	// 6a) 复制 config_categories（先入主）
 	if _, err := q.Exec(ctx, `
-		INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public, status)
+		INSERT INTO config_categories (tenant_id, code, name, description, icon, sort, is_system, is_public, status)
 		SELECT $1, code, name, description, icon, sort, is_system, is_public, status
-		FROM config_groups
+		FROM config_categories
 		WHERE tenant_id = $2 AND is_deleted = FALSE`,
 		tenantID, templateID); err != nil {
-		return nil, fmt.Errorf("first-install copy config_groups: %w", err)
+		return nil, fmt.Errorf("first-install copy config_categories: %w", err)
 	}
 
 	if err := q.QueryRow(ctx, `
-		SELECT COUNT(*) FROM config_groups WHERE tenant_id = $1 AND is_deleted = FALSE`,
+		SELECT COUNT(*) FROM config_categories WHERE tenant_id = $1 AND is_deleted = FALSE`,
 		tenantID).Scan(&rep.ConfigGroupCount); err != nil {
-		return nil, fmt.Errorf("first-install count config_groups: %w", err)
+		return nil, fmt.Errorf("first-install count config_categories: %w", err)
 	}
 
-	// 6b) 复制 config_items（用 code 重映射 group_id，value 继承 default_value）
+	// 6b) 复制 config_items（用 code 重映射 category_id，value 继承 default_value）
 	if _, err := q.Exec(ctx, `
 		INSERT INTO config_items
-		    (tenant_id, group_id, key, value, default_value, type, label, description, options, validation,
+		    (tenant_id, category_id, key, value, default_value, type, label, description, options, validation,
 		     sort, is_public, is_readonly, is_system, status)
 		SELECT $1, new_g.id, ci.key, COALESCE(ci.default_value, ci.value), ci.default_value, ci.type,
 		       ci.label, ci.description, ci.options, ci.validation,
 		       ci.sort, ci.is_public, ci.is_readonly, ci.is_system, ci.status
 		FROM config_items ci
-		JOIN config_groups old_g ON old_g.id = ci.group_id AND old_g.tenant_id = $2 AND old_g.is_deleted = FALSE
-		JOIN config_groups new_g ON new_g.code = old_g.code
+		JOIN config_categories old_g ON old_g.id = ci.category_id AND old_g.tenant_id = $2 AND old_g.is_deleted = FALSE
+		JOIN config_categories new_g ON new_g.code = old_g.code
 		                        AND new_g.tenant_id = $1 AND new_g.is_deleted = FALSE
 		WHERE ci.tenant_id = $2 AND ci.is_deleted = FALSE`,
 		tenantID, templateID); err != nil {

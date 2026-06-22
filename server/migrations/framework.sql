@@ -586,7 +586,7 @@ JOIN (VALUES
 -- 历史方案有两个特殊租户：default (admin 居住) + __template__ (克隆源，**已废弃**)。
 -- 现已合并为单一 bootstrap 租户：
 --   - admin 用户在此居住（tenant_id=1，status=1 激活）
---   - 新租户通过 first_install.go 从 bootstrap 复制 menus/resources/dicts/config_groups/config_items
+--   - 新租户通过 first_install.go 从 bootstrap 复制 menus/resources/dicts/config_categories/config_items
 --   - 复制逻辑只克隆数据表，不克隆 users / organizations / user_roles / role_data_scopes / tenant_user_seq
 --     （这些是租户级独有，每次首装独立创建）
 --
@@ -630,32 +630,32 @@ ON CONFLICT (tenant_id, dict_id, code) WHERE tenant_id <> 0 AND is_deleted = FAL
 -- 新租户首装时由 apps/boot/tenant/first_install.go 从 bootstrap 复制
 -- ============================================
 
--- config_groups
-INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
+-- config_categories
+INSERT INTO config_categories (tenant_id, code, name, description, icon, sort, is_system, is_public)
 SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
        'site', '站点信息', '站点名称、Logo、版权等公开信息', 'GlobeIcon', 1, TRUE, TRUE
 ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
 
-INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
+INSERT INTO config_categories (tenant_id, code, name, description, icon, sort, is_system, is_public)
 SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
        'security', '安全策略', '密码强度、会话超时等安全相关配置', 'ShieldIcon', 2, TRUE, FALSE
 ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
 
-INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
+INSERT INTO config_categories (tenant_id, code, name, description, icon, sort, is_system, is_public)
 SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
        'email', '邮件服务', 'SMTP 邮件服务配置', 'MailIcon', 3, TRUE, FALSE
 ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
 
-INSERT INTO config_groups (tenant_id, code, name, description, icon, sort, is_system, is_public)
+INSERT INTO config_categories (tenant_id, code, name, description, icon, sort, is_system, is_public)
 SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
        'feature_flag', '功能开关', '系统级功能启用/禁用开关', 'ToggleLeftIcon', 4, TRUE, FALSE
 ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
 
 -- site items
-INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_system)
+INSERT INTO config_items (tenant_id, category_id, key, value, default_value, type, label, description, sort, is_public, is_system)
 SELECT
     (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
-    (SELECT id FROM config_groups WHERE code = 'site' AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
+    (SELECT id FROM config_categories WHERE code = 'site' AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
     s.key, s.value, s.default_value, s.type, s.label, s.description, s.sort, s.is_public, TRUE
 FROM (VALUES
     ('site_name',         '"XinFramework"'::jsonb, '"XinFramework"'::jsonb, 'string', '站点名称', '显示在页面标题、登录页等位置', 1, TRUE),
@@ -666,13 +666,13 @@ FROM (VALUES
     ('site_locale_default', '"zh-CN"'::jsonb,       '"zh-CN"'::jsonb,        'select', '默认语言', 'zh-CN / en-US', 6, TRUE),
     ('login_background',  '""'::jsonb,              '""'::jsonb,             'image',  '登录页背景', '登录页右侧大图', 7, TRUE)
 ) AS s(key, value, default_value, type, label, description, sort, is_public)
-ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
+ON CONFLICT (tenant_id, category_id, key) WHERE is_deleted = FALSE DO NOTHING;
 
 -- security items
-INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, validation, sort, is_public, is_system)
+INSERT INTO config_items (tenant_id, category_id, key, value, default_value, type, label, description, validation, sort, is_public, is_system)
 SELECT
     (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
-    (SELECT id FROM config_groups WHERE code = 'security' AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
+    (SELECT id FROM config_categories WHERE code = 'security' AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
     s.key, s.value, s.default_value, s.type, s.label, s.description, s.validation, s.sort, FALSE, TRUE
 FROM (VALUES
     ('password_min_length',  '8'::jsonb,    '8'::jsonb,    'number', '密码最小长度', '新建/修改密码时校验',           '{"min":6,"max":32,"required":true}'::jsonb, 1),
@@ -681,13 +681,13 @@ FROM (VALUES
     ('max_login_attempts',   '5'::jsonb,    '5'::jsonb,    'number', '最大登录失败次数', '超过后锁定账户',                '{"min":1,"max":20,"required":true}'::jsonb, 4),
     ('lock_duration_min',    '5'::jsonb,    '5'::jsonb,    'number', '锁定时长(分钟)',   '失败次数超限后的锁定时长',       '{"min":1,"max":1440,"required":true}'::jsonb, 5)
 ) AS s(key, value, default_value, type, label, description, validation, sort)
-ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
+ON CONFLICT (tenant_id, category_id, key) WHERE is_deleted = FALSE DO NOTHING;
 
 -- email items
-INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_readonly, is_system)
+INSERT INTO config_items (tenant_id, category_id, key, value, default_value, type, label, description, sort, is_public, is_readonly, is_system)
 SELECT
     (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
-    (SELECT id FROM config_groups WHERE code = 'email' AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
+    (SELECT id FROM config_categories WHERE code = 'email' AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
     s.key, s.value, s.default_value, s.type, s.label, s.description, s.sort, FALSE, s.is_readonly, TRUE
 FROM (VALUES
     ('smtp_host',     '""'::jsonb,         '""'::jsonb,         'string',  'SMTP 主机',   '如 smtp.example.com',  1, FALSE),
@@ -697,19 +697,19 @@ FROM (VALUES
     ('smtp_from',     '""'::jsonb,         '""'::jsonb,         'string',  '发件人邮箱',  '邮件 From 头',         5, FALSE),
     ('smtp_use_tls',  'true'::jsonb,       'true'::jsonb,       'boolean', '启用 TLS',    '465 通常 TLS，587 STARTTLS', 6, FALSE)
 ) AS s(key, value, default_value, type, label, description, sort, is_readonly)
-ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
+ON CONFLICT (tenant_id, category_id, key) WHERE is_deleted = FALSE DO NOTHING;
 
 -- feature_flag items\
-INSERT INTO config_items (tenant_id, group_id, key, value, default_value, type, label, description, sort, is_public, is_system)
+INSERT INTO config_items (tenant_id, category_id, key, value, default_value, type, label, description, sort, is_public, is_system)
 SELECT
     (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
-    (SELECT id FROM config_groups WHERE code = 'feature_flag' AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
+    (SELECT id FROM config_categories WHERE code = 'feature_flag' AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
     s.key, s.value, s.default_value, s.type, s.label, s.description, s.sort, FALSE, TRUE
 FROM (VALUES
     ('enable_registration', 'true'::jsonb, 'true'::jsonb, 'boolean', '开放注册', '允许外部用户自助注册', 1),
     ('enable_audit_log',    'true'::jsonb, 'true'::jsonb, 'boolean', '审计日志', '记录关键操作审计日志', 2)
 ) AS s(key, value, default_value, type, label, description, sort)
-ON CONFLICT (tenant_id, group_id, key) WHERE is_deleted = FALSE DO NOTHING;
+ON CONFLICT (tenant_id, category_id, key) WHERE is_deleted = FALSE DO NOTHING;
 
 -- 菜单：平台配置管理（顶级菜单，与 tenants 平级；不挂在 system 下）
 -- id=101（平行 tenants=100，避免与基础菜单 id 冲突）
@@ -738,8 +738,8 @@ FROM (VALUES
 ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
 
 -- 序列号兜底（与上面 setval 段保持一致；保证后续 first_install 复制时 id 不冲突）
-SELECT setval('config_groups_id_seq', GREATEST(
-    (SELECT COALESCE(MAX(id), 0) FROM config_groups),
+SELECT setval('config_categories_id_seq', GREATEST(
+    (SELECT COALESCE(MAX(id), 0) FROM config_categories),
     (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) * 1000
 ), true);
 

@@ -55,7 +55,7 @@ export function IdentityPickerDialog({
         </DialogHeader>
 
         <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto py-2">
-          {identities.map((identity) => (
+          {(identities ?? []).map((identity) => (
             <button
               key={`${identity.tenant_id}-${identity.user_id}`}
               type="button"

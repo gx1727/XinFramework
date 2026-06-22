@@ -1,7 +1,7 @@
 import { create } from "zustand"
 import {
   configApi,
-  type ConfigGroup,
+  type ConfigCategory,
   type ConfigItem,
   type ConfigItemType,
   type CreatePlatformGroupRequest,
@@ -16,8 +16,8 @@ interface ConfigState {
   publicLoaded: Record<string, boolean>
 
   // 管理端状态
-  groups: ConfigGroup[]
-  groupItems: Record<number, ConfigItem[]>
+  groups: ConfigCategory[]
+  categoryItems: Record<number, ConfigItem[]>
   isLoadingGroups: boolean
   isLoadingItems: boolean
   error: string | null
@@ -28,27 +28,27 @@ interface ConfigState {
   refreshPublic: (group: string) => Promise<void>
 
   // 管理端
-  loadGroups: () => Promise<ConfigGroup[]>
-  loadItems: (groupId: number) => Promise<ConfigItem[]>
+  loadGroups: () => Promise<ConfigCategory[]>
+  loadItems: (categoryId: number) => Promise<ConfigItem[]>
   // 后端没有"全量 items"单端点；前端聚合 listGroups + 每 group listItemsByGroup
   loadAllItems: () => Promise<ConfigItem[]>
 
-  createGroup: (data: CreatePlatformGroupRequest) => Promise<ConfigGroup>
-  updateGroup: (id: number, data: UpdatePlatformGroupRequest) => Promise<ConfigGroup>
+  createGroup: (data: CreatePlatformGroupRequest) => Promise<ConfigCategory>
+  updateGroup: (id: number, data: UpdatePlatformGroupRequest) => Promise<ConfigCategory>
   deleteGroup: (id: number) => Promise<void>
 
   createItem: (
-    groupId: number,
+    categoryId: number,
     data: CreatePlatformItemRequest
   ) => Promise<ConfigItem>
   updateItem: (
-    groupId: number,
+    categoryId: number,
     id: number,
     data: UpdatePlatformItemRequest
   ) => Promise<ConfigItem>
   // "重置" 在新架构下 = 删除租户对 platform item 的 override
-  resetItem: (groupId: number, id: number) => Promise<void>
-  deleteItem: (groupId: number, id: number) => Promise<void>
+  resetItem: (categoryId: number, id: number) => Promise<void>
+  deleteItem: (categoryId: number, id: number) => Promise<void>
 
   clear: () => void
 }
@@ -66,7 +66,7 @@ export const useConfigStore = create<ConfigState>()((set, get) => ({
   publicCache: {},
   publicLoaded: {},
   groups: [],
-  groupItems: {},
+  categoryItems: {},
   isLoadingGroups: false,
   isLoadingItems: false,
   error: null,
@@ -79,7 +79,10 @@ export const useConfigStore = create<ConfigState>()((set, get) => ({
       return publicCache[group] || {}
     }
     try {
-      const res = await configApi.getPublic(group)
+      // 公共读在匿名场景下也能调（login 页面加载 logo / 站点信息等），
+      // 用 tenantId=0 表示平台范围公开配置。
+      // 已登录场景如果需要按租户筛选，可以传 useAuthStore().user?.tenant_id。
+      const res = await configApi.getPublic(group, 0)
       set((s) => ({
         publicCache: { ...s.publicCache, [group]: res.values || {} },
         publicLoaded: { ...s.publicLoaded, [group]: true },
@@ -120,12 +123,12 @@ export const useConfigStore = create<ConfigState>()((set, get) => ({
     }
   },
 
-  loadItems: async (groupId) => {
+  loadItems: async (categoryId) => {
     set({ isLoadingItems: true, error: null })
     try {
-      const list = await configApi.listItemsByGroup(groupId)
+      const list = await configApi.listItemsByGroup(categoryId)
       set((s) => ({
-        groupItems: { ...s.groupItems, [groupId]: list },
+        categoryItems: { ...s.categoryItems, [categoryId]: list },
         isLoadingItems: false,
       }))
       return list
@@ -144,13 +147,13 @@ export const useConfigStore = create<ConfigState>()((set, get) => ({
       const lists = await Promise.all(
         groups.map((g) => configApi.listItemsByGroup(g.id).catch(() => []))
       )
-      const groupItems: Record<number, ConfigItem[]> = {}
+      const categoryItems: Record<number, ConfigItem[]> = {}
       const flat: ConfigItem[] = []
       groups.forEach((g, i) => {
-        groupItems[g.id] = lists[i]
+        categoryItems[g.id] = lists[i]
         flat.push(...lists[i])
       })
-      set({ groups, groupItems, isLoadingItems: false })
+      set({ groups, categoryItems, isLoadingItems: false })
       return flat
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "加载配置项失败"
@@ -180,69 +183,69 @@ export const useConfigStore = create<ConfigState>()((set, get) => ({
     const old = get().groups.find((g) => g.id === id)
     await configApi.deletePlatformGroup(id)
     set((s) => {
-      const next = { ...s.groupItems }
+      const next = { ...s.categoryItems }
       delete next[id]
       return {
         groups: s.groups.filter((g) => g.id !== id),
-        groupItems: next,
+        categoryItems: next,
       }
     })
     if (old?.is_public) refreshPublicByGroupCode(old.code)
   },
 
-  createItem: async (groupId, data) => {
-    const it = await configApi.createPlatformItem(groupId, data)
+  createItem: async (categoryId, data) => {
+    const it = await configApi.createPlatformItem(categoryId, data)
     set((s) => ({
-      groupItems: {
-        ...s.groupItems,
-        [groupId]: [...(s.groupItems[groupId] || []), it].sort((a, b) => a.sort - b.sort),
+      categoryItems: {
+        ...s.categoryItems,
+        [categoryId]: [...(s.categoryItems[categoryId] || []), it].sort((a, b) => a.sort - b.sort),
       },
     }))
-    if (it.is_public) invalidateItemPublicCache(it.group_id)
+    if (it.is_public) invalidateItemPublicCache(it.category_id)
     return it
   },
 
-  updateItem: async (groupId, id, data) => {
-    const old = findItemInState(get().groupItems, id)
-    const it = await configApi.updatePlatformItem(groupId, id, data)
+  updateItem: async (categoryId, id, data) => {
+    const old = findItemInState(get().categoryItems, id)
+    const it = await configApi.updatePlatformItem(categoryId, id, data)
     set((s) => {
-      const next = { ...s.groupItems }
+      const next = { ...s.categoryItems }
       for (const gid in next) {
         next[gid] = next[gid].map((x) => (x.id === id ? it : x))
       }
-      return { groupItems: next }
+      return { categoryItems: next }
     })
-    if (it.is_public) invalidateItemPublicCache(it.group_id)
+    if (it.is_public) invalidateItemPublicCache(it.category_id)
     return it
   },
 
-  resetItem: async (groupId, id) => {
+  resetItem: async (categoryId, id) => {
     // 新架构下"重置"语义 = 删除租户对 platform item 的 override
-    const old = findItemInState(get().groupItems, id)
-    await configApi.deleteOverride(groupId, id)
+    const old = findItemInState(get().categoryItems, id)
+    await configApi.deleteOverride(categoryId, id)
     set((s) => {
-      const next = { ...s.groupItems }
+      const next = { ...s.categoryItems }
       for (const gid in next) {
         next[gid] = next[gid].map((x) =>
           x.id === id ? { ...x, value: x.default_value } : x
         )
       }
-      return { groupItems: next }
+      return { categoryItems: next }
     })
-    if (old?.is_public) invalidateItemPublicCache(old.group_id)
+    if (old?.is_public) invalidateItemPublicCache(old.category_id)
   },
 
-  deleteItem: async (groupId, id) => {
-    const old = findItemInState(get().groupItems, id)
-    await configApi.deletePlatformItem(groupId, id)
+  deleteItem: async (categoryId, id) => {
+    const old = findItemInState(get().categoryItems, id)
+    await configApi.deletePlatformItem(categoryId, id)
     set((s) => {
-      const next = { ...s.groupItems }
+      const next = { ...s.categoryItems }
       for (const gid in next) {
         next[gid] = next[gid].filter((x) => x.id !== id)
       }
-      return { groupItems: next }
+      return { categoryItems: next }
     })
-    if (old?.is_public) invalidateItemPublicCache(old.group_id)
+    if (old?.is_public) invalidateItemPublicCache(old.category_id)
   },
 
   clear: () => {
@@ -250,7 +253,7 @@ export const useConfigStore = create<ConfigState>()((set, get) => ({
       publicCache: {},
       publicLoaded: {},
       groups: [],
-      groupItems: {},
+      categoryItems: {},
       isLoadingGroups: false,
       isLoadingItems: false,
       error: null,
@@ -258,18 +261,18 @@ export const useConfigStore = create<ConfigState>()((set, get) => ({
   },
 }))
 
-// 工具：在 groupItems 中找 item
-function findItemInState(groupItems: Record<number, ConfigItem[]>, id: number): ConfigItem | undefined {
-  for (const gid in groupItems) {
-    const it = groupItems[gid].find((x) => x.id === id)
+// 工具：在 categoryItems 中找 item
+function findItemInState(categoryItems: Record<number, ConfigItem[]>, id: number): ConfigItem | undefined {
+  for (const gid in categoryItems) {
+    const it = categoryItems[gid].find((x) => x.id === id)
     if (it) return it
   }
   return undefined
 }
 
-// 工具：通过 group_id 找到 group code，失效 public 缓存
-function invalidateItemPublicCache(groupId: number) {
-  const group = useConfigStore.getState().groups.find((g) => g.id === groupId)
+// 工具：通过 category_id 找到 group code，失效 public 缓存
+function invalidateItemPublicCache(categoryId: number) {
+  const group = useConfigStore.getState().groups.find((g) => g.id === categoryId)
   if (group?.is_public) {
     refreshPublicByGroupCode(group.code)
   }

@@ -71,7 +71,7 @@ export {
   type ConfigItemType,
   type ConfigOption,
   type ConfigValidation,
-  type ConfigGroup,
+  type ConfigCategory,
   type ConfigItem,
   type PublicConfigResponse,
 } from "./config"

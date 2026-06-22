@@ -166,7 +166,12 @@ type tokenPair struct {
 	platformRoles []string
 }
 
-func (s *Service) generateTokens(ctx context.Context, userID, tenantID uint, role string) (*tokenPair, error) {
+// generateTokens 签发 access + refresh JWT，写入 session。
+//
+// userID 是 JWT 的 Subject：tenant user = users.id；platform admin = account_id（与 LoginResult.User.ID 一致）。
+// accountID 用于查 account_roles：tenant user 走 userID 路径（users.account_id 中转），platform admin 走 accountID 直查。
+// 两个都给比"二选一"更鲁棒，避免 PlatformLogin 漏签 platformRoles 导致后续 RequirePlatformRole 失败。
+func (s *Service) generateTokens(ctx context.Context, userID, tenantID uint, role string, accountID uint) (*tokenPair, error) {
 	if s.config == nil || s.session == nil {
 		return nil, ErrBackendUnavailable
 	}
@@ -179,7 +184,7 @@ func (s *Service) generateTokens(ctx context.Context, userID, tenantID uint, rol
 	}
 
 	// 取出用户绑定的平台级角色（如 super_admin），写入 JWT
-	platformRoles := s.loadPlatformRoles(ctx, userID)
+	platformRoles := s.loadPlatformRoles(ctx, userID, accountID)
 
 	accessToken, err := jwtpkg.GenerateWithPlatformRoles(&s.config.JWT, userID, tenantID, role, sessionID, platformRoles, jwtpkg.TokenTypeAccess)
 	if err != nil {
@@ -198,17 +203,28 @@ func (s *Service) generateTokens(ctx context.Context, userID, tenantID uint, rol
 	}, nil
 }
 
-// loadPlatformRoles 查 user_id 对应的 account_id 拥有的平台角色
-// 在普通租户事务外查（account_roles 不受 RLS 限制）。
-func (s *Service) loadPlatformRoles(ctx context.Context, userID uint) []string {
-	if s.platformRp == nil || s.db == nil || userID == 0 {
+// loadPlatformRoles 查 account_id 拥有的平台角色。
+//
+// 优先走 user_id 路径（user_id → users.account_id → account_roles），覆盖租户用户。
+// 查不到时回退到 account_id 直查（覆盖 platform admin，他们没 users 行）。
+// 两者都未传或查不到时返回 nil（不是错误——普通租户用户本来就没有 platform role）。
+func (s *Service) loadPlatformRoles(ctx context.Context, userID, accountID uint) []string {
+	if s.platformRp == nil || s.db == nil {
 		return nil
 	}
-	roles, err := s.platformRp.GetRolesByUserID(ctx, userID)
-	if err != nil {
-		return nil
+	// 路径 1：tenant user
+	if userID > 0 {
+		if roles, err := s.platformRp.GetRolesByUserID(ctx, userID); err == nil && len(roles) > 0 {
+			return roles
+		}
 	}
-	return roles
+	// 路径 2：platform admin（兜底——user_id 查不到时）
+	if accountID > 0 {
+		if roles, err := s.platformRp.GetRolesByAccountID(ctx, accountID); err == nil {
+			return roles
+		}
+	}
+	return nil
 }
 
 // Login 租户域登录（业务用户）。需要传 tenant_id；user 必须绑到该 tenant。
@@ -234,7 +250,7 @@ func (s *Service) Login(ctx context.Context, req tenantLoginRequest) (*LoginResu
 	if identity.UserStatus != 1 {
 		return nil, ErrUserDisabled
 	}
-	tokens, err := s.generateTokens(ctx, identity.UserID, identity.TenantID, identity.RoleCode)
+	tokens, err := s.generateTokens(ctx, identity.UserID, identity.TenantID, identity.RoleCode, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -378,7 +394,9 @@ func (s *Service) PlatformLogin(ctx context.Context, req platformLoginRequest) (
 
 	// 4. 生成 token，tenant_id = 0（platform 域语义）
 	//    role 用 "_platform" 占位（不在 tenants / roles 表里）
-	tokens, err := s.generateTokens(ctx, 0, 0, "_platform")
+	//    userID 用 accountID：platform admin 没有 users 行，userID 字段在 JWT 里就是 account_id
+	//    （与 LoginResult.User.ID 语义保持一致）
+	tokens, err := s.generateTokens(ctx, accountID, 0, "_platform", accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -470,7 +488,15 @@ func (s *Service) Refresh(ctx context.Context, req refreshRequest) (*refreshResu
 		targetRole = found.Role
 	}
 
-	newTokens, err := s.generateTokens(ctx, targetUserID, targetTenantID, targetRole)
+	// 切租户分支已知 targetUserID 是 users.id（path B 不允许 platform token 切租户，见 L449）。
+	// 原地刷新时 targetUserID = claims.UserID：tenant token 时是 users.id；platform token 时是 account_id。
+	// 传入 accountID：platform token 时与 userID 等同（让 loadPlatformRoles 走 GetRolesByAccountID 路径）；
+	// tenant token 时 accountID 来自反向查询，避免对每个 tenant user 多查一次 account。
+	var refreshAccountID uint
+	if targetTenantID == 0 && targetUserID > 0 {
+		refreshAccountID = targetUserID
+	}
+	newTokens, err := s.generateTokens(ctx, targetUserID, targetTenantID, targetRole, refreshAccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -568,7 +594,7 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 		return nil, err
 	}
 
-	tokens, err := s.generateTokens(ctx, newUserID, req.TenantID, "user")
+	tokens, err := s.generateTokens(ctx, newUserID, req.TenantID, "user", 0)
 	if err != nil {
 		return nil, err
 	}
