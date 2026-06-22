@@ -20,7 +20,6 @@ package platformauth
 
 import (
 	"context"
-	"time"
 
 	"gx1727.com/xin/framework/pkg/identity"
 )
@@ -106,10 +105,3 @@ type PermissionRepository interface {
 type OrgRepository interface {
 	GetByID(ctx context.Context, id uint) (*Org, error)
 }
-
-// Time aliases for callers that prefer the platform-domain time
-// constants. Kept here so the platform package can stay self-contained
-// without leaking identity internals.
-type (
-	_ = time.Time
-)

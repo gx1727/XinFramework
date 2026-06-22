@@ -5,6 +5,12 @@
 //  4. framework.Serve(cfg, app, modules) 启动服务
 //
 // 没有任何 side-effect import 或全局注册表，每个模块的依赖都在这里一目了然。
+//
+// Phase 0023.0 改动：
+//   - 新增 sys_user / sys_role / sys_menu / sys_permission 四个 platform 域模块
+//   - apps/platform/tenant 改名为 apps/platform/tenants（目录跟表名对齐）
+//   - 抽象基类 framework/pkg/identity + platform contracts framework/pkg/platformauth
+//   - 不动 apps/rbac/* —— 重命名推迟到独立 session（避免 PowerShell 编码污染）
 package main
 
 import (
@@ -14,7 +20,11 @@ import (
 	"gx1727.com/xin/apps/cms"
 	"gx1727.com/xin/apps/flag"
 	platformmenu "gx1727.com/xin/apps/platform/menu"
-	"gx1727.com/xin/apps/platform/tenant"
+	sysmenu "gx1727.com/xin/apps/platform/sys_menu"
+	syspermission "gx1727.com/xin/apps/platform/sys_permission"
+	sysrole "gx1727.com/xin/apps/platform/sys_role"
+	sysuser "gx1727.com/xin/apps/platform/sys_user"
+	"gx1727.com/xin/apps/platform/tenants"
 	"gx1727.com/xin/apps/rbac/menu"
 	"gx1727.com/xin/apps/rbac/organization"
 	"gx1727.com/xin/apps/rbac/permission"
@@ -49,10 +59,14 @@ func main() {
 		auth.Module(app),
 
 		// 平台管理域（必须 super_admin 才能访问）
-		platformmenu.Module(app),
-		tenant.Module(app),
+		platformmenu.Module(app),    // 过渡期：写 menus WHERE scope='platform'
+		tenants.Module(app),         // 管 tenants 表
+		sysuser.Module(app),        // Phase 0023.0：sys_users 表
+		sysrole.Module(app),        // Phase 0023.0：sys_roles 表
+		sysmenu.Module(app),        // Phase 0023.0：sys_menus 表
+		syspermission.Module(app),  // Phase 0023.0：sys_permissions 表
 
-		// rbac 套件
+		// rbac 套件（租户域）
 		menu.Module(app),
 		organization.Module(app),
 		permission.Module(app),
