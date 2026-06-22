@@ -1,11 +1,10 @@
 package extapi
 
-import (
-	"context"
-	"time"
-)
+import "time"
 
-// User DTO for external apps
+// User DTO for external apps (kept for cms/handler.go JSON response).
+// 历史背景：cms module 通过 ctx.UserRepo().GetByID() 拿到 pkgrbac.User，
+// 然后转成这个 DTO 返回前端——DTO 还在这里，但 Provider/Facade 已删。
 type User struct {
 	ID        uint      `json:"id"`
 	TenantID  uint      `json:"tenant_id"`
@@ -21,7 +20,8 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// Tenant DTO for external apps
+// Tenant DTO for external apps (kept for cms/handler.go JSON response).
+// pkg/tenant.TenantRecord 没有 json tag，这里提供带 tag 的版本。
 type Tenant struct {
 	ID        uint      `json:"id"`
 	Code      string    `json:"code"`
@@ -38,19 +38,4 @@ type Tenant struct {
 	Dashboard string    `json:"dashboard"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-}
-
-type UserFacade interface {
-	GetByID(ctx context.Context, id uint) (*User, error)
-	List(ctx context.Context, tenantID uint, keyword string, page, size int) ([]User, int64, error)
-}
-
-type TenantFacade interface {
-	GetByID(ctx context.Context, id uint) (*Tenant, error)
-}
-
-// Provider is the Facade for external apps to interact with internal modules.
-type Provider interface {
-	User() UserFacade
-	Tenant() TenantFacade
 }

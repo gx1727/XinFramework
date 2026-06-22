@@ -7,22 +7,24 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/extapi"
+	pkgrbac "gx1727.com/xin/framework/pkg/rbac"
+	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
+	"gx1727.com/xin/framework/pkg/plugin"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
 // Handler HTTP 处理器
 type Handler struct {
-	// 业务层直接依赖自己的 CmsPostRepository
 	posts CmsPostRepository
-	// 跨域能力仍通过 extapi 获取
-	provider extapi.Provider
+	// 跨域能力通过 plugin.Reader（AppContext）直接拿 repo——不再走全局 provider。
+	ctx plugin.Reader
 }
 
 // NewHandler 创建 Handler 实例
-func NewHandler(pool *pgxpool.Pool) *Handler {
+func NewHandler(pool *pgxpool.Pool, ctx plugin.Reader) *Handler {
 	return &Handler{
-		posts:    NewCmsPostRepository(pool),
-		provider: extapi.Get(),
+		posts: NewCmsPostRepository(pool),
+		ctx:   ctx,
 	}
 }
 
@@ -48,7 +50,11 @@ func (h *Handler) GetCurrentUser(c *gin.Context) {
 		return
 	}
 
-	user, err := h.provider.User().GetByID(c.Request.Context(), userID)
+	if h.ctx == nil || h.ctx.UserRepo() == nil {
+		resp.Error(c, 500, "user module not loaded — register apps/rbac/user in main.go")
+		return
+	}
+	u, err := h.ctx.UserRepo().GetByID(c.Request.Context(), userID)
 	if err != nil {
 		resp.Error(c, 500, err.Error())
 		return
@@ -56,11 +62,11 @@ func (h *Handler) GetCurrentUser(c *gin.Context) {
 
 	resp.Success(c, gin.H{
 		"user": gin.H{
-			"id":        user.ID,
-			"code":      user.Code,
-			"real_name": user.RealName,
-			"email":     user.Email,
-			"phone":     user.Phone,
+			"id":        u.ID,
+			"code":      u.Code,
+			"real_name": u.RealName,
+			"email":     u.Email,
+			"phone":     u.Phone,
 		},
 		"tenant_id": tenantID,
 		"role":      role,
@@ -75,18 +81,28 @@ func (h *Handler) ListUsers(c *gin.Context) {
 		return
 	}
 
+	if h.ctx == nil || h.ctx.UserRepo() == nil {
+		resp.Error(c, 500, "user module not loaded — register apps/rbac/user in main.go")
+		return
+	}
+
 	keyword := c.Query("keyword")
 	page := 1
 	pageSize := 20
 
-	users, total, err := h.provider.User().List(c.Request.Context(), tenantID, keyword, page, pageSize)
+	users, total, err := h.ctx.UserRepo().List(c.Request.Context(), tenantID, keyword, page, pageSize)
 	if err != nil {
 		resp.Error(c, 500, err.Error())
 		return
 	}
 
+	// pkgrbac.User 与 extapi.User 字段兼容（org_id/org_name 在 DTO 上不出现），转 DTO 给前端。
+	out := make([]extapi.User, len(users))
+	for i := range users {
+		out[i] = toExtAPIUser(&users[i])
+	}
 	resp.Success(c, gin.H{
-		"list":  users,
+		"list":  out,
 		"total": total,
 	})
 }
@@ -101,13 +117,17 @@ func (h *Handler) GetTenant(c *gin.Context) {
 		return
 	}
 
-	tenant, err := h.provider.Tenant().GetByID(c.Request.Context(), tenantID)
+	if h.ctx == nil || h.ctx.TenantRepo() == nil {
+		resp.Error(c, 500, "tenant module not loaded — register apps/platform/tenant in main.go")
+		return
+	}
+	t, err := h.ctx.TenantRepo().GetByID(c.Request.Context(), tenantID)
 	if err != nil {
 		resp.Error(c, 500, err.Error())
 		return
 	}
 
-	resp.Success(c, tenant)
+	resp.Success(c, toExtAPITenant(t))
 }
 
 // ============ CMS Posts ============
@@ -232,4 +252,46 @@ func (h *Handler) DeletePost(c *gin.Context) {
 	}
 
 	resp.Success(c, gin.H{"ok": true})
+}
+
+// ============ DTO 转换 ============
+//
+// pkgrbac.User / pkgtenant.TenantRecord 是 framework 内部窄接口（无 json tag 或 tag 不全），
+// 给前端返回 JSON 时转成 extapi.User / extapi.Tenant DTO。字段集兼容，1:1 copy。
+
+func toExtAPIUser(u *pkgrbac.User) extapi.User {
+	return extapi.User{
+		ID:        u.ID,
+		TenantID:  u.TenantID,
+		AccountID: u.AccountID,
+		Code:      u.Code,
+		Nickname:  u.Nickname,
+		Status:    u.Status,
+		RealName:  u.RealName,
+		Avatar:    u.Avatar,
+		Phone:     u.Phone,
+		Email:     u.Email,
+		CreatedAt: u.CreatedAt,
+		UpdatedAt: u.UpdatedAt,
+	}
+}
+
+func toExtAPITenant(t *pkgtenant.TenantRecord) extapi.Tenant {
+	return extapi.Tenant{
+		ID:        t.ID,
+		Code:      t.Code,
+		Name:      t.Name,
+		Status:    t.Status,
+		Contact:   t.Contact,
+		Phone:     t.Phone,
+		Email:     t.Email,
+		Province:  t.Province,
+		City:      t.City,
+		Area:      t.Area,
+		Address:   t.Address,
+		Config:    t.Config,
+		Dashboard: t.Dashboard,
+		CreatedAt: t.CreatedAt,
+		UpdatedAt: t.UpdatedAt,
+	}
 }

@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"log"
 
-	"gx1727.com/xin/framework/internal/core/ext_impl"
 	"gx1727.com/xin/framework/internal/core/server"
 	"gx1727.com/xin/framework/internal/service"
 	"gx1727.com/xin/framework/pkg/appx"
@@ -71,7 +70,6 @@ func Init(cfg *config.Config) (*appx.App, *server.XinServer, *plugin.AppContext,
 	}
 
 	appCtx := plugin.NewAppContext(pool, cache.Get(), cfg, sm)
-	ext_impl.InitExtApi(appCtx)
 
 	permService := service.NewPermissionService(
 		permission.NewPermissionRepository(pool),

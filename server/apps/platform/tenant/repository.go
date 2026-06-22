@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/db"
+	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
 )
 
 // PostgresTenantRepository implements TenantRepository
@@ -282,70 +283,29 @@ func (r *PostgresTenantRepository) UpdateStatus(ctx context.Context, id uint, st
 	return &t, nil
 }
 
-// purgeOrder 硬删租户数据的顺序。按"先删子表、再删父表"的依赖关系排列，
-// 避免 FK 约束冲突。每个表名对应 migrations/framework.sql 中带 tenant_id 的表。
-//
-// 注意：即使没有显式 FK 约束（migrations 里多数未声明 FK），也按业务依赖排序：
-// - usage_records / attachments ：纯记录表，无业务依赖
-// - subscriptions：依赖 plans（但 plans 是平台级，不删）
-// - role_data_scopes / user_roles / role_menus / role_resources：依赖 roles
-// - dict_items：依赖 dicts
-// - routes / resources / menus：依赖 organizations / 各 role_resource 关系
-// - organizations / roles / users / dicts：核心实体
-// - tenant_user_seq：独立序列表
-var purgeOrder = []string{
-	"usage_records",
-	"attachments",
-	"subscriptions",
-	"role_data_scopes",
-	"user_roles",
-	"role_menus",
-	"role_resources",
-	"dict_items",
-	"routes",
-	"resources",
-	"menus",
-	"organizations",
-	"roles",
-	"users",
-	"dicts",
-	"tenant_user_seq",
-}
-
-// PurgeTenantData 硬删所有 tenant_id-bearing 表中的该租户数据。
-// 必须在 RunInPlatformTx 内调用，否则会被 RLS 拦截。
-// 返回每张表实际删除的行数。
-func (r *PostgresTenantRepository) PurgeTenantData(ctx context.Context, tenantID uint) (map[string]int64, error) {
-	q, err := db.GetQuerier(ctx, r.db)
+// GetTenantRecord 把完整 Tenant 适配成 pkg/tenant.TenantRecord（窄接口返回类型）。
+// 满足 pkg/tenant.TenantRepository 窄接口（1 method），让 *PostgresTenantRepository
+// 不需要 adapter 就能直接写到 AppContext。
+func (r *PostgresTenantRepository) GetTenantRecord(ctx context.Context, id uint) (*pkgtenant.TenantRecord, error) {
+	t, err := r.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	result := make(map[string]int64, len(purgeOrder))
-	for _, table := range purgeOrder {
-		// 表名来自 migrations 文件常量列表，不是用户输入——安全。
-		// 走 $1 参数化防注入（虽然 table 不会被替换）。
-		tag, err := q.Exec(ctx, fmt.Sprintf(`DELETE FROM %s WHERE tenant_id = $1`, table), tenantID)
-		if err != nil {
-			return result, fmt.Errorf("purge %s: %w", table, err)
-		}
-		result[table] = tag.RowsAffected()
-	}
-	return result, nil
-}
-
-// HardDelete 硬删 tenants 表中指定 id 的行。
-// 前置条件：service 层必须先调 PurgeTenantData 清空所有 tenant_id-bearing 表。
-func (r *PostgresTenantRepository) HardDelete(ctx context.Context, id uint) error {
-	q, err := db.GetQuerier(ctx, r.db)
-	if err != nil {
-		return err
-	}
-	tag, err := q.Exec(ctx, `DELETE FROM tenants WHERE id = $1`, id)
-	if err != nil {
-		return fmt.Errorf("hard delete tenant: %w", err)
-	}
-	if tag.RowsAffected() == 0 {
-		return ErrTenantNotFound
-	}
-	return nil
+	return &pkgtenant.TenantRecord{
+		ID:        t.ID,
+		Code:      t.Code,
+		Name:      t.Name,
+		Status:    t.Status,
+		Contact:   t.Contact,
+		Phone:     t.Phone,
+		Email:     t.Email,
+		Province:  t.Province,
+		City:      t.City,
+		Area:      t.Area,
+		Address:   t.Address,
+		Config:    t.Config,
+		Dashboard: t.Dashboard,
+		CreatedAt: t.CreatedAt,
+		UpdatedAt: t.UpdatedAt,
+	}, nil
 }

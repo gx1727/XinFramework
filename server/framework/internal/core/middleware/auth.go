@@ -100,8 +100,6 @@ func handleAuthError(c *gin.Context, err error) {
 }
 
 // injectAuthContext loads permissions and injects UserContext and XinContext into the request
-//
-// Phase 4: 显式传入 pool；不再依赖 db.Get() 全局。
 func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc SecurityContextLoader, pool *pgxpool.Pool) {
 	ctx := c.Request.Context()
 	xc, _ := xinContext.XinContextFrom(ctx)
@@ -154,8 +152,6 @@ func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc SecurityCo
 }
 
 // Auth 认证中间件 - 验证 JWT Token 和 Session
-//
-// Phase 4: 显式传入 pool；中间件内部不再依赖 db.Get() 全局。
 func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityContextLoader, pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		claims, err := processAuthToken(c, cfg, sm)
@@ -192,8 +188,6 @@ func AuthLite(cfg *config.JWTConfig, sm session.SessionManager) gin.HandlerFunc 
 }
 
 // OptionalAuth 可选认证中间件 - 如果有 Token 则解析并注入上下文，没有或无效也继续执行
-//
-// Phase 4: 显式传入 pool；中间件内部不再依赖 db.Get() 全局。
 func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityContextLoader, pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		claims, err := processAuthToken(c, cfg, sm)

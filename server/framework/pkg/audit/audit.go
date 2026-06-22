@@ -31,8 +31,6 @@ type Entry struct {
 }
 
 // Log 写一条审计记录。错误仅记日志，不返回给业务路径。
-//
-// Phase 4: 显式传入 pool，不再依赖 db.GetQuerier(ctx) 全局访问器。
 func Log(ctx context.Context, pool *pgxpool.Pool, e Entry) {
 	tenantID := e.TenantID
 	userID := e.UserID

@@ -11,8 +11,8 @@ import (
 func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "cms",
-		RegFn: func(_ plugin.Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
-			h := NewHandler(app.DB)
+		RegFn: func(ctx plugin.Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
+			h := NewHandler(app.DB, ctx)
 			Register(h, public, protected)
 		},
 	}

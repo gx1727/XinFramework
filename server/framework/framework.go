@@ -129,11 +129,11 @@ func setupRouter(cfg *config.Config, db *pgxpool.Pool, rt *Runtime, modules []pl
 	registerModules(r, cfg, db, rt.AppCtx, modules)
 }
 
-// registerModules 注册已启用模块的路由（所有模块统一处理，无内置/外部之分）。
+// registerModules 注册已启用模块的路由
 //
 // 路由空间（重构后）：
 //   - public     → /api/v1/*             （OptionalAuth，公开；需隔离的子资源挂 /public/<x>）
-//   - tenant     → /api/v1/*             （Auth + RequireTenantContext，业务域；模块直接挂资源路径，无 /t 前缀）
+//   - tenant     → /api/v1/*             （Auth + RequireTenantContext，业务域；模块直接挂资源路径）
 //   - protected  → /api/v1/platform/*    （Auth + RequirePlatformRole，平台域）
 //
 // 三组 RouterGroup 都通过 plugin.Module.Register(ctx, public, tenant, protected)

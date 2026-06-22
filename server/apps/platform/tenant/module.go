@@ -25,7 +25,7 @@ func Module(app *appx.App) plugin.Module {
 		NameStr: "platform_tenant",
 		InitFn: func(_ plugin.Reader, w plugin.Writer) error {
 			pool := app.DB
-			w.SetTenantRepo(&tenantPkgAdapter{repo: NewTenantRepository(pool)})
+			w.SetTenantRepo(&tenantPkgAdapter{repo: NewTenantRepository(pool).(*PostgresTenantRepository)})
 			return nil
 		},
 		RegFn: func(_ plugin.Reader, _ *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
@@ -36,25 +36,13 @@ func Module(app *appx.App) plugin.Module {
 	}
 }
 
-// tenantPkgAdapter wraps apps/platform/tenant's TenantRepository so it
-// satisfies pkg/tenant.TenantRepository (returns *pkg/tenant.TenantRecord).
-//
-// 历史背景：本模块从 apps/boot/tenant 重命名而来，原本就有这个 adapter。
-// 消费者（cms、extapi）的"窄接口"，platform_tenant 通过 adapter 提供实现。
+// tenantPkgAdapter 把 *PostgresTenantRepository 适配成 pkg/tenant.TenantRepository。
+// GetTenantRecord 已经在 *PostgresTenantRepository 上实现了字段 copy（见 repository.go），
+// adapter 只是 1 行 forwarder——把 ctx 上的 GetByID 调用转发到 repo 的 GetTenantRecord。
 type tenantPkgAdapter struct {
-	repo TenantRepository
+	repo *PostgresTenantRepository
 }
 
 func (a *tenantPkgAdapter) GetByID(ctx context.Context, id uint) (*pkgtenant.TenantRecord, error) {
-	t, err := a.repo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return &pkgtenant.TenantRecord{
-		ID: t.ID, Code: t.Code, Name: t.Name, Status: t.Status,
-		Contact: t.Contact, Phone: t.Phone, Email: t.Email,
-		Province: t.Province, City: t.City, Area: t.Area, Address: t.Address,
-		Config: t.Config, Dashboard: t.Dashboard,
-		CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
-	}, nil
+	return a.repo.GetTenantRecord(ctx, id)
 }

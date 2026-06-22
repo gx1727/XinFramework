@@ -67,7 +67,7 @@ func Init(cfg *config.Config) (*appx.App, error) {
     cache.Init(&cfg.Redis)                            // �?go-redis (enabled)
     sm            := session.NewRedisSessionManager()  // �?Session
     permCache     := permission.NewRedisPermissionCache()
-    appCtx        := plugin.NewAppContext(...)         // �?唯一的依赖容�?    ext_impl.InitExtApi(appCtx)
+    appCtx        := plugin.NewAppContext(...)         // �?唯一的依赖容�?
     permService   := service.NewPermissionService(...)// �?RBAC 服务
     appCtx.SetAuthz(authz.Wrap(authService))           // �?跨模块共�?    return &appx.App{Config, DB, SessionMgr, Server,
                      PermService, Authz, AppContext}, nil

@@ -39,7 +39,7 @@ cache.Init(&cfg.Redis)                              // �?go-redis
 sm            := session.NewRedisSessionManager()   // �?Session
 permCache     := permission.NewRedisPermissionCache()
 appCtx        := plugin.NewAppContext(...)          // �?依赖容器
-ext_impl.InitExtApi(appCtx)
+
 permService   := service.NewPermissionService(...)  // �?RBAC
 appCtx.SetAuthz(authz.Wrap(authService))            // �?跨模块共�?return &appx.App{Config, DB, SessionMgr, Server, PermService, Authz, AppContext}, nil
 ```

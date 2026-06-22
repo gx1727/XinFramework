@@ -262,25 +262,66 @@ type PurgeResult struct {
 	Tables map[string]int64
 }
 
+// purgeTables 硬删租户数据的顺序。按"先删子表、再删父表"的依赖关系排列，
+// 避免 FK 约束冲突。每个表名对应 migrations/framework.sql 中带 tenant_id 的表。
+//
+// 注意：即使没有显式 FK 约束（migrations 里多数未声明 FK），也按业务依赖排序：
+//   - usage_records / attachments ：纯记录表，无业务依赖
+//   - subscriptions：依赖 plans（但 plans 是平台级，不删）
+//   - role_data_scopes / user_roles / role_menus / role_resources：依赖 roles
+//   - dict_items：依赖 dicts
+//   - routes / resources / menus：依赖 organizations / 各 role_resource 关系
+//   - organizations / roles / users / dicts：核心实体
+//   - tenant_user_seq：独立序列表
+//
+// 表名来自 migrations 文件常量列表，不是用户输入——安全。
+// 走 $1 参数化防注入（虽然 table 不会被替换）。
+var purgeTables = []string{
+	"usage_records",
+	"attachments",
+	"subscriptions",
+	"role_data_scopes",
+	"user_roles",
+	"role_menus",
+	"role_resources",
+	"dict_items",
+	"routes",
+	"resources",
+	"menus",
+	"organizations",
+	"roles",
+	"users",
+	"dicts",
+	"tenant_user_seq",
+}
+
 // Purge 硬删租户及其全部业务数据。**不可逆操作**，仅 super_admin 可调。
 //
 // 流程：
 //  1. 前置校验：租户必须已软删（is_deleted=TRUE）——避免误删正在使用的租户。
 //  2. 前置校验：租户下不存在 is_deleted=FALSE 的 users（防止留下 FK 孤儿）。
-//  3. RunInPlatformTx 内：
+//  3. RunInPlatformTx 内：直接用 s.pool 跑 SQL（跨多表的复合业务操作）
 //     a. 抓快照（code 用于审计）
-//     b. PurgeTenantData 按依赖顺序硬删 17 张 tenant_id-bearing 表
-//     c. HardDelete 删 tenants 表本身
+//     b. 按 purgeTables 顺序 DELETE tenant_id-bearing 表
+//     c. DELETE tenants 表本身
 //  4. 审计：写 db_logs，new_data 含每张表删除行数。
 //
 // 失败回滚：事务原子性保证——若任一 DELETE 失败，所有改动回滚，租户仍为软删状态，
 // 排查后可重试。
+//
+// Purge 是跨多表的业务级操作（不是单一表的 CRUD），因此直接用 s.pool 跑 SQL，
+// 不下沉到 Repository。
 func (s *Service) Purge(ctx context.Context, id uint) (*PurgeResult, error) {
 	if s.tenantRepo == nil {
 		return nil, ErrBackendUnavailable
 	}
 	var result PurgeResult
 	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
+		q, err := db.GetQuerier(ctx, s.pool)
+		if err != nil {
+			return err
+		}
+
 		// 1) 抓快照 + 前置校验：必须已软删
 		t, err := s.tenantRepo.GetByID(ctx, id)
 		if err != nil {
@@ -301,16 +342,21 @@ func (s *Service) Purge(ctx context.Context, id uint) (*PurgeResult, error) {
 			return fmt.Errorf("%w (用户数=%d)", ErrTenantHasUsers, n)
 		}
 
-		// 3a) 硬删所有 tenant_id-bearing 表
-		tables, err := s.tenantRepo.PurgeTenantData(ctx, id)
-		if err != nil {
-			return fmt.Errorf("%w: %v", ErrTenantPurgeFailed, err)
+		// 3) 硬删所有 tenant_id-bearing 表 + tenants 本身
+		result.Tables = make(map[string]int64, len(purgeTables))
+		for _, table := range purgeTables {
+			tag, err := q.Exec(ctx, fmt.Sprintf(`DELETE FROM %s WHERE tenant_id = $1`, table), id)
+			if err != nil {
+				return fmt.Errorf("%w: purge %s: %v", ErrTenantPurgeFailed, table, err)
+			}
+			result.Tables[table] = tag.RowsAffected()
 		}
-		result.Tables = tables
-
-		// 3b) 硬删 tenants 表本身
-		if err := s.tenantRepo.HardDelete(ctx, id); err != nil {
-			return fmt.Errorf("%w: %v", ErrTenantPurgeFailed, err)
+		tag, err := q.Exec(ctx, `DELETE FROM tenants WHERE id = $1`, id)
+		if err != nil {
+			return fmt.Errorf("%w: hard delete tenants: %v", ErrTenantPurgeFailed, err)
+		}
+		if tag.RowsAffected() == 0 {
+			return ErrTenantNotFound
 		}
 		return nil
 	})
