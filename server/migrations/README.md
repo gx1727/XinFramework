@@ -2,32 +2,54 @@
 
 > XinFramework 的 PostgreSQL schema 通过 `framework/pkg/migrate` 包的 `migrate.Run(pool, "migrations")` 在启动时按文件名升序自动应用。本目录放所有 DDL + 初始 seed。
 
-## 1. 迁移机制
+## 1. 目录结构
 
-### 1.1 运行时机
+```
+migrations/
+├── init_schema.sql      # 全部 schema（30 张表 + 索引 + RLS）—— 跑一次稳定后基本不再改
+├── init_seed.sql        # 全部种子数据（admin/角色/菜单/资源/字典/配置）—— 频繁调整
+├── asset.sql            # 附件业务表（独立模块）
+├── cms.sql              # CMS 业务表（独立模块）
+├── flag.sql             # 头像/相框业务表（独立模块）
+└── README.md            # 本文件
+```
+
+**为什么分两个 init 文件**：
+- `init_schema.sql` —— 改 schema 的频率低（一次成型后基本稳定）
+- `init_seed.sql` —— 改 seed 的频率高（调默认角色、菜单、字典时）
+- dev 阶段重置时分开跑：先 schema 后 seed
+
+**为什么 3 个业务文件保留**：
+- asset / cms / flag 是**独立业务模块**，跟核心 schema 生命周期不同
+- 合并会失去模块边界（flag 加张表要重跑 init_schema，不合理）
+- 保留独立 .sql 让"业务表变更"和"核心表变更"互不干扰
+
+## 2. 迁移机制
+
+### 2.1 运行时机
 
 ```
 framework.Serve(cfg, app, rt, modules)
-  └─ migrate.Run(app.DB, "migrations")         // 启动时跑（cmd/xin/main.go 之前已经写过）
+  └─ migrate.Run(app.DB, "migrations")         // 启动时跑
        ├─ 扫 ./migrations/*.sql，按文件名升序
        ├─ 跳过 _schema_migrations 表里已记录的版本
        └─ 在事务里跑未应用的版本（事务开头 SET LOCAL row_security = off）
 ```
 
-### 1.2 版本跟踪
+### 2.2 版本跟踪
 
 `_schema_migrations` 表记录已应用的迁移：
 
 ```sql
 CREATE TABLE IF NOT EXISTS _schema_migrations (
-    version    VARCHAR(255) PRIMARY KEY,    -- 文件名（如 framework.sql）
+    version    VARCHAR(255) PRIMARY KEY,    -- 文件名（如 init_schema.sql）
     applied_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 
 `migrate.Run` 用文件名做主键。**修改已部署的文件名 = 重跑迁移**（除非要承担风险）。
 
-### 1.3 事务保证
+### 2.3 事务保证
 
 每个 SQL 文件在 `db.RunInTx` 里执行，开头关 RLS：
 
@@ -38,71 +60,71 @@ tx.Exec(sql)                              // 跑该文件的全部 SQL
 
 任何 DDL 失败 = 整个文件回滚 = `_schema_migrations` 不记录。
 
-## 2. 命名约定
+## 3. dev 阶段重置流程
 
-### 2.1 当前规则（按模块命名）
+```bash
+# 1. 删库
+psql -h localhost -U postgres -c "DROP DATABASE xin_dev;"
+psql -h localhost -U postgres -c "CREATE DATABASE xin_dev;"
 
-| 文件 | 职责 | 所属模块 |
-|---|---|---|
-| `framework.sql` | 框架核心（22 张表 + RLS + seed） | framework |
-| `tenant.sql` | 租户管理 | apps/boot/tenant |
-| `asset.sql` | 附件 | apps/reference/asset |
-| `config.sql` | 配置中心 | apps/reference/config |
-| `config_alignment.sql` | 配置中心约束对齐（ALTER，非新表） | apps/reference/config |
-| `dict.sql` | 字典 | apps/reference/dict |
-| `flag.sql` | 头像框 + 头像 | apps/flag |
-| `cms.sql` | CMS（示例业务） | apps/cms |
-| `framework_account_roles_independent.sql` | 平台账号独立（account_roles CHECK 约束 + users 索引重设 + admin seed 清理）| framework |
+# 2. 跑核心 schema + seed
+psql -h localhost -U xin -d xin_dev -f migrations/init_schema.sql
+psql -h localhost -U xin -d xin_dev -f migrations/init_seed.sql
 
-### 2.2 推荐：增量迁移用日期前缀（未来）
+# 3. 跑业务模块 schema
+psql -h localhost -U xin -d xin_dev -f migrations/asset.sql
+psql -h localhost -U xin -d xin_dev -f migrations/cms.sql
+psql -h localhost -U xin -d xin_dev -f migrations/flag.sql
 
-新文件建议用：
-
-```
-YYYY_MM_DD_NNN_<short-description>.sql
+# 4. 启动 dev 服务
+cd server && go run ./cmd/xin
 ```
 
-例：
+或者启动服务时自动跑（只要 `_schema_migrations` 没记录过这 3 个 init 文件）：
 
-```
-2026_06_22_001_account_roles_constraint.sql
-2026_07_05_001_add_xxx_index.sql
-```
-
-- `YYYY_MM_DD`：日期
-- `NNN`：当天序号（001, 002, ...）
-- `<short-description>`：说明改了什么（kebab-case）
-
-**为什么用日期前缀**：
-
-- 字母序不稳定：`config.sql` < `config_alignment.sql` 靠的是 `.` < `_`，但 `config_v2.sql` < `config_alignment.sql` 又不行——日期前缀永远稳定
-- 已部署环境的 `_schema_migrations` 表是文件名主键——日期前缀一目了然"什么时候加的"
-
-老文件（无日期前缀）保持不动，避免破坏已部署环境的迁移记录。
-
-### 2.3 不该做的事
-
-- ❌ 改已部署文件的文件名（除非接受重跑风险）
-- ❌ 改已部署文件的内容（除非变更幂等，如 `ADD COLUMN IF NOT EXISTS`）
-- ❌ 在新文件里 ALTER 已存在于老文件的表（除非有依赖顺序约束）
-
-## 3. 编写规范
-
-### 3.1 DDL 模板
-
-每个文件头部加说明：
-
-```sql
--- ============================================
--- <文件名>: <一句话说明>
--- ============================================
--- 目的：<这一版做什么>
--- 依赖：<依赖于哪些前置迁移>
--- 兼容性：<是否幂等 / 是否破坏性 / 是否需要迁移期>
--- ============================================
+```bash
+go run ./cmd/xin    # migrate.Run 自动按字母序应用 init_schema.sql → init_seed.sql → asset.sql → ...
 ```
 
-### 3.2 幂等性
+## 4. 新增迁移
+
+### 4.1 改 seed（最常见）
+
+直接编辑 `init_seed.sql`，**不要新建**日期前缀文件。开发期重置比增量迁移简单。
+
+### 4.2 改 schema（少见）
+
+如果只是新增列 / 索引：
+- 编辑 `init_schema.sql` 加 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`
+- 跑过的 dev 库手动跑这段 ALTER（dev 可丢）
+- 新 dev 库通过 init_schema.sql 一遍跑下来
+
+如果是新增 / 删除整张表：
+- 编辑 `init_schema.sql` 加 `CREATE TABLE` / `DROP TABLE` 段
+- 同步考虑业务模块是否受影响（如 `tenant_user_seq` 改字段可能影响 first_install.go）
+
+### 4.3 业务模块新增表
+
+**不要**塞进 `init_schema.sql`——在你的业务模块 .sql 里加：
+
+```
+init_schema.sql   # 不动
+init_seed.sql     # 不动
+asset.sql         # 你加 CREATE TABLE
+```
+
+业务模块 seed（如果有）也写在各自的 .sql 里。
+
+### 4.4 字段命名约定
+
+- 全部业务表必须有 `is_deleted BOOLEAN DEFAULT FALSE`
+- 所有索引加 `WHERE is_deleted = FALSE` 谓词
+- 租户域表必须有 `tenant_id BIGINT NOT NULL` + RLS policy
+- 平台域表（`sys_*`）**不**带 `tenant_id`、**不**启用 RLS
+
+## 5. 编写规范
+
+### 5.1 DDL 幂等性
 
 所有 DDL 必须幂等（迁移可能重跑）：
 
@@ -114,54 +136,35 @@ ALTER TABLE xxx ADD COLUMN IF NOT EXISTS yyy INT;
 DROP CONSTRAINT IF EXISTS xxx_yyy;
 
 -- ❌ 避免
-CREATE TABLE xxx (...);                  -- 没有 IF NOT EXISTS
-CREATE INDEX idx_xxx ON ...;              -- 没有 IF NOT EXISTS
-ALTER TABLE xxx ADD COLUMN yyy INT;       -- 没有 IF NOT EXISTS
+CREATE TABLE xxx (...);
+CREATE INDEX idx_xxx ON ...;
+ALTER TABLE xxx ADD COLUMN yyy INT;
 ```
 
-### 3.3 DDL 与 seed 分离（推荐）
+### 5.2 Seed 幂等性
 
-- **DDL 文件**：只放 `CREATE TABLE / INDEX / POLICY / ...`
-- **Seed 文件**：只放 `INSERT ...`（初始数据）
-- 优点：DDL 失败时 seed 不会被部分应用
-
-当前 `framework.sql` 还在混用（DDL + seed 一锅炖），属于历史遗留——不强制拆但**新增文件**建议分开。
-
-### 3.4 软删除约定
-
-所有业务表必须有：
+所有 INSERT 用 `ON CONFLICT DO NOTHING` 或 `ON CONFLICT (...) DO UPDATE`：
 
 ```sql
-is_deleted BOOLEAN DEFAULT FALSE
+INSERT INTO accounts (phone, ...) VALUES (...) ON CONFLICT (phone) DO NOTHING;
 
--- 所有索引加 WHERE 谓词
-CREATE INDEX idx_xxx ON yyy (tenant_id) WHERE is_deleted = FALSE;
+INSERT INTO role_menus (tenant_id, role_id, menu_id)
+SELECT ... ON CONFLICT (role_id, menu_id) WHERE is_deleted = FALSE DO NOTHING;
 ```
 
-## 4. 新增迁移步骤
+### 5.3 文件头部说明
 
-1. **命名**：用日期前缀（参见 §2.2）
-2. **写 SQL**：在 `migrations/` 新建文件，内容遵循 §3 规范
-3. **本地验证**：
-   ```bash
-   # 跑迁移（启动时自动跑）
-   go run ./cmd/xin run &
-   sleep 3
-   curl http://localhost:8087/api/v1/health
-   
-   # 检查 _schema_migrations
-   psql -h localhost -U xin -d xin_dev -c "SELECT * FROM _schema_migrations ORDER BY version;"
-   ```
-4. **看大小**：单个迁移文件 ≤ 5KB 是好的；> 10KB 考虑拆分
-5. **不要 commit 数据库**：`migrations/` 是唯一 schema 真相源
+每个文件头部加说明：
 
-## 5. 全量部署（首次安装 / CI 重建）
-
-跑 `server/scripts/schema.sql`（如果存在）作为单一入口。否则按字母序跑 `migrations/*.sql`。
-
-> 注：`server/scripts/schema.sql` 还未生成（TODO），生成时注意：
-> - 输出文件**不放**在 `migrations/` 里（避免被 migrate.Run 当作未应用版本）
-> - 在文件头部加注释："auto-generated, do not edit"
+```sql
+-- ============================================
+-- <filename> : <一句话说明>
+-- ============================================
+-- 目的：<这一版做什么>
+-- 依赖：<依赖于哪些前置迁移>
+-- 兼容性：<是否幂等 / 是否破坏性 / 是否需要迁移期>
+-- ============================================
+```
 
 ## 6. 排错速查
 
@@ -172,3 +175,4 @@ CREATE INDEX idx_xxx ON yyy (tenant_id) WHERE is_deleted = FALSE;
 | `column "xxx" already exists` | 同上，ALTER 加 `IF NOT EXISTS` |
 | RLS 拒绝迁移 | 迁移本身已经在事务里 `SET LOCAL row_security = off`，不该出现；可能事务被嵌套 |
 | `permission denied for table _schema_migrations` | 数据库账号权限不足；用 superuser 跑迁移 |
+| 启动后 sys_user 等表找不到 | 跑过 dev 但 init_schema.sql 没全跑——删库重跑或手动补 `psql -f init_schema.sql` |
