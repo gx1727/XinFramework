@@ -95,16 +95,13 @@ func Init(cfg *config.Config) (*appx.App, *server.XinServer, *plugin.AppContext,
 	return app, srv, appCtx, nil
 }
 
-// Shutdown 释放资源。
+// Shutdown 释放基础设施资源（cache / DB pool / logger）。
+//
+// 模块级 Shutdown 由 framework.Serve 在收到信号后调用 shutdownModules 完成，
+// 不在此处——boot 包不持有模块列表，模块生命周期归 framework 管。
 func Shutdown(app *appx.App) {
 	if app == nil {
 		return
-	}
-	var reader plugin.Reader
-	for _, m := range plugin.Apps() {
-		if err := m.Shutdown(reader); err != nil {
-			log.Printf("module %s shutdown failed: %v", m.Name(), err)
-		}
 	}
 	if err := cache.Close(); err != nil {
 		log.Printf("cache close failed: %v", err)

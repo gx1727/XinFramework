@@ -1,6 +1,6 @@
-// Package plugin 模块契约与全局注册表。
+// Package plugin 模块契约。
 //
-// Module 接口（Phase 0022 拆分）：
+// Module 接口：
 //
 //	type Module interface {
 //	    Name() string
@@ -16,7 +16,10 @@
 //
 // 历史背景：旧版本有 NewModule / NewModuleLegacy / NewModuleWithOpts
 // 三种构造器外加 ModuleOption / WithInit 等兼容 API，全部在 Phase 2
-// 删除。新模块直接用 BaseModule 或实现 Module 接口。
+// 删除；曾有 Register / Apps 全局注册表（Phase 0-4 兼容 API 残骸），
+// 在 Phase 6 删除——main.go 现在显式构造 []Module 传给 framework.Serve。
+//
+// 新模块直接用 BaseModule 或实现 Module 接口。
 package plugin
 
 import "github.com/gin-gonic/gin"
@@ -26,9 +29,9 @@ type Module interface {
 	Name() string
 	Init(ctx Reader, w Writer) error
 	// Register 注册路由到三组 RouterGroup：
-//   - public:     公开接口（无需登录 / OptionalAuth；冲突时挂 /public/<x>）
-//   - tenant:     业务域（Auth + RequireTenantContext；模块直接挂资源路径）
-//   - protected:  平台域（/platform/*，Auth；模块内部追加 RequirePlatformRole）
+	//   - public:     公开接口（无需登录 / OptionalAuth；冲突时挂 /public/<x>）
+	//   - tenant:     业务域（Auth + RequireTenantContext；模块直接挂资源路径）
+	//   - protected:  平台域（/platform/*，Auth；模块内部追加 RequirePlatformRole）
 	Register(ctx Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup)
 	Shutdown(ctx Reader) error
 }
@@ -68,19 +71,3 @@ func (m *BaseModule) Shutdown(ctx Reader) error {
 	}
 	return m.StopFn(ctx)
 }
-
-// apps 存储通过 Register 注册的全部模块。
-var apps []Module
-
-// Register 将模块加入全局列表。同名模块重复注册被忽略。
-func Register(m Module) {
-	for _, existing := range apps {
-		if existing.Name() == m.Name() {
-			return
-		}
-	}
-	apps = append(apps, m)
-}
-
-// Apps 返回所有已注册模块（注册顺序）。
-func Apps() []Module { return apps }

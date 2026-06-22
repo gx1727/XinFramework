@@ -7,7 +7,7 @@
 //  4. main.go 调用 framework.Serve(cfg, app, rt, modules) 启动服务
 //
 // 不再有 framework.Run(cfg) 这类把上面四步打包的便捷函数。
-// 不再依赖 plugin.Apps() 的全局注册表 + side-effect import。
+// 不再依赖任何全局注册表——modules 是显式参数，从 main.go 一路传到 Serve / Shutdown。
 package framework
 
 import (
@@ -42,6 +42,7 @@ const (
 //   - 对每个模块调 Init()，期间各模块向 rt.AppCtx 写自己的 repository
 //   - 装全局中间件 + 调每个模块的 Register() 注册路由
 //   - 启 HTTP server，阻塞到收到信号后优雅退出
+//   - 信号触发后调各模块 Shutdown()，再释放基础设施
 func Serve(cfg *config.Config, app *appx.App, rt *Runtime, modules []plugin.Module) {
 	if err := migrate.Run(app.DB, "migrations"); err != nil {
 		log.Fatalf("migrations failed: %v", err)
@@ -79,7 +80,7 @@ func Serve(cfg *config.Config, app *appx.App, rt *Runtime, modules []plugin.Modu
 		log.Printf("sd_notify ready: %v", err)
 	}
 
-	waitForSignal(rt, app)
+	waitForSignal(rt, app, modules)
 }
 
 // Boot 公开包外可用的 boot 入口，封装 internal/core/boot.Init。
@@ -177,5 +178,18 @@ func registerModules(r *gin.Engine, cfg *config.Config, db *pgxpool.Pool, appCtx
 		// - tenant:    业务域路由（/users、/menus、/configs 等；无 /t 前缀）
 		// - protected: 平台域路由（/platform/configs、/platform/dicts、/platform/tenants、/platform/menus）
 		m.Register(ctx, public, tenant, protected)
+	}
+}
+
+// shutdownModules 在收到关闭信号时按顺序调用每个模块的 Shutdown。
+//
+// 模块 Shutdown 接收的 reader 为 nil——目前没有模块需要它；将来若有
+// "读别人 slot 来清理自己"的场景，再扩成传 rt.AppCtx。
+func shutdownModules(modules []plugin.Module) {
+	var reader plugin.Reader
+	for _, m := range modules {
+		if err := m.Shutdown(reader); err != nil {
+			log.Printf("module %s shutdown failed: %v", m.Name(), err)
+		}
 	}
 }

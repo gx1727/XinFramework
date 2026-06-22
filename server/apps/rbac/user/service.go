@@ -25,6 +25,37 @@ type Service struct {
 	accountRepo pkgauth.AccountRepository
 }
 
+// toUserInfo 把 User 转换成返回给前端的 UserInfo。
+//
+// 不设置 Role 字段——Role 由调用方通过 roleRepo.GetUserRoles 单独查询后赋值，
+// 这里保持单一职责。
+//
+// 接收指针以便直接消费 repo.GetByXxx 返回的 *User；nil 时返回零值，
+// 避免在 UpdateOrg / Patch 等"读后写"路径上漏 nil check 导致 panic。
+//
+// Phase 6 抽出：之前 Get / List / Update / Patch / Profile / UpdateOrg 6 处
+// 重复构造 UserInfo 字面量，且 UpdateOrg 漏写 AccountID 字段（前端可见 bug）。
+// 统一通过此 helper 保证字段一致。
+func toUserInfo(u *User) UserInfo {
+	if u == nil {
+		return UserInfo{}
+	}
+	return UserInfo{
+		ID:        u.ID,
+		TenantID:  u.TenantID,
+		AccountID: u.AccountID,
+		OrgID:     u.OrgID,
+		OrgName:   u.OrgName,
+		Code:      u.Code,
+		Nickname:  u.Nickname,
+		RealName:  u.RealName,
+		Avatar:    u.Avatar,
+		Phone:     u.Phone,
+		Email:     u.Email,
+		Status:    u.Status,
+	}
+}
+
 // validateOrg 校验主组织 ID 是否存在且与租户一致。nil 表示允许"未指定"。
 // 与 0 等价的请求也允许（表示移出主组织），但 0 不需要查数据库。
 func (s *Service) validateOrg(ctx context.Context, tenantID uint, orgID *uint) error {
@@ -79,19 +110,8 @@ func (s *Service) UpdateOrg(ctx context.Context, tenantID, userID uint, orgID *u
 		if u.TenantID != tenantID {
 			return ErrUserNotFound
 		}
-		info = &UserInfo{
-			ID:       u.ID,
-			TenantID: u.TenantID,
-			OrgID:    u.OrgID,
-			OrgName:  u.OrgName,
-			Code:     u.Code,
-			Nickname: u.Nickname,
-			RealName: u.RealName,
-			Avatar:   u.Avatar,
-			Phone:    u.Phone,
-			Email:    u.Email,
-			Status:   u.Status,
-		}
+		info = &UserInfo{}
+		*info = toUserInfo(u)
 		roles, err := s.roleRepo.GetUserRoles(ctx, u.ID)
 		if err == nil && len(roles) > 0 {
 			info.Role = roles[0].Code
@@ -164,19 +184,7 @@ func (s *Service) List(ctx context.Context, tenantID uint, req listRequest) ([]U
 
 		result = make([]UserInfo, len(users))
 		for i, u := range users {
-			result[i] = UserInfo{
-				ID:       u.ID,
-				TenantID: u.TenantID,
-				OrgID:    u.OrgID,
-				OrgName:  u.OrgName,
-				Code:     u.Code,
-				Nickname: u.Nickname,
-				RealName: u.RealName,
-				Avatar:   u.Avatar,
-				Phone:    u.Phone,
-				Email:    u.Email,
-				Status:   u.Status,
-			}
+			result[i] = toUserInfo(&u)
 
 			roles, err := s.roleRepo.GetUserRoles(ctx, u.ID)
 			if err == nil && len(roles) > 0 {
@@ -208,19 +216,8 @@ func (s *Service) Get(ctx context.Context, tenantID, userID uint) (*UserInfo, er
 			return ErrUserNotFound
 		}
 
-		info = &UserInfo{
-			ID:       u.ID,
-			TenantID: u.TenantID,
-			OrgID:    u.OrgID,
-			OrgName:  u.OrgName,
-			Code:     u.Code,
-			Nickname: u.Nickname,
-			RealName: u.RealName,
-			Avatar:   u.Avatar,
-			Phone:    u.Phone,
-			Email:    u.Email,
-			Status:   u.Status,
-		}
+		info = &UserInfo{}
+		*info = toUserInfo(u)
 
 		roles, err := s.roleRepo.GetUserRoles(ctx, u.ID)
 		if err == nil && len(roles) > 0 {
@@ -274,20 +271,8 @@ func (s *Service) Update(ctx context.Context, tenantID, userID uint, req updateU
 			return ErrUserNotFound
 		}
 
-		info = &UserInfo{
-			ID:        u.ID,
-			TenantID:  u.TenantID,
-			AccountID: u.AccountID,
-			OrgID:     u.OrgID,
-			OrgName:   u.OrgName,
-			Code:      u.Code,
-			Nickname:  u.Nickname,
-			RealName:  u.RealName,
-			Avatar:    u.Avatar,
-			Phone:     u.Phone,
-			Email:     u.Email,
-			Status:    u.Status,
-		}
+		info = &UserInfo{}
+		*info = toUserInfo(u)
 		roles, err := s.roleRepo.GetUserRoles(ctx, u.ID)
 		if err == nil && len(roles) > 0 {
 			info.Role = roles[0].Code
@@ -321,20 +306,8 @@ func (s *Service) Patch(ctx context.Context, tenantID, userID uint, req patchUse
 			return ErrUserNotFound
 		}
 
-		info = &UserInfo{
-			ID:        u.ID,
-			TenantID:  u.TenantID,
-			AccountID: u.AccountID,
-			OrgID:     u.OrgID,
-			OrgName:   u.OrgName,
-			Code:      u.Code,
-			Nickname:  u.Nickname,
-			RealName:  u.RealName,
-			Avatar:    u.Avatar,
-			Phone:     u.Phone,
-			Email:     u.Email,
-			Status:    u.Status,
-		}
+		info = &UserInfo{}
+		*info = toUserInfo(u)
 		roles, err := s.roleRepo.GetUserRoles(ctx, u.ID)
 		if err == nil && len(roles) > 0 {
 			info.Role = roles[0].Code
@@ -362,20 +335,8 @@ func (s *Service) Profile(ctx context.Context, tenantID, userID uint) (*UserInfo
 			return ErrUserNotFound
 		}
 
-		info = &UserInfo{
-			ID:        u.ID,
-			TenantID:  u.TenantID,
-			AccountID: u.AccountID,
-			OrgID:     u.OrgID,
-			OrgName:   u.OrgName,
-			Code:      u.Code,
-			Nickname:  u.Nickname,
-			RealName:  u.RealName,
-			Avatar:    u.Avatar,
-			Phone:     u.Phone,
-			Email:     u.Email,
-			Status:    u.Status,
-		}
+		info = &UserInfo{}
+		*info = toUserInfo(u)
 
 		roles, err := s.roleRepo.GetUserRoles(ctx, u.ID)
 		if err == nil && len(roles) > 0 {

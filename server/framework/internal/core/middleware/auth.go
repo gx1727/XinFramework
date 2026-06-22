@@ -47,13 +47,17 @@ func processAuthToken(c *gin.Context, cfg *config.JWTConfig, sm session.SessionM
 	return claims, nil
 }
 
-// injectAuthContext loads permissions and injects UserContext and XinContext into the request
+// injectBaseContext 把 JWT claims 注入到请求上下文里的 XinContext + TenantID。
 //
-// Phase 4: 显式传入 pool；不再依赖 db.Get() 全局。
-func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc SecurityContextLoader, pool *pgxpool.Pool) {
+// 行为：
+//   - 如果 ctx 上已经有 XinContext，clone 后覆盖身份字段（保留其他字段）；
+//   - 否则新建一个 XinContext；
+//   - 总是 WithXinContext + WithTenantID 写回 ctx。
+//
+// 仅注入 XinContext（轻量身份）。如果还需要 UserContext（RBAC + DataScope），
+// 调用方应当接着注册 UserContextLoader（见 injectAuthContext）。
+func injectBaseContext(c *gin.Context, claims *jwtpkg.Claims) {
 	ctx := c.Request.Context()
-
-	// 始终优先装配轻量的 XinContext（包含了身份的基本标识）
 	var xc *xinContext.XinContext
 	if existingXc, ok := xinContext.XinContextFrom(ctx); ok {
 		xc = existingXc.Clone()
@@ -73,6 +77,47 @@ func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc SecurityCo
 	}
 	ctx = xinContext.WithXinContext(ctx, xc)
 	ctx = xinContext.WithTenantID(ctx, claims.TenantID)
+	c.Request = c.Request.WithContext(ctx)
+}
+
+// handleAuthError 把 processAuthToken 抛出的 jwt 错误翻译成统一的 HTTP 401。
+// 区分三种情况：
+//   - ErrTokenUnverifiable：无 token 或格式错误 → "unauthorized"
+//   - ErrTokenExpired：session 失效/被吊销 → "session expired or revoked"
+//   - 其他（签名错误、claims 无效等）→ "invalid token"
+//
+// 调用方需要在 handleAuthError 之后立即 c.Abort() 并 return。
+func handleAuthError(c *gin.Context, err error) {
+	switch {
+	case err == jwt.ErrTokenUnverifiable:
+		resp.Unauthorized(c, "unauthorized")
+	case err == jwt.ErrTokenExpired:
+		resp.Unauthorized(c, "session expired or revoked")
+	default:
+		resp.Unauthorized(c, "invalid token")
+	}
+	c.Abort()
+}
+
+// injectAuthContext loads permissions and injects UserContext and XinContext into the request
+//
+// Phase 4: 显式传入 pool；不再依赖 db.Get() 全局。
+func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc SecurityContextLoader, pool *pgxpool.Pool) {
+	ctx := c.Request.Context()
+	xc, _ := xinContext.XinContextFrom(ctx)
+	if xc == nil {
+		// 没有 base context 时先补上——理论上前置 injectBaseContext 已写入，
+		// 但保留独立路径避免依赖顺序。
+		xc = &xinContext.XinContext{
+			TenantID:      claims.TenantID,
+			UserID:        claims.UserID,
+			SessionID:     claims.SessionID,
+			Role:          claims.Role,
+			PlatformRoles: claims.PlatformRoles,
+		}
+		ctx = xinContext.WithXinContext(ctx, xc)
+		ctx = xinContext.WithTenantID(ctx, claims.TenantID)
+	}
 
 	// 注册懒加载生成器到 Context 的某个钩子里，
 	// 当实际业务中有人调用 MustNewUserContext 时才去查 DB 构建 UserContext
@@ -115,17 +160,11 @@ func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityCont
 	return func(c *gin.Context) {
 		claims, err := processAuthToken(c, cfg, sm)
 		if err != nil {
-			if err == jwt.ErrTokenUnverifiable {
-				resp.Unauthorized(c, "unauthorized")
-			} else if err == jwt.ErrTokenExpired {
-				resp.Unauthorized(c, "session expired or revoked")
-			} else {
-				resp.Unauthorized(c, "invalid token")
-			}
-			c.Abort()
+			handleAuthError(c, err)
 			return
 		}
 
+		injectBaseContext(c, claims)
 		injectAuthContext(c, claims, permSvc, pool)
 		c.Next()
 	}
@@ -135,7 +174,7 @@ func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityCont
 // 适用于只需要知道用户身份但不需要权限检查的场景（如公开接口的个性化内容）
 //
 // 注意：虽然 UserContext 采用懒加载且只会加载一次，但 AuthLite 有以下优势：
-// 1. 明确表达“此路由不需要权限”的意图
+// 1. 明确表达"此路由不需要权限"的意图
 // 2. 防止误调用 MustNewUserContext 导致意外加载权限
 // 3. 减少内存占用（不注册 UserContextLoader）
 // 4. 更安全（从根源上杜绝权限数据被访问的可能）
@@ -143,40 +182,11 @@ func AuthLite(cfg *config.JWTConfig, sm session.SessionManager) gin.HandlerFunc 
 	return func(c *gin.Context) {
 		claims, err := processAuthToken(c, cfg, sm)
 		if err != nil {
-			if err == jwt.ErrTokenUnverifiable {
-				resp.Unauthorized(c, "unauthorized")
-			} else if err == jwt.ErrTokenExpired {
-				resp.Unauthorized(c, "session expired or revoked")
-			} else {
-				resp.Unauthorized(c, "invalid token")
-			}
-			c.Abort()
+			handleAuthError(c, err)
 			return
 		}
 
-		// 只注入 XinContext，不注册 UserContextLoader
-		ctx := c.Request.Context()
-		var xc *xinContext.XinContext
-		if existingXc, ok := xinContext.XinContextFrom(ctx); ok {
-			xc = existingXc.Clone()
-			xc.TenantID = claims.TenantID
-			xc.UserID = claims.UserID
-			xc.SessionID = claims.SessionID
-			xc.Role = claims.Role
-			xc.PlatformRoles = claims.PlatformRoles
-		} else {
-			xc = &xinContext.XinContext{
-				TenantID:      claims.TenantID,
-				UserID:        claims.UserID,
-				SessionID:     claims.SessionID,
-				Role:          claims.Role,
-				PlatformRoles: claims.PlatformRoles,
-			}
-		}
-		ctx = xinContext.WithXinContext(ctx, xc)
-		ctx = xinContext.WithTenantID(ctx, claims.TenantID)
-		c.Request = c.Request.WithContext(ctx)
-
+		injectBaseContext(c, claims)
 		c.Next()
 	}
 }
@@ -189,6 +199,7 @@ func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc Secu
 		claims, err := processAuthToken(c, cfg, sm)
 		// 如果 Token 解析成功，注入上下文；否则尝试从 Header 获取租户信息（当游客）
 		if err == nil && claims != nil {
+			injectBaseContext(c, claims)
 			injectAuthContext(c, claims, permSvc, pool)
 		} else {
 			// 兜底：如果没传 Token（或无效），尝试提取 X-Tenant-ID，以便公共接口也能拿到租户上下文

@@ -151,9 +151,7 @@ func (r *PostgresUserRepository) GetByIDScoped(ctx context.Context, id uint) (*U
 
 // GetByAccount returns the user bound to (tenantID, accountID).
 //
-// Phase 3 note: this method satisfies pkgrbac.UserRepository. It also
-// keeps a legacy name GetByAccountID for in-package callers that don't
-// filter by tenant (uses tenantID=0 implicitly meaning "any tenant").
+// Phase 3 note: this method satisfies pkgrbac.UserRepository.
 func (r *PostgresUserRepository) GetByAccount(ctx context.Context, tenantID, accountID uint) (*User, error) {
 	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
@@ -173,14 +171,6 @@ func (r *PostgresUserRepository) GetByAccount(ctx context.Context, tenantID, acc
 	return u, nil
 }
 
-// GetByAccountID is a legacy alias used inside the apps/rbac/user
-// package. It scopes to no tenant (tenantID=0) for backwards
-// compatibility with existing call sites — prefer GetByAccount
-// (which scopes by tenantID) for new code.
-func (r *PostgresUserRepository) GetByAccountID(ctx context.Context, accountID uint) (*User, error) {
-	return r.GetByAccount(ctx, 0, accountID)
-}
-
 func (r *PostgresUserRepository) GetByCode(ctx context.Context, tenantID uint, code string) (*User, error) {
 	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
@@ -191,27 +181,6 @@ func (r *PostgresUserRepository) GetByCode(ctx context.Context, tenantID uint, c
 		`SELECT `+userSelectColumns+`
 		`+userFromClause+`
 		WHERE u.is_deleted = FALSE AND u.tenant_id = $1 AND u.code = $2`, tenantID, code))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrUserNotFound
-		}
-		return nil, err
-	}
-	return u, nil
-}
-
-// GetByCodeLegacy is the unscoped variant kept for in-package callers
-// that don't filter by tenant. Prefer GetByCode for new code.
-func (r *PostgresUserRepository) GetByCodeLegacy(ctx context.Context, code string) (*User, error) {
-	q, err := db.GetQuerier(ctx, r.db)
-	if err != nil {
-		return nil, err
-	}
-
-	u, err := scanUser(q.QueryRow(ctx,
-		`SELECT `+userSelectColumns+`
-		`+userFromClause+`
-		WHERE u.is_deleted = FALSE AND u.code = $1`, code))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound

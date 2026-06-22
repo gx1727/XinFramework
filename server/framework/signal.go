@@ -12,6 +12,7 @@ import (
 
 	"gx1727.com/xin/framework/internal/core/boot"
 	"gx1727.com/xin/framework/pkg/appx"
+	"gx1727.com/xin/framework/pkg/plugin"
 )
 
 func getPid() (int, error) {
@@ -51,12 +52,15 @@ func waitForProcess(pid int, timeout time.Duration) {
 	}
 }
 
-func waitForSignal(rt *Runtime, app *appx.App) {
+// waitForSignal 阻塞到收到关闭信号，按"模块 Shutdown → server Shutdown → 基础设施释放"顺序清理。
+func waitForSignal(rt *Runtime, app *appx.App, modules []plugin.Module) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, notifySignals()...)
 
 	sig := <-sigCh
 	log.Printf("Received signal: %v", sig)
+
+	shutdownModules(modules)
 
 	if err := rt.Server.Shutdown(30 * time.Second); err != nil {
 		log.Printf("server shutdown error: %v", err)
