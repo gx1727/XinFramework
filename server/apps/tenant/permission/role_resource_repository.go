@@ -31,7 +31,7 @@ func (r *PostgresRoleResourceRepository) GetByRoleID(ctx context.Context, roleID
 	}
 
 	rows, err := q.Query(ctx, `
-		SELECT resource_id FROM role_resources
+		SELECT resource_id FROM tenant_role_resources
 		WHERE is_deleted = FALSE AND role_id = $1
 		ORDER BY resource_id ASC`, roleID)
 	if err != nil {
@@ -58,7 +58,7 @@ func (r *PostgresRoleResourceRepository) SetForRole(ctx context.Context, roleID 
 
 	if len(resourceIDs) == 0 {
 		_, err = q.Exec(ctx, `
-			UPDATE role_resources SET is_deleted = TRUE, updated_at = NOW()
+			UPDATE tenant_role_resources SET is_deleted = TRUE, updated_at = NOW()
 			WHERE is_deleted = FALSE AND role_id = $1`, roleID)
 		if err != nil {
 			return fmt.Errorf("delete all role resources: %w", err)
@@ -67,7 +67,7 @@ func (r *PostgresRoleResourceRepository) SetForRole(ctx context.Context, roleID 
 	}
 
 	_, err = q.Exec(ctx, `
-		UPDATE role_resources SET is_deleted = TRUE, updated_at = NOW()
+		UPDATE tenant_role_resources SET is_deleted = TRUE, updated_at = NOW()
 		WHERE is_deleted = FALSE AND role_id = $1
 		  AND resource_id NOT IN (
 			SELECT unnest($2::bigint[])
@@ -77,13 +77,13 @@ func (r *PostgresRoleResourceRepository) SetForRole(ctx context.Context, roleID 
 	}
 
 	var tenantID int64
-	err = q.QueryRow(ctx, `SELECT tenant_id FROM roles WHERE id = $1 AND is_deleted = FALSE`, roleID).Scan(&tenantID)
+	err = q.QueryRow(ctx, `SELECT tenant_id FROM tenant_roles WHERE id = $1 AND is_deleted = FALSE`, roleID).Scan(&tenantID)
 	if err != nil {
 		return fmt.Errorf("get tenant_id for role: %w", err)
 	}
 
 	_, err = q.Exec(ctx, `
-		INSERT INTO role_resources (role_id, resource_id, tenant_id)
+		INSERT INTO tenant_role_resources (role_id, resource_id, tenant_id)
 		SELECT $1, unnest, $3
 		FROM unnest($2::bigint[]) AS unnest
 		ON CONFLICT (role_id, resource_id) WHERE is_deleted = FALSE
@@ -100,7 +100,7 @@ func (r *PostgresRoleResourceRepository) DeleteByRoleID(ctx context.Context, rol
 		return err
 	}
 	_, err = q.Exec(ctx, `
-		UPDATE role_resources SET is_deleted = TRUE, updated_at = NOW()
+		UPDATE tenant_role_resources SET is_deleted = TRUE, updated_at = NOW()
 		WHERE is_deleted = FALSE AND role_id = $1`, roleID)
 	return err
 }

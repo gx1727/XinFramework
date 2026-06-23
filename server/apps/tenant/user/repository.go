@@ -41,9 +41,9 @@ const userSelectColumns = `u.id, u.tenant_id, u.account_id, u.code, u.nickname, 
 // userFromClause is the canonical FROM + JOIN for every user read path.
 // The join keeps accounts.is_deleted out of the result so soft-deleted
 // accounts surface phone/email as NULL (handled by the *string nil-checks).
-const userFromClause = `FROM users u
+const userFromClause = `FROM tenant_users u
 	LEFT JOIN accounts a ON a.id = u.account_id AND a.is_deleted = FALSE
-	LEFT JOIN organizations o ON o.id = u.org_id AND o.is_deleted = FALSE`
+	LEFT JOIN tenant_organizations o ON o.id = u.org_id AND o.is_deleted = FALSE`
 
 func buildUserScopeFilter(ctx context.Context) (permission.ScopeFilter, error) {
 	uc, ok := xincontext.UserContextFrom(ctx)
@@ -347,7 +347,7 @@ func (r *PostgresUserRepository) Create(ctx context.Context, tenantID, accountID
 	// below by re-reading the canonical JOINed row.
 	var insertedID uint
 	if err := q.QueryRow(ctx, `
-		INSERT INTO users (tenant_id, account_id, code, status, org_id)
+		INSERT INTO tenant_users (tenant_id, account_id, code, status, org_id)
 		VALUES ($1, $2, $3, 1, $4)
 		RETURNING id`,
 		tenantID, accountID, code, orgIDArg).Scan(&insertedID); err != nil {
@@ -382,7 +382,7 @@ func (r *PostgresUserRepository) Update(ctx context.Context, id uint, req Update
 		orgIDArg = *req.OrgID
 	}
 	tag, err := q.Exec(ctx, `
-		UPDATE users SET nickname = $2, real_name = $3, avatar = $4, status = $5, org_id = $6, updated_at = NOW()
+		UPDATE tenant_users SET nickname = $2, real_name = $3, avatar = $4, status = $5, org_id = $6, updated_at = NOW()
 		WHERE id = $1 AND is_deleted = FALSE`,
 		id, req.Nickname, req.RealName, req.Avatar, req.Status, orgIDArg)
 	if err != nil {
@@ -447,7 +447,7 @@ func (r *PostgresUserRepository) Patch(ctx context.Context, id uint, req PatchUs
 	}
 
 	sql := fmt.Sprintf(`
-		UPDATE users SET %s
+		UPDATE tenant_users SET %s
 		WHERE id = $%d AND is_deleted = FALSE`,
 		strings.Join(sets, ", "), idx)
 
@@ -469,7 +469,7 @@ func (r *PostgresUserRepository) UpdateStatus(ctx context.Context, id uint, stat
 	}
 
 	tag, err := q.Exec(ctx, `
-		UPDATE users SET status = $2, updated_at = NOW()
+		UPDATE tenant_users SET status = $2, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id, status)
 	if err != nil {
 		return fmt.Errorf("update user status: %w", err)
@@ -487,7 +487,7 @@ func (r *PostgresUserRepository) Delete(ctx context.Context, id uint) error {
 	}
 
 	tag, err := q.Exec(ctx, `
-		UPDATE users SET is_deleted = TRUE, updated_at = NOW()
+		UPDATE tenant_users SET is_deleted = TRUE, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete user: %w", err)
@@ -512,7 +512,7 @@ func (r *PostgresUserRepository) UpdateOrg(ctx context.Context, id uint, orgID *
 	}
 
 	tag, err := q.Exec(ctx, `
-		UPDATE users SET org_id = $2, updated_at = NOW()
+		UPDATE tenant_users SET org_id = $2, updated_at = NOW()
 		WHERE id = $1 AND is_deleted = FALSE`,
 		id, arg)
 	if err != nil {
@@ -535,7 +535,7 @@ func (r *PostgresUserRepository) UpdatePhone(ctx context.Context, userID uint, p
 
 	tag, err := q.Exec(ctx, `
 		UPDATE accounts a SET phone = $2, updated_at = NOW()
-		FROM users u
+		FROM tenant_users u
 		WHERE u.id = $1
 		  AND a.id = u.account_id
 		  AND u.is_deleted = FALSE
@@ -556,7 +556,7 @@ func (r *PostgresUserRepository) UpdateProfile(ctx context.Context, id uint, nic
 	}
 
 	tag, err := q.Exec(ctx, `
-		UPDATE users SET nickname = $2, avatar = $3, updated_at = NOW()
+		UPDATE tenant_users SET nickname = $2, avatar = $3, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id, nickname, avatar)
 	if err != nil {
 		return fmt.Errorf("update user profile: %w", err)
@@ -574,7 +574,7 @@ func (r *PostgresUserRepository) UpdateAvatar(ctx context.Context, id uint, avat
 	}
 
 	tag, err := q.Exec(ctx, `
-		UPDATE users SET avatar = $2, updated_at = NOW()
+		UPDATE tenant_users SET avatar = $2, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1`, id, avatar)
 	if err != nil {
 		return fmt.Errorf("update user avatar: %w", err)

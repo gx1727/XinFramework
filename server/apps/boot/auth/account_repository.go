@@ -203,7 +203,7 @@ func (r *PostgresAccountRepository) GetAccountIDByUserID(ctx context.Context, us
 
 	var accountID uint
 	err = q.QueryRow(ctx, `
-		SELECT account_id FROM users
+		SELECT account_id FROM tenant_users
 		WHERE id = $1 AND is_deleted = FALSE
 		LIMIT 1
 	`, userID).Scan(&accountID)
@@ -243,12 +243,12 @@ func (r *PostgresAccountRepository) ListTenantIdentities(ctx context.Context, ac
 				COALESCE(u.nickname, ''), COALESCE(u.real_name, ''), COALESCE(u.avatar, ''),
 				COALESCE(a.email, ''),
 				COALESCE((
-					SELECT r.code FROM user_roles ur
-					JOIN roles r ON r.id = ur.role_id
+					SELECT r.code FROM tenant_user_roles ur
+					JOIN tenant_roles r ON r.id = ur.role_id
 					WHERE ur.user_id = u.id AND ur.is_deleted = FALSE AND r.is_deleted = FALSE
 					ORDER BY ur.id ASC LIMIT 1
 				), 'user') AS role_code
-			FROM users u
+			FROM tenant_users u
 			JOIN accounts a ON a.id = u.account_id
 			JOIN tenants t ON t.id = u.tenant_id
 			WHERE u.account_id = $1

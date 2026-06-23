@@ -44,7 +44,7 @@ func (r *PostgresMenuRepository) GetByID(ctx context.Context, id uint) (*Menu, e
 	var m Menu
 	err = scanMenu(q.QueryRow(ctx, `
 		SELECT `+menuColumns+`
-		FROM menus
+		FROM tenant_menus
 		WHERE is_deleted = FALSE AND tenant_id = $1 AND id = $2`,
 		platformTenantID, id), &m)
 	if err != nil {
@@ -64,7 +64,7 @@ func (r *PostgresMenuRepository) GetByCode(ctx context.Context, code string) (*M
 	var m Menu
 	err = scanMenu(q.QueryRow(ctx, `
 		SELECT `+menuColumns+`
-		FROM menus
+		FROM tenant_menus
 		WHERE is_deleted = FALSE AND tenant_id = $1 AND code = $2`,
 		platformTenantID, code), &m)
 	if err != nil {
@@ -83,7 +83,7 @@ func (r *PostgresMenuRepository) GetAll(ctx context.Context) ([]Menu, error) {
 	}
 	rows, err := q.Query(ctx, `
 		SELECT `+menuColumns+`
-		FROM menus
+		FROM tenant_menus
 		WHERE is_deleted = FALSE AND tenant_id = $1
 		ORDER BY sort ASC, id ASC`,
 		platformTenantID)
@@ -110,7 +110,7 @@ func (r *PostgresMenuRepository) Create(ctx context.Context, req CreateRepoReq) 
 	}
 	var m Menu
 	err = scanMenu(q.QueryRow(ctx, `
-		INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
+		INSERT INTO tenant_menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING `+menuColumns,
 		platformTenantID, req.Code, req.Name, req.Subtitle, req.URL, req.Path, req.Icon, req.Sort, req.ParentID, req.Ancestors, req.Visible, req.Enabled,
@@ -131,7 +131,7 @@ func (r *PostgresMenuRepository) Update(ctx context.Context, id uint, req Update
 	}
 	var m Menu
 	err = scanMenu(q.QueryRow(ctx, `
-		UPDATE menus SET
+		UPDATE tenant_menus SET
 			code = $2, name = $3, subtitle = $4, url = $5, path = $6, icon = $7,
 			sort = $8, parent_id = $9, ancestors = $10,
 			visible = $11, enabled = $12, updated_at = NOW()
@@ -158,7 +158,7 @@ func (r *PostgresMenuRepository) Delete(ctx context.Context, id uint) error {
 		return err
 	}
 	tag, err := q.Exec(ctx, `
-		UPDATE menus SET is_deleted = TRUE, updated_at = NOW()
+		UPDATE tenant_menus SET is_deleted = TRUE, updated_at = NOW()
 		WHERE is_deleted = FALSE AND tenant_id = $1 AND id = $2`,
 		platformTenantID, id)
 	if err != nil {

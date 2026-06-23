@@ -276,7 +276,7 @@ func (s *Service) LoginByWeChat(ctx context.Context, code string) (*LoginResult,
 			// 老用户：查询用户信息
 			err = q.QueryRow(ctx, `
 				SELECT u.id, u.tenant_id, u.code, u.status
-				FROM users u
+				FROM tenant_users u
 				WHERE u.account_id = $1 AND u.is_deleted = FALSE
 				LIMIT 1
 			`, existingAccountID).Scan(&userID, &tenantID, &userCode, &userStatus)
@@ -300,8 +300,8 @@ func (s *Service) LoginByWeChat(ctx context.Context, code string) (*LoginResult,
 			// 获取角色
 			err = q.QueryRow(ctx, `
 				SELECT r.code
-				FROM user_roles ur
-				JOIN roles r ON r.id = ur.role_id
+				FROM tenant_user_roles ur
+				JOIN tenant_roles r ON r.id = ur.role_id
 				WHERE ur.user_id = $1
 				ORDER BY ur.id ASC LIMIT 1
 			`, userID).Scan(&roleCode)
@@ -401,7 +401,7 @@ func (s *Service) createWeChatUser(ctx context.Context, tenantID uint, openID, u
 		}
 
 		err = q.QueryRow(ctx, `
-			INSERT INTO users (tenant_id, account_id, code, status, created_at, updated_at)
+			INSERT INTO tenant_users (tenant_id, account_id, code, status, created_at, updated_at)
 			VALUES ($1, $2, $3, 1, NOW(), NOW())
 			RETURNING id
 		`, tenantID, accountID, userCode).Scan(&userID)
@@ -412,7 +412,7 @@ func (s *Service) createWeChatUser(ctx context.Context, tenantID uint, openID, u
 		// 获取默认角色
 		var roleID uint
 		err = q.QueryRow(ctx, `
-			SELECT id FROM roles
+			SELECT id FROM tenant_roles
 			WHERE is_deleted = FALSE AND tenant_id = $1 AND is_default = TRUE
 			LIMIT 1
 		`, tenantID).Scan(&roleID)
@@ -422,7 +422,7 @@ func (s *Service) createWeChatUser(ctx context.Context, tenantID uint, openID, u
 
 		// 分配角色
 		_, err = q.Exec(ctx, `
-			INSERT INTO user_roles (tenant_id, user_id, role_id, created_at, updated_at)
+			INSERT INTO tenant_user_roles (tenant_id, user_id, role_id, created_at, updated_at)
 			VALUES ($1, $2, $3, NOW(), NOW())
 		`, tenantID, userID, roleID)
 		if err != nil {

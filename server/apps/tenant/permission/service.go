@@ -71,7 +71,7 @@ func (s *Service) GetResources(ctx context.Context, roleID uint) ([]ResourcePerm
 				continue
 			}
 			err := q.QueryRow(ctx, `
-				SELECT id, menu_id, code, name, action FROM resources
+				SELECT id, menu_id, code, name, action FROM tenant_permissions
 				WHERE is_deleted = FALSE AND id = $1`, resID).Scan(&id, &menuID, &code, &name, &action)
 			if err != nil {
 				continue // 跳过已删除的资源

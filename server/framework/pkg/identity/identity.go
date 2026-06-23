@@ -99,7 +99,7 @@ type Menu struct {
 // (e.g. "user:list", "tenant:create").
 //
 // Platform permissions live in sys_permissions; tenant permissions
-// live in tenant_permissions (renamed from resources). The MenuID
+// live in tenant_permissions (renamed from tenant_permissions). The MenuID
 // field is the owning menu, mirroring the resources.menu_id FK.
 type Permission struct {
 	ID          uint      `json:"id"`

@@ -75,7 +75,7 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 			SELECT u.id, u.tenant_id, u.code, u.status,
 			       COALESCE(u.nickname, ''), COALESCE(u.real_name, ''), COALESCE(u.avatar, ''),
 			       COALESCE(a.email, '')
-			FROM users u
+			FROM tenant_users u
 			JOIN accounts a ON a.id = u.account_id
 			WHERE u.account_id = $1
 			ORDER BY u.id ASC LIMIT 1`, accID).Scan(
@@ -92,8 +92,8 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 		roleCode := "user"
 		err = querier.QueryRow(ctx, `
 			SELECT r.code
-			FROM user_roles ur
-			JOIN roles r ON r.id = ur.role_id
+			FROM tenant_user_roles ur
+			JOIN tenant_roles r ON r.id = ur.role_id
 			WHERE ur.user_id = $1
 			ORDER BY ur.id ASC LIMIT 1`, uID).Scan(&roleCode)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -563,7 +563,7 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 		}
 
 		err = querier.QueryRow(ctx, `
-			INSERT INTO users (tenant_id, account_id, code, status)
+			INSERT INTO tenant_users (tenant_id, account_id, code, status)
 			VALUES ($1, $2, $3, $4)
 			RETURNING id`, req.TenantID, newAccount.ID, newUserCode, 1).Scan(&newUserID)
 		if err != nil {
@@ -572,7 +572,7 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 
 		var roleID uint
 		err = querier.QueryRow(ctx, `
-			SELECT id FROM roles
+			SELECT id FROM tenant_roles
 			WHERE is_deleted = FALSE AND tenant_id = $1 AND is_default = TRUE
 			LIMIT 1
 		`, req.TenantID).Scan(&roleID)
@@ -581,7 +581,7 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 		}
 
 		_, err = querier.Exec(ctx, `
-			INSERT INTO user_roles (tenant_id, user_id, role_id)
+			INSERT INTO tenant_user_roles (tenant_id, user_id, role_id)
 			VALUES ($1, $2, $3)`, req.TenantID, newUserID, roleID)
 		if err != nil {
 			return ErrRegisterFailed

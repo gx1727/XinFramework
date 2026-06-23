@@ -100,9 +100,9 @@ func EnsureTemplateSeeded(ctx context.Context, pool *pgxpool.Pool) error {
 		// 注意：parent_id 必须是 system 菜单在 bootstrap 里的实际 id（不是其他租户的）
 		// ancestors 留空，下面 UPDATE 重建
 		if _, err := q.Exec(ctx, `
-			INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
+			INSERT INTO tenant_menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
 			SELECT $1, 'config', '配置管理', '系统配置项管理', '', '/settings', 'SettingsIcon', 0,
-			       (SELECT id FROM menus WHERE code = 'system' AND tenant_id = $1 AND is_deleted = FALSE),
+			       (SELECT id FROM tenant_menus WHERE code = 'system' AND tenant_id = $1 AND is_deleted = FALSE),
 			       '', TRUE, TRUE
 			ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING`,
 			templateID,
@@ -112,7 +112,7 @@ func EnsureTemplateSeeded(ctx context.Context, pool *pgxpool.Pool) error {
 
 		// 重建 config menu 的 ancestors（与 framework.sql 2c 段保持一致）
 		if _, err := q.Exec(ctx, `
-			UPDATE menus SET ancestors = parent_id::text
+			UPDATE tenant_menus SET ancestors = parent_id::text
 			WHERE tenant_id = $1 AND code = 'config' AND parent_id > 0 AND is_deleted = FALSE`,
 			templateID,
 		); err != nil {
@@ -132,9 +132,9 @@ func EnsureTemplateSeeded(ctx context.Context, pool *pgxpool.Pool) error {
 		}
 		for _, r := range resources {
 			if _, err := q.Exec(ctx, `
-				INSERT INTO resources (tenant_id, menu_id, code, name, action, description, sort, status)
+				INSERT INTO tenant_permissions (tenant_id, menu_id, code, name, action, description, sort, status)
 				SELECT $1,
-				       (SELECT id FROM menus WHERE code = 'config' AND tenant_id = $1 AND is_deleted = FALSE),
+				       (SELECT id FROM tenant_menus WHERE code = 'config' AND tenant_id = $1 AND is_deleted = FALSE),
 				       $2, $3, $4, $5, $6, 1
 				ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING`,
 				templateID, r.code, r.name, r.action, r.desc, r.sort,
@@ -295,7 +295,7 @@ func HealConfigMenuParent(ctx context.Context, pool *pgxpool.Pool) error {
 		}
 
 		res, err := q.Exec(ctx, `
-			UPDATE menus
+			UPDATE tenant_menus
 			SET parent_id = 0,
 			    ancestors = ''
 			WHERE code = 'config'

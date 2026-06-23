@@ -31,7 +31,7 @@ func (r *PostgresRoleMenuRepository) GetByRoleID(ctx context.Context, roleID uin
 	}
 
 	rows, err := q.Query(ctx, `
-		SELECT menu_id FROM role_menus
+		SELECT menu_id FROM tenant_role_menus
 		WHERE is_deleted = FALSE AND role_id = $1
 		ORDER BY menu_id ASC`, roleID)
 	if err != nil {
@@ -58,7 +58,7 @@ func (r *PostgresRoleMenuRepository) SetForRole(ctx context.Context, roleID uint
 
 	if len(menuIDs) == 0 {
 		_, err = q.Exec(ctx, `
-			UPDATE role_menus SET is_deleted = TRUE, updated_at = NOW()
+			UPDATE tenant_role_menus SET is_deleted = TRUE, updated_at = NOW()
 			WHERE is_deleted = FALSE AND role_id = $1`, roleID)
 		if err != nil {
 			return fmt.Errorf("delete all role menus: %w", err)
@@ -67,7 +67,7 @@ func (r *PostgresRoleMenuRepository) SetForRole(ctx context.Context, roleID uint
 	}
 
 	_, err = q.Exec(ctx, `
-		UPDATE role_menus SET is_deleted = TRUE, updated_at = NOW()
+		UPDATE tenant_role_menus SET is_deleted = TRUE, updated_at = NOW()
 		WHERE is_deleted = FALSE AND role_id = $1
 		  AND menu_id NOT IN (
 			SELECT unnest($2::bigint[])
@@ -77,13 +77,13 @@ func (r *PostgresRoleMenuRepository) SetForRole(ctx context.Context, roleID uint
 	}
 
 	var tenantID int64
-	err = q.QueryRow(ctx, `SELECT tenant_id FROM roles WHERE id = $1 AND is_deleted = FALSE`, roleID).Scan(&tenantID)
+	err = q.QueryRow(ctx, `SELECT tenant_id FROM tenant_roles WHERE id = $1 AND is_deleted = FALSE`, roleID).Scan(&tenantID)
 	if err != nil {
 		return fmt.Errorf("get tenant_id for role: %w", err)
 	}
 
 	_, err = q.Exec(ctx, `
-		INSERT INTO role_menus (role_id, menu_id, tenant_id)
+		INSERT INTO tenant_role_menus (role_id, menu_id, tenant_id)
 		SELECT $1, unnest, $3
 		FROM unnest($2::bigint[]) AS unnest
 		ON CONFLICT (role_id, menu_id) WHERE is_deleted = FALSE
@@ -100,7 +100,7 @@ func (r *PostgresRoleMenuRepository) DeleteByRoleID(ctx context.Context, roleID 
 		return err
 	}
 	_, err = q.Exec(ctx, `
-		UPDATE role_menus SET is_deleted = TRUE, updated_at = NOW()
+		UPDATE tenant_role_menus SET is_deleted = TRUE, updated_at = NOW()
 		WHERE is_deleted = FALSE AND role_id = $1`, roleID)
 	return err
 }

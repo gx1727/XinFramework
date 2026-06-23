@@ -28,7 +28,7 @@ func (r *PostgresMenuRepository) GetByID(ctx context.Context, id uint) (_ *Menu,
 	var m Menu
 	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled, created_at, updated_at
-		FROM menus
+		FROM tenant_menus
 		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
 		&m.ID, &m.TenantID, &m.Code, &m.Name, &m.Subtitle,
 		&m.URL, &m.Path, &m.Icon, &m.Sort, &m.ParentID, &m.Ancestors,
@@ -52,7 +52,7 @@ func (r *PostgresMenuRepository) GetByCode(ctx context.Context, tenantID uint, c
 	var m Menu
 	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled, created_at, updated_at
-		FROM menus
+		FROM tenant_menus
 		WHERE is_deleted = FALSE AND tenant_id = $1 AND code = $2`, tenantID, code).Scan(
 		&m.ID, &m.TenantID, &m.Code, &m.Name, &m.Subtitle,
 		&m.URL, &m.Path, &m.Icon, &m.Sort, &m.ParentID, &m.Ancestors,
@@ -75,7 +75,7 @@ func (r *PostgresMenuRepository) GetByTenant(ctx context.Context, tenantID uint)
 
 	rows, err := q.Query(ctx, `
 		SELECT id, tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled, created_at, updated_at
-		FROM menus
+		FROM tenant_menus
 		WHERE is_deleted = FALSE AND tenant_id = $1
 		ORDER BY sort ASC, id ASC`, tenantID)
 	if err != nil {
@@ -112,9 +112,9 @@ func (r *PostgresMenuRepository) GetUserMenus(ctx context.Context, tenantID, use
 
 	rows, err := q.Query(ctx, `
 		SELECT DISTINCT m.id, m.tenant_id, m.code, m.name, m.subtitle, m.url, m.path, m.icon, m.sort, m.parent_id, m.ancestors, m.visible, m.enabled, m.created_at, m.updated_at
-		FROM menus m
-		JOIN role_menus rm ON rm.menu_id = m.id AND rm.is_deleted = FALSE
-		JOIN user_roles ur ON ur.role_id = rm.role_id AND ur.is_deleted = FALSE
+		FROM tenant_menus m
+		JOIN tenant_role_menus rm ON rm.menu_id = m.id AND rm.is_deleted = FALSE
+		JOIN tenant_user_roles ur ON ur.role_id = rm.role_id AND ur.is_deleted = FALSE
 		WHERE m.is_deleted = FALSE AND m.tenant_id = $1 AND ur.user_id = $2
 		ORDER BY m.sort ASC, m.id ASC`, tenantID, userID)
 	if err != nil {
@@ -151,7 +151,7 @@ func (r *PostgresMenuRepository) Create(ctx context.Context, tenantID uint, req 
 
 	var m Menu
 	err = q.QueryRow(ctx, `
-		INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
+		INSERT INTO tenant_menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING id, tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled, created_at, updated_at`,
 		tenantID, req.Code, req.Name, req.Subtitle, req.URL, req.Path, req.Icon, req.Sort, req.ParentID, req.Ancestors, req.Visible, req.Enabled,
@@ -177,7 +177,7 @@ func (r *PostgresMenuRepository) Update(ctx context.Context, id uint, req Update
 
 	var m Menu
 	err = q.QueryRow(ctx, `
-		UPDATE menus SET
+		UPDATE tenant_menus SET
 			code = $2, name = $3, subtitle = $4, url = $5, path = $6, icon = $7, sort = $8, parent_id = $9, ancestors = $10, visible = $11, enabled = $12, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1
 		RETURNING id, tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled, created_at, updated_at`,
@@ -211,7 +211,7 @@ func (r *PostgresMenuRepository) Delete(ctx context.Context, tenantID, id uint) 
 	}
 
 	tag, err := q.Exec(ctx, `
-		UPDATE menus SET is_deleted = TRUE, updated_at = NOW(), tenant_id = $2
+		UPDATE tenant_menus SET is_deleted = TRUE, updated_at = NOW(), tenant_id = $2
 		WHERE is_deleted = FALSE AND id = $1`, id, tenantID)
 	if err != nil {
 		return fmt.Errorf("delete menu: %w", err)

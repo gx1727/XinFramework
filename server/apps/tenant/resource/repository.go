@@ -28,7 +28,7 @@ func (r *PostgresResourceRepository) GetByID(ctx context.Context, id uint) (*Res
 	var menuID *uint
 	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
-		FROM resources
+		FROM tenant_permissions
 		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
 		&res.ID, &res.TenantID, &menuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
 		&res.CreatedAt, &res.UpdatedAt,
@@ -54,7 +54,7 @@ func (r *PostgresResourceRepository) GetByCode(ctx context.Context, tenantID uin
 	var menuID *uint
 	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
-		FROM resources
+		FROM tenant_permissions
 		WHERE is_deleted = FALSE AND tenant_id = $1 AND code = $2`, tenantID, code).Scan(
 		&res.ID, &res.TenantID, &menuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
 		&res.CreatedAt, &res.UpdatedAt,
@@ -78,7 +78,7 @@ func (r *PostgresResourceRepository) GetByTenant(ctx context.Context, tenantID u
 	}
 	rows, err := q.Query(ctx, `
 		SELECT id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
-		FROM resources
+		FROM tenant_permissions
 		WHERE is_deleted = FALSE AND tenant_id = $1
 		ORDER BY id ASC`, tenantID)
 	if err != nil {
@@ -111,7 +111,7 @@ func (r *PostgresResourceRepository) GetByMenu(ctx context.Context, menuID uint)
 	}
 	rows, err := q.Query(ctx, `
 		SELECT id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
-		FROM resources
+		FROM tenant_permissions
 		WHERE is_deleted = FALSE AND menu_id = $1
 		ORDER BY sort ASC, id ASC`, menuID)
 	if err != nil {
@@ -144,10 +144,10 @@ func (r *PostgresResourceRepository) GetUserResources(ctx context.Context, tenan
 	}
 	rows, err := q.Query(ctx, `
 		SELECT DISTINCT r.id, r.tenant_id, r.menu_id, r.code, r.name, r.action, r.description, r.sort, r.status, r.created_at, r.updated_at
-		FROM resources r
-		JOIN role_resources rr ON rr.resource_id = r.id AND rr.is_deleted = FALSE AND rr.effect = 1
-		JOIN roles rol ON rol.id = rr.role_id AND rol.is_deleted = FALSE AND rol.status = 1
-		JOIN user_roles ur ON ur.role_id = rol.id AND ur.is_deleted = FALSE
+		FROM tenant_permissions r
+		JOIN tenant_role_resources rr ON rr.resource_id = r.id AND rr.is_deleted = FALSE AND rr.effect = 1
+		JOIN tenant_roles rol ON rol.id = rr.role_id AND rol.is_deleted = FALSE AND rol.status = 1
+		JOIN tenant_user_roles ur ON ur.role_id = rol.id AND ur.is_deleted = FALSE
 		WHERE r.is_deleted = FALSE AND r.tenant_id = $1 AND ur.user_id = $2
 		ORDER BY r.id ASC`, tenantID, userID)
 	if err != nil {
@@ -181,10 +181,10 @@ func (r *PostgresResourceRepository) GetUserResourcesByMenu(ctx context.Context,
 	}
 	rows, err := q.Query(ctx, `
 		SELECT DISTINCT r.id, r.tenant_id, r.menu_id, r.code, r.name, r.action, r.description, r.sort, r.status, r.created_at, r.updated_at
-		FROM resources r
-		JOIN role_resources rr ON rr.resource_id = r.id AND rr.is_deleted = FALSE AND rr.effect = 1
-		JOIN roles rol ON rol.id = rr.role_id AND rol.is_deleted = FALSE AND rol.status = 1
-		JOIN user_roles ur ON ur.role_id = rol.id AND ur.is_deleted = FALSE
+		FROM tenant_permissions r
+		JOIN tenant_role_resources rr ON rr.resource_id = r.id AND rr.is_deleted = FALSE AND rr.effect = 1
+		JOIN tenant_roles rol ON rol.id = rr.role_id AND rol.is_deleted = FALSE AND rol.status = 1
+		JOIN tenant_user_roles ur ON ur.role_id = rol.id AND ur.is_deleted = FALSE
 		WHERE r.is_deleted = FALSE AND r.tenant_id = $1 AND ur.user_id = $2
 		  AND (r.menu_id = $3 OR r.menu_id IS NULL)
 		ORDER BY r.sort ASC, r.id ASC`, tenantID, userID, menuID)
@@ -218,7 +218,7 @@ func (r *PostgresResourceRepository) Create(ctx context.Context, tenantID uint, 
 	}
 	var res Resource
 	err = q.QueryRow(ctx, `
-		INSERT INTO resources (tenant_id, menu_id, code, name, action, description, sort, status)
+		INSERT INTO tenant_permissions (tenant_id, menu_id, code, name, action, description, sort, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
 	`, tenantID, req.MenuID, req.Code, req.Name, req.Action, req.Description, req.Sort, req.Status).Scan(
@@ -241,7 +241,7 @@ func (r *PostgresResourceRepository) Update(ctx context.Context, id uint, req Up
 	}
 	var res Resource
 	err = q.QueryRow(ctx, `
-		UPDATE resources SET name = $2, action = $3, description = $4, sort = $5, status = $6, updated_at = NOW()
+		UPDATE tenant_permissions SET name = $2, action = $3, description = $4, sort = $5, status = $6, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1
 		RETURNING id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
 	`, id, req.Name, req.Action, req.Description, req.Sort, req.Status).Scan(
@@ -262,7 +262,7 @@ func (r *PostgresResourceRepository) Delete(ctx context.Context, id uint) error 
 	if err != nil {
 		return err
 	}
-	tag, err := q.Exec(ctx, `UPDATE resources SET is_deleted = TRUE, updated_at = NOW() WHERE is_deleted = FALSE AND id = $1`, id)
+	tag, err := q.Exec(ctx, `UPDATE tenant_permissions SET is_deleted = TRUE, updated_at = NOW() WHERE is_deleted = FALSE AND id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete resource: %w", err)
 	}

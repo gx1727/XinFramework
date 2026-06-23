@@ -50,7 +50,7 @@ func (r *PostgresOrganizationRepository) GetByID(ctx context.Context, id uint) (
 	var org Organization
 	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
-		FROM organizations
+		FROM tenant_organizations
 		WHERE is_deleted = FALSE AND id = $1`, id).Scan(
 		&org.ID, &org.TenantID, &org.Code, &org.Name, &org.Type, &org.Description,
 		&org.AdminCode, &org.ParentID, &org.Ancestors, &org.Sort, &org.Status, &org.CreatedAt, &org.UpdatedAt,
@@ -76,7 +76,7 @@ func (r *PostgresOrganizationRepository) GetByIDScoped(ctx context.Context, id u
 
 	query := `
 		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
-		FROM organizations
+		FROM tenant_organizations
 		WHERE is_deleted = FALSE AND id = $1`
 	args := []any{id}
 	if !filter.IsEmpty() {
@@ -106,7 +106,7 @@ func (r *PostgresOrganizationRepository) GetByCode(ctx context.Context, tenantID
 	var org Organization
 	err = q.QueryRow(ctx, `
 		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
-		FROM organizations
+		FROM tenant_organizations
 		WHERE is_deleted = FALSE AND tenant_id = $1 AND code = $2`, tenantID, code).Scan(
 		&org.ID, &org.TenantID, &org.Code, &org.Name, &org.Type, &org.Description,
 		&org.AdminCode, &org.ParentID, &org.Ancestors, &org.Sort, &org.Status, &org.CreatedAt, &org.UpdatedAt,
@@ -127,7 +127,7 @@ func (r *PostgresOrganizationRepository) GetByTenant(ctx context.Context, tenant
 	}
 	rows, err := q.Query(ctx, `
 		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
-		FROM organizations
+		FROM tenant_organizations
 		WHERE is_deleted = FALSE AND tenant_id = $1
 		ORDER BY sort ASC, id ASC`, tenantID)
 	if err != nil {
@@ -161,7 +161,7 @@ func (r *PostgresOrganizationRepository) GetByTenantScoped(ctx context.Context, 
 
 	query := `
 		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
-		FROM organizations
+		FROM tenant_organizations
 		WHERE is_deleted = FALSE AND tenant_id = $1`
 	args := []any{tenantID}
 	if !filter.IsEmpty() {
@@ -203,8 +203,8 @@ func (r *PostgresOrganizationRepository) CountUsersInOrgTree(ctx context.Context
 	// o.ancestors 存的是"父轨迹"，如 "0.1.2"；orgID 本身需额外匹配。
 	err = q.QueryRow(ctx, `
 		SELECT COUNT(*)
-		FROM users u
-		JOIN organizations o ON o.id = u.org_id AND o.is_deleted = FALSE
+		FROM tenant_users u
+		JOIN tenant_organizations o ON o.id = u.org_id AND o.is_deleted = FALSE
 		WHERE u.is_deleted = FALSE
 		  AND (o.id = $1 OR o.ancestors LIKE $2)`,
 		orgID, fmt.Sprintf("%d.", orgID)).Scan(&n)
@@ -217,7 +217,7 @@ func (r *PostgresOrganizationRepository) CountChildren(ctx context.Context, pare
 		return 0, err
 	}
 	var n int64
-	err = q.QueryRow(ctx, `SELECT COUNT(*) FROM organizations WHERE is_deleted = FALSE AND parent_id = $1`, parentID).Scan(&n)
+	err = q.QueryRow(ctx, `SELECT COUNT(*) FROM tenant_organizations WHERE is_deleted = FALSE AND parent_id = $1`, parentID).Scan(&n)
 	return n, err
 }
 
@@ -228,7 +228,7 @@ func (r *PostgresOrganizationRepository) GetChildren(ctx context.Context, parent
 	}
 	rows, err := q.Query(ctx, `
 		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
-		FROM organizations
+		FROM tenant_organizations
 		WHERE is_deleted = FALSE AND parent_id = $1
 		ORDER BY sort ASC, id ASC`, parentID)
 	if err != nil {
@@ -262,7 +262,7 @@ func (r *PostgresOrganizationRepository) GetChildrenScoped(ctx context.Context, 
 
 	query := `
 		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
-		FROM organizations
+		FROM tenant_organizations
 		WHERE is_deleted = FALSE AND parent_id = $1`
 	args := []any{parentID}
 	if !filter.IsEmpty() {
@@ -298,7 +298,7 @@ func (r *PostgresOrganizationRepository) GetTree(ctx context.Context, tenantID u
 	}
 	rows, err := q.Query(ctx, `
 		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
-		FROM organizations
+		FROM tenant_organizations
 		WHERE is_deleted = FALSE AND tenant_id = $1
 		ORDER BY ancestors ASC, sort ASC, id ASC`, tenantID)
 	if err != nil {
@@ -332,7 +332,7 @@ func (r *PostgresOrganizationRepository) GetTreeScoped(ctx context.Context, tena
 
 	query := `
 		SELECT id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
-		FROM organizations
+		FROM tenant_organizations
 		WHERE is_deleted = FALSE AND tenant_id = $1`
 	args := []any{tenantID}
 	if !filter.IsEmpty() {
@@ -368,7 +368,7 @@ func (r *PostgresOrganizationRepository) Create(ctx context.Context, tenantID ui
 	}
 	var org Organization
 	err = q.QueryRow(ctx, `
-		INSERT INTO organizations (tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status)
+		INSERT INTO tenant_organizations (tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
 	`, tenantID, req.Code, req.Name, req.Type, req.Description, req.AdminCode, req.ParentID, req.Ancestors, req.Sort, req.Status).Scan(
@@ -388,7 +388,7 @@ func (r *PostgresOrganizationRepository) Update(ctx context.Context, id uint, re
 	}
 	var org Organization
 	err = q.QueryRow(ctx, `
-		UPDATE organizations SET name = $2, type = $3, description = $4, admin_code = $5, sort = $6, status = $7, updated_at = NOW()
+		UPDATE tenant_organizations SET name = $2, type = $3, description = $4, admin_code = $5, sort = $6, status = $7, updated_at = NOW()
 		WHERE is_deleted = FALSE AND id = $1
 		RETURNING id, tenant_id, code, name, type, description, admin_code, parent_id, ancestors, sort, status, created_at, updated_at
 	`, id, req.Name, req.Type, req.Description, req.AdminCode, req.Sort, req.Status).Scan(
@@ -409,7 +409,7 @@ func (r *PostgresOrganizationRepository) Delete(ctx context.Context, id uint) er
 	if err != nil {
 		return err
 	}
-	tag, err := q.Exec(ctx, `UPDATE organizations SET is_deleted = TRUE, updated_at = NOW() WHERE is_deleted = FALSE AND id = $1`, id)
+	tag, err := q.Exec(ctx, `UPDATE tenant_organizations SET is_deleted = TRUE, updated_at = NOW() WHERE is_deleted = FALSE AND id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete organization: %w", err)
 	}

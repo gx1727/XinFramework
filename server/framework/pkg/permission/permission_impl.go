@@ -26,11 +26,11 @@ func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, u
 	}
 	rows, err := q.Query(ctx, `
 		SELECT DISTINCT res.code, res.action
-		FROM users u
-		JOIN user_roles ur ON ur.user_id = u.id
-		JOIN roles rol ON rol.id = ur.role_id
-		JOIN role_resources rr ON rr.role_id = rol.id
-		JOIN resources res ON res.id = rr.resource_id
+		FROM tenant_users u
+		JOIN tenant_user_roles ur ON ur.user_id = u.id
+		JOIN tenant_roles rol ON rol.id = ur.role_id
+		JOIN tenant_role_resources rr ON rr.role_id = rol.id
+		JOIN tenant_permissions res ON res.id = rr.resource_id
 		WHERE u.id = $1
 		  AND u.is_deleted = FALSE
 		  AND ur.is_deleted = FALSE
@@ -67,8 +67,8 @@ func (r *PostgresPermissionRepository) GetUserRoles(ctx context.Context, userID 
 	}
 	rows, err := q.Query(ctx, `
 		SELECT DISTINCT rol.code
-		FROM user_roles ur
-		JOIN roles rol ON rol.id = ur.role_id
+		FROM tenant_user_roles ur
+		JOIN tenant_roles rol ON rol.id = ur.role_id
 		WHERE ur.user_id = $1
 		  AND ur.is_deleted = FALSE
 		  AND rol.is_deleted = FALSE
@@ -99,7 +99,7 @@ func (r *PostgresPermissionRepository) GetUserIDsByRole(ctx context.Context, rol
 
 	rows, err := q.Query(ctx, `
 		SELECT ur.user_id
-		FROM user_roles ur
+		FROM tenant_user_roles ur
 		WHERE ur.role_id = $1
 		  AND ur.is_deleted = FALSE
 	`, roleID)
@@ -128,9 +128,9 @@ func (r *PostgresPermissionRepository) GetUserIDsByResource(ctx context.Context,
 
 	rows, err := q.Query(ctx, `
 		SELECT DISTINCT ur.user_id
-		FROM role_resources rr
-		JOIN user_roles ur ON ur.role_id = rr.role_id AND ur.is_deleted = FALSE
-		JOIN roles rol ON rol.id = rr.role_id AND rol.is_deleted = FALSE AND rol.status = 1
+		FROM tenant_role_resources rr
+		JOIN tenant_user_roles ur ON ur.role_id = rr.role_id AND ur.is_deleted = FALSE
+		JOIN tenant_roles rol ON rol.id = rr.role_id AND rol.is_deleted = FALSE AND rol.status = 1
 		WHERE rr.resource_id = $1
 		  AND rr.is_deleted = FALSE
 		  AND rr.effect = 1
@@ -172,8 +172,8 @@ func (r *PostgresDataScopeRepository) GetDataScope(ctx context.Context, userID u
 	var dataScope int
 	err = q.QueryRow(ctx, `
 		SELECT COALESCE(MIN(rol.data_scope), 5)
-		FROM user_roles ur
-		JOIN roles rol ON rol.id = ur.role_id
+		FROM tenant_user_roles ur
+		JOIN tenant_roles rol ON rol.id = ur.role_id
 		WHERE ur.user_id = $1
 		  AND ur.is_deleted = FALSE
 		  AND rol.is_deleted = FALSE
@@ -191,8 +191,8 @@ func (r *PostgresDataScopeRepository) GetDataScope(ctx context.Context, userID u
 	if ds.Type == DataScopeCustom {
 		rows, err := q.Query(ctx, `
 			SELECT rds.org_id
-			FROM user_roles ur
-			JOIN role_data_scopes rds ON rds.role_id = ur.role_id
+			FROM tenant_user_roles ur
+			JOIN tenant_role_data_scopes rds ON rds.role_id = ur.role_id
 			WHERE ur.user_id = $1
 			  AND ur.is_deleted = FALSE
 		`, userID)
@@ -221,7 +221,7 @@ func (r *PostgresDataScopeRepository) GetUserOrgID(ctx context.Context, userID u
 	}
 	var orgID int64
 	err = q.QueryRow(ctx, `
-		SELECT org_id FROM users WHERE id = $1 AND is_deleted = FALSE
+		SELECT org_id FROM tenant_users WHERE id = $1 AND is_deleted = FALSE
 	`, userID).Scan(&orgID)
 	if err != nil {
 		// org_id can be NULL for some users
@@ -237,7 +237,7 @@ func (r *PostgresDataScopeRepository) GetByRoleID(ctx context.Context, roleID ui
 		return nil, err
 	}
 	rows, err := q.Query(ctx, `
-		SELECT org_id FROM role_data_scopes WHERE role_id = $1
+		SELECT org_id FROM tenant_role_data_scopes WHERE role_id = $1
 	`, roleID)
 	if err != nil {
 		return nil, fmt.Errorf("get role data scopes: %w", err)
@@ -263,14 +263,14 @@ func (r *PostgresDataScopeRepository) SetForRole(ctx context.Context, roleID uin
 	}
 
 	// Delete existing
-	_, err = q.Exec(ctx, `DELETE FROM role_data_scopes WHERE role_id = $1`, roleID)
+	_, err = q.Exec(ctx, `DELETE FROM tenant_role_data_scopes WHERE role_id = $1`, roleID)
 	if err != nil {
 		return fmt.Errorf("delete existing: %w", err)
 	}
 
 	// Get tenant_id for the role
 	var tenantID int64
-	err = q.QueryRow(ctx, `SELECT tenant_id FROM roles WHERE id = $1`, roleID).Scan(&tenantID)
+	err = q.QueryRow(ctx, `SELECT tenant_id FROM tenant_roles WHERE id = $1`, roleID).Scan(&tenantID)
 	if err != nil {
 		return fmt.Errorf("get tenant_id: %w", err)
 	}
@@ -278,7 +278,7 @@ func (r *PostgresDataScopeRepository) SetForRole(ctx context.Context, roleID uin
 	// Insert new (batch)
 	if len(orgIDs) > 0 {
 		_, err = q.Exec(ctx, `
-			INSERT INTO role_data_scopes (tenant_id, role_id, org_id)
+			INSERT INTO tenant_role_data_scopes (tenant_id, role_id, org_id)
 			SELECT $1, $2, unnest
 			FROM unnest($3::bigint[]) AS unnest
 		`, tenantID, roleID, orgIDs)

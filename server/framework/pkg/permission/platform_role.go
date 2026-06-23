@@ -21,7 +21,8 @@ type PlatformRoleRepository interface {
 	Revoke(ctx context.Context, accountID uint, role string) error
 }
 
-// PostgresPlatformRoleRepository 基于 account_roles 表的实现
+// PostgresPlatformRoleRepository 基于 sys_users / sys_user_roles / sys_roles 的实现。
+// 0023.3 终态：account_roles 表已 drop，平台角色改走 sys_* 三表 join。
 type PostgresPlatformRoleRepository struct {
 	db *pgxpool.Pool
 }
@@ -30,14 +31,22 @@ func NewPlatformRoleRepository(pool *pgxpool.Pool) *PostgresPlatformRoleReposito
 	return &PostgresPlatformRoleRepository{db: pool}
 }
 
+// selectRolesForAccountID 是核心 join：account_id -> sys_users -> sys_user_roles -> sys_roles.code。
+// 注意：sys_user_roles 与 sys_roles 都有 is_deleted，必须各自加谓词，否则 soft-delete 的关联/角色仍会返回。
+const selectRolesForAccountID = `
+	SELECT DISTINCT sr.code
+	FROM sys_users su
+	JOIN sys_user_roles sur ON sur.user_id = su.id AND sur.is_deleted = FALSE
+	JOIN sys_roles sr ON sr.id = sur.role_id AND sr.is_deleted = FALSE
+	WHERE su.account_id = $1 AND su.is_deleted = FALSE
+`
+
 func (r *PostgresPlatformRoleRepository) GetRolesByAccountID(ctx context.Context, accountID uint) ([]string, error) {
 	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := q.Query(ctx, `
-		SELECT role FROM account_roles WHERE account_id = $1
-	`, accountID)
+	rows, err := q.Query(ctx, selectRolesForAccountID, accountID)
 	if err != nil {
 		return nil, fmt.Errorf("get platform roles: %w", err)
 	}
@@ -61,7 +70,7 @@ func (r *PostgresPlatformRoleRepository) GetRolesByUserID(ctx context.Context, u
 	}
 	var accountID uint
 	err = q.QueryRow(ctx, `
-		SELECT account_id FROM users WHERE id = $1 AND is_deleted = FALSE
+		SELECT account_id FROM tenant_users WHERE id = $1 AND is_deleted = FALSE
 	`, userID).Scan(&accountID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -75,15 +84,22 @@ func (r *PostgresPlatformRoleRepository) GetRolesByUserID(ctx context.Context, u
 	return r.GetRolesByAccountID(ctx, accountID)
 }
 
+// Grant 通过 account_id + role.code 找到 sys_users.id 与 sys_roles.id，
+// 然后插入 sys_user_roles。account_roles 表已 drop，不再有 account_id + role string 直插。
 func (r *PostgresPlatformRoleRepository) Grant(ctx context.Context, accountID uint, role string) error {
 	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}
 	_, err = q.Exec(ctx, `
-		INSERT INTO account_roles (account_id, role)
-		VALUES ($1, $2)
-		ON CONFLICT (account_id, role) DO NOTHING
+		INSERT INTO sys_user_roles (user_id, role_id)
+		SELECT su.id, sr.id
+		FROM sys_users su, sys_roles sr
+		WHERE su.account_id = $1
+		  AND sr.code = $2
+		  AND su.is_deleted = FALSE
+		  AND sr.is_deleted = FALSE
+		ON CONFLICT (user_id, role_id) DO NOTHING
 	`, accountID, role)
 	if err != nil {
 		return fmt.Errorf("grant platform role: %w", err)
@@ -91,12 +107,23 @@ func (r *PostgresPlatformRoleRepository) Grant(ctx context.Context, accountID ui
 	return nil
 }
 
+// Revoke 软删：UPDATE is_deleted = TRUE 而非 DELETE，保留审计痕迹。
+// 与 sys_user_roles 表的 is_deleted 软删约定一致。
 func (r *PostgresPlatformRoleRepository) Revoke(ctx context.Context, accountID uint, role string) error {
 	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return err
 	}
-	_, err = q.Exec(ctx, `DELETE FROM account_roles WHERE account_id = $1 AND role = $2`, accountID, role)
+	_, err = q.Exec(ctx, `
+		UPDATE sys_user_roles sur
+		SET is_deleted = TRUE, updated_at = NOW()
+		FROM sys_users su, sys_roles sr
+		WHERE sur.user_id = su.id
+		  AND sur.role_id = sr.id
+		  AND su.account_id = $1
+		  AND sr.code = $2
+		  AND sur.is_deleted = FALSE
+	`, accountID, role)
 	if err != nil {
 		return fmt.Errorf("revoke platform role: %w", err)
 	}

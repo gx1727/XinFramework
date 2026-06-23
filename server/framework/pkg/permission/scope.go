@@ -96,9 +96,9 @@ func BuildDataScopeFilter(ds DataScope, userID uint, orgID int64, columns ScopeC
 			` + columns.OrgID + ` = $1
 			OR ` + columns.OrgID + ` IN (
 				WITH RECURSIVE org_tree AS (
-					SELECT id FROM organizations WHERE id = $1
+					SELECT id FROM tenant_organizations WHERE id = $1
 					UNION ALL
-					SELECT o.id FROM organizations o
+					SELECT o.id FROM tenant_organizations o
 					JOIN org_tree ot ON o.parent_id = ot.id
 				)
 				SELECT id FROM org_tree

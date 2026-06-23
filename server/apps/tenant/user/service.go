@@ -436,7 +436,7 @@ func (s *Service) Create(ctx context.Context, tenantID, creatorID uint, req crea
 			orgIDArg = *req.OrgID
 		}
 		err = querier.QueryRow(ctx, `
-			INSERT INTO users (tenant_id, account_id, code, status, org_id, created_by)
+			INSERT INTO tenant_users (tenant_id, account_id, code, status, org_id, created_by)
 			VALUES ($1, $2, '', $3, $4, $5)
 			RETURNING id`, tenantID, newAccount.ID, status, orgIDArg, creatorID).Scan(&newUserID)
 		if err != nil {
@@ -445,7 +445,7 @@ func (s *Service) Create(ctx context.Context, tenantID, creatorID uint, req crea
 
 		var roleID uint
 		err = querier.QueryRow(ctx, `
-			SELECT id FROM roles
+			SELECT id FROM tenant_roles
 			WHERE is_deleted = FALSE AND tenant_id = $1 AND is_default = TRUE
 			LIMIT 1`, tenantID).Scan(&roleID)
 		if err != nil {
@@ -453,7 +453,7 @@ func (s *Service) Create(ctx context.Context, tenantID, creatorID uint, req crea
 		}
 
 		_, err = querier.Exec(ctx, `
-			INSERT INTO user_roles (tenant_id, user_id, role_id)
+			INSERT INTO tenant_user_roles (tenant_id, user_id, role_id)
 			VALUES ($1, $2, $3)`, tenantID, newUserID, roleID)
 		if err != nil {
 			return fmt.Errorf("assign default role: %w", err)
@@ -461,7 +461,7 @@ func (s *Service) Create(ctx context.Context, tenantID, creatorID uint, req crea
 
 		newUserCode = fmt.Sprintf("U%07d", newUserID)
 
-		_, err = querier.Exec(ctx, `UPDATE users SET code = $1 WHERE id = $2`, newUserCode, newUserID)
+		_, err = querier.Exec(ctx, `UPDATE tenant_users SET code = $1 WHERE id = $2`, newUserCode, newUserID)
 		if err != nil {
 			return fmt.Errorf("update user code: %w", err)
 		}

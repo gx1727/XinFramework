@@ -245,7 +245,7 @@ func (r *PostgresTenantRepository) CountActiveUsers(ctx context.Context, tenantI
 	}
 	var n int64
 	err = q.QueryRow(ctx, `
-		SELECT COUNT(*) FROM users
+		SELECT COUNT(*) FROM tenant_users
 		WHERE tenant_id = $1 AND is_deleted = FALSE`, tenantID).Scan(&n)
 	if err != nil {
 		return 0, fmt.Errorf("count tenant users: %w", err)

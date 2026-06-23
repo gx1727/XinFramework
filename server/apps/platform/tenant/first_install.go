@@ -70,7 +70,7 @@ func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminA
 	// 1) root 组织（每个租户必须有，作为后续组织的祖先）
 	var rootOrgID uint
 	if err := q.QueryRow(ctx, `
-		INSERT INTO organizations (tenant_id, code, name, type, ancestors, sort, status)
+		INSERT INTO tenant_organizations (tenant_id, code, name, type, ancestors, sort, status)
 		VALUES ($1, 'root', '根组织', 'company', '', 0, 1)
 		RETURNING id`, tenantID).Scan(&rootOrgID); err != nil {
 		return nil, fmt.Errorf("first-install root org: %w", err)
@@ -80,9 +80,9 @@ func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminA
 	// 2) 复制 menus（两步法）
 	// 2a) 根菜单（parent_id=0）：先入主，拿到新的 code → id 映射
 	if _, err := q.Exec(ctx, `
-		INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
+		INSERT INTO tenant_menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
 		SELECT $1, code, name, subtitle, url, path, icon, sort, 0, '', visible, enabled
-		FROM menus
+		FROM tenant_menus
 		WHERE tenant_id = $2 AND parent_id = 0 AND is_deleted = FALSE`,
 		tenantID, templateID); err != nil {
 		return nil, fmt.Errorf("first-install copy menus (roots): %w", err)
@@ -90,12 +90,12 @@ func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminA
 
 	// 2b) 子菜单：用 code 重映射 parent_id 到新租户的同 code 菜单
 	if _, err := q.Exec(ctx, `
-		INSERT INTO menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
+		INSERT INTO tenant_menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
 		SELECT $1, m.code, m.name, m.subtitle, m.url, m.path, m.icon, m.sort,
 		       new_p.id, '', m.visible, m.enabled
-		FROM menus m
-		JOIN menus old_p ON old_p.id = m.parent_id AND old_p.tenant_id = $2 AND old_p.is_deleted = FALSE
-		JOIN menus new_p ON new_p.code = old_p.code
+		FROM tenant_menus m
+		JOIN tenant_menus old_p ON old_p.id = m.parent_id AND old_p.tenant_id = $2 AND old_p.is_deleted = FALSE
+		JOIN tenant_menus new_p ON new_p.code = old_p.code
 		                AND new_p.tenant_id = $1 AND new_p.is_deleted = FALSE
 		WHERE m.tenant_id = $2 AND m.parent_id > 0 AND m.is_deleted = FALSE`,
 		tenantID, templateID); err != nil {
@@ -104,14 +104,14 @@ func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminA
 
 	// 2c) 重建 ancestors（用 parent_id::text 表达层级路径）
 	if _, err := q.Exec(ctx, `
-		UPDATE menus SET ancestors = parent_id::text
+		UPDATE tenant_menus SET ancestors = parent_id::text
 		WHERE tenant_id = $1 AND parent_id > 0`, tenantID); err != nil {
 		return nil, fmt.Errorf("first-install rebuild ancestors: %w", err)
 	}
 
 	// 记录菜单数量（用于 audit）
 	if err := q.QueryRow(ctx, `
-		SELECT COUNT(*) FROM menus WHERE tenant_id = $1 AND is_deleted = FALSE`,
+		SELECT COUNT(*) FROM tenant_menus WHERE tenant_id = $1 AND is_deleted = FALSE`,
 		tenantID).Scan(&rep.MenuCount); err != nil {
 		return nil, fmt.Errorf("first-install count menus: %w", err)
 	}
@@ -119,11 +119,11 @@ func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminA
 	// 3) 复制 resources：用 code 重映射 menu_id
 	// resources 表无 RLS，可任意 tenant_id 复制
 	if _, err := q.Exec(ctx, `
-		INSERT INTO resources (tenant_id, menu_id, code, name, action, description, sort, status)
+		INSERT INTO tenant_permissions (tenant_id, menu_id, code, name, action, description, sort, status)
 		SELECT $1, new_m.id, r.code, r.name, r.action, r.description, r.sort, r.status
-		FROM resources r
-		LEFT JOIN menus new_m ON new_m.code = (
-		        SELECT code FROM menus WHERE id = r.menu_id AND tenant_id = $2 AND is_deleted = FALSE
+		FROM tenant_permissions r
+		LEFT JOIN tenant_menus new_m ON new_m.code = (
+		        SELECT code FROM tenant_menus WHERE id = r.menu_id AND tenant_id = $2 AND is_deleted = FALSE
 		    ) AND new_m.tenant_id = $1 AND new_m.is_deleted = FALSE
 		WHERE r.tenant_id = $2 AND r.is_deleted = FALSE`,
 		tenantID, templateID); err != nil {
@@ -131,7 +131,7 @@ func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminA
 	}
 
 	if err := q.QueryRow(ctx, `
-		SELECT COUNT(*) FROM resources WHERE tenant_id = $1 AND is_deleted = FALSE`,
+		SELECT COUNT(*) FROM tenant_permissions WHERE tenant_id = $1 AND is_deleted = FALSE`,
 		tenantID).Scan(&rep.ResourceCount); err != nil {
 		return nil, fmt.Errorf("first-install count resources: %w", err)
 	}
@@ -139,7 +139,7 @@ func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminA
 	// 4) admin 角色（data_scope=1 = DataScopeAll，独立内置）
 	var adminRoleID uint
 	if err := q.QueryRow(ctx, `
-		INSERT INTO roles (tenant_id, code, name, description, data_scope, sort, status)
+		INSERT INTO tenant_roles (tenant_id, code, name, description, data_scope, sort, status)
 		VALUES ($1, 'admin', '系统管理员', '首装自动创建的内置超级管理员', 1, 1, 1)
 		RETURNING id`, tenantID).Scan(&adminRoleID); err != nil {
 		return nil, fmt.Errorf("first-install admin role: %w", err)
@@ -148,8 +148,8 @@ func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminA
 
 	// 4a) admin role 绑定所有模板菜单（role_menus 全绑定，确保租户内 admin 可访问所有菜单）
 	if _, err := q.Exec(ctx, `
-		INSERT INTO role_menus (tenant_id, role_id, menu_id)
-		SELECT $1, $2, id FROM menus
+		INSERT INTO tenant_role_menus (tenant_id, role_id, menu_id)
+		SELECT $1, $2, id FROM tenant_menus
 		WHERE tenant_id = $1 AND is_deleted = FALSE`,
 		tenantID, adminRoleID); err != nil {
 		return nil, fmt.Errorf("first-install role_menus: %w", err)
@@ -157,9 +157,9 @@ func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminA
 
 	// 4b) admin role 绑定超级资源 *:*（resources 复制时已包含此条，仅做绑定）
 	if _, err := q.Exec(ctx, `
-		INSERT INTO role_resources (tenant_id, role_id, resource_id, effect)
+		INSERT INTO tenant_role_resources (tenant_id, role_id, resource_id, effect)
 		SELECT $1, $2, id, 1
-		FROM resources
+		FROM tenant_permissions
 		WHERE tenant_id = $1 AND code = '*' AND action = '*' AND is_deleted = FALSE
 		LIMIT 1`,
 		tenantID, adminRoleID); err != nil {
@@ -288,7 +288,7 @@ func installAdminUser(ctx context.Context, q db.Querier, tenantID, adminAccountI
 	// ON CONFLICT 兜底重查；同一账号可能被多租户共享。
 	var adminUserID uint
 	err = q.QueryRow(ctx, `
-		INSERT INTO users (tenant_id, account_id, org_id, real_name, status)
+		INSERT INTO tenant_users (tenant_id, account_id, org_id, real_name, status)
 		VALUES ($1, $2, $3, 'Administrator', 1)
 		ON CONFLICT (account_id) WHERE is_deleted = FALSE
 		DO UPDATE SET org_id = EXCLUDED.org_id, updated_at = NOW()
@@ -296,7 +296,7 @@ func installAdminUser(ctx context.Context, q db.Querier, tenantID, adminAccountI
 	if err != nil {
 		if isUniqueViolation(err) {
 			if err := q.QueryRow(ctx, `
-				SELECT id FROM users WHERE account_id = $1 AND is_deleted = FALSE LIMIT 1`,
+				SELECT id FROM tenant_users WHERE account_id = $1 AND is_deleted = FALSE LIMIT 1`,
 				adminAccountID).Scan(&adminUserID); err != nil {
 				return fmt.Errorf("first-install locate existing user: %w", err)
 			}
@@ -308,7 +308,7 @@ func installAdminUser(ctx context.Context, q db.Querier, tenantID, adminAccountI
 
 	// 7c) admin user ↔ admin role 绑定
 	if _, err := q.Exec(ctx, `
-		INSERT INTO user_roles (tenant_id, user_id, role_id)
+		INSERT INTO tenant_user_roles (tenant_id, user_id, role_id)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (user_id, role_id) WHERE is_deleted = FALSE DO NOTHING`,
 		tenantID, adminUserID, adminRoleID); err != nil {
