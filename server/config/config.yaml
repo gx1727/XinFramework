@@ -59,12 +59,11 @@ log:
 # "module: 删一行" 即可关闭对应模块（除 alwaysOn 外）。
 # 可选范围（与 cmd/xin/main.go 的 Module(app) 调用对齐）：
 #   boot/      : auth
-#   platform/  : platform_menu, sys_user, sys_role, sys_menu, sys_permission  (平台管理域，需 super_admin)
+#   platform/  : sys_user, sys_role, sys_menu, sys_permission  (平台管理域，需 super_admin)
 #   rbac/      : menu, user, role, resource, organization, permission  (租户域)
 #   reference/ : dict, asset, weixin
 #   apps/      : system, cms, flag
 module:
-  - platform_menu
   - sys_user
   - sys_role
   - sys_menu

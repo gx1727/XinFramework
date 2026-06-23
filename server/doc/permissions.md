@@ -1,7 +1,7 @@
 # 权限系统
 
 > XinFramework 的权限分三层�?*资源�?RBAC**（能不能�?API�?+ **数据范围 DataScope**（能看哪些行�?+ **平台角色 PlatformRole**（跨租户特权）�?>
-> 文档版本�?026-06（platform_menu / platform_tenant 模块化后�?breaking change�?
+> 文档版本�?026-06（sys_menu / platform_tenant 模块化后�?breaking change�?
 ## 1. 三层权限一�?
 | �?| 解决什�?| 实现位置 |
 |---|---|---|
@@ -49,7 +49,7 @@ ResFlag         = "flag"
 ResConfig       = "config"
 ```
 
-> **复用原则**：`platform_menu` �?`menu` 共用 `ResMenu`；`platform_tenant` 和未来业务层 `tenant` 共用 `ResTenant`。资源码代表"操作这种资源的权�?，与具体路径无关�?
+> **复用原则**：`sys_menu` �?`menu` 共用 `ResMenu`；`platform_tenant` 和未来业务层 `tenant` 共用 `ResTenant`。资源码代表"操作这种资源的权�?，与具体路径无关�?
 ### 2.2 Spec 类型
 
 [`framework/pkg/permission/spec.go`](../framework/pkg/permission/spec.go) 定义�?
@@ -356,7 +356,7 @@ type Claims struct {
 | 模块 | 路由前缀 | 双层守卫 |
 |---|---|---|
 | `platform_tenant` | `/platform/platform-tenants` | super_admin + `ResTenant.*` |
-| `platform_menu` | `/platform/platform-menus` | super_admin（单层） |
+| `sys_menu` | `/platform/platform-menus` | super_admin（单层） |
 | `config` 平台�?| `/configs/platform` | super_admin + `ResConfig.*` |
 | `dict` 平台�?| `/dicts/platform` | super_admin + `ResDict.*` |
 

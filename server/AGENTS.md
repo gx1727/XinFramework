@@ -19,7 +19,7 @@ server/
 │   └── pkg/                     # 公共包（含 appx/appx.go）
 └── apps/                        # 业务模块（同 module）
     ├── boot/{auth,tenant}/      # 平台级 alwaysOn
-    ├── rbac/{menu,organization,permission,resource,role,user}/
+    ├── tenant/{menu,organization,permission,resource,role,user}/    # 0023.3 rename: apps/rbac → apps/tenant
     ├── reference/{asset,config,dict,weixin}/
     ├── system/                  # health / cache 运维 alwaysOn
     ├── cms/, flag/              # 示例业务 optional
@@ -39,12 +39,16 @@ cmd/xin ──→ framework ──→ apps
 
 修改前确认：你改的文件属于哪个目录？是否跨边界？
 
-## 3. 15 个模块名（NameStr）
+## 3. 19 个模块名（NameStr）
 
 | Name | 类型 | 路径 | 备注 |
 |---|---|---|---|
 | `auth` | alwaysOn | apps/boot/auth | 登录 / JWT |
 | `tenant` | alwaysOn | apps/boot/tenant | 租户管理（需 super_admin） |
+| `sys_user` | optional | apps/platform/sys_user | 平台域用户（0023+） |
+| `sys_role` | optional | apps/platform/sys_role | 平台域角色（0023+） |
+| `sys_menu` | optional | apps/platform/sys_menu | 平台域菜单（0023+ 替代 apps/platform/menu） |
+| `sys_permission` | optional | apps/platform/sys_permission | 平台域权限码（0023+） |
 | `system` | alwaysOn | apps/system | /health + cache 运维 |
 | `user` | optOut | apps/tenant/user | |
 | `role` | optOut | apps/tenant/role | |
@@ -56,6 +60,7 @@ cmd/xin ──→ framework ──→ apps
 | `dict` | optOut | apps/reference/dict | |
 | `config` | optOut | apps/reference/config | 租户配置中心 |
 | `weixin` | optional | apps/reference/weixin | 微信小程序登录 |
+| `tenants` | optional | apps/platform/tenants | 平台管理租户列表（super_admin） |
 | `cms` | optional | apps/cms | 示例 CMS（extapi 模式） |
 | `flag` | optional | apps/flag | 头像框 / 空间 / 头像 |
 

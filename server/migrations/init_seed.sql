@@ -41,7 +41,8 @@
 INSERT INTO accounts (phone, email, password, username, real_name, status)
 VALUES ('13800138000', 'admin@example.com',
         '$argon2id$v=19$m=65536,t=3,p=4$l9OpXE4q2opC5q1SZSSFMg$sKlfP3vLGM+/UJPa51OLGonHhYmsACGYjV9f8AveDes', 'admin',
-        '系统管理员', 1);
+        '系统管理员', 1)
+ON CONFLICT (phone) WHERE is_deleted = FALSE DO NOTHING;
 
 -- ============================================
 -- 2. bootstrap 租户
@@ -49,7 +50,8 @@ VALUES ('13800138000', 'admin@example.com',
 -- 单一系统租户：是 admin 用户的"初始租户管理员"居住地（路径 B）。
 -- 同时是"新租户克隆源"——first_install.go 从这里复制 menus / permissions / dicts / config_*。
 INSERT INTO tenants (code, name, status, created_by, updated_by)
-VALUES ('bootstrap', '[系统] Bootstrap 租户', 1, 0, 0);
+VALUES ('bootstrap', '[系统] Bootstrap 租户', 1, 0, 0)
+ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
 
 -- ============================================
 -- 3. admin 用户 / 角色 / 用户-角色（bootstrap 租户下）
@@ -57,16 +59,19 @@ VALUES ('bootstrap', '[系统] Bootstrap 租户', 1, 0, 0);
 
 -- 3.1 admin 用户（tenant_users）
 INSERT INTO tenant_users (tenant_id, account_id, code, org_id, real_name, status, created_by, updated_by)
-VALUES (1, 1, 'admin', NULL, '系统管理员', 1, 0, 0);
+VALUES (1, 1, 'admin', NULL, '系统管理员', 1, 0, 0)
+ON CONFLICT (account_id, tenant_id) WHERE is_deleted = FALSE DO NOTHING;
 
 -- 3.2 角色：admin + user（tenant_roles）
 INSERT INTO tenant_roles (tenant_id, code, name, description, data_scope, is_default, sort, status, created_by, updated_by)
 VALUES (1, 'admin', '管理员', '系统管理员', 1, FALSE, 1, 1, 0, 0),
-       (1, 'user', '普通用户', '普通用户', 4, TRUE, 2, 1, 0, 0);
+       (1, 'user', '普通用户', '普通用户', 4, TRUE, 2, 1, 0, 0)
+ON CONFLICT (tenant_id, code) WHERE is_deleted = FALSE DO NOTHING;
 
 -- 3.3 用户-角色：admin → admin 角色（tenant_user_roles）
 INSERT INTO tenant_user_roles (tenant_id, user_id, role_id)
-VALUES (1, 1, 1);
+VALUES (1, 1, 1)
+ON CONFLICT (user_id, role_id) WHERE is_deleted = FALSE DO NOTHING;
 
 -- ============================================
 -- 4. 基础菜单（框架 + system 子菜单，tenant_menus）

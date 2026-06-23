@@ -38,7 +38,7 @@ func main() {
         organization.Module(app), permission.Module(app), resource.Module(app),
         asset.Module(app), dict.Module(app),
         // optional
-        refconfig.Module(app), platformmenu.Module(app),
+        refconfig.Module(app), sysmenu.Module(app),
         weixin.Module(app), cms.Module(app), flag.Module(app),
     }
     framework.Serve(cfg, app, modules)                   // 4. 启动
@@ -121,7 +121,7 @@ func Module(app *appx.App) plugin.Module {
 |---|---:|---|
 | **alwaysOn** | 3（`system`, `auth`, `platform_tenant`�?| 启动必需，无法关闭，配置不列也加回去 |
 | **optOut** | 8（`menu`, `user`, `role`, `resource`, `organization`, `dict`, `asset`, `permission`�?| 默认启用；用户写 `module:` 时切白名单语义（不列就关�?|
-| **optional** | 5（`config`, `weixin`, `platform_menu`, `cms`, `flag`�?| 默认不启用；必须�?`cfg.Module` 显式列出才加�?|
+| **optional** | 5（`config`, `weixin`, `sys_menu`, `cms`, `flag`�?| 默认不启用；必须�?`cfg.Module` 显式列出才加�?|
 
 定义�?[`framework/pkg/config/config.go`](framework/pkg/config/config.go) `alwaysOnModules` / `optOutModules`�?
 ## 4. AppContext：唯一的依赖容器（Phase 0022 不变�?
@@ -276,7 +276,7 @@ func (m *Module) RegFn(_ plugin.Reader,
     // public:    /api/v1/public/*            （OptionalAuth�?    // tenant:    /api/v1/*                 （Auth + RequireTenantContext�?    // protected: /api/v1/platform/*             （Auth；模块内�?RequirePlatformRole�?}
 ```
 
-每个 platform 模块�?routes.go 都遵�?`adminGroup := protected.Group("/platform/<x>", RequirePlatformRole(...))` 模式（见 `apps/platform/platform_menu/routes.go`、`apps/platform/platform_tenant/routes.go`）�?
+每个 platform 模块�?routes.go 都遵�?`adminGroup := protected.Group("/platform/<x>", RequirePlatformRole(...))` 模式（见 `apps/platform/sys_menu/routes.go`、`apps/platform/platform_tenant/routes.go`）�?
 ### 6.2 兼容期路�?
 过渡期保留以下兼容路径，客户�?SDK / �?curl 脚本不会立即失效�?
 | 旧路�?| 重定向到 |
@@ -321,11 +321,11 @@ func (m *Module) RegFn(_ plugin.Reader,
 | 11001-11999 | system | apps/system |
 | 12001-12999 | weixin | apps/reference/weixin |
 | 13001-13999 | flag | apps/flag |
-| 15001-15999 | **platform_menu** | apps/platform/platform_menu |
+| 15001-15999 | **sys_menu** | apps/platform/sys_menu |
 | 18001-18999 | **config**（Phase 0022 重构�?| apps/reference/config |
 
 > **3001-3999 共用**：原 `tenant`（未来业务层租户管理）与 `platform_tenant`（平台管理）共享段，因为底层表相同、错误语义一致�?>
-> **新增模块找段**：从 11000 段以上找空段；避开 14001-14999（旧 config 段已废弃）�?5001-15999（platform_menu）�?6001-17999（预留）�?8001-18999（config）�?
+> **新增模块找段**：从 11000 段以上找空段；避开 14001-14999（旧 config 段已废弃）�?5001-15999（sys_menu）�?6001-17999（预留）�?8001-18999（config）�?
 ## 8. 数据层核心约�?
 ### 8.1 多租户隔离（RLS�?
 业务表通过 `db.RunInTenantTx(ctx, pool, tenantID, fn)` 自动 SET LOCAL `app.tenant_id`，配�?PG �?Row-Level Security 策略实现强隔离�?
@@ -362,7 +362,7 @@ CREATE UNIQUE INDEX uk_users_account ON users (tenant_id, account_id)
 | 5 | �?module + main.go 4 步显�?Build |
 | 001x | cms/flag/cms 等示例业务补�?|
 | 0020 | platform_tenant �?`apps/boot/tenant` 迁到 `apps/platform/platform_tenant` |
-| 0021 | 新增 platform_menu 模块（super_admin 域） |
+| 0021 | 新增 sys_menu 模块（super_admin 域） |
 | 0022a | **config 模块完全重构**（路�?`/config/*` �?`/configs/*`，加 Scope/Visibility/Override/Resolve 三层，错误码段迁移到 18xxx�?|
 | **0022b** | **全分�?Phase C**：登录入口拆 `tenant-login` / `platform-login`；所有业务域路由 `/api/v1/<resource>` �?`/api/v1/<resource>`；config/dict 平台域迁�?`/api/v1/platform/platform-<x>`；前�?`App.tsx` �?`/app/*` + `/platform/*`；login �?TenantLogin / PlatformLogin；`RequireTenantContext` / `RequirePlatformScope` 中间�?|
 
@@ -371,7 +371,7 @@ CREATE UNIQUE INDEX uk_users_account ON users (tenant_id, account_id)
 |---|---|---|
 | Go modules | 3 个（cmd/framework/apps�?| **1 �?*（`gx1727.com/xin`�?|
 | 跨模块全局变量 | 12 �?| 1 个（`authz.Authorization` interface�?|
-| 模块�?| 15 | **16**�?platform_menu�?|
+| 模块�?| 15 | **16**�?sys_menu�?|
 | 路由空间 | 业务 + 业务 | 业务 + 平台�?admin�? 公开�?public�?|
 | 数据流传递方�?| 隐式（全局�?| 显式（AppContext�?|
 | 编译期可追踪 | �?| ✓（Reader/Writer 接口�?|
@@ -388,3 +388,61 @@ CREATE UNIQUE INDEX uk_users_account ON users (tenant_id, account_id)
 | [doc/developing.md](developing.md) | 新增业务模块 / 平台模块�?8 �?|
 | [doc/deployment.md](deployment.md) | 编译、systemd、Docker |
 | [doc/api.md](api.md) | 完整路由 API 参�?|
+
+## 11. Phase 0023 重大更新 (2026-06-23)
+
+> 0023 是 0022 全分离之后的下一阶段。核心目标：把混居在 `menus / resources / users / roles / organizations / user_roles / role_menus / role_resources / role_data_scopes` 的 RBAC 表，按 **平台域 / 租户域** 物理拆成两套独立 schema。
+
+### 11.1 表结构变化（init_schema.sql 0023.3 终态）
+
+| 旧 | 新 | 域 |
+|---|---|---|
+| `users` | `tenant_users` | 租户 |
+| `roles` | `tenant_roles` | 租户 |
+| `organizations` | `tenant_organizations` | 租户 |
+| `user_roles` | `tenant_user_roles` | 租户 |
+| `role_menus` | `tenant_role_menus` | 租户 |
+| `role_resources` | `tenant_role_resources` | 租户 |
+| `role_data_scopes` | `tenant_role_data_scopes` | 租户 |
+| `resources` | `tenant_permissions` | 租户（加 RLS） |
+| `menus` (`scope=tenant` 部分) | `tenant_menus`（无 `scope` 字段） | 租户 |
+| `menus` (`scope=platform` 部分) | `sys_menus` | 平台 |
+| `resources` (`scope=platform` 部分) | `sys_permissions` | 平台 |
+| `account_roles` | **drop**（由 `sys_user_roles` + `sys_roles` 替代） | - |
+| - | `sys_users` / `sys_orgs` / `sys_user_roles` / `sys_role_menus` / `sys_role_permissions` | 平台（新增） |
+
+### 11.2 Go 包变化
+
+| 旧 | 新 | 备注 |
+|---|---|---|
+| `apps/rbac/*` | `apps/tenant/*` | 6 个子包（user/role/menu/organization/permission/resource） |
+| `framework/pkg/rbac` | `framework/pkg/tenant/auth` | contracts 包 |
+| `framework/pkg/identity/identity.go` | （新增） | 跨域基类，`auth.User` 嵌入它 |
+| `apps/platform/menu` | **drop** | 旧菜单 broken：写 `tenant_menus WHERE tenant_id=0` 已失效 |
+| `apps/platform/sys_menu` | （接管 `/platform/sys-menus` 路由） | 终态 |
+
+### 11.3 关键设计决策
+
+1. **平台域 `sys_*` 不启用 RLS**——靠 API 层 `RequirePlatformRole(super_admin)` + `db.RunInPlatformTx` 守护
+2. **租户域 `tenant_*` 启用 RLS**——所有 SQL 强制走 `db.RunInTenantTx`
+3. **`accounts` 全局共享**——`sys_users` 和 `tenant_users` 都通过 `account_id` 外键引用 accounts
+4. **`auth.User` 嵌入 `identity.User`**——10 个跨域基类字段 + 4 个租户域字段（TenantID/Phone/Email/OrgName）+ 自定义 `MarshalJSON` 锁定 JSON 字节级兼容
+5. **登录路径**：`accounts` → `sys_users` → `sys_user_roles` → `sys_roles.code = 'super_admin'`
+
+### 11.4 完整重做
+
+dev 阶段重置流程不变：
+```bash
+psql -d xin -c "DROP DATABASE xin_dev; CREATE DATABASE xin_dev;"
+psql -d xin_dev -f migrations/init_schema.sql
+psql -d xin_dev -f migrations/init_seed.sql
+psql -d xin_dev -f migrations/asset.sql
+psql -d xin_dev -f migrations/cms.sql
+psql -d xin_dev -f migrations/flag.sql
+```
+
+### 11.5 相关文档
+
+- [doc/refactor/0023-split-platform-tenant.md](refactor/0023-split-platform-tenant.md) — 总纲
+- [doc/refactor/0023.3-rename-tenant.md](refactor/0023.3-rename-tenant.md) — Go 包重命名 + SQL 表重命名实施
+- [migrations/README.md](../migrations/README.md) — schema 详细说明

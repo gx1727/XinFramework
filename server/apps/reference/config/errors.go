@@ -1,6 +1,6 @@
 // Package config 通用配置 - 错误定义
 //
-// 错误码段：18xxx（与 dict 的 10xxx、platform_menu 的 15xxx、platform_tenant 的 16xxx 不冲突）
+// 错误码段：18xxx（与 dict 的 10xxx、sys_menu 的 15xxx、sys_user 的 16xxx 不冲突）
 //
 // 见 framework/pkg/resp/errors.go 的分段约定。
 package config

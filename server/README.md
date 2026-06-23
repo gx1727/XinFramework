@@ -1,7 +1,7 @@
 # XinFramework Server
 
 > Go 1.25 + Gin + pgx + PostgreSQL。多租户 SaaS 后端，内�?RBAC、权限中间件、模块化插件框架�?>
-> 文档版本�?026-06（config 重构 + platform_menu/platform_tenant 后）
+> 文档版本�?026-06（config 重构 + sys_menu/platform_tenant 后）
 
 ## 启动流程�? 步显�?Build�?
 入口 [`cmd/xin/main.go`](cmd/xin/main.go)�?
@@ -15,7 +15,7 @@ modules := []plugin.Module{                          // 2. 显式构造模块列
     menu.Module(app), user.Module(app), role.Module(app),
     organization.Module(app), permission.Module(app), resource.Module(app),
     asset.Module(app), dict.Module(app),
-    // optional（默认关，需�?cfg.Module 显式列出�?    refconfig.Module(app), platformmenu.Module(app),
+    // optional（默认关，需�?cfg.Module 显式列出�?    refconfig.Module(app), sysmenu.Module(app),
     weixin.Module(app), cms.Module(app), flag.Module(app),
 }
 framework.Serve(cfg, app, modules)                   // 3. 启动
@@ -109,7 +109,7 @@ protected �?Auth
 |---|---|
 | **alwaysOn**（强制启�?| `auth`, `platform_tenant`, `system` |
 | **optOut**（默认启，白名单过滤�?| `menu`, `user`, `role`, `resource`, `permission`, `organization`, `asset`, `dict` |
-| **optional**（默认关�?| `config`, `platform_menu`, `weixin`, `cms`, `flag` |
+| **optional**（默认关�?| `config`, `sys_menu`, `weixin`, `cms`, `flag` |
 
 详见 [doc/modules.md](doc/modules.md)�?
 ## 命令�?
@@ -169,7 +169,7 @@ server/
 �?                                 # jwt / logger / middleware / migrate /
 �?                                 # model / permission / plugin / rbac /
 �?                                 # resp / session / storage / tenant
-└── apps/                         # 业务模块（同 module�?    ├── boot/                     # auth（alwaysOn�?    ├── admin/                    # 平台管理�?    �?  ├── platform_menu/          # optional
+└── apps/                         # 业务模块（同 module�?    ├── boot/                     # auth（alwaysOn�?    ├── admin/                    # 平台管理�?    �?  ├── sys_menu/          # optional
     �?  └── platform_tenant/        # alwaysOn（替代旧 boot/tenant�?    ├── rbac/                     # menu, organization, permission,
     �?                            # resource, role, user
     ├── reference/                # asset, config, dict, weixin
@@ -190,7 +190,7 @@ server/
 | 中间�?| �?wrapper 重复；Require 全在 `pkg/middleware` |
 | extapi | Provider 模式；facade �?ctx �?repo |
 | JSONB �?| 10 列（�?Phase 0022 新加），全部 `::jsonb` cast |
-| 错误码段 | 14 段已用（auth/user/tenant/role/menu/org/permission/resource/asset/dict/system/weixin/flag/platform_menu/config�?|
+| 错误码段 | 14 段已用（auth/user/tenant/role/menu/org/permission/resource/asset/dict/system/weixin/flag/sys_menu/config�?|
 | P0 单测 | 36 个，覆盖 permission / middleware / plugin 三包 |
 
 ## Phase 历程（精简�?
@@ -202,7 +202,7 @@ server/
 | 5 | �?module + main.go 4 步显�?Build |
 | 001x | cms/flag/cms 等示例业务补�?|
 | 0020 | platform_tenant �?`apps/boot/tenant` 迁到 `apps/platform/platform_tenant` |
-| 0021 | 新增 platform_menu 模块 |
+| 0021 | 新增 sys_menu 模块 |
 | **0022** | **config 完全重构**（路�?`/config/*` �?`/configs/*`，Scope/Visibility/Override/Resolve，错误码段迁移到 18xxx�?|
 
 ## 贡献

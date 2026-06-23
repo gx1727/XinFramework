@@ -6,11 +6,21 @@
 //
 // 没有任何 side-effect import 或全局注册表，每个模块的依赖都在这里一目了然。
 //
-// Phase 0023.0 改动：
-//   - 新增 sys_user / sys_role / sys_menu / sys_permission 四个 platform 域模块
-//   - apps/platform/tenant 改名为 apps/platform/tenants（目录跟表名对齐）
-//   - 抽象基类 framework/pkg/identity + platform contracts framework/pkg/platformauth
-//   - 不动 apps/tenant/* —— 重命名推迟到独立 session（避免 PowerShell 编码污染）
+// Phase 0023 全阶段已完成（2026-06-23）：
+//   - 0023.0：新增 sys_user / sys_role / sys_menu / sys_permission 四个 platform 域模块
+//   - 0023.1：数据迁移 + account_roles drop；admin 走 sys_users + sys_user_roles
+//   - 0023.2：登录路径切到 sys_user_roles + sys_roles.code = 'super_admin'
+//   - 0023.3：Go 包重命名（apps/rbac → apps/tenant、framework/pkg/rbac → framework/pkg/tenant/auth）、
+//     SQL 表 7 张 rename（users → tenant_users 等）+ resources → tenant_permissions +
+//     menus 物理拆 tenant_menus / sys_menus
+//   - 0023.4：apps/platform/menu 模块删除（broken：旧 tenant_menus WHERE tenant_id=0 已失效），
+//     由 apps/platform/sys_menu 接管 /platform/sys-menus 路由
+//   - 0023.5：文档同步（architecture.md / modules.md / AGENTS.md / migrations/README.md）
+//
+// 终态分层：
+//   - 平台域 sys_*（无 tenant_id、不启用 RLS）
+//   - 租户域 tenant_*（带 tenant_id + RLS）
+//   - 共享层 accounts / tenants / auth_sessions
 package main
 
 import (
@@ -19,7 +29,6 @@ import (
 	"gx1727.com/xin/apps/boot/auth"
 	"gx1727.com/xin/apps/cms"
 	"gx1727.com/xin/apps/flag"
-	platformmenu "gx1727.com/xin/apps/platform/menu"
 	sysmenu "gx1727.com/xin/apps/platform/sys_menu"
 	syspermission "gx1727.com/xin/apps/platform/sys_permission"
 	sysrole "gx1727.com/xin/apps/platform/sys_role"
@@ -59,7 +68,6 @@ func main() {
 		auth.Module(app),
 
 		// 平台管理域（必须 super_admin 才能访问）
-		platformmenu.Module(app),    // 过渡期：写 menus WHERE scope='platform'
 		tenants.Module(app),         // 管 tenants 表
 		sysuser.Module(app),        // Phase 0023.0：sys_users 表
 		sysrole.Module(app),        // Phase 0023.0：sys_roles 表

@@ -13,7 +13,7 @@ import (
 // Module returns the platform_tenant module as a BaseModule.
 //
 //
-// 模块名约定："platform_tenant"（与 apps/tenant/menu / apps/platform/menu 一致）　
+// 模块名约定："platform_tenant"（管 tenants 表的 CRUD；与 sys_menu 同属 platform 域）　
 // 圀cfg.Module: 里以 "platform_tenant" 标识，且属于 alwaysOn 列表（启动必需）　
 //
 // 本模块的双重职责：

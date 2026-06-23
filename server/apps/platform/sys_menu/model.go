@@ -1,14 +1,13 @@
 // Package sysmenu 实现"平台域菜单"管理 API（sys_menus 表）。
 //
-// 重要：与 apps/platform/menu 是**两个不同模块**。
+// 实现 sys_menus 表的平台菜单 API。0023.4 完成：apps/platform/menu 已删除。
 //
 //	| 模块                  | 表                    | 用途                                              | 状态     |
 //	| --------------------- | --------------------- | ------------------------------------------------- | -------- |
-//	| apps/platform/menu    | menus (scope=platform)| 老接口，向 tenant_id=0 写入（混合 schema）         | 过渡期保留 |
+//	| (已删除)               | sys_menus             | 平台菜单唯一来源，物理独立 schema（Phase 0023+）| 终态        |
 //	| apps/platform/sys_menu| sys_menus             | 新接口，对齐 tenant_menus 物理分离 schema（Phase 0023+）| 新建（终态）|
 //
-// 终态：Phase 0023.4 切换后 apps/platform/menu 弃用。
-// 过渡期：两个模块并存，不互通数据（mappers in Phase 0023.4 解决）。
+// 2026-06-23: 0023.4 完成，sys_menus 是平台菜单唯一来源。
 package sysmenu
 
 import (

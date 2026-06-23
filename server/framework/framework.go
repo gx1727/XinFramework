@@ -157,7 +157,7 @@ func registerModules(r *gin.Engine, cfg *config.Config, db *pgxpool.Pool, appCtx
 	tenant.Use(pkgmiddleware.RequireTenantContext())
 
 	// protected：必须登录（语义上是 platform 域）
-	// 平台模块（platform_tenant / platform_menu / config platform 域 / dict platform 域）
+	// 平台模块（platform_tenant / sys_menu / config platform 域 / dict platform 域）
 	// 自己在内部追加 RequirePlatformRole("super_admin")
 	protected := v1.Group("/platform")
 	protected.Use(middleware.Auth(&cfg.JWT, sm, authzSvc, db))
@@ -176,7 +176,7 @@ func registerModules(r *gin.Engine, cfg *config.Config, db *pgxpool.Pool, appCtx
 		// 三组 RouterGroup（public / tenant / protected）
 		// - public:    公开路由（/auth/*、/health、/public/configs 等）
 		// - tenant:    业务域路由（/users、/menus、/configs 等；无 /t 前缀）
-		// - protected: 平台域路由（/platform/configs、/platform/dicts、/platform/tenants、/platform/menus）
+		// - protected: 平台域路由（/platform/configs、/platform/dicts、/platform/tenants、/sys_menus）
 		m.Register(ctx, public, tenant, protected)
 	}
 }

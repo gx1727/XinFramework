@@ -13,7 +13,7 @@ const PlatformRoleSuperAdmin = "super_admin"
 
 // Register 把平台租户管理路由挂刀/api/v1/platform/tenants　
 //
-// 路径约定（与 apps/platform/menu 一致）：
+// 路径约定（与 sys_menu 等 platform 域模块一致）：
 //   - /platform 子空间表礀平台管理埀
 //   - /tenants 直接挂资源（旀/platform-tenants 这层嵌套：
 //

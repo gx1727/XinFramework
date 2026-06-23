@@ -1,6 +1,6 @@
 // Package sysuser 实现"平台域用户身份"管理 API（sys_users 表）。
 //
-// 与 apps/platform/menu 同属 platform 域。关键不变量：
+// 与 apps/platform/sys_menu 同属 platform 域。关键不变量：
 //
 //	| 维度          | apps/tenant/user (rbac)       | apps/platform/sys_user     |
 //	| tenant_id     | 来自 ctx.TenantID             | 不存在（平台域无 tenant）   |
