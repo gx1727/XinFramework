@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/extapi"
-	pkgrbac "gx1727.com/xin/framework/pkg/rbac"
+	pkgrbac "gx1727.com/xin/framework/pkg/tenant/auth"
 	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
 	"gx1727.com/xin/framework/pkg/plugin"
 	"gx1727.com/xin/framework/pkg/resp"

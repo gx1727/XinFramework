@@ -4,12 +4,30 @@ import (
 	"context"
 	"errors"
 
-	pkgrbac "gx1727.com/xin/framework/pkg/rbac"
+	pkgrbac "gx1727.com/xin/framework/pkg/tenant/auth"
 )
 
-// User struct 是跨 module 的 canonical 定义。
+// User is a type alias of pkgrbac.User (= auth.User after 0023.3).
 //
-// 与任何外部消费者共享同一个 struct 类型，避免类型分裂。
+// apps/tenant/user does NOT redefine the User struct; it aliases
+// the framework contract to keep consumers (cms/handler, weixin/service,
+// extapi.User, etc.) working without type changes.
+//
+// Struct composition (locked in framework/pkg/tenant/auth/user.go):
+//
+//	identity.User (10 fields)  - cross-domain base
+//	+ TenantID                   - tenant-domain unique
+//	+ Phone, Email, OrgName      - tenant-domain JOIN fields
+//	+ MarshalJSON()              - byte-level legacy JSON output
+//
+// apps/tenant/user contributes:
+//
+//	- UserRepository interface (full CRUD + Scoped variants)
+//	- Update/Patch request DTOs
+//	- DB error sentinels
+//
+// The local UserRepository is a superset of framework/pkg/tenant/auth.UserRepository;
+// PostgresUserRepository satisfies both by Go interface satisfaction rules.
 type User = pkgrbac.User
 
 // UserRepository 是 apps/tenant/user 的完整接口（包含 Scoped 变体、

@@ -7,7 +7,7 @@ import (
 
 	"gx1727.com/xin/framework/pkg/auth"
 	"gx1727.com/xin/framework/pkg/config"
-	"gx1727.com/xin/framework/pkg/rbac"
+	pkgauth "gx1727.com/xin/framework/pkg/tenant/auth"
 	"gx1727.com/xin/framework/pkg/tenant"
 )
 
@@ -33,19 +33,19 @@ type fakeTenantRepo struct {
 }
 
 type fakeUserRepo struct {
-	rbac.UserRepository
+	pkgauth.UserRepository
 }
 
 type fakeRoleRepo struct {
-	rbac.RoleRepository
+	pkgauth.RoleRepository
 }
 
 type fakeOrgRepo struct {
-	rbac.OrganizationRepository
+	pkgauth.OrganizationRepository
 }
 
 type fakePermRepo struct {
-	rbac.RoleResourceRepository
+	pkgauth.RoleResourceRepository
 }
 
 // -----------------------------------------------------------------------------

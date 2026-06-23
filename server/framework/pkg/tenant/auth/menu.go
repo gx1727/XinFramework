@@ -1,4 +1,4 @@
-package rbac
+package auth
 
 // Menu hook — reserved for future cross-module menu access.
 //

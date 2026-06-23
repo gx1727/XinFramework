@@ -18,7 +18,7 @@ import (
 	xincontext "gx1727.com/xin/framework/pkg/context"
 	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
-	pkgrbac "gx1727.com/xin/framework/pkg/rbac"
+	pkgrbac "gx1727.com/xin/framework/pkg/tenant/auth"
 	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
 )
 

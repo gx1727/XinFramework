@@ -1,4 +1,4 @@
-package rbac
+package auth
 
 // Resource hook — reserved for future cross-module resource access.
 //

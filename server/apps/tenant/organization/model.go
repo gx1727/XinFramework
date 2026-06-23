@@ -3,7 +3,7 @@ package organization
 import (
 	"context"
 
-	pkgrbac "gx1727.com/xin/framework/pkg/rbac"
+	pkgrbac "gx1727.com/xin/framework/pkg/tenant/auth"
 )
 
 // 类型别名 —— Organization struct 与 pkgrbac.Organization 共享

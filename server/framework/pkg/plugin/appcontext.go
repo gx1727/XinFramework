@@ -32,7 +32,7 @@ import (
 	"gx1727.com/xin/framework/pkg/auth"
 	"gx1727.com/xin/framework/pkg/authz"
 	"gx1727.com/xin/framework/pkg/config"
-	"gx1727.com/xin/framework/pkg/rbac"
+	pkgauth "gx1727.com/xin/framework/pkg/tenant/auth"
 	"gx1727.com/xin/framework/pkg/session"
 	"gx1727.com/xin/framework/pkg/tenant"
 )
@@ -68,10 +68,10 @@ type Reader interface {
 	AccountRepo() auth.AccountRepository
 	AccountAuthRepo() auth.AccountAuthRepository
 	TenantRepo() tenant.TenantRepository
-	UserRepo() rbac.UserRepository
-	RoleRepo() rbac.RoleRepository
-	OrgRepo() rbac.OrganizationRepository
-	PermRepo() rbac.RoleResourceRepository
+	UserRepo() pkgauth.UserRepository
+	RoleRepo() pkgauth.RoleRepository
+	OrgRepo() pkgauth.OrganizationRepository
+	PermRepo() pkgauth.RoleResourceRepository
 }
 
 // Writer is the write-side handle given only to a Module that owns
@@ -91,10 +91,10 @@ type Writer interface {
 	SetAccountRepo(r auth.AccountRepository)
 	SetAccountAuthRepo(r auth.AccountAuthRepository)
 	SetTenantRepo(r tenant.TenantRepository)
-	SetUserRepo(r rbac.UserRepository)
-	SetRoleRepo(r rbac.RoleRepository)
-	SetOrgRepo(r rbac.OrganizationRepository)
-	SetPermRepo(r rbac.RoleResourceRepository)
+	SetUserRepo(r pkgauth.UserRepository)
+	SetRoleRepo(r pkgauth.RoleRepository)
+	SetOrgRepo(r pkgauth.OrganizationRepository)
+	SetPermRepo(r pkgauth.RoleResourceRepository)
 }
 
 // AppContext is the concrete implementation. It is constructed in
@@ -114,10 +114,10 @@ type AppContext struct {
 	accountRepo    auth.AccountRepository
 	accountAuthR   auth.AccountAuthRepository
 	tenantRepo     tenant.TenantRepository
-	userRepo       rbac.UserRepository
-	roleRepo       rbac.RoleRepository
-	orgRepo        rbac.OrganizationRepository
-	permRepo       rbac.RoleResourceRepository
+	userRepo       pkgauth.UserRepository
+	roleRepo       pkgauth.RoleRepository
+	orgRepo        pkgauth.OrganizationRepository
+	permRepo       pkgauth.RoleResourceRepository
 }
 
 // NewAppContext constructs the AppContext with the infrastructure slots
@@ -170,10 +170,10 @@ func (a *AppContext) AccountAuthRepo() auth.AccountAuthRepository {
 func (a *AppContext) TenantRepo() tenant.TenantRepository {
 	return a.tenantRepo
 }
-func (a *AppContext) UserRepo() rbac.UserRepository     { return a.userRepo }
-func (a *AppContext) RoleRepo() rbac.RoleRepository     { return a.roleRepo }
-func (a *AppContext) OrgRepo() rbac.OrganizationRepository { return a.orgRepo }
-func (a *AppContext) PermRepo() rbac.RoleResourceRepository { return a.permRepo }
+func (a *AppContext) UserRepo() pkgauth.UserRepository     { return a.userRepo }
+func (a *AppContext) RoleRepo() pkgauth.RoleRepository     { return a.roleRepo }
+func (a *AppContext) OrgRepo() pkgauth.OrganizationRepository { return a.orgRepo }
+func (a *AppContext) PermRepo() pkgauth.RoleResourceRepository { return a.permRepo }
 
 // --- Writer ---
 
@@ -181,7 +181,7 @@ func (a *AppContext) SetAuthz(v authz.Authorization)            { a.authz_ = v }
 func (a *AppContext) SetAccountRepo(v auth.AccountRepository)  { a.accountRepo = v }
 func (a *AppContext) SetAccountAuthRepo(v auth.AccountAuthRepository) { a.accountAuthR = v }
 func (a *AppContext) SetTenantRepo(v tenant.TenantRepository)   { a.tenantRepo = v }
-func (a *AppContext) SetUserRepo(v rbac.UserRepository)         { a.userRepo = v }
-func (a *AppContext) SetRoleRepo(v rbac.RoleRepository)         { a.roleRepo = v }
-func (a *AppContext) SetOrgRepo(v rbac.OrganizationRepository)  { a.orgRepo = v }
-func (a *AppContext) SetPermRepo(v rbac.RoleResourceRepository) { a.permRepo = v }
+func (a *AppContext) SetUserRepo(v pkgauth.UserRepository)         { a.userRepo = v }
+func (a *AppContext) SetRoleRepo(v pkgauth.RoleRepository)         { a.roleRepo = v }
+func (a *AppContext) SetOrgRepo(v pkgauth.OrganizationRepository)  { a.orgRepo = v }
+func (a *AppContext) SetPermRepo(v pkgauth.RoleResourceRepository) { a.permRepo = v }

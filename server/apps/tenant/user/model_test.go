@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	pkgrbac "gx1727.com/xin/framework/pkg/rbac"
+	pkgrbac "gx1727.com/xin/framework/pkg/tenant/auth"
+	identity "gx1727.com/xin/framework/pkg/identity"
 )
 
 // 0023.3 prerequisite test base: snapshots the current pkgrbac.User
@@ -33,20 +34,22 @@ var fixtureTime = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 func fixtureUser() pkgrbac.User {
 	orgID := uint(7)
 	return pkgrbac.User{
-		ID:        1,
-		TenantID:  2,
-		AccountID: 3,
-		OrgID:     &orgID,
-		OrgName:   "财务部",
-		Code:      "u001",
-		Nickname:  "张三",
-		RealName:  "张三丰",
-		Avatar:    "a.png",
-		Phone:     "13800138000",
-		Email:     "a@b.com",
-		Status:    1,
-		CreatedAt: fixtureTime,
-		UpdatedAt: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC),
+		User: identity.User{
+			ID:        1,
+			AccountID: 3,
+			OrgID:     &orgID,
+			Code:      "u001",
+			RealName:  "张三丰",
+			Nickname:  "张三",
+			Avatar:    "a.png",
+			Status:    1,
+			CreatedAt: fixtureTime,
+			UpdatedAt: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC),
+		},
+		TenantID: 2,
+		Phone:    "13800138000",
+		Email:    "a@b.com",
+		OrgName:  "财务部",
 	}
 }
 
@@ -63,24 +66,35 @@ func TestPkgrbacUser_GoldenJSON(t *testing.T) {
 	}
 }
 
-// TestPkgrbacUser_FieldOrderLocked locks pkgrbac.User field order via reflection.
-// After 0023.3 rename this migrates to apps/tenant/user/ and asserts the
-// MarshalJSON output order.
-func TestPkgrbacUser_FieldOrderLocked(t *testing.T) {
-	expectedOrder := []string{
-		"ID", "TenantID", "AccountID", "OrgID", "OrgName",
-		"Code", "Nickname", "RealName", "Avatar",
-		"Phone", "Email", "Status", "CreatedAt", "UpdatedAt",
-	}
+// TestAuthUser_StructShapeLocked locks the 0023.3 struct composition:
+// auth.User is an embed of identity.User plus 4 tenant-domain fields.
+// JSON output order is verified separately by TestPkgrbacUser_GoldenJSON
+// (the custom MarshalJSON pins the legacy 14-field order byte-for-byte).
+func TestAuthUser_StructShapeLocked(t *testing.T) {
 	typ := reflect.TypeOf(pkgrbac.User{})
-	if typ.NumField() != len(expectedOrder) {
-		t.Fatalf("pkgrbac.User NumField = %d, expected %d",
-			typ.NumField(), len(expectedOrder))
+
+	// 1 direct field (the identity.User embed) + 4 extensions = 5.
+	if typ.NumField() != 5 {
+		t.Fatalf("auth.User NumField = %d, expected 5 (1 embed + 4 extensions)",
+			typ.NumField())
 	}
-	for i, want := range expectedOrder {
-		got := typ.Field(i).Name
+
+	// Field 0: the embed of identity.User.
+	if typ.Field(0).Name != "User" {
+		t.Errorf("field[0].Name = %q, expected %q (identity.User embed)",
+			typ.Field(0).Name, "User")
+	}
+	if typ.Field(0).Type != reflect.TypeOf(identity.User{}) {
+		t.Errorf("field[0].Type = %v, expected identity.User", typ.Field(0).Type)
+	}
+
+	// Fields 1-4: tenant-domain extensions in the documented order.
+	wantExtensions := []string{"TenantID", "Phone", "Email", "OrgName"}
+	for i, want := range wantExtensions {
+		got := typ.Field(i + 1).Name
 		if got != want {
-			t.Errorf("field[%d].Name = %q, expected %q", i, got, want)
+			t.Errorf("field[%d].Name = %q, expected %q (tenant-domain extension)",
+				i+1, got, want)
 		}
 	}
 }

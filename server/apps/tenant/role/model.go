@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	pkgrbac "gx1727.com/xin/framework/pkg/rbac"
+	pkgrbac "gx1727.com/xin/framework/pkg/tenant/auth"
 )
 
 // 类型别名 —— Role struct 与 pkgrbac.Role 共享
