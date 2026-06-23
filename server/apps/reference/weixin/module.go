@@ -10,7 +10,7 @@ import (
 
 // Module returns the weixin module as a BaseModule.
 //
-// weixin depends on apps/boot/{auth,tenant} and apps/rbac/{user,role}.
+// weixin depends on apps/boot/{auth,tenant} and apps/tenant/{user,role}.
 // globals to AppContext.Reader. The Init phase runs once at boot and
 // calls InitConfig(); downstream dependencies are resolved lazily on
 // first request through the closed-over reader.

@@ -5,7 +5,7 @@
 // weixin module (still in framework/internal) and any future
 // framework-internal consumer must depend only on this pkg, not on
 // apps/. The concrete implementations (PostgresUserRepository,
-// PostgresRoleRepository, …) live in apps/rbac/<name>/.
+// PostgresRoleRepository, …) live in apps/tenant/<name>/.
 //
 // globals are gone. Modules exchange repositories through the
 package rbac
@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-// User is the cross-module user representation. apps/rbac/user aliases
+// User is the cross-module user representation. apps/tenant/user aliases
 // its local User struct to this type so the rest of the system sees
 // one canonical definition.
 type User struct {
@@ -37,7 +37,7 @@ type User struct {
 
 // UserRepository is the subset of user data access that other
 // framework-internal modules (notably weixin) need. The concrete
-// implementation in apps/rbac/user/ satisfies this interface
+// implementation in apps/tenant/user/ satisfies this interface
 // implicitly because field types are identical.
 type UserRepository interface {
 	GetByID(ctx context.Context, id uint) (*User, error)

@@ -11,7 +11,7 @@ import (
 //
 // 自己构造 repository/service/handler。零全局变量。
 //
-// 模块名约定："platform_menu"（与 apps/rbac/menu 的 "menu" 区分）。
+// 模块名约定："platform_menu"（与 apps/tenant/menu 的 "menu" 区分）。
 // 在 cfg.Module: 里以 "platform_menu" 标识。
 func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{

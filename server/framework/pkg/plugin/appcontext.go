@@ -82,10 +82,10 @@ type Reader interface {
 //   - SetAccountRepo       ← apps/boot/auth
 //   - SetAccountAuthRepo   ← apps/boot/auth
 //   - SetTenantRepo        ← apps/boot/tenant
-//   - SetUserRepo          ← apps/rbac/user
-//   - SetRoleRepo          ← apps/rbac/role
-//   - SetOrgRepo           ← apps/rbac/organization
-//   - SetPermRepo          ← apps/rbac/permission
+//   - SetUserRepo          ← apps/tenant/user
+//   - SetRoleRepo          ← apps/tenant/role
+//   - SetOrgRepo           ← apps/tenant/organization
+//   - SetPermRepo          ← apps/tenant/permission
 type Writer interface {
 	SetAuthz(a authz.Authorization)
 	SetAccountRepo(r auth.AccountRepository)

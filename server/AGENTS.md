@@ -46,12 +46,12 @@ cmd/xin ──→ framework ──→ apps
 | `auth` | alwaysOn | apps/boot/auth | 登录 / JWT |
 | `tenant` | alwaysOn | apps/boot/tenant | 租户管理（需 super_admin） |
 | `system` | alwaysOn | apps/system | /health + cache 运维 |
-| `user` | optOut | apps/rbac/user | |
-| `role` | optOut | apps/rbac/role | |
-| `menu` | optOut | apps/rbac/menu | |
-| `organization` | optOut | apps/rbac/organization | |
-| `permission` | optOut | apps/rbac/permission | 角色-资源分配 |
-| `resource` | optOut | apps/rbac/resource | |
+| `user` | optOut | apps/tenant/user | |
+| `role` | optOut | apps/tenant/role | |
+| `menu` | optOut | apps/tenant/menu | |
+| `organization` | optOut | apps/tenant/organization | |
+| `permission` | optOut | apps/tenant/permission | 角色-资源分配 |
+| `resource` | optOut | apps/tenant/resource | |
 | `asset` | optOut | apps/reference/asset | |
 | `dict` | optOut | apps/reference/dict | |
 | `config` | optOut | apps/reference/config | 租户配置中心 |
@@ -75,7 +75,7 @@ cmd/xin ──→ framework ──→ apps
 | 资源码常量 | [framework/pkg/permission/constants.go](framework/pkg/permission/constants.go) |
 | extapi Provider | [framework/internal/core/ext_impl/provider.go](framework/internal/core/ext_impl/provider.go) |
 | 审计日志 | [framework/pkg/audit/audit.go](framework/pkg/audit/audit.go) |
-| 用户模块样板 | [apps/rbac/user/module.go](apps/rbac/user/module.go) |
+| 用户模块样板 | [apps/tenant/user/module.go](apps/tenant/user/module.go) |
 | 字典模块样板（最小） | [apps/reference/dict/module.go](apps/reference/dict/module.go) |
 | 配置模块样板（最新） | [apps/reference/config/module.go](apps/reference/config/module.go) |
 | Flag 模块样板（业务） | [apps/flag/module.go](apps/flag/module.go) |
@@ -85,7 +85,7 @@ cmd/xin ──→ framework ──→ apps
 ❌ 错误做法：
 
 ```go
-import "gx1727.com/xin/apps/rbac/user"
+import "gx1727.com/xin/apps/tenant/user"
 // 编译错误（framework 不能 import apps）
 ```
 

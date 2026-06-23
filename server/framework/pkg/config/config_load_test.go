@@ -29,7 +29,7 @@ func TestLoad_DevConfig_ModuleListMatchesSpec(t *testing.T) {
 		t.Fatalf("Load(%q) failed: %v", cfgPath, err)
 	}
 
-	// 期望：alwaysOn (3) + config.yaml 里显式列出的 13 项 = 16 项
+	// 期望：alwaysOn (3) + config.yaml 里显式列出的 17 项 = 20 项
 	// alwaysOn: system, auth, tenant
 	// config.yaml module: platform_menu, menu, user, role, resource, organization,
 	//                    dict, asset, permission, weixin, cms, flag, config
@@ -37,7 +37,8 @@ func TestLoad_DevConfig_ModuleListMatchesSpec(t *testing.T) {
 		// alwaysOn
 		"system", "auth", "platform_tenant",
 		// config.yaml 白名单
-		"platform_menu", "menu", "user", "role", "resource", "organization",
+		"platform_menu", "sys_user", "sys_role", "sys_menu", "sys_permission",
+		"menu", "user", "role", "resource", "organization",
 		"dict", "asset", "permission", "weixin", "cms", "flag", "config",
 	}
 

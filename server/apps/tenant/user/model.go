@@ -12,7 +12,7 @@ import (
 // 与任何外部消费者共享同一个 struct 类型，避免类型分裂。
 type User = pkgrbac.User
 
-// UserRepository 是 apps/rbac/user 的完整接口（包含 Scoped 变体、
+// UserRepository 是 apps/tenant/user 的完整接口（包含 Scoped 变体、
 // Create / Patch / UpdateProfile / UpdateAvatar / Delete 等仅本地
 // 使用的方法）。PostgresUserRepository 实现此接口，同时**自动**
 // 满足 pkgrbac.UserRepository（因为后者是前者的子集）。

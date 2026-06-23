@@ -309,13 +309,13 @@ func (m *Module) RegFn(_ plugin.Reader,
 | 区段 | module | 文件位置 |
 |---|---|---|
 | 1001-1999 | auth | apps/boot/auth |
-| 2001-2999 | user | apps/rbac/user |
-| 3001-3999 | tenant / **platform_tenant** | apps/rbac/... �?apps/platform/platform_tenant |
-| 4001-4999 | role | apps/rbac/role |
-| 5001-5999 | menu | apps/rbac/menu |
-| 6001-6999 | organization | apps/rbac/organization |
-| 7001-7999 | permission | apps/rbac/permission |
-| 8001-8999 | resource | apps/rbac/resource |
+| 2001-2999 | user | apps/tenant/user |
+| 3001-3999 | tenant / **platform_tenant** | apps/tenant/... �?apps/platform/platform_tenant |
+| 4001-4999 | role | apps/tenant/role |
+| 5001-5999 | menu | apps/tenant/menu |
+| 6001-6999 | organization | apps/tenant/organization |
+| 7001-7999 | permission | apps/tenant/permission |
+| 8001-8999 | resource | apps/tenant/resource |
 | 9001-9999 | asset | apps/reference/asset |
 | 10001-10999 | dict | apps/reference/dict |
 | 11001-11999 | system | apps/system |

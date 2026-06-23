@@ -7,8 +7,8 @@ package rbac
 // exposed for symmetry with the other RBAC modules and for future
 // use cases (e.g. the auth middleware eventually loading user menus).
 //
-// apps/rbac/menu's init() does NOT need to register — apps that need
-// menus just import apps/rbac/menu directly (no type alias needed).
+// apps/tenant/menu's init() does NOT need to register — apps that need
+// menus just import apps/tenant/menu directly (no type alias needed).
 
 // RegisterMenuHook is a no-op placeholder for symmetry. Future code
 // can register a menu factory here if needed.

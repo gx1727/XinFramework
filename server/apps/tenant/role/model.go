@@ -10,7 +10,7 @@ import (
 // 类型别名 —— Role struct 与 pkgrbac.Role 共享
 type Role = pkgrbac.Role
 
-// RoleRepository 是 apps/rbac/role 的完整接口（包含 Create / Update /
+// RoleRepository 是 apps/tenant/role 的完整接口（包含 Create / Update /
 // Patch / Delete 等本地方法）。PostgresRoleRepository 同时满足本接口和
 // pkgrbac.RoleRepository（后者是前者的子集）。
 //

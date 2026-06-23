@@ -286,7 +286,7 @@ type Authorization interface {
 | �?user 加减 role | `authz.InvalidateUser(userID)` |
 | �?role �?data_scope | `authz.InvalidateRole(roleID)` |
 
-调用示例�?[`apps/rbac/role/service.go`](../apps/rbac/role/service.go)�?
+调用示例�?[`apps/tenant/role/service.go`](../apps/tenant/role/service.go)�?
 ```go
 func (s *Service) Update(ctx context.Context, roleID uint, req UpdateRoleReq) error {
     if err := s.repo.Update(ctx, roleID, req); err != nil { return err }

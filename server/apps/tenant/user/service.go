@@ -8,8 +8,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"gx1727.com/xin/apps/rbac/organization"
-	"gx1727.com/xin/apps/rbac/role"
+	"gx1727.com/xin/apps/tenant/organization"
+	"gx1727.com/xin/apps/tenant/role"
 	"gx1727.com/xin/apps/reference/asset"
 	pkgauth "gx1727.com/xin/framework/pkg/auth"
 	"gx1727.com/xin/framework/pkg/audit"

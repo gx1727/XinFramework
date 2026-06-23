@@ -1,8 +1,8 @@
 // Package platformmenu 实现"平台级菜单"管理 API。
 //
-// 与 apps/rbac/menu 的关键区别：
+// 与 apps/tenant/menu 的关键区别：
 //
-//	| 维度          | apps/rbac/menu              | apps/platform/menu      |
+//	| 维度          | apps/tenant/menu              | apps/platform/menu      |
 //	| tenant_id     | 来自 ctx.TenantID（租户内）  | 恒为 0（硬编码，平台级）       |
 //	| DB 事务上下文 | RunInTenantTx                | RunInPlatformTx（bypass RLS）  |
 //	| 中间件        | Require(permission.P(...))   | RequirePlatformRole("super_admin") |
@@ -10,7 +10,7 @@
 //	| 错误码段      | 5001-5099                    | 15001-15999                   |
 //
 // 两套 API 共享同一张 menus 表（靠 tenant_id 区分），但代码完全独立，
-// 避免反向依赖 apps/rbac/。
+// 避免反向依赖 apps/tenant/。
 package menu
 
 import (

@@ -3,7 +3,7 @@ package rbac
 import "context"
 
 // RoleResource binds a role to a resource code. Defined here for
-// documentation; the concrete type alias lives in apps/rbac/permission/.
+// documentation; the concrete type alias lives in apps/tenant/permission/.
 type RoleResource struct {
 	RoleID       uint
 	ResourceID   uint
@@ -11,7 +11,7 @@ type RoleResource struct {
 }
 
 // RoleResourceRepository is the cross-module role-resource binding
-// access contract. The concrete implementation in apps/rbac/permission/
+// access contract. The concrete implementation in apps/tenant/permission/
 // satisfies this interface.
 type RoleResourceRepository interface {
 	// GetByRoleID returns the resource IDs bound to the given role.

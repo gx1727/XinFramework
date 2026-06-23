@@ -51,7 +51,7 @@ func (h *Handler) GetCurrentUser(c *gin.Context) {
 	}
 
 	if h.ctx == nil || h.ctx.UserRepo() == nil {
-		resp.Error(c, 500, "user module not loaded — register apps/rbac/user in main.go")
+		resp.Error(c, 500, "user module not loaded — register apps/tenant/user in main.go")
 		return
 	}
 	u, err := h.ctx.UserRepo().GetByID(c.Request.Context(), userID)
@@ -82,7 +82,7 @@ func (h *Handler) ListUsers(c *gin.Context) {
 	}
 
 	if h.ctx == nil || h.ctx.UserRepo() == nil {
-		resp.Error(c, 500, "user module not loaded — register apps/rbac/user in main.go")
+		resp.Error(c, 500, "user module not loaded — register apps/tenant/user in main.go")
 		return
 	}
 

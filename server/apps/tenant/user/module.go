@@ -5,8 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"gx1727.com/xin/apps/rbac/organization"
-	"gx1727.com/xin/apps/rbac/role"
+	"gx1727.com/xin/apps/tenant/organization"
+	"gx1727.com/xin/apps/tenant/role"
 	"gx1727.com/xin/apps/reference/asset"
 	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/plugin"

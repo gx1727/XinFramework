@@ -10,7 +10,7 @@
 //   - 新增 sys_user / sys_role / sys_menu / sys_permission 四个 platform 域模块
 //   - apps/platform/tenant 改名为 apps/platform/tenants（目录跟表名对齐）
 //   - 抽象基类 framework/pkg/identity + platform contracts framework/pkg/platformauth
-//   - 不动 apps/rbac/* —— 重命名推迟到独立 session（避免 PowerShell 编码污染）
+//   - 不动 apps/tenant/* —— 重命名推迟到独立 session（避免 PowerShell 编码污染）
 package main
 
 import (
@@ -25,12 +25,12 @@ import (
 	sysrole "gx1727.com/xin/apps/platform/sys_role"
 	sysuser "gx1727.com/xin/apps/platform/sys_user"
 	"gx1727.com/xin/apps/platform/tenants"
-	"gx1727.com/xin/apps/rbac/menu"
-	"gx1727.com/xin/apps/rbac/organization"
-	"gx1727.com/xin/apps/rbac/permission"
-	"gx1727.com/xin/apps/rbac/resource"
-	"gx1727.com/xin/apps/rbac/role"
-	"gx1727.com/xin/apps/rbac/user"
+	"gx1727.com/xin/apps/tenant/menu"
+	"gx1727.com/xin/apps/tenant/organization"
+	"gx1727.com/xin/apps/tenant/permission"
+	"gx1727.com/xin/apps/tenant/resource"
+	"gx1727.com/xin/apps/tenant/role"
+	"gx1727.com/xin/apps/tenant/user"
 	"gx1727.com/xin/apps/reference/asset"
 	refconfig "gx1727.com/xin/apps/reference/config"
 	"gx1727.com/xin/apps/reference/dict"

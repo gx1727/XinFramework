@@ -9,7 +9,7 @@ import (
 // 类型别名 —— Organization struct 与 pkgrbac.Organization 共享
 type Organization = pkgrbac.Organization
 
-// OrganizationRepository 是 apps/rbac/organization 的完整接口（包含
+// OrganizationRepository 是 apps/tenant/organization 的完整接口（包含
 // Scoped 变体、Create / Update / Delete 等本地方法）。
 type OrganizationRepository interface {
 	GetByID(ctx context.Context, id uint) (*Organization, error)

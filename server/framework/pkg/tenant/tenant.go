@@ -1,6 +1,6 @@
 // Package tenant exposes the public TenantRepository contract used
 // by framework's AppContext Reader/Writer and by apps/boot/tenant
-// (the producer) and apps/rbac/user + apps/reference/weixin (the
+// (the producer) and apps/tenant/user + apps/reference/weixin (the
 // consumers).
 //
 // are gone. Modules exchange tenant repositories through the
