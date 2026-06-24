@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -89,6 +90,8 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 		}
 
 		roleCode := "user"
+		// 用户没有任何角色时 SELECT 返回 NoRows,留 roleCode 兜底值 "user" 继续走流程;
+		// 其它 DB 错误必须返回,不能像之前那样被空 if 块吞掉。
 		err = querier.QueryRow(ctx, `
 			SELECT r.code
 			FROM tenant_user_roles ur
@@ -96,7 +99,7 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 			WHERE ur.user_id = $1
 			ORDER BY ur.id ASC LIMIT 1`, uID).Scan(&roleCode)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-			// ignore role not found
+			return fmt.Errorf("load user role: %w", err)
 		}
 
 		identity = LoginIdentity{

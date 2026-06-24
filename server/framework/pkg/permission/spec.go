@@ -7,6 +7,17 @@ type Spec struct {
 	Authenticated bool
 }
 
+// MatchMode 决定 Require / RequireAny / RequireAll 的判定方式。
+// 用具名类型代替原来的 "one"/"any"/"all" 字符串,让拼写错误编译期失败。
+type MatchMode int
+
+const (
+	// MatchAll 全部 spec 都必须通过（Require / RequireAuthenticated）。
+	MatchAll MatchMode = iota
+	// MatchAny 至少一个 spec 通过即可（RequireAny）。
+	MatchAny
+)
+
 // P creates a permission-based authorization spec.
 func P(resource, action string) Spec {
 	return Spec{

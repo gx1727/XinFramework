@@ -69,7 +69,10 @@ func Init(cfg *config.Config) (*appx.App, *server.XinServer, *plugin.AppContext,
 		permCache = permission.NewRedisPermissionCache()
 	}
 
-	appCtx := plugin.NewAppContext(pool, cache.Get(), cfg, sm)
+	appCtx, err := plugin.NewAppContext(pool, cache.Get(), cfg, sm)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("new app context: %w", err)
+	}
 
 	permService := service.NewPermissionService(
 		permission.NewPermissionRepository(pool),

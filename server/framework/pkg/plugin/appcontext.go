@@ -26,6 +26,8 @@
 package plugin
 
 import (
+	"errors"
+
 	"github.com/go-redis/redis/v8"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -131,19 +133,19 @@ func NewAppContext(
 	cache *redis.Client,
 	cfg *config.Config,
 	session session.SessionManager,
-) *AppContext {
+) (*AppContext, error) {
 	if db == nil {
-		panic("NewAppContext: db pool must not be nil")
+		return nil, errors.New("NewAppContext: db pool must not be nil")
 	}
 	if cfg == nil {
-		panic("NewAppContext: config must not be nil")
+		return nil, errors.New("NewAppContext: config must not be nil")
 	}
 	return &AppContext{
 		db:      db,
 		cache:   cache,
 		cfg:     cfg,
 		session: session,
-	}
+	}, nil
 }
 
 // Compile-time assertion that *AppContext satisfies both interfaces.

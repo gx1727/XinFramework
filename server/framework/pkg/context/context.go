@@ -128,16 +128,6 @@ func NewUserContext(c *gin.Context) *UserContext {
 	return &UserContext{XinContext: &XinContext{}}
 }
 
-// MustNewUserContext returns the UserContext or panics if it's not present or invalid.
-// This is useful for catching missing middleware configuration.
-func MustNewUserContext(c *gin.Context) *UserContext {
-	uc, ok := UserContextFrom(c.Request.Context())
-	if !ok || uc.UserID == 0 {
-		panic("UserContext not found or UserID is 0. Did you forget to add the Auth middleware?")
-	}
-	return uc
-}
-
 func UserContextFromRequest(req *http.Request) *UserContext {
 	if uc, ok := UserContextFrom(req.Context()); ok {
 		return uc

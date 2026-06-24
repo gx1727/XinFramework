@@ -171,5 +171,9 @@ func TestAppContext_AllSetters_CanBeClearedWithNil(t *testing.T) {
 // -----------------------------------------------------------------------------
 
 func newTestContext() *AppContext {
-	return NewAppContext(&pgxpool.Pool{}, nil, &config.Config{}, nil)
+	ctx, err := NewAppContext(&pgxpool.Pool{}, nil, &config.Config{}, nil)
+	if err != nil {
+		panic(err) // 测试辅助函数,boot 期 panic 可接受
+	}
+	return ctx
 }

@@ -11,25 +11,25 @@ import (
 // Require 创建权限检查中间件 - 用户必须拥有指定权限才能访问
 // 用法: protected.POST("/flag/frames", middleware.Require(permission.P(permission.ResFlag, permission.ActCreate)), h.CreateFrame)
 func Require(spec permission.Spec) gin.HandlerFunc {
-	return requireWithSpecs("one", spec)
+	return requireWithSpecs(permission.MatchAll, spec)
 }
 
 // RequireAuthenticated 创建登录检查中间件 - 只需登录即可访问，不检查具体权限
 // 用法: protected.GET("/profile", middleware.RequireAuthenticated(), h.GetProfile)
 func RequireAuthenticated() gin.HandlerFunc {
-	return requireWithSpecs("one", permission.AuthOnly())
+	return requireWithSpecs(permission.MatchAll, permission.AuthOnly())
 }
 
 // RequireAny 创建任意权限检查中间件 - 用户拥有任意一个指定权限即可访问
 // 用法: protected.DELETE("/admin", middleware.RequireAny(permission.P(permission.ResUser, permission.ActDelete), permission.P(permission.ResAdmin, permission.ActDelete)), h.Delete)
 func RequireAny(specs ...permission.Spec) gin.HandlerFunc {
-	return requireWithSpecs("any", specs...)
+	return requireWithSpecs(permission.MatchAny, specs...)
 }
 
 // RequireAll 创建全部权限检查中间件 - 用户必须拥有所有指定权限才能访问
 // 用法: protected.GET("/admin", middleware.RequireAll(specs...), h.List)
 func RequireAll(specs ...permission.Spec) gin.HandlerFunc {
-	return requireWithSpecs("all", specs...)
+	return requireWithSpecs(permission.MatchAll, specs...)
 }
 
 // RequirePlatformRole 校验当前登录账号是否携带指定的平台级角色（如 super_admin）。
@@ -103,9 +103,17 @@ func RequirePlatformRole(roles ...string) gin.HandlerFunc {
 	}
 }
 
-func requireWithSpecs(mode string, specs ...permission.Spec) gin.HandlerFunc {
+func requireWithSpecs(mode permission.MatchMode, specs ...permission.Spec) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		uc := xinContext.MustNewUserContext(c)
+		uc, ok := xinContext.UserContextFrom(c.Request.Context())
+		if !ok || uc == nil {
+			// 没有 UserContext 是路由配置错误（中间件链漏挂 Auth），
+			// 用 500 + 显式 message 比 panic 友好；前端能看到，
+			// SRE 能在日志里直接定位。
+			resp.ServerError(c, "missing user context: did the Auth middleware run?")
+			c.Abort()
+			return
+		}
 
 		// 平台超级管理员：无视所有权限规格直接放行
 		if uc.HasPlatformRole(jwtpkg.PlatformRoleSuperAdmin) {
@@ -114,36 +122,7 @@ func requireWithSpecs(mode string, specs ...permission.Spec) gin.HandlerFunc {
 		}
 
 		switch mode {
-		case "one":
-			spec := specs[0]
-			if !spec.IsValid() {
-				resp.Forbidden(c, "invalid permission spec")
-				c.Abort()
-				return
-			}
-			if spec.IsAuthOnly() {
-				c.Next()
-				return
-			}
-			if !uc.HasPermission(spec.Resource, spec.Action) {
-				resp.Forbidden(c, "permission denied: "+spec.String())
-				c.Abort()
-				return
-			}
-		case "any":
-			for _, spec := range specs {
-				if !spec.IsValid() {
-					continue
-				}
-				if spec.IsAuthOnly() || uc.HasPermission(spec.Resource, spec.Action) {
-					c.Next()
-					return
-				}
-			}
-			resp.Forbidden(c, "permission denied")
-			c.Abort()
-			return
-		case "all":
+		case permission.MatchAll:
 			for _, spec := range specs {
 				if !spec.IsValid() {
 					resp.Forbidden(c, "invalid permission spec")
@@ -159,6 +138,19 @@ func requireWithSpecs(mode string, specs ...permission.Spec) gin.HandlerFunc {
 					return
 				}
 			}
+		case permission.MatchAny:
+			for _, spec := range specs {
+				if !spec.IsValid() {
+					continue
+				}
+				if spec.IsAuthOnly() || uc.HasPermission(spec.Resource, spec.Action) {
+					c.Next()
+					return
+				}
+			}
+			resp.Forbidden(c, "permission denied")
+			c.Abort()
+			return
 		}
 
 		c.Next()

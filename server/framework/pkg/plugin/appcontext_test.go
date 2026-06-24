@@ -11,30 +11,24 @@ import (
 )
 
 // -----------------------------------------------------------------------------
-// Construction: nil-handling panics
+// Construction: nil-handling returns error
 // -----------------------------------------------------------------------------
 
-// TestNewAppContext_NilDB_Panics verifies that NewAppContext refuses to
-// construct an AppContext without a database pool — a nil db would let
+// TestNewAppContext_NilDB_ReturnsError verifies that NewAppContext refuses
+// to construct an AppContext without a database pool — a nil db would let
 // every repository downstream crash with a confusing nil-pointer
 // dereference far from the root cause.
-func TestNewAppContext_NilDB_Panics(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("NewAppContext(nil, nil, &cfg, nil) must panic on nil db")
-		}
-	}()
-	_ = NewAppContext(nil, nil, &config.Config{}, nil)
+func TestNewAppContext_NilDB_ReturnsError(t *testing.T) {
+	if _, err := NewAppContext(nil, nil, &config.Config{}, nil); err == nil {
+		t.Fatal("NewAppContext(nil, nil, &cfg, nil) must return error on nil db")
+	}
 }
 
-// TestNewAppContext_NilConfig_Panics: same rationale as the db panic.
-func TestNewAppContext_NilConfig_Panics(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("NewAppContext(pool, nil, nil, nil) must panic on nil cfg")
-		}
-	}()
-	_ = NewAppContext(&pgxpool.Pool{}, nil, nil, nil)
+// TestNewAppContext_NilConfig_ReturnsError: same rationale as the db check.
+func TestNewAppContext_NilConfig_ReturnsError(t *testing.T) {
+	if _, err := NewAppContext(&pgxpool.Pool{}, nil, nil, nil); err == nil {
+		t.Fatal("NewAppContext(pool, nil, nil, nil) must return error on nil cfg")
+	}
 }
 
 // TestNewAppContext_HappyPath constructs a context with zero-value infra
@@ -45,7 +39,10 @@ func TestNewAppContext_HappyPath(t *testing.T) {
 		cfg  = &config.Config{}
 	)
 
-	ctx := NewAppContext(pool, nil, cfg, nil)
+	ctx, err := NewAppContext(pool, nil, cfg, nil)
+	if err != nil {
+		t.Fatalf("happy-path NewAppContext returned error: %v", err)
+	}
 	if ctx.DB() != pool {
 		t.Error("Reader.DB() should return the pool passed to NewAppContext")
 	}
@@ -69,7 +66,10 @@ func TestNewAppContext_HappyPath(t *testing.T) {
 // single source of truth that "module not enabled" is observable as a
 // nil repository rather than a panic.
 func TestAppContext_DefaultsAreNil(t *testing.T) {
-	ctx := NewAppContext(&pgxpool.Pool{}, nil, &config.Config{}, nil)
+	ctx, err := NewAppContext(&pgxpool.Pool{}, nil, &config.Config{}, nil)
+	if err != nil {
+		t.Fatalf("NewAppContext returned error: %v", err)
+	}
 
 	if ctx.Authz() != nil {
 		t.Error("Authz() should default to nil")
@@ -110,7 +110,9 @@ func (fakeAuthz) LoadPermissions(context.Context, uint) (map[string]bool, error)
 	return nil, nil
 }
 func (fakeAuthz) LoadRoles(context.Context, uint) ([]string, error)          { return nil, nil }
-func (fakeAuthz) LoadDataScope(context.Context, uint) (interface{}, error)    { return nil, nil }
+func (fakeAuthz) LoadDataScope(context.Context, uint) (*permission.DataScope, error) {
+	return nil, nil
+}
 func (fakeAuthz) LoadUserSecurityContext(context.Context, uint) (map[string]bool, []string, *permission.DataScope, int64, error) {
 	return nil, nil, nil, 0, nil
 }
@@ -121,7 +123,10 @@ func (fakeAuthz) InvalidateResource(context.Context, uint) error             { r
 // TestAppContext_SetAuthz_RoundTrip is the most important Writer/Reader
 // property: after SetAuthz, Reader.Authz() returns the same value.
 func TestAppContext_SetAuthz_RoundTrip(t *testing.T) {
-	ctx := NewAppContext(&pgxpool.Pool{}, nil, &config.Config{}, nil)
+	ctx, err := NewAppContext(&pgxpool.Pool{}, nil, &config.Config{}, nil)
+	if err != nil {
+		t.Fatalf("NewAppContext returned error: %v", err)
+	}
 	v := fakeAuthz{}
 	ctx.SetAuthz(v)
 	if got := ctx.Authz(); got == nil {
@@ -136,7 +141,10 @@ func TestAppContext_SetAuthz_RoundTrip(t *testing.T) {
 // writer and only runs once, but tests of third-party wiring may set
 // then override.
 func TestAppContext_SetAuthz_Overwrite(t *testing.T) {
-	ctx := NewAppContext(&pgxpool.Pool{}, nil, &config.Config{}, nil)
+	ctx, err := NewAppContext(&pgxpool.Pool{}, nil, &config.Config{}, nil)
+	if err != nil {
+		t.Fatalf("NewAppContext returned error: %v", err)
+	}
 	ctx.SetAuthz(fakeAuthz{})
 	ctx.SetAuthz(nil) // explicit clear
 	if ctx.Authz() != nil {

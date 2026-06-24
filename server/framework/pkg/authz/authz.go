@@ -36,12 +36,9 @@ type Authorization interface {
 	// LoadRoles returns the role codes assigned to the user.
 	LoadRoles(ctx context.Context, userID uint) ([]string, error)
 
-	// LoadDataScope returns the user's data scope. Returned as
-	// interface{} — the concrete type is *permission.DataScope.
-	// Callers that need the concrete type do an `if ds, ok := result.(*permission.DataScope); ...`.
-	//
-	// Apps that don't need the concrete type can ignore the value.
-	LoadDataScope(ctx context.Context, userID uint) (interface{}, error)
+	// LoadDataScope returns the user's data scope.
+	// 返回具体类型 *permission.DataScope,而不是 interface{} —— 让调用方不用做 type assert。
+	LoadDataScope(ctx context.Context, userID uint) (*permission.DataScope, error)
 
 	// LoadUserSecurityContext loads the full security context for a user
 	// in one round-trip (used by the auth middleware on every request).

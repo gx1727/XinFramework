@@ -6,20 +6,9 @@ import (
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
-// adapter wraps the concrete *permission.AuthorizationService so that
-// its *permission.DataScope return type matches the public
-// authz.Authorization interface (which returns interface{}).
-//
-// Why interface{}? apps/ can't import *permission.DataScope directly
-// (it lives in framework/pkg/permission which apps CAN import, but the
-// concrete authorization service is in framework/internal/service which
-// apps CANNOT import). Returning interface{} keeps apps from depending
-// on the internal concrete type while still allowing them to do
-// `if ds, ok := result.(*permission.DataScope); ok { ... }`.
-//
-// LoadUserSecurityContext returns *permission.DataScope directly because
-// the auth middleware needs the concrete type to wire it into gin.Context.
-// framework is allowed to depend on framework/pkg/permission.
+// adapter 把 framework/internal/service.AuthorizationService 适配成公开的
+// Authorization 接口。两端签名现在完全一致,adapter 只是 1:1 转发,留着
+// 是为了让 boot 包不直接 import 内部 service(由 Go internal 规则隔离)。
 type adapter struct {
 	inner interface {
 		LoadPermissions(ctx context.Context, userID uint) (map[string]bool, error)
@@ -40,7 +29,7 @@ func (a *adapter) LoadRoles(ctx context.Context, userID uint) ([]string, error) 
 	return a.inner.LoadRoles(ctx, userID)
 }
 
-func (a *adapter) LoadDataScope(ctx context.Context, userID uint) (interface{}, error) {
+func (a *adapter) LoadDataScope(ctx context.Context, userID uint) (*permission.DataScope, error) {
 	return a.inner.LoadDataScope(ctx, userID)
 }
 
