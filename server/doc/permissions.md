@@ -5,9 +5,9 @@
 ## 1. 三层权限一�?
 | �?| 解决什�?| 实现位置 |
 |---|---|---|
-| **资源�?RBAC** | 这个用户**能不能调**这个 API | `resources` + `role_resources` + `Require(spec)` 中间�?|
+| **资源�?RBAC** | 这个用户**能不能调**这个 API | `tenant_permissions` + `tenant_role_tenant_permissions` + `Require(spec)` 中间�?|
 | **数据范围 DataScope** | 这个用户**能看哪些�?* | `roles.data_scope` + `BuildDataScopeFilter` + 业务 SQL WHERE |
-| **平台角色 PlatformRole** | 这个账号**跨租�?*的特�?| `account_roles.role` + `RequirePlatformRole` 中间�?|
+| **平台角色 PlatformRole** | 这个账号**跨租�?*的特�?| `<dropped:account_roles>.role` + `RequirePlatformRole` 中间�?|
 
 **重要**：`super_admin` 平台角色**自动 bypass** 资源�?RBAC（详�?§6）�?
 ---
@@ -200,9 +200,9 @@ func BuildDataScopeFilter(
 org_id = $1
 OR org_id IN (
     WITH RECURSIVE org_tree AS (
-        SELECT id FROM organizations WHERE id = $1
+        SELECT id FROM tenant_organizations WHERE id = $1
         UNION ALL
-        SELECT o.id FROM organizations o
+        SELECT o.id FROM tenant_organizations o
         JOIN org_tree ot ON o.parent_id = ot.id
     )
     SELECT id FROM org_tree
@@ -235,11 +235,11 @@ filter, _ := uc.GetDataScopeFilterFor(permission.ScopeColumns{
 
 ```sql
 SELECT DISTINCT res.code, res.action
-FROM users u
-JOIN user_roles ur ON ur.user_id = u.id
+FROM tenant_users u
+JOIN tenant_user_roles ur ON ur.user_id = u.id
 JOIN roles rol ON rol.id = ur.role_id
-JOIN role_resources rr ON rr.role_id = rol.id
-JOIN resources res ON res.id = rr.resource_id
+JOIN tenant_role_resources_OLD rr ON rr.role_id = rol.id
+JOIN resources_OLD res ON res.id = rr.resource_id
 WHERE u.id = $1
   AND u.is_deleted = FALSE
   AND ur.is_deleted = FALSE
@@ -304,14 +304,14 @@ func (s *Service) Update(ctx context.Context, roleID uint, req UpdateRoleReq) er
 
 ### 6.1 概念
 
-平台角色�?*跨租�?*的特权，绑定�?`accounts` 而非 `users`。典型用途：
+平台角色�?*跨租�?*的特权，绑定�?`accounts` 而非 `tenant_users`。典型用途：
 
 - `super_admin`：平台超级管理员，可以管理任意租�?/ 平台菜单 / 平台配置
 - 未来可能�?`auditor`（审计员）、`support`（客服）�?
 ### 6.2 存储
 
 ```sql
-CREATE TABLE account_roles (
+CREATE TABLE <dropped:account_roles> (
     account_id BIGINT NOT NULL,
     role      VARCHAR(64) NOT NULL,
     ...
@@ -321,12 +321,12 @@ CREATE TABLE account_roles (
 ### 6.3 颁发
 
 ```sql
-INSERT INTO account_roles (account_id, role) VALUES ($1, 'super_admin')
+INSERT INTO <dropped:account_roles> (account_id, role) VALUES ($1, 'super_admin')
 ON CONFLICT (account_id, role) DO NOTHING;
 ```
 
 ### 6.4 �?token 中传�?
-`accounts.id` 登录后，框架�?`account_roles` 找出所有平台角色，塞进 JWT claims�?
+`accounts.id` 登录后，框架�?`<dropped:account_roles>` 找出所有平台角色，塞进 JWT claims�?
 ```go
 type Claims struct {
     UserID        uint
@@ -356,7 +356,7 @@ type Claims struct {
 | 模块 | 路由前缀 | 双层守卫 |
 |---|---|---|
 | `platform_tenant` | `/platform/platform-tenants` | super_admin + `ResTenant.*` |
-| `sys_menu` | `/platform/platform-menus` | super_admin（单层） |
+| `sys_menu` | `/platform/platform-tenant_menus` | super_admin（单层） |
 | `config` 平台�?| `/configs/platform` | super_admin + `ResConfig.*` |
 | `dict` 平台�?| `/dicts/platform` | super_admin + `ResDict.*` |
 

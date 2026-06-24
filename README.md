@@ -2,7 +2,7 @@
 
 > 多租户 SaaS 后台框架。前端 React + 后端 Go + 内置 RBAC / 权限 / 数据范围。
 
-XinFramework 是一个**面向多租户 SaaS 后台**的可扩展框架。当前共 **15 个模块**，全部跑在单一 Go module `gx1727.com/xin` 下。
+XinFramework 是一个**面向多租户 SaaS 后台**的可扩展框架。当前共 **19 个模块**，全部跑在单一 Go module `gx1727.com/xin` 下（Phase 0023 平台/租户域分域完成）。
 
 - **后端**（[server/](file:///d:/work/xin/XinFramework/server)）：Go 1.25 + Gin + pgx + PostgreSQL，
   - 框架核心：`gx1727.com/xin/framework`（必装：登录 / 多租户 / RBAC / 迁移 / 中间件）
@@ -28,9 +28,10 @@ XinFramework/
 │   │                             # plugin / rbac / resp / session / storage / tenant
 │   └── apps/                     # 业务模块（与 framework 同 module）
 │       ├── boot/                 # auth, tenant（平台级 alwaysOn）
-│       ├── rbac/                 # user, role, menu, resource, permission, organization
+│       ├── tenant/               # user, role, menu, resource, permission, organization (Phase 0023.3 rename: apps/rbac -> apps/tenant)
 │       ├── reference/            # asset, config, dict, weixin
 │       ├── system/               # health / cache 运维
+│       ├── platform/              # platform_tenant / sys_user / sys_role / sys_menu / sys_permission (0023 平台域)
 │       ├── cms/                  # 示例 CMS（extapi 模式）
 │       └── flag/                 # 头像框 / 空间 / 头像
 │
@@ -87,21 +88,25 @@ curl http://localhost:8087/api/v1/health
 
 | Name | 类型 | 数据表 | 说明 |
 |---|---|---|---|
-| `auth` | alwaysOn | accounts / account_auths / account_roles / user_codes | 登录 / 注册 / JWT |
-| `tenant` | alwaysOn | tenants | 租户管理（必须 super_admin） |
+| `auth` | alwaysOn | accounts / auth_sessions | 登录 / 注册 / JWT |
+| `tenant` | alwaysOn | tenants | 租户管理（必须 super_admin，apps/boot/tenant） |
 | `system` | alwaysOn | — | /health + 运维 cache |
-| `user` | optOut | users / user_roles | 租户内用户 CRUD |
-| `role` | optOut | roles | 角色 + 数据范围 |
-| `menu` | optOut | menus / role_menus | 菜单树 |
-| `organization` | optOut | organizations | 组织架构（递归 CTE） |
-| `permission` | optOut | role_resources | 角色-资源分配 |
-| `resource` | optOut | resources | 按钮/API 资源 |
+| `user` | optOut | tenant_users / tenant_user_roles | 租户内用户 CRUD（apps/tenant/user） |
+| `role` | optOut | tenant_roles / tenant_role_data_scopes / tenant_user_roles / tenant_role_menus / tenant_role_resources | 角色 + 数据范围（apps/tenant/role） |
+| `menu` | optOut | tenant_menus / tenant_role_menus | 租户菜单树（apps/tenant/menu，平台菜单见 sys_menu） |
+| `organization` | optOut | tenant_organizations | 租户组织架构（递归 CTE + 物化路径，apps/tenant/organization） |
+| `permission` | optOut | tenant_role_resources | 租户角色-权限码分配（apps/tenant/permission） |
+| `resource` | optOut | tenant_permissions | 租户权限码 CRUD（原 resources，0023.3 rename，apps/tenant/resource） |
 | `asset` | optOut | file_assets | 文件上传（local / COS） |
-| `dict` | optOut | dicts / dict_items | 数据字典 |
-| `config` | optOut | config_items / config_groups | 租户配置中心 |
-| `weixin` | optional | — | 微信小程序登录 |
-| `cms` | optional | posts | 示例 CMS（extapi 模式） |
-| `flag` | optional | frames / spaces / avatars ... | 头像框生成器 |
+| `dict` | optOut | dicts / dict_items / dict_visibility | 数据字典（平台 + 租户二级，apps/reference/dict） |
+| `config` | optOut | config_categories / config_items / config_visibility | 租户配置中心（apps/reference/config） |
+| `weixin` | optional | — | 微信小程序登录（apps/reference/weixin） |
+| `sys_user` | optional | sys_users / sys_orgs / sys_user_roles | 平台域用户身份（0023+） |
+| `sys_role` | optional | sys_roles / sys_user_roles | 平台域角色（含 super_admin，0023+） |
+| `sys_menu` | optional | sys_menus / sys_role_menus | 平台域菜单（替代 apps/platform/menu，0023.4） |
+| `sys_permission` | optional | sys_permissions / sys_role_permissions | 平台域权限码（0023+） |
+| `cms` | optional | posts | 示例 CMS（extapi 模式，apps/cms） |
+| `flag` | optional | frames / spaces / avatars ... | 头像框生成器（apps/flag） |
 
 详见 [server/doc/modules.md](file:///d:/work/xin/XinFramework/server/doc/modules.md)。
 
@@ -113,7 +118,7 @@ curl http://localhost:8087/api/v1/health
 | --- | --- |
 | [quickstart.md](file:///d:/work/xin/XinFramework/server/doc/quickstart.md) | 安装、配置、首次启动 |
 | [architecture.md](file:///d:/work/xin/XinFramework/server/doc/architecture.md) | 架构总览、AppContext、模块生命周期 |
-| [modules.md](file:///d:/work/xin/XinFramework/server/doc/modules.md) | 15 个 module 清单和路由 |
+| [modules.md](file:///d:/work/xin/XinFramework/server/doc/modules.md) | 19 个 module 清单和路由 |
 | [api.md](file:///d:/work/xin/XinFramework/server/doc/api.md) | HTTP API 参考 |
 | [database.md](file:///d:/work/xin/XinFramework/server/doc/database.md) | 表结构、RLS、JSONB、迁移 |
 | [permissions.md](file:///d:/work/xin/XinFramework/server/doc/permissions.md) | RBAC + DataScope + 平台角色 |
@@ -139,5 +144,5 @@ curl http://localhost:8087/api/v1/health
 ## 版本与维护
 
 - Go 1.25+ / Node 20+
-- 数据库：PostgreSQL 16（需要 `ltree` / `pg_trgm` 扩展）
+- 数据库：PostgreSQL 16+（需要 `ltree` / `pg_trgm` 扩展）
 - 文件编码：**所有源文件 UTF-8 无 BOM**（PowerShell 默认 GBK，写入用 [UI/AGENTS.md §5.1](file:///d:/work/xin/XinFramework/UI/AGENTS.md) 的方法绕过）

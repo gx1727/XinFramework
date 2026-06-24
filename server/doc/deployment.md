@@ -104,7 +104,7 @@ sudo systemctl status xin-server
 │   ├── config.prod.yaml
 │   └── ...                   # 子模块 yaml
 ├── migrations/
-│   ├── framework.sql
+│   ├── init_schema.sql
 │   ├── asset.sql
 │   ├── config.sql
 │   ├── config_alignment.sql  # Phase 0022 新加
