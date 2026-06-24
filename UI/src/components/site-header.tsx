@@ -6,9 +6,7 @@ import { useTheme } from "@/components/theme-provider"
 import { useConfigItem } from "@/stores/configStore"
 import { useAuthStore } from "@/stores/authStore"
 import { Badge } from "@/components/ui/badge"
-import { GlobeIcon, BuildingIcon, LogOutIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { useNavigate } from "react-router-dom"
+import { GlobeIcon, BuildingIcon } from "lucide-react"
 import { TenantSwitcher } from "@/components/tenant-switcher"
 
 export function SiteHeader() {
@@ -16,8 +14,6 @@ export function SiteHeader() {
   const siteName = useConfigItem("site", "site_name") as string | undefined
   const headerTitle = siteName || t.header.documents
   const scope = useAuthStore((s) => s.scope)
-  const logout = useAuthStore((s) => s.logout)
-  const navigate = useNavigate()
 
   const isDark =
     theme === "dark" ||
@@ -25,11 +21,6 @@ export function SiteHeader() {
 
   const toggleTheme = () => {
     setTheme(isDark ? "light" : "dark")
-  }
-
-  const handleLogout = () => {
-    logout()
-    navigate(scope === "platform" ? "/platform/login" : "/login", { replace: true })
   }
 
   return (
@@ -65,15 +56,6 @@ export function SiteHeader() {
             <span className="text-sm text-muted-foreground">深色模式</span>
             <Switch checked={isDark} onCheckedChange={toggleTheme} />
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleLogout}
-            className="gap-1"
-          >
-            <LogOutIcon className="size-3" />
-            退出登录
-          </Button>
         </div>
       </div>
     </header>

@@ -229,17 +229,6 @@ server/
 
 ## 首次启动
 
-通过 `.env` 注入 bootstrap 凭据：
-
-```env
-XIN_BOOTSTRAP_TOKEN=your-32+char-secret
-XIN_BOOTSTRAP_ACCOUNT=root
-XIN_BOOTSTRAP_PASSWORD=change-me-please
-XIN_BOOTSTRAP_REAL_NAME=System Root
-XIN_BOOTSTRAP_ROLE=super_admin
-XIN_BOOTSTRAP_TENANT_CODE=default
-```
-
 首次启动会自动跑迁移+bootstrap（见 [doc/quickstart.md](doc/quickstart.md)）。
 
 ## 贡献

@@ -440,9 +440,6 @@ spec:
 | `XIN_MODULE` | `module` | 模块白名单（逗号分隔） |
 | `XIN_STORAGE_COS_SECRET_ID` | `storage.cos_secret_id` | COS 凭据 |
 | `XIN_STORAGE_COS_SECRET_KEY` | `storage.cos_secret_key` | COS 凭据 |
-| `XIN_BOOTSTRAP_ACCOUNT` | bootstrap 账号 | 首次启动初始管理员账号 |
-| `XIN_BOOTSTRAP_PASSWORD` | bootstrap 密码 | 首次启动初始管理员密码 |
-| `XIN_BOOTSTRAP_TOKEN` | bootstrap token | 首次启动验证令牌 |
 
 ---
 

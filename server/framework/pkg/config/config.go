@@ -116,8 +116,8 @@ func defaults() *Config {
 		Database: DatabaseConfig{
 			Host:               "localhost",
 			Port:               5432,
-			User:               "postgres",
-			Password:           "postgres",
+			User:               "xin_user",
+			Password:           "xin_password",
 			DBName:             "xin",
 			SSLMode:            "disable",
 			MaxOpenConns:       100,
