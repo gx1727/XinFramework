@@ -1,8 +1,6 @@
 package auth
 
 import (
-	"gx1727.com/xin/apps/platform/tenant"
-
 	"context"
 	"errors"
 	"time"
@@ -14,6 +12,7 @@ import (
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
+	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
 )
 
 type LoginIdentity struct {
@@ -145,7 +144,7 @@ type Service struct {
 	config      *config.Config
 	session     SessionManager
 	accountRepo AccountRepository
-	tenantRepo  tenant.TenantRepository
+	tenantRepo  pkgtenant.TenantRepository
 	platformRp  PlatformRoleRepository
 }
 
@@ -529,9 +528,6 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 
 		t, err := s.tenantRepo.GetByID(ctx, req.TenantID)
 		if err != nil {
-			if errors.Is(err, tenant.ErrTenantNotFoundDB) {
-				return ErrTenantNotFound
-			}
 			return ErrRegisterFailed
 		}
 		if t.Status != 1 {
