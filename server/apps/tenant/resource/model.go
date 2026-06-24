@@ -55,5 +55,6 @@ type UpdateResourceRepoReq struct {
 }
 
 var (
-	ErrResourceNotFoundDB = errors.New("resource not found")
+	ErrResourceNotFoundDB   = errors.New("resource not found")
+	ErrResourceCodeExistsDB = errors.New("resource code already exists")
 )

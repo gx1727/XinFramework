@@ -162,7 +162,7 @@ func (r *PostgresMenuRepository) Create(ctx context.Context, tenantID uint, req 
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "uk_menu_code") {
-			return nil, errors.New("menu code already exists")
+			return nil, ErrMenuCodeExistsDB
 		}
 		return nil, fmt.Errorf("create menu: %w", err)
 	}
@@ -192,7 +192,7 @@ func (r *PostgresMenuRepository) Update(ctx context.Context, id uint, req Update
 			return nil, ErrMenuNotFound
 		}
 		if strings.Contains(err.Error(), "uk_menu_code") {
-			return nil, errors.New("menu code already exists")
+			return nil, ErrMenuCodeExistsDB
 		}
 		return nil, fmt.Errorf("update menu: %w", err)
 	}

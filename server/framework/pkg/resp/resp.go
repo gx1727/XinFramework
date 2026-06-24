@@ -1,3 +1,37 @@
+// Package resp 提供统一的 HTTP 响应与错误处理约定。
+//
+// # 错误码分段 → HTTP 状态码映射
+//
+// 所有业务错误统一走 *BizError，code 分段与 HTTP 状态码有明确映射，
+// 由 CodeToHTTPStatus 单点实现，禁止在调用处自行判断：
+//
+//	[1xxx]    鉴权 / 账号 / 通用业务  → 200  (body Code 表达真实结果)
+//	[2xxx]    参数校验 / 业务规则     → 400 Bad Request
+//	[3xxx]    资源不存在 / 租户级     → 404 Not Found
+//	[4xxx]    权限不足 / 角色冲突     → 403 Forbidden
+//	[5xxx+]   服务端故障 / 系统异常   → 500 Internal Server Error
+//
+// 注意：历史遗留——menu（5xxx）/ organization（6xxx）等模块的「资源不存在」
+// 类错误目前共用 5xxx+ 段，按现有规则会被映射为 HTTP 500。这是已知 gap，
+// 修复路径是给这些模块重新分配段位（如把 menu 调到 35xx 段），不是本包的事。
+//
+// 新模块在 errors.go 申请一段连续区间，并保证 code ∈ 区间 → 走对应 HTTP。
+// 见 errors.go 的 Code* 常量表。
+//
+// # 错误构造
+//
+//   - 业务错误统一用 resp.Err(code, msg) 或 resp.NewError(code, msg) 构造。
+//   - DB 层 sentinel 必须命名（Err*DB / err*DB），禁止在 repository 函数里
+//     裸调 errors.New("xxx not found")——那样 service 层无法用 errors.Is
+//     区分"未找到"与"DB 故障"，会导致所有错误被错误地归为 500。
+//
+// # Handler 调用约定
+//
+//   - 已知业务错误：service 返回 *BizError（或由 mapRepoError 翻译后的错误），
+//     handler 调 resp.HandleError(c, err)。
+//   - 显式分流：参数校验 → resp.BadRequest；权限 → resp.Forbidden 等。
+//   - 未识别 error：resp.HandleError 已兜底返回 500 + 通用文案，
+//     业务模块不要自己拼 JSON。
 package resp
 
 import (
@@ -32,12 +66,32 @@ func NewError(code int, msg string) *BizError {
 	return &BizError{Code: code, Msg: msg}
 }
 
+// CodeToHTTPStatus 根据 BizError.Code 决定 HTTP 状态码。
+//
+// 分段规则见包级文档。该函数是 code → HTTP 映射的唯一入口，
+// HandleError / Error 都必须调用它，禁止重复实现 if-else 链。
+func CodeToHTTPStatus(code int) int {
+	switch {
+	case code >= 5000:
+		return http.StatusInternalServerError
+	case code >= 4000:
+		return http.StatusForbidden
+	case code >= 3000:
+		return http.StatusNotFound
+	case code >= 2000:
+		return http.StatusBadRequest
+	default:
+		return http.StatusOK
+	}
+}
+
 // HandleError Handler 层的统一错误处理器
-// 根据错误类型返回对应 HTTP 状态码
+// 业务错误按 code 分段返回对应 HTTP 状态码（与 Error 函数一致），
+// 未识别 error 兜底返回 500 + 通用文案。
 func HandleError(c *gin.Context, err error) {
 	var bizErr *BizError
 	if errors.As(err, &bizErr) {
-		httpStatus := http.StatusOK
+		httpStatus := CodeToHTTPStatus(bizErr.Code)
 		level := "warn"
 		if bizErr.Code >= 5000 {
 			level = "error"
@@ -56,20 +110,10 @@ func Success(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, Response{Code: 0, Msg: "ok", Data: data})
 }
 
-// Error 返回业务错误，HTTP 状态码由业务 code 决定
+// Error 返回业务错误，HTTP 状态码由业务 code 决定（CodeToHTTPStatus）。
 func Error(c *gin.Context, code int, msg string) {
-	httpStatus := http.StatusOK
-	if code >= 5000 {
-		httpStatus = http.StatusInternalServerError
-	} else if code >= 4000 {
-		httpStatus = http.StatusForbidden
-	} else if code >= 3000 {
-		httpStatus = http.StatusNotFound
-	} else if code >= 2000 {
-		httpStatus = http.StatusBadRequest
-	}
 	logResponse(c, "error", code, msg)
-	c.JSON(httpStatus, Response{Code: code, Msg: msg, Data: nil})
+	c.JSON(CodeToHTTPStatus(code), Response{Code: code, Msg: msg, Data: nil})
 }
 
 // Unauthorized 未认证 - HTTP 401

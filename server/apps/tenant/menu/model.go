@@ -67,5 +67,6 @@ type UpdateMenuRepoReq struct {
 }
 
 var (
-	ErrMenuNotFoundDB = errors.New("menu not found")
+	ErrMenuNotFoundDB   = errors.New("menu not found")
+	ErrMenuCodeExistsDB = errors.New("menu code already exists")
 )

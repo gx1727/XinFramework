@@ -53,7 +53,7 @@ func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]Resou
 func (s *Service) Get(ctx context.Context, id uint) (*ResourceResp, error) {
 	r, err := s.resourceRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, mapRepoError(err)
 	}
 	resp := toResp(*r)
 	return &resp, nil
@@ -73,7 +73,7 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Re
 		Status:      req.Status,
 	})
 	if err != nil {
-		return nil, err
+		return nil, mapRepoError(err)
 	}
 	resp := toResp(*r)
 	return &resp, nil
@@ -88,7 +88,7 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*Resource
 		Status:      req.Status,
 	})
 	if err != nil {
-		return nil, err
+		return nil, mapRepoError(err)
 	}
 
 	if s.authz != nil {
@@ -104,7 +104,7 @@ func (s *Service) Delete(ctx context.Context, id uint) error {
 		_ = s.authz.InvalidateResource(context.Background(), id)
 	}
 
-	return s.resourceRepo.Delete(ctx, id)
+	return mapRepoError(s.resourceRepo.Delete(ctx, id))
 }
 
 func (s *Service) GetByMenu(ctx context.Context, menuID uint) ([]ResourceResp, error) {

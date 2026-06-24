@@ -247,7 +247,7 @@ func (h *Handler) DeletePost(c *gin.Context) {
 	}
 
 	if err := h.posts.Delete(c.Request.Context(), uint(id)); err != nil {
-		resp.HandleError(c, err)
+		resp.HandleError(c, mapRepoError(err))
 		return
 	}
 

@@ -2,7 +2,6 @@ package cms
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -140,7 +139,7 @@ func (r *postgresCmsPostRepository) Delete(ctx context.Context, id uint) error {
 		return fmt.Errorf("delete cms post: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return errors.New("post not found")
+		return ErrPostNotFoundDB
 	}
 	return nil
 }

@@ -227,7 +227,7 @@ func (r *PostgresResourceRepository) Create(ctx context.Context, tenantID uint, 
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "uk_resource_code") {
-			return nil, errors.New("resource code already exists")
+			return nil, ErrResourceCodeExistsDB
 		}
 		return nil, fmt.Errorf("create resource: %w", err)
 	}

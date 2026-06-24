@@ -58,7 +58,7 @@ func (s *Service) Get(ctx context.Context, id uint) (*OrgResp, error) {
 	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		var err error
 		org, err = s.orgRepo.GetByIDScoped(ctx, id)
-		return err
+		return mapRepoError(err)
 	})
 	if err != nil {
 		return nil, err
@@ -110,7 +110,7 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*OrgResp,
 	var org *Organization
 	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		if _, err := s.orgRepo.GetByIDScoped(ctx, id); err != nil {
-			return err
+			return mapRepoError(err)
 		}
 		var err error
 		org, err = s.orgRepo.Update(ctx, id, UpdateOrgRepoReq{
@@ -121,7 +121,7 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*OrgResp,
 			Sort:        req.Sort,
 			Status:      req.Status,
 		})
-		return err
+		return mapRepoError(err)
 	})
 	if err != nil {
 		return nil, err
@@ -135,7 +135,7 @@ func (s *Service) Delete(ctx context.Context, id uint) error {
 	return db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		org, err := s.orgRepo.GetByIDScoped(ctx, id)
 		if err != nil {
-			return err
+			return mapRepoError(err)
 		}
 		if org.ParentID == 0 {
 			return ErrCannotDeleteRoot
@@ -160,7 +160,7 @@ func (s *Service) Delete(ctx context.Context, id uint) error {
 		}
 
 		if err := s.orgRepo.Delete(ctx, id); err != nil {
-			return err
+			return mapRepoError(err)
 		}
 
 		// 2) 审计：记录组织软删除事件

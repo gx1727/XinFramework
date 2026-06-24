@@ -277,7 +277,7 @@ func mapRepoError(err error) error {
 	if errors.Is(err, ErrMenuNotFoundDB) {
 		return ErrMenuNotFound
 	}
-	if err.Error() == "menu code already exists" {
+	if errors.Is(err, ErrMenuCodeExistsDB) {
 		return ErrMenuCodeExists
 	}
 	return err

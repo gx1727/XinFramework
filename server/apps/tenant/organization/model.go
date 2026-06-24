@@ -2,6 +2,7 @@ package organization
 
 import (
 	"context"
+	"errors"
 
 	pkgrbac "gx1727.com/xin/framework/pkg/tenant/auth"
 )
@@ -56,3 +57,10 @@ type UpdateOrgRepoReq struct {
 	Sort        int
 	Status      int8
 }
+
+// DB 层 sentinel 错误（仅在 repository 实现里返回）。
+// service 层用 mapRepoError 翻译为 BizError（ErrOrgNotFound 等）。
+// 命名规则：导出供跨包 / 同包 errors.Is 使用，禁止在仓库函数里裸 errors.New。
+var (
+	ErrOrgNotFoundDB = errors.New("organization not found")
+)

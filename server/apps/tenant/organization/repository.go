@@ -57,7 +57,7 @@ func (r *PostgresOrganizationRepository) GetByID(ctx context.Context, id uint) (
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("organization not found")
+			return nil, ErrOrgNotFoundDB
 		}
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (r *PostgresOrganizationRepository) GetByIDScoped(ctx context.Context, id u
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("organization not found")
+			return nil, ErrOrgNotFoundDB
 		}
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func (r *PostgresOrganizationRepository) GetByCode(ctx context.Context, tenantID
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("organization not found")
+			return nil, ErrOrgNotFoundDB
 		}
 		return nil, err
 	}
@@ -397,7 +397,7 @@ func (r *PostgresOrganizationRepository) Update(ctx context.Context, id uint, re
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("organization not found")
+			return nil, ErrOrgNotFoundDB
 		}
 		return nil, fmt.Errorf("update organization: %w", err)
 	}
@@ -414,7 +414,7 @@ func (r *PostgresOrganizationRepository) Delete(ctx context.Context, id uint) er
 		return fmt.Errorf("delete organization: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return ErrOrgNotFound
+		return ErrOrgNotFoundDB
 	}
 	return nil
 }
