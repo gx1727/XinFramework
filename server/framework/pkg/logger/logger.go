@@ -172,7 +172,7 @@ func parseLevel(s string) int {
 	}
 }
 
-func (l *Logger) logf(level int, format string, args ...interface{}) {
+func (l *Logger) logf(level int, format string, args ...any) {
 	if l == nil {
 		return
 	}
@@ -183,65 +183,65 @@ func (l *Logger) logf(level int, format string, args ...interface{}) {
 	l.logger.Output(3, msg)
 }
 
-func (l *Logger) Debugf(format string, args ...interface{}) {
+func (l *Logger) Debugf(format string, args ...any) {
 	l.logf(LevelDebug, format, args...)
 }
 
-func (l *Logger) Infof(format string, args ...interface{}) {
+func (l *Logger) Infof(format string, args ...any) {
 	l.logf(LevelInfo, format, args...)
 }
 
-func (l *Logger) Warnf(format string, args ...interface{}) {
+func (l *Logger) Warnf(format string, args ...any) {
 	l.logf(LevelWarn, format, args...)
 }
 
-func (l *Logger) Errorf(format string, args ...interface{}) {
+func (l *Logger) Errorf(format string, args ...any) {
 	l.logf(LevelError, format, args...)
 }
 
-func Debugf(format string, args ...interface{}) {
+func Debugf(format string, args ...any) {
 	if std != nil {
 		std.logf(LevelDebug, format, args...)
 	}
 }
 
-func Infof(format string, args ...interface{}) {
+func Infof(format string, args ...any) {
 	if std != nil {
 		std.logf(LevelInfo, format, args...)
 	}
 }
 
-func Warnf(format string, args ...interface{}) {
+func Warnf(format string, args ...any) {
 	if std != nil {
 		std.logf(LevelWarn, format, args...)
 	}
 }
 
-func Errorf(format string, args ...interface{}) {
+func Errorf(format string, args ...any) {
 	if std != nil {
 		std.logf(LevelError, format, args...)
 	}
 }
 
-func Debug(args ...interface{}) {
+func Debug(args ...any) {
 	if std != nil {
 		std.logf(LevelDebug, "%s", fmt.Sprint(args...))
 	}
 }
 
-func Info(args ...interface{}) {
+func Info(args ...any) {
 	if std != nil {
 		std.logf(LevelInfo, "%s", fmt.Sprint(args...))
 	}
 }
 
-func Warn(args ...interface{}) {
+func Warn(args ...any) {
 	if std != nil {
 		std.logf(LevelWarn, "%s", fmt.Sprint(args...))
 	}
 }
 
-func Error(args ...interface{}) {
+func Error(args ...any) {
 	if std != nil {
 		std.logf(LevelError, "%s", fmt.Sprint(args...))
 	}

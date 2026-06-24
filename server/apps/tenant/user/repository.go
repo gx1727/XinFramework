@@ -338,7 +338,7 @@ func (r *PostgresUserRepository) Create(ctx context.Context, tenantID, accountID
 	}
 
 	// Insert on users; org_id is optional (nullable column).
-	var orgIDArg interface{}
+	var orgIDArg any
 	if orgID != nil {
 		orgIDArg = *orgID
 	}
@@ -377,7 +377,7 @@ func (r *PostgresUserRepository) Update(ctx context.Context, id uint, req Update
 		return nil, err
 	}
 
-	var orgIDArg interface{}
+	var orgIDArg any
 	if req.OrgID != nil {
 		orgIDArg = *req.OrgID
 	}
@@ -399,7 +399,7 @@ func (r *PostgresUserRepository) Update(ctx context.Context, id uint, req Update
 // Patch 局部更新：仅修改 req 中非 nil 字段；空 body 等价于 GetByID
 func (r *PostgresUserRepository) Patch(ctx context.Context, id uint, req PatchUserRepoReq) (*User, error) {
 	sets := make([]string, 0, 4)
-	args := make([]interface{}, 0, 5)
+	args := make([]any, 0, 5)
 	idx := 1
 
 	if req.Nickname != nil {
@@ -423,7 +423,7 @@ func (r *PostgresUserRepository) Patch(ctx context.Context, id uint, req PatchUs
 		idx++
 	}
 	if req.OrgID != nil {
-		var arg interface{}
+		var arg any
 		if *req.OrgID == 0 {
 			arg = nil // explicit "remove from org"
 		} else {
@@ -506,7 +506,7 @@ func (r *PostgresUserRepository) UpdateOrg(ctx context.Context, id uint, orgID *
 		return nil, err
 	}
 
-	var arg interface{}
+	var arg any
 	if orgID != nil && *orgID != 0 {
 		arg = *orgID
 	}

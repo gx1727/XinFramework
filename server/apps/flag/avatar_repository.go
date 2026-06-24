@@ -26,7 +26,7 @@ func (r *AvatarRepository) List(ctx context.Context, categoryID, userID uint, av
 	}
 
 	where := "WHERE is_deleted = FALSE"
-	args := []interface{}{}
+	args := []any{}
 	argIdx := 1
 
 	if categoryID > 0 {

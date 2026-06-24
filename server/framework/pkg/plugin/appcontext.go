@@ -10,7 +10,7 @@
 //     Writer makes both intents explicit at the type level.
 //
 //   - Reader is the read-side handle every module receives during
-//     Init() and Register(). Fields are typed (no `interface{}` casts),
+//     Init() and Register(). Fields are typed (no `any` casts),
 //     and reading a nil value is the documented way to detect that
 //     a dependency module was not enabled.
 //

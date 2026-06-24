@@ -45,7 +45,7 @@ import (
 type Response struct {
 	Code int         `json:"code"`
 	Msg  string      `json:"msg"`
-	Data interface{} `json:"data"`
+	Data any `json:"data"`
 }
 
 // BizError 标准业务错误
@@ -106,7 +106,7 @@ func HandleError(c *gin.Context, err error) {
 	c.JSON(http.StatusInternalServerError, Response{Code: 500, Msg: "服务器内部错误", Data: nil})
 }
 
-func Success(c *gin.Context, data interface{}) {
+func Success(c *gin.Context, data any) {
 	c.JSON(http.StatusOK, Response{Code: 0, Msg: "ok", Data: data})
 }
 
@@ -186,7 +186,7 @@ func logResponse(c *gin.Context, level string, code int, msg string) {
 }
 
 // Paginate 列表分页返回
-func Paginate(c *gin.Context, total int64, data interface{}) {
+func Paginate(c *gin.Context, total int64, data any) {
 	c.JSON(http.StatusOK, Response{Code: 0, Msg: "ok", Data: gin.H{
 		"total": total,
 		"list":  data,

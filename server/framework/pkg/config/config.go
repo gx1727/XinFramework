@@ -437,7 +437,7 @@ func (c *Config) AppEnabled(name string) bool {
 
 var moduleBaseDir = "config"
 
-func LoadModule(name string, target interface{}) error {
+func LoadModule(name string, target any) error {
 	path := filepath.Join(moduleBaseDir, name+".yaml")
 	data, err := os.ReadFile(path)
 	if err == nil {
@@ -465,7 +465,7 @@ func LoadModule(name string, target interface{}) error {
 		return nil
 	}
 
-	var raw map[string]interface{}
+	var raw map[string]any
 	if err := yaml.Unmarshal(mainData, &raw); err != nil {
 		return fmt.Errorf("parse main config for module %s: %w", name, err)
 	}
@@ -489,7 +489,7 @@ func LoadModule(name string, target interface{}) error {
 	return nil
 }
 
-func overrideModuleEnv(module string, target interface{}) {
+func overrideModuleEnv(module string, target any) {
 	prefix := "XIN_" + strings.ToUpper(module) + "_"
 	v := reflect.ValueOf(target)
 	if v.Kind() != reflect.Ptr || v.IsNil() {

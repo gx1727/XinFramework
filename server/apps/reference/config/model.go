@@ -33,7 +33,7 @@ type ConfigCategory struct {
 	IsSystem   bool                   `json:"is_system"`
 	IsPublic   bool                   `json:"is_public"`
 	Status     int8                   `json:"status"`
-	Extend     map[string]interface{} `json:"extend,omitempty"`
+	Extend     map[string]any `json:"extend,omitempty"`
 	CreatedAt  time.Time              `json:"created_at"`
 	UpdatedAt  time.Time              `json:"updated_at"`
 }
@@ -47,13 +47,13 @@ type ConfigItem struct {
 	TenantID       uint        `json:"tenant_id"`
 	CategoryID        uint        `json:"category_id"`
 	Key            string      `json:"key"`
-	Value          interface{} `json:"value,omitempty"`
-	DefaultValue   interface{} `json:"default_value,omitempty"`
+	Value          any `json:"value,omitempty"`
+	DefaultValue   any `json:"default_value,omitempty"`
 	Type           string      `json:"type"`
 	Label          *string     `json:"label,omitempty"`
 	Description    *string     `json:"description,omitempty"`
-	Options        interface{} `json:"options,omitempty"`
-	Validation     interface{} `json:"validation,omitempty"`
+	Options        any `json:"options,omitempty"`
+	Validation     any `json:"validation,omitempty"`
 	Sort           int         `json:"sort"`
 	IsPublic       bool        `json:"is_public"`
 	IsReadonly     bool        `json:"is_readonly"`
@@ -99,7 +99,7 @@ type ResolvedConfig struct {
 // Source 标注 'platform' | 'override' | 'tenant'，便于前端调试。
 type ResolvedItem struct {
 	Key          string      `json:"key"`
-	Value        interface{} `json:"value"`
+	Value        any `json:"value"`
 	Type         string      `json:"type"`
 	Label        *string     `json:"label,omitempty"`
 	PlatformItemID *uint      `json:"platform_item_id,omitempty"`
@@ -133,7 +133,7 @@ type ConfigRepository interface {
 	CountItemsByGroup(ctx context.Context, categoryID uint) (int64, error)
 
 	// ============ Override（租户覆盖平台 item）============
-	UpsertOverride(ctx context.Context, tenantID, platformItemID uint, value interface{}) (*ConfigItem, error)
+	UpsertOverride(ctx context.Context, tenantID, platformItemID uint, value any) (*ConfigItem, error)
 	DeleteOverride(ctx context.Context, tenantID, platformItemID uint) error
 
 	// ============ Visibility（平台 group 对租户可见性）============
@@ -171,13 +171,13 @@ type UpdateGroupRepoReq struct {
 // CreateItemRepoReq 仓储层创建项参数
 type CreateItemRepoReq struct {
 	Key          string
-	Value        interface{}
-	DefaultValue interface{}
+	Value        any
+	DefaultValue any
 	Type         string
 	Label        *string
 	Description  *string
-	Options      interface{}
-	Validation   interface{}
+	Options      any
+	Validation   any
 	Sort         int
 	IsPublic     bool
 	IsReadonly   bool
@@ -186,7 +186,7 @@ type CreateItemRepoReq struct {
 
 // UpdateItemRepoReq 仓储层更新项参数（部分字段可为 nil = 不更新）
 type UpdateItemRepoReq struct {
-	Value       *interface{}
+	Value       *any
 	Label       *string
 	Description *string
 	Sort        *int

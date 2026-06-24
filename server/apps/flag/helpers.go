@@ -8,7 +8,7 @@ import (
 )
 
 // nullStr 将空字符串转换为 nil,用于数据库 NULL 值处理
-func nullStr(s string) interface{} {
+func nullStr(s string) any {
 	if s == "" {
 		return nil
 	}
@@ -16,7 +16,7 @@ func nullStr(s string) interface{} {
 }
 
 // nilIfZero 将零值转换为 nil,用于数据库 NULL 值处理
-func nilIfZero(v uint) interface{} {
+func nilIfZero(v uint) any {
 	if v == 0 {
 		return nil
 	}

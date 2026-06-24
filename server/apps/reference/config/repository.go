@@ -168,7 +168,7 @@ func (r *PostgresConfigRepository) CreateGroup(ctx context.Context, tenantID uin
 	if err != nil {
 		return nil, err
 	}
-	extendJSON, _ := json.Marshal(map[string]interface{}{})
+	extendJSON, _ := json.Marshal(map[string]any{})
 	row := q.QueryRow(ctx, `
 		INSERT INTO config_categories
 			(tenant_id, code, name, description, icon, sort, scope, visibility, is_system, is_public, status, extend)
@@ -547,7 +547,7 @@ func (r *PostgresConfigRepository) CountItemsByGroup(ctx context.Context, catego
 // Override（租户覆盖 platform item）
 // ============================================================================
 
-func (r *PostgresConfigRepository) UpsertOverride(ctx context.Context, tenantID, platformItemID uint, value interface{}) (*ConfigItem, error) {
+func (r *PostgresConfigRepository) UpsertOverride(ctx context.Context, tenantID, platformItemID uint, value any) (*ConfigItem, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
 		return nil, err

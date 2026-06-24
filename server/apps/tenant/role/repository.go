@@ -204,7 +204,7 @@ func (r *PostgresRoleRepository) Update(ctx context.Context, id uint, req Update
 // Patch 局部更新：仅修改 req 中非 nil 的字段，nil 字段保持原值
 func (r *PostgresRoleRepository) Patch(ctx context.Context, id uint, req PatchRoleRepoReq) (*Role, error) {
 	sets := make([]string, 0, 6)
-	args := make([]interface{}, 0, 7)
+	args := make([]any, 0, 7)
 	idx := 1
 
 	if req.Name != nil {

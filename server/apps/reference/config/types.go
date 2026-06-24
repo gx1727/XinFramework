@@ -28,13 +28,13 @@ type updateGroupRequest struct {
 // Item 创建请求
 type createItemRequest struct {
 	Key          string      `json:"key" binding:"required,max=128"`
-	Value        interface{} `json:"value"`
-	DefaultValue interface{} `json:"default_value"`
+	Value        any `json:"value"`
+	DefaultValue any `json:"default_value"`
 	Type         string      `json:"type" binding:"required,oneof=string number boolean json image color select multiselect text password"`
 	Label        *string     `json:"label" binding:"omitempty,max=128"`
 	Description  *string     `json:"description" binding:"omitempty,max=512"`
-	Options      interface{} `json:"options"`
-	Validation   interface{} `json:"validation"`
+	Options      any `json:"options"`
+	Validation   any `json:"validation"`
 	Sort         int         `json:"sort"`
 	IsPublic     bool        `json:"is_public"`
 	IsReadonly   bool        `json:"is_readonly"`
@@ -43,7 +43,7 @@ type createItemRequest struct {
 
 // Item 更新请求
 type updateItemRequest struct {
-	Value       *interface{} `json:"value"`
+	Value       *any `json:"value"`
 	Label       *string      `json:"label" binding:"omitempty,max=128"`
 	Description *string      `json:"description" binding:"omitempty,max=512"`
 	Sort        *int         `json:"sort"`
@@ -55,5 +55,5 @@ type updateItemRequest struct {
 // publicConfigResponse 公共读响应：扁平化为 key→value
 type publicConfigResponse struct {
 	Group  string                 `json:"group"`
-	Values map[string]interface{} `json:"values"`
+	Values map[string]any `json:"values"`
 }

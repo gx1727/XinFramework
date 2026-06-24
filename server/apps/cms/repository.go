@@ -35,7 +35,7 @@ func (r *postgresCmsPostRepository) GetByID(ctx context.Context, id uint) (*CmsP
 
 func (r *postgresCmsPostRepository) List(ctx context.Context, tenantID uint, keyword string, status *int16, page, size int) ([]CmsPost, int64, error) {
 	where := "WHERE tenant_id = $1 AND is_deleted = FALSE"
-	args := []interface{}{tenantID}
+	args := []any{tenantID}
 	argIdx := 2
 
 	if keyword != "" {

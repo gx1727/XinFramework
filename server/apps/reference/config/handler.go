@@ -147,7 +147,7 @@ func (h *BusinessHandler) UpsertOverride(c *gin.Context) {
 		return
 	}
 	var req struct {
-		Value interface{} `json:"value"`
+		Value any `json:"value"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		resp.BadRequest(c, "请求参数格式错误")
@@ -430,8 +430,8 @@ func (h *PublicHandler) GetPublic(c *gin.Context) {
 	})
 }
 
-func indexByKey(items []ConfigItem) map[string]interface{} {
-	out := make(map[string]interface{}, len(items))
+func indexByKey(items []ConfigItem) map[string]any {
+	out := make(map[string]any, len(items))
 	for i := range items {
 		out[items[i].Key] = items[i].Value
 	}

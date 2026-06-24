@@ -26,7 +26,7 @@ func (r *FrameRepository) List(ctx context.Context, categoryID uint, page, size 
 	}
 
 	where := "WHERE is_deleted = FALSE"
-	args := []interface{}{}
+	args := []any{}
 	argIdx := 1
 
 	if categoryID > 0 {

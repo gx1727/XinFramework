@@ -14,7 +14,7 @@ type DictItem struct {
 	Code   string                 `json:"code"`
 	Name   string                 `json:"name"`
 	Sort   int                    `json:"sort"`
-	Extend map[string]interface{} `json:"extend,omitempty"`
+	Extend map[string]any `json:"extend,omitempty"`
 }
 
 type Dict struct {
@@ -22,7 +22,7 @@ type Dict struct {
 	TenantID uint                   `json:"tenant_id"`
 	Code     string                 `json:"code"`
 	Name     string                 `json:"name"`
-	Extend   map[string]interface{} `json:"extend,omitempty"`
+	Extend   map[string]any `json:"extend,omitempty"`
 	Items    []DictItem             `json:"items"`
 }
 

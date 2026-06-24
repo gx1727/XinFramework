@@ -120,7 +120,7 @@ func (h *Handler) GetCacheValue(c *gin.Context) {
 		return
 	}
 
-	var value interface{}
+	var value any
 	switch keyType {
 	case "string":
 		value, _ = client.Get(ctx, key).Result()

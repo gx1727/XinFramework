@@ -100,7 +100,7 @@ func (r *PostgresTenantRepository) List(ctx context.Context, keyword string, sta
 		return nil, 0, err
 	}
 	where := "WHERE is_deleted = FALSE"
-	args := []interface{}{}
+	args := []any{}
 	argIdx := 1
 
 	if keyword != "" {

@@ -21,7 +21,7 @@ type createRequest struct {
 	Code   string                 `json:"code" binding:"required,max=32"`
 	Name   string                 `json:"name" binding:"required,max=64"`
 	Sort   int                    `json:"sort"`
-	Extend map[string]interface{} `json:"extend"`
+	Extend map[string]any `json:"extend"`
 }
 
 // updateRequest 更新字典基础信息（不含 code；code 是主键语义的一部分）
@@ -29,7 +29,7 @@ type updateRequest struct {
 	Name   string                 `json:"name" binding:"required,max=64"`
 	Sort   int                    `json:"sort"`
 	Status int8                   `json:"status" binding:"omitempty,oneof=0 1 2"`
-	Extend map[string]interface{} `json:"extend"`
+	Extend map[string]any `json:"extend"`
 }
 
 // createItemRequest 在指定字典下创建字典项
@@ -37,7 +37,7 @@ type createItemRequest struct {
 	Code   string                 `json:"code" binding:"required,max=64"`
 	Name   string                 `json:"name" binding:"required,max=128"`
 	Sort   int                    `json:"sort"`
-	Extend map[string]interface{} `json:"extend"`
+	Extend map[string]any `json:"extend"`
 }
 
 // updateItemRequest 更新字典项
@@ -45,7 +45,7 @@ type updateItemRequest struct {
 	Name   string                 `json:"name" binding:"required,max=128"`
 	Sort   int                    `json:"sort"`
 	Status int8                   `json:"status" binding:"omitempty,oneof=0 1 2"`
-	Extend map[string]interface{} `json:"extend"`
+	Extend map[string]any `json:"extend"`
 }
 
 // listItemsRequest 字典项列表请求（按 dict_id 过滤）
@@ -59,7 +59,7 @@ type platformDictCreateRequest struct {
 	Name       string                 `json:"name" binding:"required,max=64"`
 	Sort       int                    `json:"sort"`
 	Visibility string                 `json:"visibility" binding:"omitempty,oneof=all whitelist blacklist"`
-	Extend     map[string]interface{} `json:"extend"`
+	Extend     map[string]any `json:"extend"`
 }
 
 // platformDictUpdateRequest super_admin 更新平台字典
@@ -68,7 +68,7 @@ type platformDictUpdateRequest struct {
 	Sort       int                    `json:"sort"`
 	Status     int8                   `json:"status" binding:"omitempty,oneof=0 1 2"`
 	Visibility string                 `json:"visibility" binding:"omitempty,oneof=all whitelist blacklist"`
-	Extend     map[string]interface{} `json:"extend"`
+	Extend     map[string]any `json:"extend"`
 }
 
 // platformItemCreateRequest super_admin 在平台字典下新增字典项
@@ -76,7 +76,7 @@ type platformItemCreateRequest struct {
 	Code   string                 `json:"code" binding:"required,max=64"`
 	Name   string                 `json:"name" binding:"required,max=128"`
 	Sort   int                    `json:"sort"`
-	Extend map[string]interface{} `json:"extend"`
+	Extend map[string]any `json:"extend"`
 }
 
 // visibilityUpsertRequest super_admin 维护平台字典对某租户的访问级别
@@ -96,7 +96,7 @@ type overrideUpsertRequest struct {
 	Name   string                 `json:"name" binding:"required,max=128"`
 	Sort   int                    `json:"sort"`
 	Status int8                   `json:"status" binding:"omitempty,oneof=0 1 2"`
-	Extend map[string]interface{} `json:"extend"`
+	Extend map[string]any `json:"extend"`
 }
 
 // resolveResponse 合并后的字典详情（业务最终消费）

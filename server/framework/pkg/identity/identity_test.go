@@ -112,7 +112,7 @@ func TestPermission_FieldSetLocked(t *testing.T) {
 
 // assertFields uses reflection to verify that the struct field count, names,
 // and JSON tags match expected exactly. Any mismatch fails the test.
-func assertFields(t *testing.T, typeName string, instance interface{}, expected []fieldSpec) {
+func assertFields(t *testing.T, typeName string, instance any, expected []fieldSpec) {
 	t.Helper()
 	typ := reflect.TypeOf(instance)
 	if typ.NumField() != len(expected) {

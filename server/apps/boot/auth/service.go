@@ -13,6 +13,7 @@ import (
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
+	"gx1727.com/xin/framework/pkg/logger"
 	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
 )
 
@@ -89,7 +90,7 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 			return err
 		}
 
-		roleCode := "user"
+		roleCode := RoleCodeUser
 		// 用户没有任何角色时 SELECT 返回 NoRows,留 roleCode 兜底值 "user" 继续走流程;
 		// 其它 DB 错误必须返回,不能像之前那样被空 if 块吞掉。
 		err = querier.QueryRow(ctx, `
@@ -249,7 +250,7 @@ func (s *Service) Login(ctx context.Context, req tenantLoginRequest) (*LoginResu
 	if err != nil || !ok {
 		return nil, ErrInvalidAccountOrPassword
 	}
-	if identity.UserStatus != 1 {
+	if identity.UserStatus != StatusActive {
 		return nil, ErrUserDisabled
 	}
 	tokens, err := s.generateTokens(ctx, identity.UserID, identity.TenantID, identity.RoleCode, 0)
@@ -300,7 +301,7 @@ func (s *Service) LoginPrecheck(ctx context.Context, req loginPrecheckRequest) (
 		}
 		return nil, ErrBackendUnavailable
 	}
-	if accountStatus != 1 {
+	if accountStatus != StatusActive {
 		return nil, ErrUserDisabled
 	}
 	ok, err := verifyPassword(passwordHash, req.Password)
@@ -375,7 +376,7 @@ func (s *Service) PlatformLogin(ctx context.Context, req platformLoginRequest) (
 		}
 		return nil, ErrBackendUnavailable
 	}
-	if accountStatus != 1 {
+	if accountStatus != StatusActive {
 		return nil, ErrPlatformLoginDisabled
 	}
 
@@ -411,7 +412,7 @@ func (s *Service) PlatformLogin(ctx context.Context, req platformLoginRequest) (
 			ID:            accountID, // 这里 ID 是 account_id（不是 user_id），因为平台用户可能没绑 user
 			TenantID:      0,
 			Code:          req.Account,
-			Role:          "_platform",
+			Role:          RoleCodePlatform,
 			PlatformRoles: platformRoles,
 		},
 	}
@@ -503,7 +504,10 @@ func (s *Service) Refresh(ctx context.Context, req refreshRequest) (*refreshResu
 		return nil, err
 	}
 
+	// 旧 session 撤销失败不影响新 token 签发 —— 用户已经获得新凭证,
+	// 记 warn 让 SRE 留意,不要把可恢复错误升级为请求失败。
 	if err := s.session.Revoke(claims.SessionID); err != nil {
+		logger.Module("auth").Warnf("revoke old session %q: %v", claims.SessionID, err)
 	}
 
 	return &refreshResult{
@@ -533,7 +537,7 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 		if err != nil {
 			return ErrRegisterFailed
 		}
-		if t.Status != 1 {
+		if t.Status != StatusActive {
 			return ErrTenantNotFound
 		}
 

@@ -37,7 +37,7 @@ type Authorization interface {
 	LoadRoles(ctx context.Context, userID uint) ([]string, error)
 
 	// LoadDataScope returns the user's data scope.
-	// 返回具体类型 *permission.DataScope,而不是 interface{} —— 让调用方不用做 type assert。
+	// 返回具体类型 *permission.DataScope,而不是 any —— 让调用方不用做 type assert。
 	LoadDataScope(ctx context.Context, userID uint) (*permission.DataScope, error)
 
 	// LoadUserSecurityContext loads the full security context for a user

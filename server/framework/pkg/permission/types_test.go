@@ -103,38 +103,6 @@ func TestHasGlobalPermission(t *testing.T) {
 	}
 }
 
-// TestBuildDataScopeSQL_DeprecatedWrapper exercises the deprecated
-// thin wrapper that still exists for backwards compatibility. It must
-// delegate to BuildDataScopeFilter with DefaultScopeColumns and return
-// the SQL/args that come out of that.
-func TestBuildDataScopeSQL_DeprecatedWrapper(t *testing.T) {
-	ds := DataScope{Type: DataScopeSelf}
-	sql, args, err := BuildDataScopeSQL(ds, 42, 7)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	// BuildDataScopeSQL ignores the userID/orgID args because it
-	// always uses DefaultScopeColumns which maps to "creator_id" /
-	// "org_id". The third argument is "userID" mapped to creator_id.
-	if sql != "creator_id = $1" {
-		t.Errorf("deprecated wrapper should use DefaultScopeColumns, got SQL=%q", sql)
-	}
-	if len(args) != 1 || args[0] != uint(42) {
-		t.Errorf("deprecated wrapper arg mismatch: %v", args)
-	}
-}
-
-// TestBuildDataScopeSQL_AllDataScope confirms that the wrapper
-// correctly short-circuits when DataScopeAll is used (no SQL emitted).
-func TestBuildDataScopeSQL_AllDataScope(t *testing.T) {
-	sql, args, err := BuildDataScopeSQL(DataScope{Type: DataScopeAll}, 1, 2)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if sql != "" {
-		t.Errorf("DataScopeAll must produce empty SQL, got %q", sql)
-	}
-	if len(args) != 0 {
-		t.Errorf("DataScopeAll must produce empty args, got %v", args)
-	}
-}
+// BuildDataScopeSQL was removed (was a deprecated thin wrapper that
+// delegated to BuildDataScopeFilter with DefaultScopeColumns). The two
+// old tests that exercised it are also removed: no API left to cover.

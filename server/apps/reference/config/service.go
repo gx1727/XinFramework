@@ -252,7 +252,7 @@ func (s *Service) ListPlatformItems(ctx context.Context, categoryID uint) ([]Con
 // ============================================================================
 
 // UpsertOverride 租户 upsert 对某 platform item 的 value 覆盖
-func (s *Service) UpsertOverride(ctx context.Context, tenantID, platformItemID uint, value interface{}) (*ConfigItem, error) {
+func (s *Service) UpsertOverride(ctx context.Context, tenantID, platformItemID uint, value any) (*ConfigItem, error) {
 	var out *ConfigItem
 	err := db.RunInTenantTx(ctx, s.pool, tenantID, func(ctx context.Context) error {
 		// 前置校验：platform item 必须存在
@@ -485,7 +485,7 @@ func isValidAccess(a string) bool     { return a == "invisible" || a == "readonl
 func isValidVisibility(v string) bool { return v == "all" || v == "whitelist" || v == "blacklist" }
 
 // validateValueForType 校验 value 与 type 匹配（与 dict 的 validate 一致）
-func validateValueForType(value interface{}, typ string, options interface{}) error {
+func validateValueForType(value any, typ string, options any) error {
 	if value == nil {
 		return nil
 	}

@@ -69,13 +69,3 @@ func HasPermission(perms map[string]bool, resource, action string) bool {
 func HasGlobalPermission(perms map[string]bool) bool {
 	return perms["*:*"]
 }
-
-// BuildDataScopeSQL builds SQL WHERE clause for data filtering based on DataScope.
-// Deprecated: prefer BuildDataScopeFilter with explicit ScopeColumns.
-func BuildDataScopeSQL(ds DataScope, userID uint, orgID int64) (string, []any, error) {
-	filter, err := BuildDataScopeFilter(ds, userID, orgID, DefaultScopeColumns)
-	if err != nil {
-		return "", nil, err
-	}
-	return filter.SQL, filter.Args, nil
-}

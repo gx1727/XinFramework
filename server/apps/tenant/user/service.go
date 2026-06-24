@@ -431,7 +431,7 @@ func (s *Service) Create(ctx context.Context, tenantID, creatorID uint, req crea
 		if err := s.validateOrg(ctx, tenantID, req.OrgID); err != nil {
 			return err
 		}
-		var orgIDArg interface{}
+		var orgIDArg any
 		if req.OrgID != nil {
 			orgIDArg = *req.OrgID
 		}

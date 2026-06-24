@@ -17,7 +17,7 @@ type Dict struct {
 	Status     int8                   `json:"status"`
 	Scope      string                 `json:"scope"`      // 'platform' | 'tenant'
 	Visibility string                 `json:"visibility"` // 'all' | 'whitelist' | 'blacklist'
-	Extend     map[string]interface{} `json:"extend,omitempty"`
+	Extend     map[string]any `json:"extend,omitempty"`
 	CreatedAt  time.Time              `json:"created_at"`
 	UpdatedAt  time.Time              `json:"updated_at"`
 }
@@ -33,7 +33,7 @@ type DictItem struct {
 	Status          int8                   `json:"status"`
 	PlatformItemID  *uint                  `json:"platform_item_id,omitempty"` // 指向被覆盖的 platform item id
 	IsOverride      bool                   `json:"is_override"`                // TRUE 表示这是租户对 platform item 的覆盖
-	Extend          map[string]interface{} `json:"extend,omitempty"`
+	Extend          map[string]any `json:"extend,omitempty"`
 	CreatedAt       time.Time              `json:"created_at"`
 	UpdatedAt       time.Time              `json:"updated_at"`
 }
@@ -146,7 +146,7 @@ type CreateDictRepoReq struct {
 	Name   string
 	Sort   int
 	Status int8
-	Extend map[string]interface{}
+	Extend map[string]any
 }
 
 // UpdateDictRepoReq 仓储层更新字典参数
@@ -154,7 +154,7 @@ type UpdateDictRepoReq struct {
 	Name   string
 	Sort   int
 	Status int8
-	Extend map[string]interface{}
+	Extend map[string]any
 }
 
 // CreateDictItemRepoReq 仓储层创建字典项参数
@@ -163,7 +163,7 @@ type CreateDictItemRepoReq struct {
 	Name   string
 	Sort   int
 	Status int8
-	Extend map[string]interface{}
+	Extend map[string]any
 }
 
 // UpdateDictItemRepoReq 仓储层更新字典项参数
@@ -171,7 +171,7 @@ type UpdateDictItemRepoReq struct {
 	Name   string
 	Sort   int
 	Status int8
-	Extend map[string]interface{}
+	Extend map[string]any
 }
 
 // ===== 仓库层预定义错误 =====
