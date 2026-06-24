@@ -18,13 +18,16 @@ func TestValidateModules_NoUserConfig_DefaultsToAllOn(t *testing.T) {
 	assertModuleList(t, c.Module, want)
 }
 
-func TestValidateModules_UserListIsWhitelist(t *testing.T) {
-	// 用户写了 module: → 白名单语义，optOut 全部退出
+func TestValidateModules_UserListIsAdditive(t *testing.T) {
+	// 2026-06 重构后：module: 不再做白名单过滤，而是"在 alwaysOn + optOut
+	// 之上累加 optional 模块"。所以即便用户只写 weixin，optOut 也会全开。
 	c := &Config{Module: []string{"weixin"}}
 	if err := validateModules(c); err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
-	want := []string{"system", "auth", "platform_tenant", "weixin"}
+	want := append([]string{}, alwaysOnModules...)
+	want = append(want, optOutModules...)
+	want = append(want, "weixin")
 	assertModuleList(t, c.Module, want)
 }
 

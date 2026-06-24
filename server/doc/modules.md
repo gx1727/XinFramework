@@ -1,7 +1,7 @@
 # 模块清单
 
-> 当前共 **19 个 module**。按 `cfg.Module` 行为分 3 类：3 个 alwaysOn、8 个 optOut、8 个 optional。
-> 文档版本：2026-06（Phase 0023 全阶段完成后）
+> 当前共 **19 个 module**。按 `cfg.Module` 行为分 3 类：3 个 alwaysOn、13 个 optOut、3 个 optional。
+> 文档版本：2026-06（Phase 0023 全阶段完成后；2026-06 重分类：sys_*/config 移入 optOut，optional 只剩 weixin/cms/flag）
 
 ## 总览
 
@@ -10,10 +10,10 @@
 | [system](#system) | alwaysOn | 11001-11999 | — | apps/system |
 | [auth](#auth) | alwaysOn | 1001-1999 | accounts / auth_sessions | apps/boot/auth |
 | [tenants](#tenants) | alwaysOn | 3001-3999 | tenants | apps/platform/tenants |
-| [sys_user](#sys_user) | optional | — | sys_users / sys_user_roles | apps/platform/sys_user |
-| [sys_role](#sys_role) | optional | — | sys_roles / sys_role_menus / sys_role_permissions | apps/platform/sys_role |
-| [sys_menu](#sys_menu) | optional | 15001-15999 | sys_menus / sys_role_menus | apps/platform/sys_menu |
-| [sys_permission](#sys_permission) | optional | — | sys_permissions | apps/platform/sys_permission |
+| [sys_user](#sys_user) | optOut | — | sys_users / sys_user_roles | apps/platform/sys_user |
+| [sys_role](#sys_role) | optOut | — | sys_roles / sys_role_menus / sys_role_permissions | apps/platform/sys_role |
+| [sys_menu](#sys_menu) | optOut | 15001-15999 | sys_menus / sys_role_menus | apps/platform/sys_menu |
+| [sys_permission](#sys_permission) | optOut | — | sys_permissions | apps/platform/sys_permission |
 | [user](#user) | optOut | 2001-2999 | tenant_users / tenant_user_roles | apps/tenant/user |
 | [role](#role) | optOut | 4001-4999 | tenant_roles / tenant_role_data_scopes / tenant_user_roles / tenant_role_menus | apps/tenant/role |
 | [menu](#menu) | optOut | 5001-5999 | tenant_menus / tenant_role_menus | apps/tenant/menu |
@@ -22,7 +22,7 @@
 | [resource](#resource) | optOut | 8001-8999 | tenant_permissions | apps/tenant/resource |
 | [dict](#dict) | optOut | 10001-10999 | dicts / dict_items | apps/reference/dict |
 | [asset](#asset) | optOut | 9001-9999 | file_assets | apps/reference/asset |
-| [config](#config) | optional | 18001-18999 | config_categories / config_items / config_visibility | apps/reference/config |
+| [config](#config) | optOut | 18001-18999 | config_categories / config_items / config_visibility | apps/reference/config |
 | [weixin](#weixin) | optional | 12001-12999 | — | apps/reference/weixin |
 | [cms](#cms) | optional | 14001-14999 | posts | apps/cms |
 | [flag](#flag) | optional | 13001-13999 | frames / spaces / avatars | apps/flag |
@@ -33,28 +33,20 @@
 
 ## 配置示例
 
+## 总数：19
+
+`module:` 的语义取决于是否填写：
+
 ```yaml
-# config/config.yaml
-module: []                    # 留空 = 启用 alwaysOn + 全部 optOut（11 个），不启用 optional
-# 或
+# 不写 / 留空 = 启用 alwaysOn + 全部 optOut（16 个），不启用 optional
+module: []
+
+# 或：只列"想额外启用的纯业务/集成模块"
 module:
-  - user
-  - role
-  - menu
-  - organization
-  - permission
-  - resource
-  - asset
-  - dict
-  # optional 不列就不开
-  # - config
-  # - sys_user
-  # - sys_role
-  # - sys_menu
-  # - sys_permission
-  # - weixin
-  # - cms
-  # - flag
+  - weixin   # 不使用微信登录 → 删
+  - cms      # 不使用 CMS    → 删
+  - flag     # 不使用头像框  → 删
+# 其它全部默认加载（RBAC + 字典/资产/配置 + 平台管理域）
 ```
 
 `alwaysOn` 的 `system` / `auth` / `tenants` **永远会加入**，即使从 module 列表里删了也会自动加回去。
@@ -385,7 +377,7 @@ module:
 
 ---
 
-## config (optional, Phase 0022 重构)
+## config (optOut, Phase 0022 重构)
 
 **职责**：租户配置中心（分组 + 键值项），支持 Platform / Override / Visibility / Resolve 四层模型。
 

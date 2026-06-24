@@ -122,8 +122,8 @@ protected → Auth
 | 类型 | 模块 |
 |---|---|
 | **alwaysOn**（强制启用） | `auth`, `tenants`（platform_tenant）, `system` |
-| **optOut**（默认启，白名单过滤） | `menu`, `user`, `role`, `resource`, `permission`, `organization`, `asset`, `dict` |
-| **optional**（默认关） | `config`, `sys_user`, `sys_role`, `sys_menu`, `sys_permission`, `weixin`, `cms`, `flag` |
+| **optOut**（默认启，白名单过滤） | RBAC：`menu`, `user`, `role`, `resource`, `permission`, `organization` <br> 基础设施：`dict`, `asset`, `config` <br> 平台管理：`sys_user`, `sys_role`, `sys_menu`, `sys_permission` |
+| **optional**（默认关） | `weixin`, `cms`, `flag` |
 
 详见 [doc/modules.md](doc/modules.md)。
 

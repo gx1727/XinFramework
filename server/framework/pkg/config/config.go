@@ -317,20 +317,33 @@ var alwaysOnModules = []string{
 	"platform_tenant",
 }
 
-// optOutModules 默认启用，但用户在 module: 中显式列出模块时，改为白名单语义。
+// optOutModules 默认启用。框架默认加载，无需在 cfg.Module 中声明。
 //
-// 这些是"基础业务套件"——绝大多数部署都会用到，框架帮用户开了；
-// 一旦用户写 module:，就视为"我只想要这些"，optOut 全部退出。
-// 这样 developing.md 承诺的"module: 删一行就能关掉"才真的成立。
+// 这些是"框架默认能力"——绝大多数部署都会用到，由框架统一开启。
+// 若某个部署确实需要关闭某个 optOut 模块，请直接编辑本列表（不要通过 cfg.Module
+// 间接开关——cfg.Module 现在的语义是"累加 optional 模块"，不再做白名单过滤）。
+//
+// 三档分类（详见 doc/architecture.md §3.3）：
+//   - alwaysOn  3  : system / auth / platform_tenant  （永远启用，不可关）
+//   - optOut   13  : RBAC + 字典 + 资产 + 配置 + 平台管理  （默认全开）
+//   - optional  3  : weixin / cms / flag  （默认关，纯业务/集成）
 var optOutModules = []string{
+	// 租户域 RBAC 套件
 	"menu",
 	"user",
 	"role",
 	"resource",
 	"organization",
+	"permission",
+	// 租户域基础设施
 	"dict",
 	"asset",
-	"permission",
+	"config",
+	// 平台管理域
+	"sys_user",
+	"sys_role",
+	"sys_menu",
+	"sys_permission",
 }
 
 func validateModules(c *Config) error {
@@ -349,26 +362,18 @@ func validateModules(c *Config) error {
 		add(m)
 	}
 
-	// 2. 归一用户列表
-	userList := make([]string, 0, len(c.Module))
+	// 2. optOut 默认全开（框架能力，不需要用户显式声明）
+	for _, m := range optOutModules {
+		add(m)
+	}
+
+	// 3. 用户列出的 optional 模块（纯业务/集成，累加在 alwaysOn + optOut 之上）
 	for _, raw := range c.Module {
 		m := strings.ToLower(strings.TrimSpace(raw))
 		if m == "" {
 			continue
 		}
-		userList = append(userList, m)
-	}
-
-	if len(userList) == 0 {
-		// 用户没写 module: → optOut 全部默认启用
-		for _, m := range optOutModules {
-			add(m)
-		}
-	} else {
-		// 用户写了 module: → 白名单语义：alwaysOn + 用户列表
-		for _, m := range userList {
-			add(m)
-		}
+		add(m)
 	}
 
 	c.Module = merged

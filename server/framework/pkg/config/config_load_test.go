@@ -8,16 +8,19 @@ import (
 )
 
 // TestLoad_DevConfig_ModuleListMatchesSpec 验证 dev 环境 config.yaml 加载后的
-// cfg.Module 列表与本次"显式白名单"预期一致。
+// cfg.Module 列表与"alwaysOn + optOut + config.yaml 显式列出的 optional"预期一致。
 //
 // 这是 P0.3 收尾的回归保护：未来谁动了 config.yaml 都会立刻被这个 case
 // 抓到，迫使他同步更新预期（或重新审视是否需要那个模块）。
+//
+// 2026-06 重构：cfg.Module 的语义从"白名单"改为"累加 optional 模块"，所以
+// 即便 config.yaml 只写了 weixin/cms/flag，也会自动加载 alwaysOn + 全部 optOut。
 func TestLoad_DevConfig_ModuleListMatchesSpec(t *testing.T) {
 	// 隔离环境变量：避免 XIN_APP_ENV / XIN_JWT_SECRET 影响 Load
 	t.Setenv("XIN_APP_ENV", "")
 	t.Setenv("XIN_JWT_SECRET", "")
 
-	// framework/pkg/config/ → ../../../config/config.yaml
+	// framework/pkg/config/  → ../../../config/config.yaml
 	repoRoot, err := findRepoRoot()
 	if err != nil {
 		t.Fatalf("find repo root: %v", err)
@@ -29,17 +32,21 @@ func TestLoad_DevConfig_ModuleListMatchesSpec(t *testing.T) {
 		t.Fatalf("Load(%q) failed: %v", cfgPath, err)
 	}
 
-	// 期望：alwaysOn (3) + config.yaml 里显式列出的 16 项 = 19 项
-	// alwaysOn: system, auth, tenant
-	// config.yaml module: sys_menu, menu, user, role, resource, organization,
-	//                    dict, asset, permission, weixin, cms, flag, config
+	// 期望：alwaysOn (3) + optOut (13) + config.yaml 显式列出的 3 项 = 19 项
+	// alwaysOn: system, auth, platform_tenant
+	// optOut   : menu, user, role, resource, organization, permission,
+	//            dict, asset, config,
+	//            sys_user, sys_role, sys_menu, sys_permission
+	// config.yaml module: weixin, cms, flag
 	want := []string{
-		// alwaysOn
+		// alwaysOn（顺序敏感：永远在列表头部）
 		"system", "auth", "platform_tenant",
-		// config.yaml 白名单
+		// optOut（默认启用）
+		"menu", "user", "role", "resource", "organization", "permission",
+		"dict", "asset", "config",
 		"sys_user", "sys_role", "sys_menu", "sys_permission",
-		"menu", "user", "role", "resource", "organization",
-		"dict", "asset", "permission", "weixin", "cms", "flag", "config",
+		// config.yaml 显式列出的 optional
+		"weixin", "cms", "flag",
 	}
 
 	got := append([]string{}, cfg.Module...)

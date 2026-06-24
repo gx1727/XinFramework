@@ -130,10 +130,18 @@ func Module(app *appx.App) plugin.Module {
 | 类型 | 数量 | 表现 |
 |---|---|---:|
 | **alwaysOn** | 3（`system`, `auth`, `tenants`） | 启动必需，无法关闭，配置不列也加回去 |
-| **optOut** | 8（`menu`, `user`, `role`, `resource`, `organization`, `dict`, `asset`, `permission`） | 默认启用；用户写 `module:` 时切白名单语义（不列就关） |
-| **optional** | 8（`config`, `weixin`, `sys_user`, `sys_role`, `sys_menu`, `sys_permission`, `cms`, `flag`） | 默认不启用；必须在 `cfg.Module` 显式列出才开 |
+| **optOut** | 13（RBAC + 字典/资产/配置 + 平台管理域） | 默认启用；用户写 `module:` 时切白名单语义（不列就关） |
+| **optional** | 3（`weixin`, `cms`, `flag`） | 默认不启用；必须在 `cfg.Module` 显式列出才开 |
+
+`optOut` 13 个：
+
+- 租户域 RBAC：`menu` / `user` / `role` / `resource` / `organization` / `permission`
+- 租户域基础设施：`dict` / `asset` / `config`
+- 平台管理域：`sys_user` / `sys_role` / `sys_menu` / `sys_permission`
 
 定义在 [`framework/pkg/config/config.go`](../framework/pkg/config/config.go) `alwaysOnModules` / `optOutModules`。
+
+> **新约定**：除 weixin / cms / flag 这 3 个纯业务/集成模块外，其它都属于「框架默认能力」，无需在 `module:` 里列出。`module: 删一行就能关掉对应模块` 这条承诺在重新分类后变得更直观。
 
 ## 4. AppContext：唯一的依赖容器
 

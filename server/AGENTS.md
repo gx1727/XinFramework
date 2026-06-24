@@ -48,10 +48,10 @@ cmd/xin ──→ framework ──→ apps
 |---|---|---|---|
 | `auth` | alwaysOn | apps/boot/auth | 登录 / JWT / 多身份 |
 | `tenants` | alwaysOn | apps/platform/tenants | 租户管理（需 super_admin） |
-| `sys_user` | optional | apps/platform/sys_user | 平台域用户（0023+） |
-| `sys_role` | optional | apps/platform/sys_role | 平台域角色（0023+） |
-| `sys_menu` | optional | apps/platform/sys_menu | 平台域菜单（0023+） |
-| `sys_permission` | optional | apps/platform/sys_permission | 平台域权限码（0023+） |
+| `sys_user` | optOut | apps/platform/sys_user | 平台域用户（0023+） |
+| `sys_role` | optOut | apps/platform/sys_role | 平台域角色（0023+） |
+| `sys_menu` | optOut | apps/platform/sys_menu | 平台域菜单（0023+） |
+| `sys_permission` | optOut | apps/platform/sys_permission | 平台域权限码（0023+） |
 | `system` | alwaysOn | apps/system | /health + cache 运维 |
 | `user` | optOut | apps/tenant/user | |
 | `role` | optOut | apps/tenant/role | |
@@ -434,7 +434,7 @@ resp.OK(c, data) / resp.HandleError(c, err)
 | `appx.App` 字段 | 仅 `Config + DB` |
 | main.go | 4 步显式 Build（`Boot` 返回 `(*App, *Runtime, error)`，`Serve` 增加 `rt` 参数） |
 | 模块入口 | 全部 `Module(app *appx.App) plugin.Module` |
-| 模块数 | 19（3 alwaysOn + 8 optOut + 8 optional） |
+| 模块数 | 19（3 alwaysOn + 13 optOut + 3 optional；2026-06 重分类：sys_*/config 移入 optOut） |
 | 中间件 | 无 wrapper 重复；Require 全在 `pkg/middleware` |
 | extapi | Provider 模式；facade 从 ctx 拿 repo |
 | ext_impl/registry.go | 已删 |
