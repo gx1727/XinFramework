@@ -81,8 +81,10 @@ func Init(cfg *config.Config) (*appx.App, *server.XinServer, *plugin.AppContext,
 		permission.NewPlatformRoleRepository(pool),
 	)
 	authzService := service.NewAuthorizationService(permService)
-	authzSvc := authz.Wrap(authzService)
-	appCtx.SetAuthz(authzSvc)
+	// 编译期保证:*AuthorizationService 必须实现 authz.Authorization。
+	// 如果以后改方法签名漏改接口,这里直接 build fail,而不是运行时 type assert 炸。
+	var _ authz.Authorization = (*service.AuthorizationService)(nil)
+	appCtx.SetAuthz(authzService)
 
 	srv := server.New(cfg)
 
@@ -90,8 +92,6 @@ func Init(cfg *config.Config) (*appx.App, *server.XinServer, *plugin.AppContext,
 		Config: cfg,
 		DB:     pool,
 	}
-
-	_ = permService // kept for potential future internal use; not exposed via App
 
 	return app, srv, appCtx, nil
 }

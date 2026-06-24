@@ -4,14 +4,13 @@
 //
 // The concrete *service.AuthorizationService lives in
 // framework/internal/service (Go's internal/ rule blocks apps/ from
-// importing it). This pkg exposes a thin type-erased interface plus
-// a Wrap() adapter so the framework can hand apps an Authorization
-// without leaking internal types.
+// importing it). This pkg exposes a small typed interface that the
+// concrete service satisfies natively — no adapter needed.
 //
-// Wiring: boot.Init constructs the concrete service, wraps it via
-// Wrap(), and publishes the resulting Authorization onto AppContext
-// via appCtx.SetAuthz(...). Apps consume it via ctx.Authz() in their
-// module's Register phase.
+// Wiring: boot.Init constructs the concrete service, asserts at
+// compile time that it implements Authorization, and publishes it onto
+// AppContext via appCtx.SetAuthz(...). Apps consume it via
+// ctx.Authz() in their module's Register phase.
 package authz
 
 import (
@@ -28,6 +27,11 @@ import (
 //
 // If a new method is added to AuthorizationService that apps need,
 // add it here as well.
+//
+// The implementation guarantee is enforced at compile time in
+// framework/internal/core/boot/boot.go via:
+//
+//	var _ Authorization = (*service.AuthorizationService)(nil)
 type Authorization interface {
 	// LoadPermissions returns the user's effective permission map
 	// (resource_code -> bool).

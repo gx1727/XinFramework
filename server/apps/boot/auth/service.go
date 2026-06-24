@@ -290,16 +290,23 @@ func (s *Service) Login(ctx context.Context, req tenantLoginRequest) (*LoginResu
 // 调 /auth/tenant-login。
 func (s *Service) LoginPrecheck(ctx context.Context, req loginPrecheckRequest) (*loginPrecheckResult, error) {
 	if s.accountRepo == nil || s.platformRp == nil {
+		// boot 期依赖未注入的 wiring 错误。理想情况应该在 NewService 里 panic
+		// 启动失败,这里仅做请求期兜底:记 Errorf 让 SRE 立刻看到。
+		logger.Module("auth").Errorf("LoginPrecheck called with nil deps: accountRepo=%v platformRp=%v", s.accountRepo, s.platformRp)
 		return nil, ErrBackendUnavailable
 	}
 
+	log := logger.Module("auth")
 	// 1. 验证账号密码
 	passwordHash, accountID, accountStatus, err := s.accountRepo.GetPasswordAndStatus(ctx, req.Account)
 	if err != nil {
 		if errors.Is(err, errAccountNotFound) {
 			return nil, ErrInvalidAccountOrPassword
 		}
-		return nil, ErrBackendUnavailable
+		// 其它 DB 故障:记日志(带 account + 原始 err)再返回 1005。
+		// 用 %w 包装保留错误链,后续如果加 sentry / otel 可直接 unwrap 拿到根因。
+		log.Errorf("LoginPrecheck.GetPasswordAndStatus account=%q: %v", req.Account, err)
+		return nil, fmt.Errorf("%w: get password: %w", ErrBackendUnavailable, err)
 	}
 	if accountStatus != StatusActive {
 		return nil, ErrUserDisabled
@@ -312,13 +319,15 @@ func (s *Service) LoginPrecheck(ctx context.Context, req loginPrecheckRequest) (
 	// 2. 列出所有 tenant 身份（跨租户，走 RLS bypass）
 	tenantIdentities, err := s.accountRepo.ListTenantIdentities(ctx, accountID)
 	if err != nil {
-		return nil, ErrBackendUnavailable
+		log.Errorf("LoginPrecheck.ListTenantIdentities accountID=%d: %v", accountID, err)
+		return nil, fmt.Errorf("%w: list tenant identities: %w", ErrBackendUnavailable, err)
 	}
 
 	// 3. 查 platform 角色
 	platformRoles, err := s.platformRp.GetRolesByAccountID(ctx, accountID)
 	if err != nil {
-		return nil, ErrBackendUnavailable
+		log.Errorf("LoginPrecheck.GetRolesByAccountID accountID=%d: %v", accountID, err)
+		return nil, fmt.Errorf("%w: get platform roles: %w", ErrBackendUnavailable, err)
 	}
 
 	// 4. 业务规则：账号必须至少有 1 个 tenant 身份 或 1 个 platform 角色
