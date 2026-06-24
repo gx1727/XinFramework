@@ -9,7 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/config"
-	xinContext "gx1727.com/xin/framework/pkg/context"
+	"gx1727.com/xin/framework/pkg/xincontext"
 	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 	"gx1727.com/xin/framework/pkg/permission"
@@ -58,8 +58,8 @@ func processAuthToken(c *gin.Context, cfg *config.JWTConfig, sm session.SessionM
 // 调用方应当接着注册 UserContextLoader（见 injectAuthContext）。
 func injectBaseContext(c *gin.Context, claims *jwtpkg.Claims) {
 	ctx := c.Request.Context()
-	var xc *xinContext.XinContext
-	if existingXc, ok := xinContext.XinContextFrom(ctx); ok {
+	var xc *xincontext.XinContext
+	if existingXc, ok := xincontext.XinContextFrom(ctx); ok {
 		xc = existingXc.Clone()
 		xc.TenantID = claims.TenantID
 		xc.UserID = claims.UserID
@@ -67,7 +67,7 @@ func injectBaseContext(c *gin.Context, claims *jwtpkg.Claims) {
 		xc.Role = claims.Role
 		xc.PlatformRoles = claims.PlatformRoles
 	} else {
-		xc = &xinContext.XinContext{
+		xc = &xincontext.XinContext{
 			TenantID:      claims.TenantID,
 			UserID:        claims.UserID,
 			SessionID:     claims.SessionID,
@@ -75,8 +75,8 @@ func injectBaseContext(c *gin.Context, claims *jwtpkg.Claims) {
 			PlatformRoles: claims.PlatformRoles,
 		}
 	}
-	ctx = xinContext.WithXinContext(ctx, xc)
-	ctx = xinContext.WithTenantID(ctx, claims.TenantID)
+	ctx = xincontext.WithXinContext(ctx, xc)
+	ctx = xincontext.WithTenantID(ctx, claims.TenantID)
 	c.Request = c.Request.WithContext(ctx)
 }
 
@@ -102,24 +102,24 @@ func handleAuthError(c *gin.Context, err error) {
 // injectAuthContext loads permissions and injects UserContext and XinContext into the request
 func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc SecurityContextLoader, pool *pgxpool.Pool) {
 	ctx := c.Request.Context()
-	xc, _ := xinContext.XinContextFrom(ctx)
+	xc, _ := xincontext.XinContextFrom(ctx)
 	if xc == nil {
 		// 没有 base context 时先补上——理论上前置 injectBaseContext 已写入，
 		// 但保留独立路径避免依赖顺序。
-		xc = &xinContext.XinContext{
+		xc = &xincontext.XinContext{
 			TenantID:      claims.TenantID,
 			UserID:        claims.UserID,
 			SessionID:     claims.SessionID,
 			Role:          claims.Role,
 			PlatformRoles: claims.PlatformRoles,
 		}
-		ctx = xinContext.WithXinContext(ctx, xc)
-		ctx = xinContext.WithTenantID(ctx, claims.TenantID)
+		ctx = xincontext.WithXinContext(ctx, xc)
+		ctx = xincontext.WithTenantID(ctx, claims.TenantID)
 	}
 
 	// 注册懒加载生成器到 Context 的某个钩子里，
 	// 当实际业务中有人调用 MustNewUserContext 时才去查 DB 构建 UserContext
-	ctx = xinContext.WithUserContextLoader(ctx, func() *xinContext.UserContext {
+	ctx = xincontext.WithUserContextLoader(ctx, func() *xincontext.UserContext {
 		var roles []string
 		var perms map[string]bool
 		var ds permission.DataScope
@@ -139,7 +139,7 @@ func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc SecurityCo
 			}
 		}
 
-		return &xinContext.UserContext{
+		return &xincontext.UserContext{
 			XinContext:  xc,
 			OrgID:       orgID,
 			Roles:       roles,
@@ -200,14 +200,14 @@ func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc Secu
 			if tenantIDStr := c.GetHeader("X-Tenant-ID"); tenantIDStr != "" {
 				if tenantID, parseErr := strconv.ParseUint(tenantIDStr, 10, 64); parseErr == nil {
 					tid := uint(tenantID)
-					var xc *xinContext.XinContext
-					if existingXc, ok := xinContext.XinContextFrom(c.Request.Context()); ok {
+					var xc *xincontext.XinContext
+					if existingXc, ok := xincontext.XinContextFrom(c.Request.Context()); ok {
 						xc = existingXc.Clone()
 						xc.TenantID = tid
 					} else {
-						xc = &xinContext.XinContext{TenantID: tid}
+						xc = &xincontext.XinContext{TenantID: tid}
 					}
-					c.Request = c.Request.WithContext(xinContext.WithTenantID(xinContext.WithXinContext(c.Request.Context(), xc), tid))
+					c.Request = c.Request.WithContext(xincontext.WithTenantID(xincontext.WithXinContext(c.Request.Context(), xc), tid))
 				}
 			}
 		}

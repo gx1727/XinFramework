@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/framework/pkg/context"
+	"gx1727.com/xin/framework/pkg/xincontext"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
@@ -20,7 +20,7 @@ func NewHandler(svc *Service) *Handler {
 
 // List 字典列表（分页 + 关键字）
 func (h *Handler) List(c *gin.Context) {
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	var req listRequest
@@ -45,7 +45,7 @@ func (h *Handler) List(c *gin.Context) {
 
 // Get 获取单个字典
 func (h *Handler) Get(c *gin.Context) {
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	id, err := parseUint(c.Param("id"))
@@ -64,7 +64,7 @@ func (h *Handler) Get(c *gin.Context) {
 
 // Create 新建字典
 func (h *Handler) Create(c *gin.Context) {
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	var req createRequest
@@ -87,7 +87,7 @@ func (h *Handler) Create(c *gin.Context) {
 
 // Update 更新字典基础信息
 func (h *Handler) Update(c *gin.Context) {
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	id, err := parseUint(c.Param("id"))
@@ -116,7 +116,7 @@ func (h *Handler) Update(c *gin.Context) {
 
 // Delete 删除字典（若有字典项则拒绝并提示）
 func (h *Handler) Delete(c *gin.Context) {
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	id, err := parseUint(c.Param("id"))
@@ -142,7 +142,7 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // ListItems 列出某字典下的字典项
 func (h *Handler) ListItems(c *gin.Context) {
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	dictID, err := parseUint(c.Param("id"))
@@ -165,7 +165,7 @@ func (h *Handler) ListItems(c *gin.Context) {
 
 // CreateItem 在指定字典下新增字典项
 func (h *Handler) CreateItem(c *gin.Context) {
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	dictID, err := parseUint(c.Param("id"))
@@ -198,7 +198,7 @@ func (h *Handler) CreateItem(c *gin.Context) {
 
 // UpdateItem 更新字典项
 func (h *Handler) UpdateItem(c *gin.Context) {
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	itemID, err := parseUint(c.Param("item_id"))
@@ -226,7 +226,7 @@ func (h *Handler) UpdateItem(c *gin.Context) {
 
 // DeleteItem 删除字典项
 func (h *Handler) DeleteItem(c *gin.Context) {
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	itemID, err := parseUint(c.Param("item_id"))
@@ -257,7 +257,7 @@ func parseUint(s string) (uint, error) {
 // Resolve 合并字典（业务最终消费入口）
 // GET /api/v1/dicts/resolve?code=user_status
 func (h *Handler) Resolve(c *gin.Context) {
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 	if tenantID == 0 {
 		resp.HandleError(c, ErrDictInvisible)
@@ -279,7 +279,7 @@ func (h *Handler) Resolve(c *gin.Context) {
 // ResolveBatch 批量合并字典
 // POST /api/v1/dicts/resolve  body: {"codes":["a","b"]}
 func (h *Handler) ResolveBatch(c *gin.Context) {
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 	if tenantID == 0 {
 		resp.HandleError(c, ErrDictInvisible)
@@ -522,7 +522,7 @@ func (h *Handler) DeleteVisibility(c *gin.Context) {
 
 // UpsertOverride 租户 upsert 覆盖某个平台字典项
 func (h *Handler) UpsertOverride(c *gin.Context) {
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	dictID, err := parseUint(c.Param("id"))
@@ -550,7 +550,7 @@ func (h *Handler) UpsertOverride(c *gin.Context) {
 
 // DeleteOverride 取消租户覆盖
 func (h *Handler) DeleteOverride(c *gin.Context) {
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	dictID, err := parseUint(c.Param("id"))

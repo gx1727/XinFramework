@@ -3,7 +3,7 @@
 //
 // 资源分工：
 //   - *appx.App：暴露给业务模块的最小依赖容器
-//   - *server.XinServer / *plugin.AppContext：framework 内部运行时资源，
+//   - *server.Server / *plugin.AppContext：framework 内部运行时资源，
 //     封装在 framework.Runtime 里，不传给业务模块
 //
 // Phase 5 改动：
@@ -40,7 +40,7 @@ import (
 // Session / Authz 等共享资源由 appCtx 持有：Session 在 NewAppContext 时填充，
 // Authz 在本函数末尾 SetAuthz 填充；framework 通过 rt.AppCtx.Session() /
 // rt.AppCtx.Authz() 读取，不必再单独持有。
-func Init(cfg *config.Config) (*appx.App, *server.XinServer, *plugin.AppContext, error) {
+func Init(cfg *config.Config) (*appx.App, *server.Server, *plugin.AppContext, error) {
 	logger.Init(cfg.Log.Dir, cfg.Log.Level)
 
 	ctx := context.Background()

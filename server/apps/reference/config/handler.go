@@ -14,7 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	xinContext "gx1727.com/xin/framework/pkg/context"
+	"gx1727.com/xin/framework/pkg/xincontext"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
@@ -32,7 +32,7 @@ func NewBusinessHandler(svc *Service) *BusinessHandler {
 
 // ListGroups 租户自建 group 列表
 func (h *BusinessHandler) ListGroups(c *gin.Context) {
-	tenantID := xinContext.New(c).GetTenantID()
+	tenantID := xincontext.New(c).GetTenantID()
 	if tenantID == 0 {
 		resp.Error(c, 400, "missing tenant_id")
 		return
@@ -52,7 +52,7 @@ func (h *BusinessHandler) GetGroup(c *gin.Context) {
 		resp.BadRequest(c, "无效的ID参数")
 		return
 	}
-	tenantID := xinContext.New(c).GetTenantID()
+	tenantID := xincontext.New(c).GetTenantID()
 	if tenantID == 0 {
 		resp.Error(c, 400, "missing tenant_id")
 		return
@@ -77,7 +77,7 @@ func (h *BusinessHandler) ListItemsByGroup(c *gin.Context) {
 		resp.BadRequest(c, "无效的ID参数")
 		return
 	}
-	tenantID := xinContext.New(c).GetTenantID()
+	tenantID := xincontext.New(c).GetTenantID()
 	if tenantID == 0 {
 		resp.Error(c, 400, "missing tenant_id")
 		return
@@ -93,7 +93,7 @@ func (h *BusinessHandler) ListItemsByGroup(c *gin.Context) {
 
 // Resolve 业务合并消费端点（与 dict 对齐）
 func (h *BusinessHandler) Resolve(c *gin.Context) {
-	tenantID := xinContext.New(c).GetTenantID()
+	tenantID := xincontext.New(c).GetTenantID()
 	if tenantID == 0 {
 		resp.Error(c, 400, "missing tenant_id")
 		return
@@ -120,7 +120,7 @@ func (h *BusinessHandler) ResolveBatch(c *gin.Context) {
 		resp.BadRequest(c, "请求参数格式错误")
 		return
 	}
-	tenantID := xinContext.New(c).GetTenantID()
+	tenantID := xincontext.New(c).GetTenantID()
 	if tenantID == 0 {
 		resp.Error(c, 400, "missing tenant_id")
 		return
@@ -153,7 +153,7 @@ func (h *BusinessHandler) UpsertOverride(c *gin.Context) {
 		resp.BadRequest(c, "请求参数格式错误")
 		return
 	}
-	tenantID := xinContext.New(c).GetTenantID()
+	tenantID := xincontext.New(c).GetTenantID()
 	if tenantID == 0 {
 		resp.Error(c, 400, "missing tenant_id")
 		return
@@ -173,7 +173,7 @@ func (h *BusinessHandler) DeleteOverride(c *gin.Context) {
 		resp.BadRequest(c, "无效的 item_id 参数")
 		return
 	}
-	tenantID := xinContext.New(c).GetTenantID()
+	tenantID := xincontext.New(c).GetTenantID()
 	if tenantID == 0 {
 		resp.Error(c, 400, "missing tenant_id")
 		return
@@ -409,7 +409,7 @@ func NewPublicHandler(svc *Service) *PublicHandler {
 //
 // 不强制要求传 tenant_id——公开读按设计对匿名/平台域开放。
 func (h *PublicHandler) GetPublic(c *gin.Context) {
-	tenantID := xinContext.New(c).GetTenantID()
+	tenantID := xincontext.New(c).GetTenantID()
 	if tenantID == 0 {
 		// 从 header 兜底（X-Tenant-ID 显式指定要看的租户）
 		headerVal := c.GetHeader("X-Tenant-ID")

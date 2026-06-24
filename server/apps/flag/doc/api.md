@@ -1,6 +1,7 @@
 # Flag App API 文档
 
 > 头像框生成器 / 活动头像工具 API
+> 文档版本：2026-06
 
 ## 基础信息
 
@@ -286,7 +287,7 @@
 }
 ```
 
-### PUT `/flag/avatar-categories/:id` / DELETE `/flag/avatar-categories/:id`
+### PUT / DELETE `/flag/avatar-categories/:id`
 
 需要登录 + `flag:update` / `flag:delete`。
 
@@ -352,7 +353,7 @@
 }
 ```
 
-### PUT `/flag/avatars/:id` / DELETE `/flag/avatars/:id`
+### PUT / DELETE `/flag/avatars/:id`
 
 需要登录 + `flag:update` / `flag:delete`。
 
@@ -392,7 +393,7 @@ q.Exec(ctx, `UPDATE flag_frames SET ... template_config = $7::jsonb ...`, ..., c
 curl http://localhost:8087/api/v1/flag/frames
 
 # 登录后创建相框
-TOKEN=$(curl -s -X POST http://localhost:8087/api/v1/auth/login \
+TOKEN=$(curl -s -X POST http://localhost:8087/api/v1/auth/tenant-login \
   -H 'Content-Type: application/json' \
   -d '{"account":"admin","password":"...","tenant_code":"bootstrap"}' \
   | jq -r '.data.token')

@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
-	xinContext "gx1727.com/xin/framework/pkg/context"
+	"gx1727.com/xin/framework/pkg/xincontext"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/resp"
@@ -52,7 +52,7 @@ func RequireAll(specs ...permission.Spec) gin.HandlerFunc {
 // 注意：必须挂在 Auth 中间件之后（依赖 XinContext.TenantID）。
 func RequireTenantContext() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		xc := xinContext.New(c)
+		xc := xincontext.New(c)
 		if xc == nil || xc.TenantID == 0 {
 			resp.Forbidden(c, "此接口要求租户上下文，请使用租户域登录")
 			c.Abort()
@@ -68,7 +68,7 @@ func RequireTenantContext() gin.HandlerFunc {
 // 配合 RequirePlatformRole("super_admin") 使用效果最佳。
 func RequirePlatformScope() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		xc := xinContext.New(c)
+		xc := xincontext.New(c)
 		if xc == nil || xc.TenantID != 0 {
 			resp.Forbidden(c, "此接口仅限平台域登录访问")
 			c.Abort()
@@ -84,7 +84,7 @@ func RequirePlatformRole(roles ...string) gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		xc := xinContext.New(c)
+		xc := xincontext.New(c)
 		if xc == nil || len(xc.PlatformRoles) == 0 {
 			resp.Forbidden(c, "需要平台级角色")
 			c.Abort()
@@ -105,7 +105,7 @@ func RequirePlatformRole(roles ...string) gin.HandlerFunc {
 
 func requireWithSpecs(mode permission.MatchMode, specs ...permission.Spec) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		uc, ok := xinContext.UserContextFrom(c.Request.Context())
+		uc, ok := xincontext.UserContextFrom(c.Request.Context())
 		if !ok || uc == nil {
 			// 没有 UserContext 是路由配置错误（中间件链漏挂 Auth），
 			// 用 500 + 显式 message 比 panic 友好；前端能看到，

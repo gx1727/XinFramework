@@ -8,7 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	xincontext "gx1727.com/xin/framework/pkg/context"
+	"gx1727.com/xin/framework/pkg/xincontext"
 	"gx1727.com/xin/framework/pkg/db"
 	"gx1727.com/xin/framework/pkg/permission"
 )
@@ -32,7 +32,7 @@ func buildOrganizationScopeFilter(ctx context.Context) (permission.ScopeFilter, 
 	if !ok || uc == nil || uc.UserID == 0 {
 		return permission.ScopeFilter{}, nil
 	}
-	return uc.GetDataScopeFilterFor(organizationScopeColumns)
+	return uc.DataScopeFilterFor(organizationScopeColumns)
 }
 
 func rebindScopeSQL(sql string, from, to int) string {

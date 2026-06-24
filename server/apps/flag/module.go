@@ -7,7 +7,6 @@ import (
 )
 
 // Module returns the flag module as a BaseModule.
-//
 func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "flag",
@@ -18,11 +17,8 @@ func Module(app *appx.App) plugin.Module {
 					pool = p
 				}
 			}
-			InitRepositories(pool)
-			SetConfig(app.Config)
-
-			h := NewHandler()
-			Register(public, protected, h)
+			h := NewHandler(pool, app.Config)
+			Register(public, tenant, h)
 		},
 	}
 }

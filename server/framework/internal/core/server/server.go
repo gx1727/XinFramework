@@ -11,12 +11,12 @@ import (
 	"gx1727.com/xin/framework/pkg/config"
 )
 
-type XinServer struct {
+type Server struct {
 	Engine *gin.Engine
 	server *http.Server
 }
 
-func New(cfg *config.Config) *XinServer {
+func New(cfg *config.Config) *Server {
 	if cfg.App.Env == "prod" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -25,10 +25,10 @@ func New(cfg *config.Config) *XinServer {
 
 	engine.Static(cfg.Storage.LocalBaseURL, cfg.Storage.LocalDir)
 
-	return &XinServer{Engine: engine}
+	return &Server{Engine: engine}
 }
 
-func (s *XinServer) Start(addr string) error {
+func (s *Server) Start(addr string) error {
 	s.server = &http.Server{
 		Addr:    addr,
 		Handler: s.Engine,
@@ -46,7 +46,7 @@ func (s *XinServer) Start(addr string) error {
 	return nil
 }
 
-func (s *XinServer) Shutdown(timeout time.Duration) error {
+func (s *Server) Shutdown(timeout time.Duration) error {
 	if s.server == nil {
 		return nil
 	}

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/framework/pkg/context"
+	"gx1727.com/xin/framework/pkg/xincontext"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
@@ -36,7 +36,7 @@ func (h *Handler) List(c *gin.Context) {
 	}
 	req.Keyword = normalizeKeyword(req.Keyword)
 
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	list, total, err := h.svc.List(c.Request.Context(), tenantID, req)
@@ -60,7 +60,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	uc := context.NewUserContext(c)
+	uc := xincontext.NewUserContext(c)
 	tenantID := uc.GetTenantID()
 	creatorID := uc.GetUserID()
 
@@ -88,7 +88,7 @@ func (h *Handler) Get(c *gin.Context) {
 		return
 	}
 
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	info, err := h.svc.Get(c.Request.Context(), tenantID, req.ID)
@@ -114,7 +114,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	info, err := h.svc.Update(c.Request.Context(), tenantID, uri.ID, req)
@@ -139,7 +139,7 @@ func (h *Handler) Patch(c *gin.Context) {
 		return
 	}
 
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	info, err := h.svc.Patch(c.Request.Context(), tenantID, uri.ID, req)
@@ -163,7 +163,7 @@ func (h *Handler) UpdateOrg(c *gin.Context) {
 		return
 	}
 
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	info, err := h.svc.UpdateOrg(c.Request.Context(), tenantID, uri.ID, req.OrgID)
@@ -185,7 +185,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	if err := h.svc.UpdateStatus(c.Request.Context(), tenantID, req.ID, req.Status); err != nil {
@@ -197,7 +197,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 }
 
 func (h *Handler) Profile(c *gin.Context) {
-	xc := context.New(c)
+	xc := xincontext.New(c)
 	if xc.UserID == 0 {
 		resp.Unauthorized(c, "未登录")
 		return
@@ -219,7 +219,7 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 		return
 	}
 
-	uc := context.NewUserContext(c)
+	uc := xincontext.NewUserContext(c)
 	if uc.UserID == 0 {
 		resp.Unauthorized(c, "未登录")
 		return
@@ -241,7 +241,7 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	uc := context.NewUserContext(c)
+	uc := xincontext.NewUserContext(c)
 	if uc.UserID == 0 {
 		resp.Unauthorized(c, "未登录")
 		return

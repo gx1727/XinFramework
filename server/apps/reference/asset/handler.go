@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	xinContext "gx1727.com/xin/framework/pkg/context"
+	"gx1727.com/xin/framework/pkg/xincontext"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
@@ -18,7 +18,7 @@ func NewFileHandler(svc *FileService) *FileHandler {
 
 // Upload handles file upload requests
 func (h *FileHandler) Upload(c *gin.Context) {
-	uc := xinContext.NewUserContext(c)
+	uc := xincontext.NewUserContext(c)
 	if uc.TenantID == 0 {
 		resp.Unauthorized(c, "tenant required")
 		return
@@ -47,7 +47,7 @@ func (h *FileHandler) Upload(c *gin.Context) {
 
 // Delete handles file deletion requests
 func (h *FileHandler) Delete(c *gin.Context) {
-	uc := xinContext.NewUserContext(c)
+	uc := xincontext.NewUserContext(c)
 	if uc.TenantID == 0 {
 		resp.Unauthorized(c, "tenant required")
 		return

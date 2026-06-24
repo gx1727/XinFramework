@@ -1,15 +1,15 @@
 # 模块清单
 
 > 当前共 **19 个 module**。按 `cfg.Module` 行为分 3 类：3 个 alwaysOn、8 个 optOut、8 个 optional。
-> 文档版本：2026-06-24（Phase 0023 全阶段完成后）
+> 文档版本：2026-06（Phase 0023 全阶段完成后）
 
 ## 总览
 
 | Name | 类型 | 错误码段 | 主要表 / 资源 | 路径 |
-|---|---|---|---|---|
+|---|---|---|---|---|---|
 | [system](#system) | alwaysOn | 11001-11999 | — | apps/system |
 | [auth](#auth) | alwaysOn | 1001-1999 | accounts / auth_sessions | apps/boot/auth |
-| [platform_tenant](#platform_tenant) | alwaysOn | 3001-3999 | tenants | apps/platform/tenants |
+| [tenants](#tenants) | alwaysOn | 3001-3999 | tenants | apps/platform/tenants |
 | [sys_user](#sys_user) | optional | — | sys_users / sys_user_roles | apps/platform/sys_user |
 | [sys_role](#sys_role) | optional | — | sys_roles / sys_role_menus / sys_role_permissions | apps/platform/sys_role |
 | [sys_menu](#sys_menu) | optional | 15001-15999 | sys_menus / sys_role_menus | apps/platform/sys_menu |
@@ -24,7 +24,7 @@
 | [asset](#asset) | optOut | 9001-9999 | file_assets | apps/reference/asset |
 | [config](#config) | optional | 18001-18999 | config_categories / config_items / config_visibility | apps/reference/config |
 | [weixin](#weixin) | optional | 12001-12999 | — | apps/reference/weixin |
-| [cms](#cms) | optional | — | posts | apps/cms |
+| [cms](#cms) | optional | 14001-14999 | posts | apps/cms |
 | [flag](#flag) | optional | 13001-13999 | frames / spaces / avatars | apps/flag |
 
 > `alwaysOn` = 启动必需，无法关闭（在 `framework/pkg/config/config.go` 中硬编码）
@@ -57,7 +57,7 @@ module:
   # - flag
 ```
 
-`alwaysOn` 的 `system` / `auth` / `platform_tenant` **永远会加入**，即使从 module 列表里删了也会自动加回去。
+`alwaysOn` 的 `system` / `auth` / `tenants` **永远会加入**，即使从 module 列表里删了也会自动加回去。
 
 ---
 
@@ -67,7 +67,7 @@ module:
 **路由**（前缀 `/api/v1`）：
 
 | Method | Path | Auth | Spec | Handler |
-|---|---|---|---|---|
+|---|---|---|---|---|---|
 | GET | `/health` | public | — | `Health` |
 | GET | `/system/server-info` | tenant | `system:list` | `ServerInfo` |
 | POST | `/system/clear-cache` | tenant | `system:update` | `ClearCache` |
@@ -82,21 +82,21 @@ module:
 
 ## auth
 
-**职责**：账号、登录、注册、JWT 颁发与撤销。
+**职责**：账号、登录、注册、JWT 颁发与撤销。支持多身份登录（tenant-login / platform-login / select-tenant）。
 **路由**：
 
 | Method | Path | Auth | Handler |
 |---|---|---|---|
 | POST | `/auth/tenant-login` | public | `TenantLogin` |
 | POST | `/auth/platform-login` | public | `PlatformLogin` |
-| POST | `/auth/login-precheck` | public | `LoginPrecheck` |
-| POST | `/auth/select-tenant` | public | `SelectTenant` |
+| POST | `/auth/login-precheck` | public | `LoginPrecheck`（多身份预检） |
+| POST | `/auth/select-tenant` | public | `SelectTenant`（多身份第二步） |
 | POST | `/auth/register` | public | `Register` |
 | POST | `/auth/refresh` | public | `Refresh` |
-| POST | `/auth/login` | public | 兼容期→`TenantLogin` |
 | POST | `/auth/logout` | protected | `Logout` |
 
 **数据表**：
+
 | 表 | 说明 |
 |---|---|
 | `accounts` | 全局账号（phone / email unique，password argon2id hash） |
@@ -109,7 +109,7 @@ module:
 
 ---
 
-## platform_tenant (alwaysOn)
+## tenants (alwaysOn)
 
 **职责**：租户 CRUD。**唯一 alwaysOn 平台管理模块**，强制 `super_admin` 平台角色。
 **路由**（全部位于 `/api/v1/platform/tenants`，`RequirePlatformRole("super_admin")` + `Require(ResTenant.*)` 双层守卫）：
@@ -126,12 +126,13 @@ module:
 
 **数据表**：`tenants`（不受 RLS）。
 **跨模块依赖**：写 `AppContext.TenantRepo`。
+**首次安装**：通过 `.env` 环境变量注入 bootstrap 凭据自动创建初始租户和管理员。
 
 ---
 
 ## sys_user (optional, Phase 0023+)
 
-**职责**：平台域用户管理。
+**职责**：平台域用户身份管理。
 **路由**（`/api/v1/platform/sys-users`，`RequirePlatformRole("super_admin")`）：
 
 | Method | Path | Handler |
@@ -215,9 +216,10 @@ module:
 | GET | `/users/:id` | `user:list` | `Get` |
 | PUT | `/users/:id` | `user:update` | `Update` |
 | PATCH | `/users/:id` | `user:update` | `Patch` |
+| DELETE | `/users/:id` | `user:delete` | `Delete`（软删） |
 | PUT | `/users/:id/status` | `user:update` | `UpdateStatus` |
 | PUT | `/users/:id/org` | `user:update` | `UpdateOrg` |
-| GET | `/user/profile` | — | `Profile` |
+| GET | `/user/profile` | — | `Profile`（当前用户） |
 | POST | `/user/avatar` | — | `UploadAvatar` |
 | PUT | `/user/profile` | — | `UpdateProfile` |
 
@@ -228,7 +230,7 @@ module:
 
 ## role
 
-**职责**：角色 CRUD + 数据范围 + 角色-菜单分配。
+**职责**：角色 CRUD + 数据范围 + 角色-菜单/权限分配。
 **路由**：
 
 | Method | Path | Spec | Handler |
@@ -243,8 +245,10 @@ module:
 | PUT | `/roles/:id/data-scopes` | `role:update` | `UpdateDataScopes` |
 | GET | `/roles/:id/menus` | `role:list` | `GetMenus` |
 | PUT | `/roles/:id/menus` | `role:update` | `AssignMenus` |
+| GET | `/roles/:id/permissions` | `role:list` | `GetPermissions` |
+| POST | `/roles/:id/permissions` | `role:update` | `AssignPermissions` |
 
-**数据表**：`tenant_roles` / `tenant_user_roles` / `tenant_role_menus` / `tenant_role_data_scopes`。
+**数据表**：`tenant_roles` / `tenant_user_roles` / `tenant_role_menus` / `tenant_role_data_scopes` / `tenant_role_resources`。
 **跨模块依赖**：写 `AppContext.RoleRepo`。
 
 ---
@@ -324,7 +328,7 @@ module:
 
 ## dict
 
-**职责**：数据字典（主表 + items 子表，支持层级）。
+**职责**：数据字典（主表 + items 子表，支持层级 + 租户覆盖）。
 **路由**：
 
 #### 业务路由（`/api/v1/dicts`）
@@ -362,7 +366,7 @@ module:
 | POST | `/platform/dicts/:id/visibility` |
 | DELETE | `/platform/dicts/:id/visibility/:tenant_id` |
 
-**数据表**：`dicts` / `dict_items`。
+**数据表**：`dicts` / `dict_items` / `dict_visibility`。
 **JSONB**：`dicts.extend` / `dict_items.extend` 都是 `JSONB`（SQL 显式 `::jsonb` cast）。
 
 ---
@@ -425,14 +429,29 @@ module:
 
 ---
 
-## cms
+## weixin
 
-**职责**：**示例 CMS**，展示 plugin.Reader 模式。
+**职责**：微信小程序登录 + 手机号绑定。**无数据表**，纯配置 + handler。
 **路由**：
 
 | Method | Path | Auth | Handler |
 |---|---|---|---|
-| GET | `/cms/ping` | public | `Ping` |
+| POST | `/weixin/login` | public | `Login`（code2Session） |
+| POST | `/weixin/phone` | public | `GetPhoneNumber` |
+| POST | `/weixin/bind-phone` | protected | `BindPhone` |
+
+**配置**：从 `config/weixin.yaml` 或 `config.yaml` 的 `weixin` 段读取 `appid` / `secret`。
+**跨模块依赖**：读 `AccountRepo` / `AccountAuthRepo` / `TenantRepo` / `UserRepo`。
+
+---
+
+## cms
+
+**职责**：**示例 CMS**，展示 plugin.Reader 模式（extapi 调用）。
+**路由**：
+
+| Method | Path | Auth | Handler |
+|---|---|---|---|
 | GET | `/cms/me` | protected | `GetCurrentUser` |
 | GET | `/cms/users` | protected | `ListUsers` |
 | GET | `/cms/tenant` | protected | `GetTenant` |
@@ -459,30 +478,13 @@ module:
 
 ---
 
-## weixin
-
-**职责**：微信小程序登录 + 手机号绑定。**无数据表**，纯配置 + handler。
-**路由**：
-
-| Method | Path | Auth | Handler |
-|---|---|---|---|
-| GET | `/weixin/ping` | public | `Ping` |
-| POST | `/weixin/login` | public | `Login`（code2Session） |
-| POST | `/weixin/phone` | public | `GetPhoneNumber` |
-| POST | `/weixin/bind-phone` | protected | `BindPhone` |
-
-**配置**：从 `config/weixin.yaml` 或 `config.yaml` 的 `weixin` 段读取 `appid` / `secret`。
-**跨模块依赖**：读 `AccountRepo` / `AccountAuthRepo` / `TenantRepo` / `UserRepo`。
-
----
-
 ## 附录：启动日志示例
 
 正常启动会看到 19 个 `module X initialized`：
 
 ```
 module auth initialized
-module platform_tenant initialized
+module tenants initialized
 module sys_user initialized
 module sys_role initialized
 module sys_menu initialized
@@ -503,6 +505,7 @@ module flag initialized
 ```
 
 如果某个 optional module 没在 `cfg.Module` 列表里，会打印：
+
 ```
 module config not enabled (skip init)
 ```

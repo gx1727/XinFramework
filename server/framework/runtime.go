@@ -16,6 +16,6 @@ import (
 // Runtime 故意不传给业务模块——业务模块拿到的只是 *appx.App
 // （Config + DB），跨模块共享通过 plugin.AppContext。
 type Runtime struct {
-	Server *server.XinServer
+	Server *server.Server
 	AppCtx *plugin.AppContext
 }

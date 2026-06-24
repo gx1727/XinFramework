@@ -33,14 +33,14 @@ migrations/
 | **平台与租户公共** | `tenants`, `accounts`, `auth_sessions` | ❌ | 跨域共享登录凭证 |
 | **租户域** | `tenant_organizations`, `tenant_users`, `tenant_roles` | ✅ | 全部带 `tenant_id` |
 | | `tenant_role_data_scopes`, `tenant_user_roles` | ✅ | |
-| | `tenant_menus`, `tenant_permissions` | ✅ | 0023.3 物理拆出（menus → tenant_menus + sys_menus） |
+| | `tenant_menus`, `tenant_permissions` | ✅ | 物理拆出 |
 | | `tenant_role_menus`, `tenant_role_resources` | ✅ | |
 | | `tenant_user_seq` | ✅ | 租户用户序号 |
 | **平台域** | `sys_users`, `sys_orgs`, `sys_roles`, `sys_menus` | ❌ | platform 是单租户概念，靠 API 层 `RequirePlatformRole(super_admin)` 守护 |
 | | `sys_permissions`, `sys_user_roles`, `sys_role_menus`, `sys_role_permissions` | ❌ | |
 | **业务支撑** | `subscriptions`, `usage_records`, `db_logs`, `routes` | ✅ | 按租户分账 |
 | | `plans` | ❌ | 全局套餐表 |
-| **字典 / 配置** | `dicts`, `dict_items`, `config_categories`, `config_items` | ✅ | 保留 `tenant_id=0` 短路：平台级跨租户共享 |
+| **字典 / 配置** | `dicts`, `dict_items`, `config_categories`, `config_items` | ✅ | 保留 `tenant_id=0` 短路 |
 | | `dict_visibility`, `config_visibility` | ❌ | 可见性矩阵 |
 
 **0023.3 关键表 rename（已 drop 的旧表）**：

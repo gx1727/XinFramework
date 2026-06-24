@@ -1,46 +1,67 @@
 # UI/AGENTS.md
 
-> 给"未来的 Codex"看的 XinFramework 前端设计说明。读这一份，比重新读 18 个 .tsx 快得多。
+> 给 AI agent 协作者看的 XinFramework 前端设计说明。读这一份，比重新读 24 个 .tsx 快得多。
 
 ---
 
 ## 1. 技术栈
 
-- **构建**：Vite + React 18 + TypeScript
-- **样式**：Tailwind CSS + shadcn/ui（`components/ui/`）
-- **图标**：lucide-react
-- **路由**：react-router-dom v6（`App.tsx` 集中 lazy）
-- **状态**：zustand（`stores/authStore`, `stores/menuStore`）
-- **文案**：仅简体中文；`UI/src/locales/zh-CN.ts`；`t = zhCN` 直接作为静态对象使用
-- **HTTP**：原生 `fetch` + `ApiError`（带 JWT 自动 refresh）
-- **图标选择**：lucide-react 优先；shadcn 默认有 30+ 常用图标
+- **框架**：React 19 + TypeScript 5.9
+- **构建**：Vite 7.3 + @vitejs/plugin-react
+- **样式**：Tailwind CSS v4（`@tailwindcss/vite` 插件）
+- **UI 组件**：shadcn/ui（基于 Radix UI），~25 个组件在 `components/ui/`
+- **图标**：lucide-react；另有自研 `IconPicker` 组件
+- **路由**：react-router-dom v7（`App.tsx` 集中 lazy + `RequireScope` guard）
+- **状态**：zustand v5（`authStore` localStorage 持久化；`menuStore` / `configStore` / `permissionStore` 内存）
+- **文案**：仅简体中文；`src/locales/zh-CN.ts`；`t = zhCN` 直接作为静态对象使用
+- **HTTP**：原生 `fetch` + `ApiError`（带 JWT 自动 refresh + 指数退避重试）
+- **表格**：@tanstack/react-table v8（通用 `data-table.tsx` 封装）
+- **图表**：Recharts v3
+- **通知**：Sonner v2
+- **表单验证**：Zod v4
+- **图标选择**：lucide-react 优先
 
 ## 2. 目录结构
 
 ```
 UI/src/
 ├── api/
-│   ├── client.ts          # ApiError + 全部 *Api（userApi / orgApi / dictApi / configApi / flagApi / ...）
-│   └── index.ts           # 重导出
+│   ├── common.ts          # api() 封装 + ApiError + JWT refresh + 重试
+│   ├── index.ts           # 重导出
+│   ├── auth.ts            # 认证端点
+│   ├── user.ts / role.ts / menu.ts / platformMenu.ts /
+│   │   organization.ts / tenant.ts / dict.ts / config.ts /
+│   │   resource.ts / frame.ts / frameCategory.ts /
+│   │   avatar.ts / avatarCategory.ts / space.ts /
+│   │   asset.ts / system.ts
 ├── components/
-│   ├── ui/                # shadcn 组件（button / card / dialog / table / select / ...）
+│   ├── ui/                # shadcn 组件（~25 个）
 │   ├── schema/            # DynamicForm + DynamicTable + showIfEvaluator
+│   ├── permission/        # Auth.tsx（按钮级）+ DynamicRouter.tsx（路由级）
 │   ├── app-sidebar.tsx    # 侧边栏（按 menuStore 动态生成）
-│   ├── page-layout.tsx    # 全局布局（Auth + Sidebar + Header）
+│   ├── data-table.tsx     # tanStack 表格通用封装
+│   ├── page-layout.tsx    # 全局布局
+│   ├── login-form.tsx     # 共享登录表单
+│   ├── identity-picker-dialog.tsx  # 多身份选择对话框
+│   ├── tenant-switcher.tsx  # 租户切换
 │   └── ...
-├── locales/zh-CN.ts       # 简体中文文案（`t = zhCN`，无 i18n 切换）
-├── pages/                 # 每个模块一个 .tsx（Menus / Users / Roles / Dicts / Configs / Flags / ...）
-├── stores/{authStore,menuStore}.ts
+├── locales/zh-CN.ts       # 简体中文文案（`export const zhCN = { ... }`）
+├── pages/                 # 24 个页面文件
+├── stores/
+│   ├── authStore.ts       # zustand + persist（token / user / scope / identities）
+│   ├── menuStore.ts       # 菜单数据（merged platform + tenant）
+│   ├── configStore.ts     # 配置中心数据
+│   └── permissionStore.ts # 权限数据
 ├── types/schema.ts        # FormSchema / FormItemSchema / TableSchema / ...
-└── App.tsx                # 路由
+└── App.tsx                # 路由（RequireScope guard）
 ```
 
 ## 3. 关键约定
 
 ### 3.1 文案（简体中文）
 
-- 唯一文案源：`UI/src/locales/zh-CN.ts`，导出 `export type LocaleKeys = typeof zhCN`。
-- `UI/src/locales/index.ts` 直接把 `zhCN` 重新导出为 `t`：`import { t } from "@/locales"`。
+- 唯一文案源：`src/locales/zh-CN.ts`，导出 `export type LocaleKeys = typeof zhCN`。
+- `src/locales/index.ts` 直接把 `zhCN` 重新导出为 `t`：`import { t } from "@/locales"`。
 - 用法：`t.pages.users.title`（对象访问，无 hook、无 store）。
 - 不再做语言切换、不要 `useTranslation()`；`localeStore.ts` 与 `language-switcher.tsx` 已删除。
 - 现有 `t.pages.users?.name || "姓名"` 这种 optional chaining + 兜底写法可以保留；新增文案直接 `t.xxx.yyy` 即可。
@@ -54,18 +75,19 @@ UI/src/
 
 ### 3.3 API 客户端模式
 
-- 端点前缀：`${VITE_API_BASE_URL}/api/v1/...`
+- `api/common.ts` 中的 `api()` 函数：自动加 `Authorization: Bearer <token>`，自动 401 refresh
+- 端点前缀：`${VITE_API_BASE_URL}`（默认 `http://localhost:8087/api/v1`）
 - 标准方法：`list(params?) / get(id) / create(data) / update(id, data) / delete(id)`
 - 子资源（如 dict items / config items）：`listItems(parentId) / createItem(parentId, data) / updateItem(parentId, id, data) / deleteItem(parentId, id)`
 - 返回 `data` 字段；分页用 `PageResponse<T> { list, total, page, size }`
 - 错误处理：抛 `ApiError(status, code, message, data)`，前端用 `try { ... } catch (e) { ... }` 兜底
-- 后端默认端口 **8087**（不是 8080），通过 `VITE_API_BASE_URL` 配置
+- 后端默认端口 **8087**，通过 `VITE_API_BASE_URL` 配置
+- 前端 dev server 端口 **5241**（`vite.config.ts` 配置）
 
 ### 3.4 Page 结构模板
 
 ```tsx
 export function XxxPage() {
-  const t = useTranslation()
   const [list, setList] = useState<Xxx[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -78,7 +100,7 @@ export function XxxPage() {
   const [toDelete, setToDelete] = useState<Xxx | null>(null)
 
   // 1) fetch + try/catch + setError + 可选 mock fallback（用户主动）
-  // 2) form schema (useMemo 依赖 dialogMode 和 t)
+  // 2) form schema (useMemo 依赖 dialogMode)
   // 3) handlers: add / edit / delete confirm / submit / actual delete
   // 4) render: <PageLayout> + Card + Table + FormDialog + 删除确认 Dialog + 顶部 ErrorBar
 }
@@ -121,19 +143,29 @@ export function XxxPage() {
 
 | 关注点 | 路径 |
 |---|---|
-| 文案（zh-CN） | `UI/src/locales/zh-CN.ts` |
-| 路由 | `UI/src/App.tsx` |
-| API 全部端点 | `UI/src/api/client.ts` |
-| 侧边栏（动态） | `UI/src/components/app-sidebar.tsx` |
-| 动态表单 | `UI/src/components/schema/DynamicForm.tsx` |
-| 动态表格 | `UI/src/components/schema/DynamicTable.tsx` |
-| 全局布局 | `UI/src/components/page-layout.tsx` |
-| Schema 类型 | `UI/src/types/schema.ts` |
-| 用户-组织模板 | `UI/src/pages/Users.tsx` |
-| 组织树模板 | `UI/src/pages/Organizations.tsx` |
-| 字典维护 | `UI/src/pages/Dicts.tsx` |
-| 配置中心模板 | `UI/src/pages/Configs.tsx` |
-| 菜单模板 | `UI/src/pages/Menus.tsx` |
+| 文案（zh-CN） | `src/locales/zh-CN.ts` |
+| 路由 + scope guard | `src/App.tsx` |
+| API 封装（base） | `src/api/common.ts` |
+| 全部 API 端点 | `src/api/`（18 个文件） |
+| 侧边栏（动态） | `src/components/app-sidebar.tsx` |
+| 动态表单 | `src/components/schema/DynamicForm.tsx` |
+| 动态表格 | `src/components/schema/DynamicTable.tsx` |
+| 通用数据表格 | `src/components/data-table.tsx` |
+| 全局布局 | `src/components/page-layout.tsx` |
+| 按钮级权限 | `src/components/permission/Auth.tsx` |
+| 路由级权限 | `src/components/permission/DynamicRouter.tsx` |
+| Schema 类型 | `src/types/schema.ts` |
+| 用户-组织模板 | `src/pages/Users.tsx` |
+| 组织树模板 | `src/pages/Organizations.tsx` |
+| 字典维护 | `src/pages/Dicts.tsx` |
+| 配置中心模板 | `src/pages/Configs.tsx` |
+| 菜单模板 | `src/pages/Menus.tsx` |
+| 角色管理模板 | `src/pages/Roles.tsx` |
+| 租户管理模板 | `src/pages/Tenants.tsx` |
+| Auth store（本地持久化） | `src/stores/authStore.ts` |
+| Menu store | `src/stores/menuStore.ts` |
+| Config store | `src/stores/configStore.ts` |
+| Permission store | `src/stores/permissionStore.ts` |
 
 ## 5. 踩坑与决策
 
@@ -163,25 +195,31 @@ export function XxxPage() {
 - 用 `collectOrgSubtreeIds` 递归收集后代 id（见 `Users.tsx`）。
 - 不要在后端用 SQL 子树筛选（除非显式 `?org_subtree=1`），保持接口简洁。
 
-### 5.5 mock 数据（已废弃静默兜底）
-
-- 见 §5.9 新约定。
-
-### 5.6 类型扩展
+### 5.5 类型扩展
 
 - 增强既有类型（如 `UserItem.org_id: number | null`）时，要同步影响所有 `useState<...[]>` 的初始化。
 - 用 `as OrgNode[]` 类型断言很常见（递归树用 `type Tree = X & { children?: Tree[] }`）。
 
-### 5.7 tsc 验证
+### 5.6 tsc 验证
 
 - 改完跑 `.\node_modules\.bin\tsc --noEmit`（PowerShell 沙箱 `npx` 因签名问题直接调用 tsc 二进制）。
 - 0 错误才能算完成。
 
-### 5.8 前端权限
+### 5.7 前端权限
 
-- 路由级：`DynamicRouter` 组件按 `useAuthStore.permissions` 拦截。
+- 路由级：`RequireScope` 组件按 scope（`"tenant"` | `"platform"`）拦截。
 - 按钮级：`<Auth action="create">...</Auth>` 包装。
 - 资源权限由后端 `middleware.Require` 强制，前端只是隐藏。
+
+### 5.8 多身份登录（Path B）
+
+- 支持两种身份类型：**租户身份**（`scope="tenant"`）和**平台身份**（`scope="platform"`）
+- 登录流程：
+  1. `POST /auth/login-precheck` → 返回 `{ identities: [{tenant_id, tenant_name, ...}], platform_roles: [...] }`
+  2. 用户选择身份 → `POST /auth/select-tenant` 或 `POST /auth/platform-login`
+  3. 或 `POST /auth/tenant-login` 直接登录（如果只有一个身份）
+- `authStore` 管理 `availableIdentities`、`platformAvailable`、`availablePlatformRoles`、`accountId`
+- `switchTenant(tenantId)` 使用 `refresh_token` 无密码切换租户
 
 ### 5.9 Mock 兜底约定（重要变更）
 
@@ -199,15 +237,15 @@ export function XxxPage() {
 
 ### 新增一个 CRUD 页面
 
-1. 在 `client.ts` 加 `xxxApi = { list, get, create, update, delete }`
+1. 在 `api/xxx.ts` 加 `xxxApi = { list, get, create, update, delete }`
 2. 在 `App.tsx` 加 `lazy(() => import("@/pages/Xxx"))` + `<Route path="/xxx" element={<XxxPage />} />`
 3. 在 `zh-CN.ts` 加 `pages.xxx` 块（无需再同步其他语言）
-4. 在 `migrations/framework.sql` 加菜单和资源（参考现有 seed 格式）
+4. 在 `migrations/init_seed.sql` 加菜单和资源（参考现有 seed 格式）
 5. 写 `pages/Xxx.tsx`：
    - fetch + try/catch + setError
    - useMockFallback state（localStorage 持久化）
    - 顶部 ErrorBar + 数据源徽章
-   - form schema（useMemo 依赖 dialogMode，无需把 `t` 放进 deps）
+   - form schema（useMemo 依赖 dialogMode）
    - table + delete confirm + FormDialog
 
 ### 改既有文案
@@ -217,40 +255,43 @@ export function XxxPage() {
 
 ### 给后端端点加前端 API
 
-1. `client.ts` 加新方法（沿用 `api(path, { method, body })` 模板）
+1. `api/xxx.ts` 加新方法（沿用 `api(path, { method, body })` 模板）
 2. 类型在 `ApiResponse<T>` / `PageResponse<T>` 上声明返回类型
 3. 出错时必须 `setError(...)`，**不要静默 mock fallback**（除非 `useMockFallback=true`）
 
 ### 后端模块 ↔ 前端页面映射
 
-| 后端模块 | 前端页面 | 路径 | 前端 API | 后端路径 |
+| 后端模块 | 前端页面 | 路由 | 前端 API | 后端路径 |
 |---|---|---|---|---|
-| auth | Login.tsx | `/login` | `authApi` | `/auth/*` |
-| user | Users.tsx | `/users` | `userApi` | `/users/*` |
-| role | Roles.tsx | `/roles` | `roleApi` | `/roles/*` |
-| menu (租户域) | Menus.tsx（Tab: 租户菜单） | `/menus` | `menuApi` | `/menus/*` |
-| menu (平台域) | Menus.tsx（Tab: 平台菜单，仅 super_admin） | `/menus` | `platformMenuApi` | `/platform/menus/*` |
-| organization | Organizations.tsx | `/organizations` | `organizationApi` | `/organizations/*` |
-| resource | Resources.tsx | `/resources` | `resourceApi` | `/resources/*` |
-| asset | Assets.tsx | `/asset` | `assetApi` | `/asset/*` |
-| dict | Dicts.tsx | `/dicts` | `dictApi` | `/dicts/*` |
-| config | Configs.tsx | `/configs` | `configApi` | `/configs/*`、`/platform/configs/*`、`/public/configs` |
-| flag | FlagFrames.tsx / FlagSpaces.tsx / ... | `/flag/*` | `frameApi` 等 | `/flag/*` |
-| cms | CmsPosts.tsx | `/cms/posts` | — | `/cms/*` |
-| **platform_tenant**（仅 super_admin） | **Tenants.tsx** | **`/tenants`** | **`tenantApi`** | **`/platform/tenants/*`** |
-| system | SystemInfo.tsx | `/system` | `systemApi` | `/system/*` |
+| auth | Login.tsx / TenantLogin.tsx / PlatformLogin.tsx | `/login`, `/platform/login` | `authApi` | `/auth/*` |
+| user | Users.tsx | `/app/users` | `userApi` | `/users/*` |
+| role | Roles.tsx | `/app/roles` | `roleApi` | `/roles/*` |
+| menu（租户域） | Menus.tsx（Tab: 租户菜单） | `/app/menus` | `menuApi` | `/menus/*` |
+| menu（平台域） | Menus.tsx（Tab: 平台菜单，仅 super_admin） | `/app/menus` | `platformMenuApi` | `/platform/menus/*` |
+| organization | Organizations.tsx | `/app/organizations` | `organizationApi` | `/organizations/*` |
+| resource | Resources.tsx | `/app/resources` | `resourceApi` | `/resources/*` |
+| asset | Assets.tsx | `/app/asset` | `assetApi` | `/asset/*` |
+| dict | Dicts.tsx | `/app/dicts` | `dictApi` | `/dicts/*` |
+| config | Configs.tsx / PlatformConfigs.tsx | `/app/configs`, `/platform/configs` | `configApi` | `/configs/*`, `/platform/configs/*`, `/public/configs` |
+| flag | Frames.tsx / FrameCategories.tsx / Avatars.tsx / AvatarCategories.tsx | `/app/frames`, etc | `frameApi` 等 | `/flag/*` |
+| cms | — | — | — | `/cms/*` |
+| **tenants**（仅 super_admin） | Tenants.tsx | `/platform/tenants` | `tenantApi` | `/platform/tenants/*` |
+| system | Cache.tsx | `/app/cache` | `systemApi` | `/system/*` |
 | weixin | （无独立页面） | — | — | `/weixin/*` |
+| sys_user | （通常通过平台管理页面） | `/platform/users` | — | `/platform/sys-users/*` |
+| sys_role | （平台角色） | `/platform/roles` | — | `/platform/sys-roles/*` |
+| sys_menu | Menus.tsx（平台 Tab） | `/platform/menus` | `platformMenuApi` | `/platform/sys-menus/*` |
 
 > **关键约定**：
 >
-> - 前端路由 `/tenants`、`/menus` 保持稳定（用户视角的页面路径）；后端 API 路径是 `/platform/tenants/*`、`/platform/menus/*`（super_admin 域）。
-> - 同一前端页面可能调多个后端 API（如 `Menus.tsx` 同时调 `menuApi` 和 `platformMenuApi`）。
-> - `super_admin` 判断：前端用 `useAuthStore().user?.platform_roles?.includes("super_admin")`；后端用 `RequirePlatformRole("super_admin")` 中间件。
+> - 前端路由带 scope 前缀：`/app/*`（tenant 域）、`/platform/*`（平台域）
+> - 同一前端页面可能调多个后端 API（如 `Menus.tsx` 同时调 `menuApi` 和 `platformMenuApi`）
+> - `super_admin` 判断：前端用 `useAuthStore().user?.platform_roles?.includes("super_admin")`；后端用 `RequirePlatformRole("super_admin")` 中间件
 >
 > **路由约定**（与后端 [server/framework/framework.go](../server/framework/framework.go) 同步）：
 >
 > | 域 | 前缀 | 说明 |
 > |---|---|---|
-> | public | `/api/v1/public/*` 或 `/api/v1/<auth>` | 公开读（如 `/public/configs`、`/auth/tenant-login`） |
-> | tenant（业务） | `/api/v1/*` | 需登录 + tenant_id；模块直接挂资源路径，**无 `/t` 前缀** |
-> | platform（super_admin） | `/api/v1/platform/*` | 平台域 CRUD（`/platform/configs`、`/platform/dicts`、`/platform/tenants`、`/platform/menus`） |
+> | public | `/api/v1/public/*` 或 `/api/v1/<auth>` | 公开读 |
+> | tenant（业务） | `/api/v1/*` | 需登录 + tenant_id |
+> | platform（super_admin） | `/api/v1/platform/*` | 平台域 CRUD |

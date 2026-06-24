@@ -1,17 +1,19 @@
 # 架构总览
 
 > XinFramework 最关键的设计文档。第一次接触代码从这里开始。
-> 最后更新：2026-06-24（Phase 0023 全阶段完成，19 模块终态）
+> 最后更新：2026-06（Phase 0023 全阶段完成，19 模块终态）
 
 ## 1. Go Module 结构
 
 仓库根目录下只有一个 Go module：
+
 ```
 server/
 └── go.mod         (path: gx1727.com/xin)         # cmd/ + migrations/ + framework/ + apps/
 ```
 
 依赖方向（`internal/` 强制）：
+
 ```
 cmd/xin ──→ framework ──→ apps
             (internal)     (apps 不可 import)
@@ -33,15 +35,15 @@ func main() {
     modules := []plugin.Module{                          // 3. 显式模块列表（19 个）
         // alwaysOn
         auth.Module(app), tenants.Module(app), system.Module(app),
-        // 平台管理域
+        // 平台管理域（optional）
         sysuser.Module(app), sysrole.Module(app),
         sysmenu.Module(app), syspermission.Module(app),
-        // 租户域 RBAC 套件
+        // 租户域 RBAC 套件（optOut）
         menu.Module(app), organization.Module(app), permission.Module(app),
         resource.Module(app), role.Module(app), user.Module(app),
         // reference 套件
         asset.Module(app), refconfig.Module(app), dict.Module(app), weixin.Module(app),
-        // external
+        // external（optional）
         cms.Module(app), flag.Module(app),
     }
     framework.Serve(cfg, app, rt, modules)               // 4. 启动
@@ -62,7 +64,7 @@ func Serve(cfg, app, rt, modules) {
 }
 ```
 
-[`framework.Boot`](../framework/internal/core/boot/boot.go)（即 `boot.Init`）装配：
+[`framework.Boot`](../framework/internal/core/boot/boot.go) 装配：
 
 ```go
 func Init(cfg) (*appx.App, *server.XinServer, *plugin.AppContext, error) {
@@ -126,8 +128,8 @@ func Module(app *appx.App) plugin.Module {
 ### 3.3 三类模块（按 `cfg.Module` 行为分）
 
 | 类型 | 数量 | 表现 |
-|---|---:|---|
-| **alwaysOn** | 3（`system`, `auth`, `platform_tenant`） | 启动必需，无法关闭，配置不列也加回去 |
+|---|---|---:|
+| **alwaysOn** | 3（`system`, `auth`, `tenants`） | 启动必需，无法关闭，配置不列也加回去 |
 | **optOut** | 8（`menu`, `user`, `role`, `resource`, `organization`, `dict`, `asset`, `permission`） | 默认启用；用户写 `module:` 时切白名单语义（不列就关） |
 | **optional** | 8（`config`, `weixin`, `sys_user`, `sys_role`, `sys_menu`, `sys_permission`, `cms`, `flag`） | 默认不启用；必须在 `cfg.Module` 显式列出才开 |
 
@@ -331,10 +333,11 @@ RegFn: func(_ plugin.Reader, public, tenant, protected *gin.RouterGroup) {
 | 11001-11999 | system | apps/system |
 | 12001-12999 | weixin | apps/reference/weixin |
 | 13001-13999 | flag | apps/flag |
+| 14001-14999 | cms | apps/cms |
 | 15001-15999 | sys_menu | apps/platform/sys_menu |
 | 18001-18999 | config | apps/reference/config |
 
-> **新增模块找段**：从 14000+ 找空段。
+> **新增模块找段**：从 16000+ 或 19000+ 找空段。
 
 ## 8. 数据层核心约定
 
@@ -383,7 +386,7 @@ CREATE UNIQUE INDEX uk_tenant_users_account_tenant ON tenant_users (account_id, 
 | 0020 | platform_tenant 从 `apps/boot/tenant` 迁到 `apps/platform/tenants` |
 | 0021 | 新增 sys_menu 模块 |
 | 0022 | config 完全重构 + 全分离 Phase（登录入口拆 tenant-login / platform-login；三域路由） |
-| **0023** | **平台/租户域物理拆分**：9 张 RBAC 表 rename（`users→tenant_users` 等）、`account_roles` drop、Go 包 rename（`apps/rbac→apps/tenant`、`framework/pkg/rbac→framework/pkg/tenant/auth`）、新增 `sys_user` / `sys_role` / `sys_permission` 四个平台域模块、登录路径切到 `sys_user_roles` |
+| **0023** | **平台/租户域物理拆分**：9 张表 rename、`account_roles` drop、Go 包 rename（`apps/rbac→apps/tenant`、`framework/pkg/rbac→framework/pkg/tenant/auth`）、新增 `sys_user` / `sys_role` / `sys_permission`、登录路径切到 `sys_user_roles` |
 
 ### 9.1 重构前 vs 重构后
 
@@ -395,7 +398,7 @@ CREATE UNIQUE INDEX uk_tenant_users_account_tenant ON tenant_users (account_id, 
 | 路由空间 | 业务 + 管理 | 业务 + 平台（`/platform/*`）+ 公开（`/public/*`） |
 | 数据流传递方式 | 隐式（全局包） | 显式（AppContext） |
 | 编译期可追踪 | 否 | ✓（Reader/Writer 接口） |
-| P0 单测 | 无 | 36 个，3 包覆盖率 48.4% |
+| P0 单测 | 无 | 36+ 个 |
 
 ## 10. 延伸阅读
 

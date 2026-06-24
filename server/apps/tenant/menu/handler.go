@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/framework/pkg/context"
+	"gx1727.com/xin/framework/pkg/xincontext"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
@@ -23,7 +23,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	xc := context.New(c)
+	xc := xincontext.New(c)
 	tenantID := xc.GetTenantID()
 	if tenantID == 0 {
 		resp.BadRequest(c, "missing tenant_id")
@@ -66,7 +66,7 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 
-	xc := context.New(c)
+	xc := xincontext.New(c)
 	tenantID := xc.GetTenantID()
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
 		resp.Error(c, MapRespError(err), err.Error())
@@ -104,7 +104,7 @@ func (h *Handler) List(c *gin.Context) {
 		req.Size = 20
 	}
 
-	xc := context.New(c)
+	xc := xincontext.New(c)
 	tenantID := xc.GetTenantID()
 	if tenantID == 0 {
 		resp.BadRequest(c, "missing tenant_id")
@@ -120,7 +120,7 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Tree(c *gin.Context) {
-	xc := context.New(c)
+	xc := xincontext.New(c)
 	tenantID := xc.GetTenantID()
 	if tenantID == 0 {
 		resp.BadRequest(c, "missing tenant_id")

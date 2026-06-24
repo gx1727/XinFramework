@@ -1,4 +1,9 @@
-package context
+// Package xincontext 提供框架自定义的请求上下文类型（XinContext），
+// 封装从 JWT claims 中解析出的 UserID、TenantID、SessionID 等身份信息。
+//
+// 注意：包名刻意使用 xincontext 而非 context，以避免遮蔽标准库 context 包，
+// 这样调用方不需要每次都写 import alias。
+package xincontext
 
 import (
 	"context"
@@ -140,17 +145,17 @@ func (u *UserContext) HasPermission(resource, action string) bool {
 	return permission.HasPermission(u.Permissions, resource, action)
 }
 
-// GetDataScopeFilter returns SQL WHERE clause and args for data filtering
-func (u *UserContext) GetDataScopeFilter() (string, []any, error) {
-	filter, err := u.GetDataScopeFilterFor(permission.DefaultScopeColumns)
+// DataScopeFilter returns SQL WHERE clause and args for data filtering
+func (u *UserContext) DataScopeFilter() (string, []any, error) {
+	filter, err := u.DataScopeFilterFor(permission.DefaultScopeColumns)
 	if err != nil {
 		return "", nil, err
 	}
 	return filter.SQL, filter.Args, nil
 }
 
-// GetDataScopeFilterFor returns a data-scope filter using explicit column mapping.
-func (u *UserContext) GetDataScopeFilterFor(columns permission.ScopeColumns) (permission.ScopeFilter, error) {
+// DataScopeFilterFor returns a data-scope filter using explicit column mapping.
+func (u *UserContext) DataScopeFilterFor(columns permission.ScopeColumns) (permission.ScopeFilter, error) {
 	return permission.BuildDataScopeFilter(u.DataScope, u.UserID, u.OrgID, columns)
 }
 

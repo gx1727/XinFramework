@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	pkgcontext "gx1727.com/xin/framework/pkg/context"
+	pkgcontext "gx1727.com/xin/framework/pkg/xincontext"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/resp"

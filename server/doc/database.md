@@ -1,12 +1,13 @@
 # Database Design
 
-> Phase 0023 final state: **32 tables**. Core tables in `migrations/init_schema.sql`; seed data in `migrations/init_seed.sql`; business modules (asset / cms / flag) keep their own .sql.
+> Phase 0023 final state: **34 tables**. Core tables in `init_schema.sql`; seed data in `init_seed.sql`; business modules (asset / cms / flag) keep their own .sql.
 >
-> Doc version: 2026-06-23 (Phase 0023 platform/tenant domain split complete)
+> Doc version: 2026-06（Phase 0023 platform/tenant domain split complete）
 
 ## 1. Extensions
 
-Migration scripts install these PG extensions by default:
+Migration scripts install these PG extensions by default：
+
 ```sql
 CREATE EXTENSION IF NOT EXISTS ltree;      -- path / tree storage
 CREATE EXTENSION IF NOT EXISTS pg_trgm;    -- trigram fuzzy match
@@ -22,9 +23,10 @@ At startup, `framework/pkg/migrate.Run("migrations")`:
 - Skips already-executed files
 
 **Note**: migrations are **idempotent** (all use `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS` / `DROP POLICY IF EXISTS` + `CREATE POLICY`).
+
 ```bash
 ls migrations/
-# asset.sql  cms.sql  flag.sql  init_schema.sql  init_seed.sql
+# init_schema.sql  init_seed.sql  asset.sql  cms.sql  flag.sql
 ```
 
 ### 2.1 File Layering
@@ -123,7 +125,7 @@ config_categories -- config_items
   +-- config_visibility (platform config visibility per tenant)
 ```
 
-### 3.3 Table List (32 tables)
+### 3.3 Table List (34 tables)
 
 #### Shared Layer (3 tables, no RLS)
 
@@ -133,20 +135,19 @@ config_categories -- config_items
 | `accounts` | Global accounts | `phone` / `email` (unique), `password` (argon2id hash) |
 | `auth_sessions` | Sessions | `account_id`, `token` (unique), `expires_at` |
 
-> **Note**: `account_auths` / `account_roles` / `user_codes` are **dropped** (Phase 0023.1).
-> - 3rd party auth (wechat / oauth) not yet implemented. Weixin login uses `code2Session` to bind `account_id` directly.
-> - Platform roles (super_admin) now use `sys_users + sys_user_roles + sys_roles`.
+> `account_auths` / `account_roles` / `user_codes` are **dropped** (Phase 0023.1).
+> Platform roles (super_admin) now use `sys_users + sys_user_roles + sys_roles`.
 
 #### Platform Domain sys_* (8 tables, no RLS)
 
 | Table | Purpose | Key fields |
 |---|---|---|
-| `sys_users` | Platform user identity (aligned with `tenant_users`) | `account_id` (FK accounts), `code`, `org_id` |
+| `sys_users` | Platform user identity | `account_id` (FK accounts), `code`, `org_id` |
 | `sys_orgs` | Platform org (parent_id recursive) | `parent_id`, `ancestors`, `code` (unique) |
 | `sys_roles` | Platform roles | `code` (unique, e.g. `super_admin`), `data_scope` |
 | `sys_menus` | Platform menus | `code` (unique), `parent_id`, `ancestors` |
 | `sys_permissions` | Platform permission codes | `code` (unique), `menu_id`, `action` |
-| `sys_user_roles` | Platform user-role (replaces `account_roles`) | `user_id`, `role_id` (soft delete `is_deleted`) |
+| `sys_user_roles` | Platform user-role | `user_id`, `role_id` (soft delete) |
 | `sys_role_menus` | Platform role-menu | `role_id`, `menu_id` |
 | `sys_role_permissions` | Platform role-permission | `role_id`, `permission_id`, `effect` |
 
@@ -154,7 +155,7 @@ config_categories -- config_items
 
 | Table | Purpose | Key fields |
 |---|---|---|
-| `tenant_organizations` | Org structure | `tenant_id`, `parent_id`, `ancestors`, `code` (unique per tenant) |
+| `tenant_organizations` | Org structure | `tenant_id`, `parent_id`, `ancestors` |
 | `tenant_users` | Tenant users | `tenant_id`, `account_id`, `code`, `org_id` |
 | `tenant_user_roles` | Tenant user-role | `tenant_id`, `user_id`, `role_id` |
 | `tenant_roles` | Tenant roles | `tenant_id`, `code` (unique per tenant), `data_scope JSONB` |
@@ -186,7 +187,7 @@ config_categories -- config_items
 | `config_items` | Config items | YES (`tenant_id = 0` short-circuit) |
 | `config_visibility` | Config visibility matrix | NO |
 
-> Business module tables: `file_assets` (asset), `posts` (cms), `frames / spaces / avatars` etc (flag) -- see their own `migrations/*.sql`.
+> Business module tables: `file_assets` (asset), `posts` (cms), `frames / spaces / avatars` etc (flag) — see their own `migrations/*.sql`.
 
 ## 4. Row-Level Security (RLS)
 
@@ -215,7 +216,7 @@ err := db.RunInTenantTx(ctx, s.pool, uc.TenantID, func(txCtx context.Context) er
 })
 ```
 
-**Platform management** uses `db.RunInPlatformTx(ctx, pool, fn)` -- sets `app.bypass_rls='on'`, bypasses RLS, can read/write across tenants.
+**Platform management** uses `db.RunInPlatformTx(ctx, pool, fn)` — sets `app.bypass_rls='on'`, bypasses RLS, can read/write across tenants.
 
 ```go
 err := db.RunInPlatformTx(ctx, s.pool, func(txCtx context.Context) error {
@@ -225,7 +226,7 @@ err := db.RunInPlatformTx(ctx, s.pool, func(txCtx context.Context) error {
 
 ### 4.3 RLS Policy Templates
 
-#### Tenant Domain (10 tables + 4 business = 14 tables)
+#### Tenant Domain (10 tables + 4 business)
 
 ```sql
 ALTER TABLE tenant_xxx ENABLE ROW LEVEL SECURITY;
@@ -251,8 +252,6 @@ CREATE POLICY tenant_isolation_policy ON xxx USING (
 ```
 
 ### 4.4 Tables NOT Affected by RLS
-
-These tables should NOT be queried with `RunInTenantTx`:
 
 | Table | Reason |
 |---|---|
@@ -289,6 +288,7 @@ Every table has at least:
 | `is_deleted` partial | combined with other unique | Soft delete + unique |
 
 High-frequency query fields have dedicated `idx_*`:
+
 ```sql
 CREATE INDEX idx_tenant_users_org ON tenant_users (org_id) WHERE is_deleted = FALSE;
 CREATE UNIQUE INDEX uk_tenant_users_account_tenant
@@ -321,7 +321,7 @@ SELECT * FROM tenant_organizations WHERE ancestors LIKE '/3/%';
 
 ## 8. Timezone
 
-All `TIMESTAMPTZ DEFAULT NOW()` -- PostgreSQL stores UTC internally.
+All `TIMESTAMPTZ DEFAULT NOW()` — PostgreSQL stores UTC internally.
 Production recommendations:
 - DB server TZ = UTC
 - App server TZ = Asia/Shanghai
@@ -357,6 +357,7 @@ pgx encodes Go types to PG by default:
 | `[]byte` | `bytea` | ERROR `42804` |
 
 **Fix**: explicit `::jsonb` cast in SQL:
+
 ```go
 // WRONG: _, err := q.Exec(ctx, `UPDATE t SET value = $1 WHERE id = $2`, valueJSON, id)
 
@@ -370,6 +371,7 @@ _, err := q.Exec(ctx, `UPDATE t SET value = COALESCE($1::jsonb, value) WHERE id 
 ```
 
 Error example:
+
 ```
 ERROR: column "value" is of type jsonb but expression is of type text (SQLSTATE 42804)
 ```
@@ -428,6 +430,7 @@ ALTER TABLE accounts
 ## 12. Backup and Recovery
 
 Not in framework scope, but typical practice:
+
 ```bash
 pg_dump -Fc -h db.host -U xin_user xin > backup_$(date +%F).dump
 pg_restore -d xin backup_2026-06-23.dump
@@ -466,7 +469,7 @@ See [PostgreSQL official docs](https://www.postgresql.org/docs/current/monitorin
 DO $$ ... RAISE EXCEPTION 'init_schema validation failed: missing table %', missing; ... $$;
 ```
 
-- All 32 target tables must be created (any missing -> RAISE EXCEPTION)
+- All 34 target tables must be created (any missing -> RAISE EXCEPTION)
 - 9 legacy tables must be dropped (any leftover: `users / roles / organizations / user_roles / role_menus / role_resources / role_data_scopes / resources / account_roles` -> RAISE EXCEPTION)
 
 After dev DB reset, `\d` shows all `tenant_*` / `sys_*` tables with no legacy names left.

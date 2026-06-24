@@ -1,0 +1,2 @@
+[permissions]
+allow = ["Bash(find . -type f \\( -name \"*.md\" -o -name \"*.mdx\" -o -name \"*.txt\" -o -name \"*.doc\" \\) | head -100)", "Bash(find . -type f \\( -name \"AGENTS.md\" -o -name \"*.md\" \\) | sort)"]

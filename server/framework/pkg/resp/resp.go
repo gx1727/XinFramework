@@ -48,7 +48,10 @@ type Response struct {
 	Data any `json:"data"`
 }
 
-// BizError 标准业务错误
+// BizError 标准业务错误。
+//
+// 实现 errors.Is 接口：两个 BizError 只要 Code 相同即视为同一错误
+// （Msg 不一致时调用 errors.Is 仍返回 true），因此可以安全地用作哨兵错误。
 type BizError struct {
 	Code int    // 业务自定义 Code (如 1001, 2001)
 	Msg  string // 默认提示信息
@@ -56,6 +59,16 @@ type BizError struct {
 
 func (e *BizError) Error() string {
 	return e.Msg
+}
+
+// Unwrap 实现隐式错误链语义（io/fs.PathError 风格的兼容接口）。
+func (e *BizError) Unwrap() error { return nil }
+
+// Is 使 errors.Is 按 Code 匹配，而非指针相等。
+// 例如 errors.Is(fmt.Errorf("%w: extra", resp.Err(2001)), resp.Err(2001)) 返回 true。
+func (e *BizError) Is(target error) bool {
+	t, ok := target.(*BizError)
+	return ok && e.Code == t.Code
 }
 
 func (e *BizError) WithMsg(msg string) *BizError {

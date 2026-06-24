@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/framework/pkg/context"
+	"gx1727.com/xin/framework/pkg/xincontext"
 
 	"gx1727.com/xin/framework/pkg/resp"
 )
@@ -18,7 +18,7 @@ func NewHandler(svc *Service) *Handler {
 }
 
 func (h *Handler) List(c *gin.Context) {
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	var req ListReq
@@ -54,7 +54,7 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	var req CreateReq

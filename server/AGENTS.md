@@ -7,8 +7,9 @@
 ```
 server/
 ├── cmd/xin/main.go              # 入口（4 步显式 Build）
+├── .env                          # 首次启动 bootstrap token
 ├── config/                       # YAML 配置
-├── migrations/                   # SQL 迁移（framework / asset / config / dict / flag / cms）
+├── migrations/                   # SQL 迁移（init_schema / init_seed / asset / cms / flag）
 ├── scripts/
 │   └── strip_bom.py             # BOM 检测 / 剥离（--check 用于 CI）
 ├── framework/                   # 框架本体
@@ -18,18 +19,20 @@ server/
 │   │   └── service/{authorization,permission}_service.go
 │   └── pkg/                     # 公共包（含 appx/appx.go）
 └── apps/                        # 业务模块（同 module）
-    ├── boot/{auth,tenant}/      # 平台级 alwaysOn
-    ├── tenant/{menu,organization,permission,resource,role,user}/    # 0023.3 rename: apps/rbac → apps/tenant
+    ├── boot/auth/               # 登录（alwaysOn）
+    ├── platform/{tenants,sys_user,sys_role,sys_menu,sys_permission}/
+    ├── tenant/{menu,organization,permission,resource,role,user}/
     ├── reference/{asset,config,dict,weixin}/
     ├── system/                  # health / cache 运维 alwaysOn
-    ├── cms/, flag/              # 示例业务 optional
+    ├── cms/                     # 示例 CMS（extapi 模式）
+    └── flag/                    # 头像框 / 空间 / 头像
 ```
 
 ## 2. 依赖方向
 
 ```
 cmd/xin ──→ framework ──→ apps
-            (internal)     (internal ← 不可)
+            (internal)     (apps 不可 import)
 ```
 
 - `framework` 不能 import `apps`（`internal/` 强制）
@@ -43,11 +46,11 @@ cmd/xin ──→ framework ──→ apps
 
 | Name | 类型 | 路径 | 备注 |
 |---|---|---|---|
-| `auth` | alwaysOn | apps/boot/auth | 登录 / JWT |
-| `tenant` | alwaysOn | apps/boot/tenant | 租户管理（需 super_admin） |
+| `auth` | alwaysOn | apps/boot/auth | 登录 / JWT / 多身份 |
+| `tenants` | alwaysOn | apps/platform/tenants | 租户管理（需 super_admin） |
 | `sys_user` | optional | apps/platform/sys_user | 平台域用户（0023+） |
 | `sys_role` | optional | apps/platform/sys_role | 平台域角色（0023+） |
-| `sys_menu` | optional | apps/platform/sys_menu | 平台域菜单（0023+ 替代 apps/platform/menu） |
+| `sys_menu` | optional | apps/platform/sys_menu | 平台域菜单（0023+） |
 | `sys_permission` | optional | apps/platform/sys_permission | 平台域权限码（0023+） |
 | `system` | alwaysOn | apps/system | /health + cache 运维 |
 | `user` | optOut | apps/tenant/user | |
@@ -60,7 +63,6 @@ cmd/xin ──→ framework ──→ apps
 | `dict` | optOut | apps/reference/dict | |
 | `config` | optOut | apps/reference/config | 租户配置中心 |
 | `weixin` | optional | apps/reference/weixin | 微信小程序登录 |
-| `tenants` | optional | apps/platform/tenants | 平台管理租户列表（super_admin） |
 | `cms` | optional | apps/cms | 示例 CMS（extapi 模式） |
 | `flag` | optional | apps/flag | 头像框 / 空间 / 头像 |
 
@@ -72,7 +74,7 @@ cmd/xin ──→ framework ──→ apps
 | Module 接口 | [framework/pkg/plugin/plugin.go](framework/pkg/plugin/plugin.go) |
 | 启动流程 | [framework/framework.go](framework/framework.go) |
 | 启动期装配 | [framework/internal/core/boot/boot.go](framework/internal/core/boot/boot.go) |
-| framework 内部 Runtime | [framework/runtime.go](framework/runtime.go) — 持有 Server + AppCtx，不传给业务模块 |
+| framework 内部 Runtime | [framework/framework.go](framework/framework.go) — 持有 Server + AppCtx |
 | Auth 中间件 | [framework/internal/core/middleware/auth.go](framework/internal/core/middleware/auth.go) |
 | RBAC 中间件 | [framework/pkg/middleware/auth.go](framework/pkg/middleware/auth.go) |
 | DataScope 编译期 | [framework/pkg/permission/scope.go](framework/pkg/permission/scope.go) |
@@ -155,8 +157,6 @@ func OtherModule() plugin.Module {
 ### 7.1 模块骨架
 
 Phase 5 之后**统一形态**：`Module(app *appx.App) plugin.Module`，由 main.go 显式 import 并放进 `[]plugin.Module`：
-
-> **Phase 6 字段精简**：`appx.App` 只剩 `Config + DB` 两个字段（之前 7 个字段里的 `Server / PermService / Authz / SessionMgr / AppContext` 都是 framework 内部用的，apps/ 一个不引）。framework 内部资源（HTTP server、AppContext）走 `framework.Runtime`，不暴露给模块。`Module(app)` 签名不变。
 
 ```go
 // apps/feedback/module.go
@@ -259,7 +259,7 @@ import (
 
 func (s *Service) List(ctx context.Context, page, size int) ([]Item, int64, error) {
     uc := context.MustNewUserContext(ctx)
-    filter, err := uc.GetDataScopeFilter()  // 默认列：creator_id / org_id
+    filter, err := uc.DataScopeFilter()  // 默认列：creator_id / org_id
     if err != nil { return nil, 0, err }
 
     return db.RunInTenantTx(ctx, s.pool, uc.TenantID, func(txCtx context.Context) ([]Item, int64, error) {
@@ -358,7 +358,7 @@ _, err := q.Exec(ctx, `UPDATE t SET value = COALESCE($1::jsonb, value) WHERE id 
 cd server
 go build ./...                                # 必须 EXIT=0
 go vet ./...                                  # 必须 EXIT=0
-go test -count=1 ./framework/pkg/...          # 36 个 P0 单测必须全过
+go test -count=1 ./framework/pkg/...          # 36+ 个 P0 单测必须全过
 python scripts/strip_bom.py --check .         # 必须无 BOM
 # 烟测
 go run ./cmd/xin run &
@@ -431,15 +431,15 @@ resp.OK(c, data) / resp.HandleError(c, err)
 | Go modules | 单 module `gx1727.com/xin`（Phase 1 合并） |
 | 跨模块全局 | 1 个（`authz.Authorization` interface，无状态） |
 | `db.Get` / `config.Get` / `bootx` | 已删（Phase 4-5） |
-| `appx.App` 字段 | 仅 `Config + DB`（Phase 6 精简；framework 内部资源走 `framework.Runtime`） |
+| `appx.App` 字段 | 仅 `Config + DB` |
 | main.go | 4 步显式 Build（`Boot` 返回 `(*App, *Runtime, error)`，`Serve` 增加 `rt` 参数） |
-| 模块入口 | 全部 `Module(app *appx.App) plugin.Module`（签名不变） |
-| 模块数 | 15（3 alwaysOn + 9 optOut + 3 optional） |
+| 模块入口 | 全部 `Module(app *appx.App) plugin.Module` |
+| 模块数 | 19（3 alwaysOn + 8 optOut + 8 optional） |
 | 中间件 | 无 wrapper 重复；Require 全在 `pkg/middleware` |
 | extapi | Provider 模式；facade 从 ctx 拿 repo |
-| ext_impl/registry.go | 已删（189 行） |
-| JSONB 列 | 9 列（audit 2 + config 4 + dict 2 + flag 1），全部 `::jsonb` cast |
-| P0 单测 | 36 个，3 包覆盖率 48.4% |
+| ext_impl/registry.go | 已删 |
+| JSONB 列 | 11 列，全部 `::jsonb` cast |
+| P0 单测 | 36+ 个 |
 
 ## 14. 不要改的文件（除非明确要重构）
 
@@ -447,14 +447,14 @@ resp.OK(c, data) / resp.HandleError(c, err)
 - [framework/pkg/plugin/appcontext.go](framework/pkg/plugin/appcontext.go) — 接口设计，新增方法必须考虑下游
 - [framework/pkg/permission/scope.go](framework/pkg/permission/scope.go) — DataScope 是合规相关，改 SQL 生成逻辑要做权限审计
 - [framework/pkg/middleware/auth.go](framework/pkg/middleware/auth.go) — 所有 RBAC 走这里，改完要看 36 个单测
-- [migrations/framework.sql](migrations/framework.sql) — 已部署，不能改 CREATE，只能 ALTER TABLE 加
+- [migrations/init_schema.sql](migrations/init_schema.sql) — 已部署，不能改 CREATE，只能 ALTER TABLE 加
 
 ## 15. 相关文档
 
 - [README.md](README.md) — 项目入口
 - [doc/quickstart.md](doc/quickstart.md) — 快速开始
 - [doc/architecture.md](doc/architecture.md) — 架构
-- [doc/modules.md](doc/modules.md) — 15 个 module 清单
+- [doc/modules.md](doc/modules.md) — 19 个 module 清单
 - [doc/api.md](doc/api.md) — HTTP API
 - [doc/database.md](doc/database.md) — 数据库
 - [doc/permissions.md](doc/permissions.md) — 权限

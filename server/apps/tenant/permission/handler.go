@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/framework/pkg/context"
+	"gx1727.com/xin/framework/pkg/xincontext"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
@@ -34,7 +34,7 @@ func (h *Handler) GetPermissions(c *gin.Context) {
 }
 
 func (h *Handler) AssignPermissions(c *gin.Context) {
-	ctx := context.New(c)
+	ctx := xincontext.New(c)
 	tenantID := ctx.GetTenantID()
 
 	roleIDStr := c.Param("id")
