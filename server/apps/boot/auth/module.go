@@ -10,8 +10,6 @@ import (
 )
 
 // Module returns the auth module as a BaseModule.
-//
-// 也不再通过 init() 自动注册，main.go 显式调用 auth.Module(app) 即可。
 func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "auth",
