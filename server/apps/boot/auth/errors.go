@@ -36,3 +36,14 @@ var (
 	errAccountNotFound       = errors.New("account not found")
 	errTenantBindingNotFound = errors.New("tenant binding not found")
 )
+
+// 登录安全策略（锁定 / 异地）错误（错误码段 1020-1029）。
+//
+// 包含 ErrAccountLocked、ErrTooManyAttempts、ErrAnomalyLoginConfirmed 三种语义。
+// 详见 framework/pkg/login_security 包。
+var (
+	ErrAccountLocked           = resp.Err(1020, "账号已被锁定，请在锁定结束后再试或联系管理员")
+	ErrTooManyAttempts          = resp.Err(1021, "登录失败次数过多，请稍后再试")
+	ErrAnomalyLoginConfirmed    = resp.Err(1022, "检测到异地登录，如非本人操作请尽快修改密码")
+	ErrLoginSecurityUnavailable = resp.Err(1023, "登录安全服务暂时不可用")
+)

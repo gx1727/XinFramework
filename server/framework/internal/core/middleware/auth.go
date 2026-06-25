@@ -22,6 +22,32 @@ type SecurityContextLoader interface {
 	LoadUserSecurityContext(ctx context.Context, userID uint) (map[string]bool, []string, *permission.DataScope, int64, error)
 }
 
+// injectRequestMeta 把当前请求的 IP / User-Agent / X-Device-ID 提取出来，
+// 写入 ctx 的 XinContext 中。供 audit / login_security / notify 等模块使用。
+//
+// 必须在 injectBaseContext / injectAuthContext 之后调用（需要在已注入的身份 ctx 上）。
+// 调用本函数时 ctx 中已带有 XinContext；不存在时新建一个空 XinContext。
+func injectRequestMeta(c *gin.Context) {
+	ctx := c.Request.Context()
+	ip := c.ClientIP()
+	ua := c.GetHeader("User-Agent")
+	deviceID := c.GetHeader("X-Device-ID")
+
+	xc, ok := xincontext.XinContextFrom(ctx)
+	if !ok || xc == nil {
+		xc = &xincontext.XinContext{}
+		ctx = xincontext.WithXinContext(ctx, xc)
+	} else {
+		// 不 clone——base context 在更早的步骤已经填过身份字段。
+		// 这里只追加请求元数据，clone 会产生冗余对象。
+	}
+	xc.IP = ip
+	xc.UserAgent = ua
+	xc.DeviceID = deviceID
+
+	c.Request = c.Request.WithContext(ctx)
+}
+
 // processAuthToken extracts and validates the token, returning claims if successful
 func processAuthToken(c *gin.Context, cfg *config.JWTConfig, sm session.SessionManager) (*jwtpkg.Claims, error) {
 	auth := c.GetHeader("Authorization")
@@ -162,6 +188,7 @@ func Auth(cfg *config.JWTConfig, sm session.SessionManager, permSvc SecurityCont
 
 		injectBaseContext(c, claims)
 		injectAuthContext(c, claims, permSvc, pool)
+		injectRequestMeta(c)
 		c.Next()
 	}
 }
@@ -183,6 +210,7 @@ func AuthLite(cfg *config.JWTConfig, sm session.SessionManager) gin.HandlerFunc 
 		}
 
 		injectBaseContext(c, claims)
+		injectRequestMeta(c)
 		c.Next()
 	}
 }
@@ -210,6 +238,7 @@ func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc Secu
 					c.Request = c.Request.WithContext(xincontext.WithTenantID(xincontext.WithXinContext(c.Request.Context(), xc), tid))
 				}
 			}
+			injectRequestMeta(c)
 		}
 		c.Next()
 	}

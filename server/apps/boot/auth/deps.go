@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/config"
+	"gx1727.com/xin/framework/pkg/login_security"
 	"gx1727.com/xin/framework/pkg/session"
 	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
 )
@@ -24,12 +25,13 @@ type PlatformRoleRepository interface {
 }
 
 type Dependencies struct {
-	DB           *pgxpool.Pool
-	Config       *config.Config
-	Session      SessionManager
-	AccountRepo  AccountRepository
-	TenantRepo   pkgtenant.TenantRepository
-	PlatformRepo PlatformRoleRepository
+	DB            *pgxpool.Pool
+	Config        *config.Config
+	Session       SessionManager
+	AccountRepo   AccountRepository
+	TenantRepo    pkgtenant.TenantRepository
+	PlatformRepo  PlatformRoleRepository
+	Security      *login_security.SecurityService // 可为 nil（未装配 login_security 时降级为 noop）
 }
 
 type defaultSessionManager struct{}
@@ -42,7 +44,7 @@ func (defaultSessionManager) Revoke(sessionID string) error {
 	return session.Revoke(sessionID)
 }
 
-func DefaultDependencies(cfg *config.Config, db *pgxpool.Pool, repos Repositories) Dependencies {
+func DefaultDependencies(cfg *config.Config, db *pgxpool.Pool, repos Repositories, security *login_security.SecurityService) Dependencies {
 	return Dependencies{
 		DB:           db,
 		Config:       cfg,
@@ -50,6 +52,7 @@ func DefaultDependencies(cfg *config.Config, db *pgxpool.Pool, repos Repositorie
 		AccountRepo:  repos.Account,
 		TenantRepo:   repos.Tenant,
 		PlatformRepo: repos.Platform,
+		Security:     security,
 	}
 }
 

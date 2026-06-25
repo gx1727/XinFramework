@@ -13,11 +13,14 @@ import (
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
+	"gx1727.com/xin/framework/pkg/login_security"
 	"gx1727.com/xin/framework/pkg/logger"
+	"gx1727.com/xin/framework/pkg/xincontext"
 	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
 )
 
 type LoginIdentity struct {
+	AccountID    uint   // accounts.id（用于 login_security.history）
 	UserID       uint
 	TenantID     uint
 	UserCode     string
@@ -104,6 +107,7 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 		}
 
 		identity = LoginIdentity{
+			AccountID:    accID,
 			UserID:       uID,
 			TenantID:     uTenantID,
 			UserCode:     uCode,
@@ -150,6 +154,7 @@ type Service struct {
 	accountRepo AccountRepository
 	tenantRepo  pkgtenant.TenantRepository
 	platformRp  PlatformRoleRepository
+	security    *login_security.SecurityService // 可为 nil；为 nil 时跳过锁定 / 异地检测
 }
 
 func NewService(deps Dependencies) *Service {
@@ -160,12 +165,132 @@ func NewService(deps Dependencies) *Service {
 		accountRepo: deps.AccountRepo,
 		tenantRepo:  deps.TenantRepo,
 		platformRp:  deps.PlatformRepo,
+		security:    deps.Security,
 	}
+}
+
+// attemptFromContext 从 ctx 中提取登录尝试所需的请求元数据（IP/UA/DeviceID）。
+//
+// Auth 中间件已经把 IP/UA/DeviceID 注入到 XinContext 里（xincontext.XinContextFrom）。
+// 登录流程的特殊性：登录时 ctx 里通常没有 UserContext（没登录），所以直接从 XinContext 读。
+func attemptFromContext(ctx context.Context) (ip, ua, deviceID string) {
+	xc, ok := xincontext.XinContextFrom(ctx)
+	if !ok || xc == nil {
+		return "", "", ""
+	}
+	return xc.IP, xc.UserAgent, xc.DeviceID
+}
+
+// checkAccountLock 在登录前检查账号是否被锁。返回 nil 表示可继续登录；非 nil 表示被锁。
+func (s *Service) checkAccountLock(ctx context.Context, account string) error {
+	if s.security == nil {
+		return nil
+	}
+	lock, err := s.security.CheckLock(ctx, account)
+	if err != nil {
+		// 后端错误不阻塞登录——fallback 到"未锁"让用户能进
+		logger.Module("auth").Warnf("CheckLock failed for account=%s: %v", account, err)
+		return nil
+	}
+	if lock == nil {
+		return nil
+	}
+	return ErrAccountLocked
+}
+
+// recordFailure 在登录失败后调用；触发锁定（必要时）+ 记录 attempt。
+func (s *Service) recordFailure(ctx context.Context, account string, scope login_security.Scope, tenantID uint, reason login_security.FailureReason) {
+	if s.security == nil {
+		return
+	}
+	ip, ua, _ := attemptFromContext(ctx)
+	count, triggered, err := s.security.RecordFailure(ctx, account, ip, ua, reason, scope, tenantID)
+	if err != nil {
+		logger.Module("auth").Warnf("RecordFailure failed account=%s: %v", account, err)
+		return
+	}
+	logger.Module("auth").Debugf("login failed: account=%s scope=%s count=%d/%d triggeredLock=%v",
+		account, scope, count, s.securityCfg().MaxFailedAttempts, triggered)
+}
+
+// recordSuccess 在登录成功后调用：写 login_history + 触发异地告警（必要时）。
+//
+// sessionID 关联到 auth_sessions.id（便于后续通过 session 反查登录来源）。
+// deviceID 来自 ctx 的 X-Device-ID header（前端可选择性设置）。
+func (s *Service) recordSuccess(
+	ctx context.Context,
+	accountID uint,
+	userID uint,
+	tenantID uint,
+	scope login_security.Scope,
+	sessionID string,
+	role string,
+	platformRoles []string,
+) {
+	if s.security == nil {
+		return
+	}
+	ip, ua, deviceID := attemptFromContext(ctx)
+	entry := login_security.LoginHistoryEntry{
+		AccountID: accountID,
+		UserID:    userID,
+		TenantID:  tenantID,
+		Scope:     scope,
+		IP:        ip,
+		UserAgent: ua,
+		DeviceID:  deviceID,
+		SessionID: sessionID,
+		LoginAt:   time.Now(),
+	}
+	if _, _, err := s.security.RecordSuccess(ctx, entry); err != nil {
+		// history 写入失败不应阻断登录——已经登录成功了
+		logger.Module("auth").Warnf("RecordSuccess history failed: accountID=%d ip=%s err=%v", accountID, ip, err)
+	}
+}
+
+// securityCfg 把 config 里的分钟数转换为 SecurityConfig（懒计算）。
+func (s *Service) securityCfg() login_security.SecurityConfig {
+	if s.config == nil {
+		return login_security.DefaultSecurityConfig()
+	}
+	ls := s.config.LoginSecurity
+	if !ls.Enabled {
+		return login_security.SecurityConfig{Enabled: false}
+	}
+	c := login_security.DefaultSecurityConfig()
+	c.Enabled = true
+	if ls.MaxFailedAttempts > 0 {
+		c.MaxFailedAttempts = ls.MaxFailedAttempts
+	}
+	if ls.LockDurationMin > 0 {
+		c.LockDuration = time.Duration(ls.LockDurationMin) * time.Minute
+	}
+	if ls.FailureWindowMin > 0 {
+		c.FailureWindow = time.Duration(ls.FailureWindowMin) * time.Minute
+	}
+	if ls.IPFailureThreshold > 0 {
+		c.IPFailureThreshold = ls.IPFailureThreshold
+	}
+	if ls.IPFailureWindowMin > 0 {
+		c.IPFailureWindow = time.Duration(ls.IPFailureWindowMin) * time.Minute
+	}
+	if ls.AnomalyHistoryLimit > 0 {
+		c.AnomalyHistoryLimit = ls.AnomalyHistoryLimit
+	}
+	c.AnomalyDeviceMatch = ls.AnomalyDeviceMatch
+	c.AnomalyNotifyInSite = ls.AnomalyNotifyInSite
+	c.AnomalyNotifyEmail = ls.AnomalyNotifyEmail
+	c.AnomalyNotifySMS = ls.AnomalyNotifySMS
+	c.LockNotifyInSite = ls.LockNotifyInSite
+	c.LockNotifyEmail = ls.LockNotifyEmail
+	c.LockNotifySMS = ls.LockNotifySMS
+	return c
 }
 
 type tokenPair struct {
 	accessToken   string
 	refreshToken  string
+	sessionID     string // session_id（写入 login_history 用）
 	platformRoles []string
 }
 
@@ -202,6 +327,7 @@ func (s *Service) generateTokens(ctx context.Context, userID, tenantID uint, rol
 	return &tokenPair{
 		accessToken:   accessToken,
 		refreshToken:  refreshToken,
+		sessionID:     sessionID,
 		platformRoles: platformRoles,
 	}, nil
 }
@@ -231,32 +357,53 @@ func (s *Service) loadPlatformRoles(ctx context.Context, userID, accountID uint)
 }
 
 // Login 租户域登录（业务用户）。需要传 tenant_id；user 必须绑到该 tenant。
+//
+// 登录安全钩子：
+//   - 入口：checkAccountLock 检查是否被锁
+//   - 失败：recordFailure 写入 login_attempts，触发窗口计数 + 锁定
+//   - 成功：recordSuccess 写入 login_history + 异地告警
 func (s *Service) Login(ctx context.Context, req tenantLoginRequest) (*LoginResult, error) {
+	// 0. 锁定检查
+	if err := s.checkAccountLock(ctx, req.Account); err != nil {
+		s.recordFailure(ctx, req.Account, login_security.ScopeTenant, req.TenantID, login_security.FailureAccountLocked)
+		return nil, err
+	}
+
 	identity, err := ResolveLoginIdentity(ctx, s.db, req.Account, req.TenantID)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrBackendUnavailable):
+			s.recordFailure(ctx, req.Account, login_security.ScopeTenant, req.TenantID, login_security.FailureInvalidPassword)
 			return nil, ErrBackendUnavailable
 		case errors.Is(err, errAccountNotFound):
+			s.recordFailure(ctx, req.Account, login_security.ScopeTenant, req.TenantID, login_security.FailureAccountNotFound)
 			return nil, ErrInvalidAccountOrPassword
 		case errors.Is(err, errTenantBindingNotFound):
+			// 账号存在但未绑该租户：不算密码错误，避免锁定合法账号
 			return nil, ErrTenantBindingNotFound
 		default:
+			s.recordFailure(ctx, req.Account, login_security.ScopeTenant, req.TenantID, login_security.FailureInvalidPassword)
 			return nil, ErrInvalidAccountOrPassword
 		}
 	}
 
 	ok, err := verifyPassword(identity.PasswordHash, req.Password)
 	if err != nil || !ok {
+		s.recordFailure(ctx, req.Account, login_security.ScopeTenant, req.TenantID, login_security.FailureInvalidPassword)
 		return nil, ErrInvalidAccountOrPassword
 	}
 	if identity.UserStatus != StatusActive {
+		s.recordFailure(ctx, req.Account, login_security.ScopeTenant, req.TenantID, login_security.FailureUserDisabled)
 		return nil, ErrUserDisabled
 	}
 	tokens, err := s.generateTokens(ctx, identity.UserID, identity.TenantID, identity.RoleCode, 0)
 	if err != nil {
 		return nil, err
 	}
+
+	// 5. 记录登录成功 + 触发异地告警
+	s.recordSuccess(ctx, identity.AccountID, identity.UserID, identity.TenantID,
+		login_security.ScopeTenant, tokens.sessionID, identity.RoleCode, nil)
 
 	res := &LoginResult{
 		Token:        tokens.accessToken,
@@ -377,21 +524,31 @@ func (s *Service) PlatformLogin(ctx context.Context, req platformLoginRequest) (
 		return nil, ErrBackendUnavailable
 	}
 
+	// 0. 锁定检查
+	if err := s.checkAccountLock(ctx, req.Account); err != nil {
+		s.recordFailure(ctx, req.Account, login_security.ScopePlatform, 0, login_security.FailureAccountLocked)
+		return nil, err
+	}
+
 	// 1. accounts 表查账号
 	passwordHash, accountID, accountStatus, err := s.accountRepo.GetPasswordAndStatus(ctx, req.Account)
 	if err != nil {
 		if errors.Is(err, errAccountNotFound) {
+			s.recordFailure(ctx, req.Account, login_security.ScopePlatform, 0, login_security.FailureAccountNotFound)
 			return nil, ErrPlatformLoginAccountNotFound
 		}
+		s.recordFailure(ctx, req.Account, login_security.ScopePlatform, 0, login_security.FailureInvalidPassword)
 		return nil, ErrBackendUnavailable
 	}
 	if accountStatus != StatusActive {
+		s.recordFailure(ctx, req.Account, login_security.ScopePlatform, 0, login_security.FailureUserDisabled)
 		return nil, ErrPlatformLoginDisabled
 	}
 
 	// 2. 验密码
 	ok, err := verifyPassword(passwordHash, req.Password)
 	if err != nil || !ok {
+		s.recordFailure(ctx, req.Account, login_security.ScopePlatform, 0, login_security.FailureInvalidPassword)
 		return nil, ErrInvalidAccountOrPassword
 	}
 
@@ -401,6 +558,7 @@ func (s *Service) PlatformLogin(ctx context.Context, req platformLoginRequest) (
 		return nil, ErrBackendUnavailable
 	}
 	if len(platformRoles) == 0 {
+		// 不是密码错误，不计入失败计数；返回专门错误码让前端识别"非管理员"
 		return nil, ErrPlatformLoginNotAdmin
 	}
 
@@ -412,6 +570,10 @@ func (s *Service) PlatformLogin(ctx context.Context, req platformLoginRequest) (
 	if err != nil {
 		return nil, err
 	}
+
+	// 5. 记录登录成功 + 触发异地告警
+	s.recordSuccess(ctx, accountID, accountID, 0,
+		login_security.ScopePlatform, tokens.sessionID, "_platform", platformRoles)
 
 	res := &LoginResult{
 		Token:        tokens.accessToken,

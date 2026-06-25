@@ -21,6 +21,12 @@ type XinContext struct {
 	Role      string
 	// PlatformRoles 平台级角色（如 super_admin），不绑定具体租户
 	PlatformRoles []string
+
+	// 客户端请求元数据（由 Auth / OptionalAuth 中间件统一注入，
+	// 供 login_security、audit、notify 等模块使用）。
+	IP        string // 客户端 IP（处理代理头后）
+	UserAgent string // User-Agent 原始值
+	DeviceID  string // 前端设备指纹（可选，从 header X-Device-ID 取）
 }
 
 // HasPlatformRole 判断当前上下文是否携带指定的平台级角色。
@@ -52,6 +58,9 @@ func (x *XinContext) Clone() *XinContext {
 		SessionID:     x.SessionID,
 		Role:          x.Role,
 		PlatformRoles: append([]string(nil), x.PlatformRoles...),
+		IP:            x.IP,
+		UserAgent:      x.UserAgent,
+		DeviceID:      x.DeviceID,
 	}
 	return clone
 }

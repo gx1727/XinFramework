@@ -27,16 +27,17 @@ type StorageConfig struct {
 }
 
 type Config struct {
-	App           AppConfig           `yaml:"app"`
-	Database      DatabaseConfig      `yaml:"database"`
-	Redis         RedisConfig         `yaml:"redis"`
-	JWT           JWTConfig           `yaml:"jwt"`
-	Storage       StorageConfig       `yaml:"storage"`
-	Log           LogConfig           `yaml:"log"`
-	Module        []string            `yaml:"module"`
-	Apps          []string            `yaml:"apps"`
-	CORS          CORSConfig          `yaml:"cors"`
+	App            AppConfig            `yaml:"app"`
+	Database       DatabaseConfig       `yaml:"database"`
+	Redis          RedisConfig          `yaml:"redis"`
+	JWT            JWTConfig            `yaml:"jwt"`
+	Storage        StorageConfig        `yaml:"storage"`
+	Log            LogConfig            `yaml:"log"`
+	Module         []string             `yaml:"module"`
+	Apps           []string             `yaml:"apps"`
+	CORS           CORSConfig           `yaml:"cors"`
 	PermissionCache PermissionCacheConfig `yaml:"permission_cache"`
+	LoginSecurity   LoginSecurityConfig  `yaml:"login_security"`
 }
 
 // PermissionCacheConfig 控制权限 / 数据范围缓存的行为。
@@ -51,6 +52,35 @@ type PermissionCacheConfig struct {
 	DataScopeTTLSeconds int `yaml:"data_scope_ttl_seconds"`
 	// KeyPrefix Redis key 前缀，默认 "user:"。修改后可与同 Redis 上的其他服务隔离。
 	KeyPrefix string `yaml:"key_prefix"`
+}
+
+// LoginSecurityConfig 控制账号锁定与异地告警的行为。
+//
+// 详见 framework/pkg/login_security 包与 doc/login-security.md。
+type LoginSecurityConfig struct {
+	Enabled bool `yaml:"enabled"`
+
+	// 账号维度锁定
+	MaxFailedAttempts  int `yaml:"max_failed_attempts"`   // 滑动窗口内最大失败次数，默认 5
+	LockDurationMin    int `yaml:"lock_duration_min"`    // 锁定时长（分钟），默认 30
+	FailureWindowMin   int `yaml:"failure_window_min"`   // 滑动窗口（分钟），默认 10
+
+	// IP 维度封锁（跨账号防爆破）
+	IPFailureThreshold int `yaml:"ip_failure_threshold"`  // 默认 20
+	IPFailureWindowMin int `yaml:"ip_failure_window_min"` // 默认 5
+
+	// 异地告警
+	AnomalyEnabled      bool `yaml:"anomaly_enabled"`
+	AnomalyHistoryLimit int  `yaml:"anomaly_history_limit"` // 比对最近 N 次，默认 5
+	AnomalyDeviceMatch  bool `yaml:"anomaly_device_match"`  // device_id 是否参与判定，默认 false
+	AnomalyNotifyInSite bool `yaml:"anomaly_notify_in_site"`
+	AnomalyNotifyEmail  bool `yaml:"anomaly_notify_email"`
+	AnomalyNotifySMS    bool `yaml:"anomaly_notify_sms"`
+
+	// 锁定通知
+	LockNotifyInSite bool `yaml:"lock_notify_in_site"`
+	LockNotifyEmail  bool `yaml:"lock_notify_email"`
+	LockNotifySMS    bool `yaml:"lock_notify_sms"`
 }
 
 type AppConfig struct {
@@ -175,6 +205,23 @@ func defaults() *Config {
 			DataScopeTTLSeconds: 1800, // 30 min
 			KeyPrefix:            "user:",
 		},
+		LoginSecurity: LoginSecurityConfig{
+			Enabled:             true,
+			MaxFailedAttempts:   5,
+			LockDurationMin:     30,
+			FailureWindowMin:    10,
+			IPFailureThreshold:  20,
+			IPFailureWindowMin:  5,
+			AnomalyEnabled:      true,
+			AnomalyHistoryLimit: 5,
+			AnomalyDeviceMatch:  false,
+			AnomalyNotifyInSite: true,
+			AnomalyNotifyEmail:  true,
+			AnomalyNotifySMS:    false,
+			LockNotifyInSite:    true,
+			LockNotifyEmail:     true,
+			LockNotifySMS:       true,
+		},
 	}
 }
 
@@ -292,6 +339,22 @@ func overrideWithEnv(c *Config) {
 	envInt("XIN_PERMISSION_CACHE_PERM_TTL_SECONDS", &c.PermissionCache.PermTTLSeconds)
 	envInt("XIN_PERMISSION_CACHE_DATA_SCOPE_TTL_SECONDS", &c.PermissionCache.DataScopeTTLSeconds)
 	envStr("XIN_PERMISSION_CACHE_KEY_PREFIX", &c.PermissionCache.KeyPrefix)
+
+	envBool("XIN_LOGIN_SECURITY_ENABLED", &c.LoginSecurity.Enabled)
+	envInt("XIN_LOGIN_SECURITY_MAX_FAILED_ATTEMPTS", &c.LoginSecurity.MaxFailedAttempts)
+	envInt("XIN_LOGIN_SECURITY_LOCK_DURATION_MIN", &c.LoginSecurity.LockDurationMin)
+	envInt("XIN_LOGIN_SECURITY_FAILURE_WINDOW_MIN", &c.LoginSecurity.FailureWindowMin)
+	envInt("XIN_LOGIN_SECURITY_IP_FAILURE_THRESHOLD", &c.LoginSecurity.IPFailureThreshold)
+	envInt("XIN_LOGIN_SECURITY_IP_FAILURE_WINDOW_MIN", &c.LoginSecurity.IPFailureWindowMin)
+	envBool("XIN_LOGIN_SECURITY_ANOMALY_ENABLED", &c.LoginSecurity.AnomalyEnabled)
+	envInt("XIN_LOGIN_SECURITY_ANOMALY_HISTORY_LIMIT", &c.LoginSecurity.AnomalyHistoryLimit)
+	envBool("XIN_LOGIN_SECURITY_ANOMALY_DEVICE_MATCH", &c.LoginSecurity.AnomalyDeviceMatch)
+	envBool("XIN_LOGIN_SECURITY_ANOMALY_NOTIFY_IN_SITE", &c.LoginSecurity.AnomalyNotifyInSite)
+	envBool("XIN_LOGIN_SECURITY_ANOMALY_NOTIFY_EMAIL", &c.LoginSecurity.AnomalyNotifyEmail)
+	envBool("XIN_LOGIN_SECURITY_ANOMALY_NOTIFY_SMS", &c.LoginSecurity.AnomalyNotifySMS)
+	envBool("XIN_LOGIN_SECURITY_LOCK_NOTIFY_IN_SITE", &c.LoginSecurity.LockNotifyInSite)
+	envBool("XIN_LOGIN_SECURITY_LOCK_NOTIFY_EMAIL", &c.LoginSecurity.LockNotifyEmail)
+	envBool("XIN_LOGIN_SECURITY_LOCK_NOTIFY_SMS", &c.LoginSecurity.LockNotifySMS)
 }
 
 func envStr(key string, target *string) {

@@ -1,7 +1,10 @@
 ﻿package auth
 
 import (
+	"time"
+
 	"gx1727.com/xin/framework/pkg/appx"
+	"gx1727.com/xin/framework/pkg/login_security"
 	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/plugin"
 	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
@@ -43,9 +46,61 @@ func Module(app *appx.App) plugin.Module {
 				Tenant:   tenantRepo,
 				Platform: permission.NewPlatformRoleRepository(pool),
 			}
-			deps := DefaultDependencies(app.Config, pool, repos)
+
+			// 装配登录安全服务（账号锁定 + 异地告警）。
+			// 不传 RecipientResolver 时所有告警走 LogNotifier 仅写日志，
+			// 业务模块可后续注入带邮件/短信通道的 Resolver 实现。
+			securityCfg := buildSecurityConfig(app)
+			security := login_security.NewSecurityService(
+				securityCfg,
+				login_security.NewPGLockManager(pool),
+				login_security.NewPGAttemptStore(pool),
+				login_security.NewPGHistoryRecorder(pool),
+				nil, // notifier 留 nil → 自动 fallback 到 LogNotifier
+				nil, // recipients resolver 留 nil → 告警发送会降级为不发送
+			)
+
+			deps := DefaultDependencies(app.Config, pool, repos, security)
 			h := NewHandler(NewService(deps))
 			Register(public, protected, h)
 		},
 	}
+}
+
+// buildSecurityConfig 从全局 config 装配 SecurityConfig（懒转换）。
+func buildSecurityConfig(app *appx.App) login_security.SecurityConfig {
+	if app == nil || app.Config == nil {
+		return login_security.SecurityConfig{Enabled: false}
+	}
+	ls := app.Config.LoginSecurity
+	if !ls.Enabled {
+		return login_security.SecurityConfig{Enabled: false}
+	}
+	c := login_security.DefaultSecurityConfig()
+	if ls.MaxFailedAttempts > 0 {
+		c.MaxFailedAttempts = ls.MaxFailedAttempts
+	}
+	if ls.LockDurationMin > 0 {
+		c.LockDuration = time.Duration(ls.LockDurationMin) * time.Minute
+	}
+	if ls.FailureWindowMin > 0 {
+		c.FailureWindow = time.Duration(ls.FailureWindowMin) * time.Minute
+	}
+	if ls.IPFailureThreshold > 0 {
+		c.IPFailureThreshold = ls.IPFailureThreshold
+	}
+	if ls.IPFailureWindowMin > 0 {
+		c.IPFailureWindow = time.Duration(ls.IPFailureWindowMin) * time.Minute
+	}
+	if ls.AnomalyHistoryLimit > 0 {
+		c.AnomalyHistoryLimit = ls.AnomalyHistoryLimit
+	}
+	c.AnomalyDeviceMatch = ls.AnomalyDeviceMatch
+	c.AnomalyNotifyInSite = ls.AnomalyNotifyInSite
+	c.AnomalyNotifyEmail = ls.AnomalyNotifyEmail
+	c.AnomalyNotifySMS = ls.AnomalyNotifySMS
+	c.LockNotifyInSite = ls.LockNotifyInSite
+	c.LockNotifyEmail = ls.LockNotifyEmail
+	c.LockNotifySMS = ls.LockNotifySMS
+	return c
 }
