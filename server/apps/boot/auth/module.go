@@ -1,8 +1,6 @@
-package auth
+﻿package auth
 
 import (
-	"github.com/gin-gonic/gin"
-
 	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/plugin"
@@ -19,7 +17,9 @@ func Module(app *appx.App) plugin.Module {
 			w.SetAccountAuthRepo(NewAccountAuthRepository(pool))
 			return nil
 		},
-		RegFn: func(ctx plugin.Reader, public *gin.RouterGroup, tenantGroup *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
+			public := slots.MustGet(plugin.SlotPublic).Group
+			protected := slots.MustGet(plugin.SlotProtected).Group
 			pool := app.DB
 			if ctx != nil {
 				if p := ctx.DB(); p != nil {

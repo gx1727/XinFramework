@@ -1,16 +1,13 @@
-// Package authz exposes the Authorization interface used by middleware
-// (Auth, Require, RequireAll) and by business modules that need to
-// invalidate the permission cache.
+// Package authz 暴露 Authorization 接口，供中间件（Auth / Require / RequireAll）
+// 与业务模块（需要手动清理权限缓存时）使用。
 //
-// The concrete *service.AuthorizationService lives in
-// framework/internal/service (Go's internal/ rule blocks apps/ from
-// importing it). This pkg exposes a small typed interface that the
-// concrete service satisfies natively — no adapter needed.
+// 具体实现 *service.AuthorizationService 位于 framework/internal/service
+// （Go 的 internal/ 规则阻止 apps/ 直接 import）。本包暴露一个与该服务
+// 签名一致的小型接口，无需额外适配层。
 //
-// Wiring: boot.Init constructs the concrete service, asserts at
-// compile time that it implements Authorization, and publishes it onto
-// AppContext via appCtx.SetAuthz(...). Apps consume it via
-// ctx.Authz() in their module's Register phase.
+// 装配路径：boot.Init 构造具体服务，编译期断言其满足 Authorization 接口，
+// 然后通过 appCtx.SetAuthz(...) 写入 AppContext；业务模块在 Register 阶段
+// 通过 ctx.Authz() 取出使用。
 package authz
 
 import (
@@ -19,45 +16,39 @@ import (
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
-// Authorization is the public surface apps can consume.
+// Authorization 是 apps 可消费的公开鉴权接口。
 //
-// Method signatures mirror what framework/internal/service.AuthorizationService
-// exposes. The boot code wires an *AuthorizationService to this
-// interface and publishes it via AppContext.SetAuthz.
+// 方法签名与 framework/internal/service.AuthorizationService 一致；
+// boot 启动期将 *AuthorizationService 装配到本接口并通过 AppContext.SetAuthz 发布。
 //
-// If a new method is added to AuthorizationService that apps need,
-// add it here as well.
+// 如果 AuthorizationService 新增了 apps 需要的方法，必须同步加到这里。
 //
-// The implementation guarantee is enforced at compile time in
-// framework/internal/core/boot/boot.go via:
+// 编译期一致性保证位于 framework/internal/core/boot/boot.go：
 //
 //	var _ Authorization = (*service.AuthorizationService)(nil)
 type Authorization interface {
-	// LoadPermissions returns the user's effective permission map
-	// (resource_code -> bool).
+	// LoadPermissions 返回用户的有效权限码 map（resource_code → bool）。
 	LoadPermissions(ctx context.Context, userID uint) (map[string]bool, error)
 
-	// LoadRoles returns the role codes assigned to the user.
+	// LoadRoles 返回用户被分配的角色编码列表。
 	LoadRoles(ctx context.Context, userID uint) ([]string, error)
 
-	// LoadDataScope returns the user's data scope.
-	// 返回具体类型 *permission.DataScope,而不是 any —— 让调用方不用做 type assert。
+	// LoadDataScope 返回用户的数据范围限制。
+	// 返回具体类型 *permission.DataScope 而非 any —— 调用方无需 type assert。
 	LoadDataScope(ctx context.Context, userID uint) (*permission.DataScope, error)
 
-	// LoadUserSecurityContext loads the full security context for a user
-	// in one round-trip (used by the auth middleware on every request).
-	// Signature is shared with framework/internal/core/middleware.SecurityContextLoader
-	// so the middleware can consume Authorization directly without an
-	// additional wrapper.
+	// LoadUserSecurityContext 一次性加载用户的完整鉴权上下文（权限码 / 角色 /
+	// 数据范围 / 会话版本），供 Auth 中间件每个请求调用。
+	// 签名与 framework/internal/core/middleware.SecurityContextLoader 共享，
+	// 中间件可直接消费本接口而无需额外包装。
 	LoadUserSecurityContext(ctx context.Context, userID uint) (map[string]bool, []string, *permission.DataScope, int64, error)
 
-	// InvalidateUser clears cached permissions / data scope for the user.
+	// InvalidateUser 清理指定用户的权限 / 数据范围缓存。
 	InvalidateUser(ctx context.Context, userID uint) error
 
-	// InvalidateRole clears cached data for all users that hold this role.
+	// InvalidateRole 清理所有持有该角色的用户的缓存。
 	InvalidateRole(ctx context.Context, roleID uint) error
 
-	// InvalidateResource clears cached data for all users affected by
-	// a resource change.
+	// InvalidateResource 清理所有受该资源变更影响的用户的缓存。
 	InvalidateResource(ctx context.Context, resourceID uint) error
 }

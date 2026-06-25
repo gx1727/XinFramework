@@ -1,3 +1,12 @@
+// Package logger 提供框架统一的日志封装，基于 Go 标准库 log 包。
+//
+// 设计要点：
+//   - 按天滚动生成日志文件，文件名形如 2026-06-25.log / auth-2026-06-25.log /
+//     audit-2026-06-25.log（业务模块可使用 Module(name) 独立输出到带前缀的文件）
+//   - 进程级锁：所有写入均经过 mu，保证多 goroutine 并发安全
+//   - Init 必须在 main.go 启动期调用一次，否则日志写到 stdout
+//
+// 级别常量：LevelDebug / LevelInfo / LevelWarn / LevelError。
 package logger
 
 import (
@@ -10,6 +19,7 @@ import (
 	"time"
 )
 
+// 日志级别常量。数值越小越详细。
 const (
 	LevelDebug = iota
 	LevelInfo

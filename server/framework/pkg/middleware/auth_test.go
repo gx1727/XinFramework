@@ -255,6 +255,119 @@ func TestSpec_ConstructorsAndPredicates(t *testing.T) {
 	}
 }
 
+// ============================================================================
+// 通配符与漏挂中间件（关键路径补强）
+// ============================================================================
+
+// TestRequire_GlobalWildcard_AllowsAnyResource 验证 *:* 通配符能授予任何权限。
+//
+// 这是与 PlatformSuperAdmin 不同路径的“权限全覆盖”能力——适用于 admin 账号。
+func TestRequire_GlobalWildcard_AllowsAnyResource(t *testing.T) {
+	uc := makeUC(1, nil, map[string]bool{"*:*": true})
+	c, _ := buildCtx(uc)
+	mw := Require(permission.P("any", "thing"))
+	if aborted, _ := runOnce(c, mw); aborted {
+		t.Error(`"*:*" wildcard must grant any spec`)
+	}
+}
+
+// TestRequire_MissingUserContext_500 验证 ctx 没 UserContext（漏挂 Auth 中间件）时
+// 返回 500 + 明确 message，而非 panic。
+//
+// 这是防止“中间件链配错”出现无错报错的兜底。
+func TestRequire_MissingUserContext_500(t *testing.T) {
+	// 故意不调用 buildCtx 的 user context 分支——即 ctx 里没 UserContext。
+	c, rec := buildCtx(nil)
+	mw := Require(permission.P("user", "list"))
+	aborted, status := runOnce(c, mw)
+	if !aborted {
+		t.Error("missing UserContext must abort the chain")
+	}
+	if status != http.StatusInternalServerError {
+		t.Errorf("missing UserContext should write 500, got %d (body=%q)", status, rec.Body.String())
+	}
+}
+
+// TestRequirePlatformRole_AnyOfMultiple 验证任一角色匹配即可放行。
+//
+// roles=[super_admin,admin] 时，账号持有 admin 也应通过。
+func TestRequirePlatformRole_AnyOfMultiple(t *testing.T) {
+	uc := makeUC(1, []string{"admin"}, nil)
+	c, _ := buildCtx(uc)
+	mw := RequirePlatformRole(jwtpkg.PlatformRoleSuperAdmin, "admin")
+	if aborted, _ := runOnce(c, mw); aborted {
+		t.Error("持有任一所需角色即应放行")
+	}
+}
+
+// TestRequirePlatformRole_NoneHeld 验证持有任何所需角色 → 403。
+func TestRequirePlatformRole_NoneHeld(t *testing.T) {
+	uc := makeUC(1, []string{"viewer"}, nil)
+	c, rec := buildCtx(uc)
+	mw := RequirePlatformRole(jwtpkg.PlatformRoleSuperAdmin, "admin")
+	aborted, status := runOnce(c, mw)
+	if !aborted {
+		t.Error("未持有任一所需角色必须拒绝")
+	}
+	if status != http.StatusForbidden {
+		t.Errorf("expected 403, got %d (body=%q)", status, rec.Body.String())
+	}
+}
+
+// TestRequireTenantContext_NoTenantID_Fails 验证 platform 域登录的 token（tenant_id=0）
+// 不能访问 tenant 路由。
+func TestRequireTenantContext_NoTenantID_Fails(t *testing.T) {
+	uc := makeUC(1, nil, nil)
+	uc.TenantID = 0 // 故意不设
+	c, rec := buildCtx(uc)
+	mw := RequireTenantContext()
+	aborted, status := runOnce(c, mw)
+	if !aborted {
+		t.Error("缺少 tenant_id 必须拒绝")
+	}
+	if status != http.StatusForbidden {
+		t.Errorf("expected 403, got %d (body=%q)", status, rec.Body.String())
+	}
+}
+
+// TestRequireTenantContext_WithTenantID_Passes 验证 tenant 登录后能过 RequireTenantContext。
+func TestRequireTenantContext_WithTenantID_Passes(t *testing.T) {
+	uc := makeUC(1, nil, nil)
+	uc.TenantID = 42
+	c, _ := buildCtx(uc)
+	mw := RequireTenantContext()
+	if aborted, _ := runOnce(c, mw); aborted {
+		t.Error("携带有效 tenant_id 必须放行")
+	}
+}
+
+// TestRequirePlatformScope_NonPlatformToken_Fails 验证 tenant 登录的 token 不能访问
+// platform 域路由。
+func TestRequirePlatformScope_NonPlatformToken_Fails(t *testing.T) {
+	uc := makeUC(1, nil, nil)
+	uc.TenantID = 7 // tenant 域登录
+	c, rec := buildCtx(uc)
+	mw := RequirePlatformScope()
+	aborted, status := runOnce(c, mw)
+	if !aborted {
+		t.Error("tenant 域 token 必须被 RequirePlatformScope 拒绝")
+	}
+	if status != http.StatusForbidden {
+		t.Errorf("expected 403, got %d (body=%q)", status, rec.Body.String())
+	}
+}
+
+// TestRequirePlatformScope_PlatformToken_Passes 验证 platform 域登录 (TenantID=0) 能通过。
+func TestRequirePlatformScope_PlatformToken_Passes(t *testing.T) {
+	uc := makeUC(1, []string{jwtpkg.PlatformRoleSuperAdmin}, nil)
+	uc.TenantID = 0 // platform 域登录
+	c, _ := buildCtx(uc)
+	mw := RequirePlatformScope()
+	if aborted, _ := runOnce(c, mw); aborted {
+		t.Error("platform 域 token 必须被 RequirePlatformScope 放行")
+	}
+}
+
 // Compile-time sanity: resp package is used inside the middleware.
 // This catches accidental package removal that would silently break us.
 var _ = resp.Forbidden

@@ -11,7 +11,7 @@
 |---|---|---|---|
 | **JWT 身份** | 你是谁 | JWT Claims | 每个请求的 Auth 中间件 |
 | **RBAC 资源权限** | 你能操作哪些资源 | `tenant_role_resources` / `sys_role_permissions` | `Require(spec)` 中间件 |
-| **DataScope 数据范围** | 你能看到哪些行 | `tenant_roles.data_scope` + `tenant_role_data_scopes` | Repository 查询时 `DataScopeFilterFor` |
+| **DataScope 数据范围** | 你能看到哪些行 | `tenant_roles.data_scope` + `tenant_role_data_scopes` | Repository 查询时 `xincontext.ScopeFilterFrom` |
 | **平台角色** | 你是不是 super_admin | `sys_user_roles` → `sys_roles.code` | `RequirePlatformRole` 中间件 |
 
 **关系**：
@@ -121,27 +121,36 @@ type UserQuery struct {
     Status  int
 }
 
-func (r *UserRepository) List(ctx context.Context, uc *xincontext.UserContext, q UserQuery) ([]User, error) {
+func (r *UserRepository) List(ctx context.Context, q UserQuery) ([]User, error) {
     // 1. 拼业务过滤
     where := []string{"is_deleted = FALSE"}
     args := []any{}
     if q.Keyword != "" { where = append(where, "real_name ILIKE $1"); args = append(args, "%"+q.Keyword+"%") }
-    
-    // 2. 注入 DataScope 过滤
-    scopeFilter, scopeArgs := uc.DataScopeFilterFor([]string{"org_id"})
-    if scopeFilter != "" {
-        where = append(where, scopeFilter)
-        args = append(args, scopeArgs...)
+
+    // 2. ctx-aware 注入 DataScope 过滤（一行调用）
+    filter, err := xincontext.ScopeFilterFrom(ctx, permission.ScopeColumns{
+        SelfColumn: "u.id",
+        OrgID:      "u.org_id",
+    })
+    if err != nil {
+        return nil, err
     }
-    
+    if !filter.IsEmpty() {
+        where = append(where, filter.SQL)
+        args  = append(args,  filter.Args...)
+    }
+
     sql := "SELECT * FROM tenant_users WHERE " + strings.Join(where, " AND ")
     // ...
 }
 ```
 
+> `xincontext.ScopeFilterFrom` 会自动从 ctx 取 `UserContext.DataScope`，无需手工取 `UserContext`。
+> 旧 API `xincontext.UserContext.DataScopeFilterFor` 仍可用，但已 Deprecated。
+
 ### 4.2 SQL 生成
 
-`DataScopeFilterFor(columns []string) (string, []any)` 返回：
+`xincontext.ScopeFilterFrom(ctx, columns) (ScopeFilter, error)` 返回：
 
 | DataScope | 生成的 SQL |
 |---|---|
@@ -408,9 +417,11 @@ func (r *UserRepository) List(ctx context.Context, uc *xincontext.UserContext, q
     args = append(args, uc.TenantID)
     
     // DataScope 过滤
-    if filter, scopeArgs := uc.DataScopeFilterFor([]string{"org_id"}); filter != "" {
-        conditions = append(conditions, filter)
-        args = append(args, scopeArgs...)
+    if filter, err := xincontext.ScopeFilterFrom(ctx, permission.ScopeColumns{SelfColumn: "u.id", OrgID: "u.org_id"}); err != nil {
+        return err
+    } else if !filter.IsEmpty() {
+        conditions = append(conditions, filter.SQL)
+        args = append(args, filter.Args...)
     }
     
     sql := "SELECT * FROM tenant_users WHERE " + strings.Join(conditions, " AND ")

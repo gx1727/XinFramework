@@ -1,28 +1,22 @@
-// Package plugin defines the AppContext type, which is the single
-// shared dependency container that replaces the 12 cross-module package-level
-// globals the framework used to rely on (Phase B refactor).
+// Package plugin 定义了 AppContext 类型 —— 这是一个共享的依赖容器，
 //
-// Design rationale
+// 设计理念
 //
-//   - Each module needs both "what can I consume" (DB, Config, other
-//     modules' repositories) and "what do I contribute" (my own
-//     repositories / services). Splitting the role into a Reader and a
-//     Writer makes both intents explicit at the type level.
+//   - 每个模块既需要"我能消费什么"（数据库、配置、其他模块的仓库），
+//     也需要"我能贡献什么"（自己的仓库 / 服务）。
+//     将角色拆分为 Reader（读端）和 Writer（写端）让这两种意图在类型层面一目了然。
 //
-//   - Reader is the read-side handle every module receives during
-//     Init() and Register(). Fields are typed (no `any` casts),
-//     and reading a nil value is the documented way to detect that
-//     a dependency module was not enabled.
+//   - Reader 是每个模块在 Init() 和 Register() 阶段获得的读端句柄。
+//     所有字段都是强类型（没有 any 类型断言），
+//     当读取到 nil 值时，意味着对应的依赖模块未被启用，这是文档化的检测方式。
 //
-//   - Writer is the write-side handle ONLY given to a module that owns
-//     a particular slot. A module that did not declare
-//     "I contribute X" cannot accidentally overwrite another module's
-//     repository because it never sees the Writer for that slot.
+//   - Writer 是写端句柄，只提供给拥有特定插槽的模块。
+//     没有声明"我贡献 X"的模块不会获得该插槽的 Writer，
+//     因此无法意外覆盖其他模块的仓库。
 //
-//   - AppContext is a concrete struct, not an interface. The struct is
-//     constructed exactly once in boot.Init and is then passed by
-//     pointer. The Reader/Writer interfaces exist purely to make the
-//     module contract compiler-enforceable.
+//   - AppContext 是一个具体结构体，而非接口。
+//     该结构体仅在 boot.Init 中构造一次，然后以指针形式传递。
+//     Reader / Writer 接口的存在纯粹是为了让模块契约在编译期即可被强制执行。
 package plugin
 
 import (
@@ -34,39 +28,35 @@ import (
 	"gx1727.com/xin/framework/pkg/auth"
 	"gx1727.com/xin/framework/pkg/authz"
 	"gx1727.com/xin/framework/pkg/config"
-	pkgauth "gx1727.com/xin/framework/pkg/tenant/auth"
 	"gx1727.com/xin/framework/pkg/session"
 	"gx1727.com/xin/framework/pkg/tenant"
+	pkgauth "gx1727.com/xin/framework/pkg/tenant/auth"
 )
 
-// Reader is the read-side handle every Module sees. It exposes:
+// Reader 是每个模块可见的读端句柄。它对外暴露以下内容：
 //
-//   - Infrastructure: DB pool, Redis client, Config, Session manager.
-//   - Cross-module services and repositories contributed by other
-//     modules (filled during Init() of the contributor).
+//   - 基础设施：数据库连接池、Redis 客户端、配置、会话管理器。
+//   - 跨模块的服务和仓库：由其他模块在 Init() 阶段填充。
 //
-// Read-side methods that return a typed pointer return nil if the
-// corresponding module was not enabled in cfg.Module. Modules must
-// nil-check the repositories they actually need.
+// 读端方法若返回强类型指针，则在 cfg.Module 中对应模块未启用时返回 nil。
+// 模块在使用仓库前必须自行进行 nil 检查。
 //
-// Why interfaces, not just the concrete AppContext struct?
+// 为什么要使用接口，而不是直接使用具体的 AppContext 结构体？
 //
-//   - During Init() a module must not be able to call SetX() — the
-//     role split catches that misuse at compile time.
-//   - Tests can construct a tiny fake Reader without building a full
-//     AppContext.
+//   - 在 Init() 阶段，模块不应能够调用 SetX() 方法 ——
+//     这种角色拆分能在编译期就阻止此类误用。
+//   - 测试中可以构造一个轻量的伪造 Reader，无需构建完整的 AppContext。
 type Reader interface {
-	// Infrastructure (always present after boot.Init).
+	// 基础设施（boot.Init 之后始终存在）。
 	DB() *pgxpool.Pool
-	Cache() *redis.Client // may return nil if Redis is disabled
+	Cache() *redis.Client // 当 Redis 禁用时可能返回 nil
 	Config() *config.Config
 	Session() session.SessionManager
 
-	// Cross-module services (filled after every module's Init).
+	// 跨模块服务（在所有模块的 Init 之后填充）。
 	Authz() authz.Authorization
 
-	// Repositories contributed by other modules. Each returns nil
-	// when the producing module was not enabled in cfg.Module.
+	// 由其他模块贡献的仓库。当提供方模块未在 cfg.Module 中启用时返回 nil。
 	AccountRepo() auth.AccountRepository
 	AccountAuthRepo() auth.AccountAuthRepository
 	TenantRepo() tenant.TenantRepository
@@ -76,11 +66,10 @@ type Reader interface {
 	PermRepo() pkgauth.RoleResourceRepository
 }
 
-// Writer is the write-side handle given only to a Module that owns
-// a particular slot. Each SetX method is intended to be called at
-// most once, by the module whose name matches the slot:
+// Writer 是写端句柄，仅提供给拥有特定插槽的模块。
+// 每个 SetX 方法设计为最多调用一次，由与插槽名称匹配的模块调用：
 //
-//   - SetAuthz             ← framework (boot.Init) or apps/<authn-svc>
+//   - SetAuthz             ← framework（boot.Init）或 apps/<authn-svc>
 //   - SetAccountRepo       ← apps/boot/auth
 //   - SetAccountAuthRepo   ← apps/boot/auth
 //   - SetTenantRepo        ← apps/boot/tenant
@@ -99,35 +88,33 @@ type Writer interface {
 	SetPermRepo(r pkgauth.RoleResourceRepository)
 }
 
-// AppContext is the concrete implementation. It is constructed in
-// framework/internal/core/boot.Init and passed by pointer to every
-// module's Init and Register.
+// AppContext 是具体的实现。它在 framework/internal/core/boot.Init 中构造，
+// 并以指针形式传递给每个模块的 Init 和 Register。
 //
-// The zero value is NOT useful — call NewAppContext in boot.Init.
+// 注意：零值不可用 —— 必须在 boot.Init 中调用 NewAppContext 进行构造。
 type AppContext struct {
-	// Infrastructure, set once before module Init.
+	// 基础设施，在模块 Init 之前设置一次。
 	db      *pgxpool.Pool
 	cache   *redis.Client
 	cfg     *config.Config
 	session session.SessionManager
 
-	// Cross-module contributions, set by module Init().
-	authz_         authz.Authorization
-	accountRepo    auth.AccountRepository
-	accountAuthR   auth.AccountAuthRepository
-	tenantRepo     tenant.TenantRepository
-	userRepo       pkgauth.UserRepository
-	roleRepo       pkgauth.RoleRepository
-	orgRepo        pkgauth.OrganizationRepository
-	permRepo       pkgauth.RoleResourceRepository
+	// 跨模块贡献，在各模块 Init() 阶段设置。
+	authz_       authz.Authorization
+	accountRepo  auth.AccountRepository
+	accountAuthR auth.AccountAuthRepository
+	tenantRepo   tenant.TenantRepository
+	userRepo     pkgauth.UserRepository
+	roleRepo     pkgauth.RoleRepository
+	orgRepo      pkgauth.OrganizationRepository
+	permRepo     pkgauth.RoleResourceRepository
 }
 
-// NewAppContext constructs the AppContext with the infrastructure slots
-// pre-filled. Modules will fill the rest during Init().
+// NewAppContext 构造 AppContext 并预先填充基础设施插槽。
+// 其余插槽将在各模块 Init() 阶段填充。
 //
-// Both the db pool and the config must be non-nil. cache and session
-// may be nil only if their respective subsystems are intentionally
-// disabled at boot (e.g. Redis off + DB session manager).
+// db 连接池和 config 必须非空。cache 和 session 仅在引导时
+// 明确禁用相应子系统时才允许为 nil（例如关闭 Redis 并使用 DB 会话管理器）。
 func NewAppContext(
 	db *pgxpool.Pool,
 	cache *redis.Client,
@@ -135,10 +122,10 @@ func NewAppContext(
 	session session.SessionManager,
 ) (*AppContext, error) {
 	if db == nil {
-		return nil, errors.New("NewAppContext: db pool must not be nil")
+		return nil, errors.New("NewAppContext: db 连接池不能为空")
 	}
 	if cfg == nil {
-		return nil, errors.New("NewAppContext: config must not be nil")
+		return nil, errors.New("NewAppContext: config 不能为空")
 	}
 	return &AppContext{
 		db:      db,
@@ -148,7 +135,7 @@ func NewAppContext(
 	}, nil
 }
 
-// Compile-time assertion that *AppContext satisfies both interfaces.
+// 编译期断言：确保 *AppContext 同时满足 Reader 和 Writer 两个接口。
 var (
 	_ Reader = (*AppContext)(nil)
 	_ Writer = (*AppContext)(nil)
@@ -156,34 +143,70 @@ var (
 
 // --- Reader ---
 
-func (a *AppContext) DB() *pgxpool.Pool             { return a.db }
-func (a *AppContext) Cache() *redis.Client             { return a.cache }
-func (a *AppContext) Config() *config.Config        { return a.cfg }
+// DB 返回底层数据库连接池。
+func (a *AppContext) DB() *pgxpool.Pool { return a.db }
+
+// Cache 返回 Redis 客户端（若禁用 Redis 则可能为 nil）。
+func (a *AppContext) Cache() *redis.Client { return a.cache }
+
+// Config 返回全局配置对象。
+func (a *AppContext) Config() *config.Config { return a.cfg }
+
+// Session 返回会话管理器。
 func (a *AppContext) Session() session.SessionManager { return a.session }
 
+// Authz 返回鉴权（授权）服务。
 func (a *AppContext) Authz() authz.Authorization { return a.authz_ }
 
+// AccountRepo 返回账户仓库（由 apps/boot/auth 注入）。
 func (a *AppContext) AccountRepo() auth.AccountRepository {
 	return a.accountRepo
 }
+
+// AccountAuthRepo 返回账户鉴权仓库（由 apps/boot/auth 注入）。
 func (a *AppContext) AccountAuthRepo() auth.AccountAuthRepository {
 	return a.accountAuthR
 }
+
+// TenantRepo 返回租户仓库（由 apps/boot/tenant 注入）。
 func (a *AppContext) TenantRepo() tenant.TenantRepository {
 	return a.tenantRepo
 }
-func (a *AppContext) UserRepo() pkgauth.UserRepository     { return a.userRepo }
-func (a *AppContext) RoleRepo() pkgauth.RoleRepository     { return a.roleRepo }
+
+// UserRepo 返回用户仓库（由 apps/tenant/user 注入）。
+func (a *AppContext) UserRepo() pkgauth.UserRepository { return a.userRepo }
+
+// RoleRepo 返回角色仓库（由 apps/tenant/role 注入）。
+func (a *AppContext) RoleRepo() pkgauth.RoleRepository { return a.roleRepo }
+
+// OrgRepo 返回组织仓库（由 apps/tenant/organization 注入）。
 func (a *AppContext) OrgRepo() pkgauth.OrganizationRepository { return a.orgRepo }
+
+// PermRepo 返回角色-资源（权限）仓库（由 apps/tenant/permission 注入）。
 func (a *AppContext) PermRepo() pkgauth.RoleResourceRepository { return a.permRepo }
 
 // --- Writer ---
 
-func (a *AppContext) SetAuthz(v authz.Authorization)            { a.authz_ = v }
-func (a *AppContext) SetAccountRepo(v auth.AccountRepository)  { a.accountRepo = v }
+// SetAuthz 设置鉴权服务。
+func (a *AppContext) SetAuthz(v authz.Authorization) { a.authz_ = v }
+
+// SetAccountRepo 设置账户仓库。
+func (a *AppContext) SetAccountRepo(v auth.AccountRepository) { a.accountRepo = v }
+
+// SetAccountAuthRepo 设置账户鉴权仓库。
 func (a *AppContext) SetAccountAuthRepo(v auth.AccountAuthRepository) { a.accountAuthR = v }
-func (a *AppContext) SetTenantRepo(v tenant.TenantRepository)   { a.tenantRepo = v }
-func (a *AppContext) SetUserRepo(v pkgauth.UserRepository)         { a.userRepo = v }
-func (a *AppContext) SetRoleRepo(v pkgauth.RoleRepository)         { a.roleRepo = v }
-func (a *AppContext) SetOrgRepo(v pkgauth.OrganizationRepository)  { a.orgRepo = v }
+
+// SetTenantRepo 设置租户仓库。
+func (a *AppContext) SetTenantRepo(v tenant.TenantRepository) { a.tenantRepo = v }
+
+// SetUserRepo 设置用户仓库。
+func (a *AppContext) SetUserRepo(v pkgauth.UserRepository) { a.userRepo = v }
+
+// SetRoleRepo 设置角色仓库。
+func (a *AppContext) SetRoleRepo(v pkgauth.RoleRepository) { a.roleRepo = v }
+
+// SetOrgRepo 设置组织仓库。
+func (a *AppContext) SetOrgRepo(v pkgauth.OrganizationRepository) { a.orgRepo = v }
+
+// SetPermRepo 设置角色-资源（权限）仓库。
 func (a *AppContext) SetPermRepo(v pkgauth.RoleResourceRepository) { a.permRepo = v }

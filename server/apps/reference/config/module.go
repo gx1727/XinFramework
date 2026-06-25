@@ -1,4 +1,4 @@
-// Package config 通用配置模块入口
+﻿// Package config 通用配置模块入口
 //
 //   - 三 handler 拆分（Business / Platform / Public）
 //   - 路由 /configs 业务 + /configs/platform 平台 + /configs/public 公共
@@ -8,8 +8,6 @@ package config
 import (
 	"context"
 	"log"
-
-	"github.com/gin-gonic/gin"
 
 	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/plugin"
@@ -38,7 +36,10 @@ func Module(app *appx.App) plugin.Module {
 		},
 
 		// RegFn: 注册三组路由（业务 + 平台 + 公共）
-		RegFn: func(_ plugin.Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
+			public := slots.MustGet(plugin.SlotPublic).Group
+			tenant := slots.MustGet(plugin.SlotTenant).Group
+			protected := slots.MustGet(plugin.SlotProtected).Group
 			bh := NewBusinessHandler(svc)
 			ph := NewPlatformHandler(svc)
 			pubh := NewPublicHandler(svc)

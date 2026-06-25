@@ -27,15 +27,30 @@ type StorageConfig struct {
 }
 
 type Config struct {
-	App      AppConfig      `yaml:"app"`
-	Database DatabaseConfig `yaml:"database"`
-	Redis    RedisConfig    `yaml:"redis"`
-	JWT      JWTConfig      `yaml:"jwt"`
-	Storage  StorageConfig  `yaml:"storage"`
-	Log      LogConfig      `yaml:"log"`
-	Module   []string       `yaml:"module"`
-	Apps     []string       `yaml:"apps"`
-	CORS     CORSConfig     `yaml:"cors"`
+	App           AppConfig           `yaml:"app"`
+	Database      DatabaseConfig      `yaml:"database"`
+	Redis         RedisConfig         `yaml:"redis"`
+	JWT           JWTConfig           `yaml:"jwt"`
+	Storage       StorageConfig       `yaml:"storage"`
+	Log           LogConfig           `yaml:"log"`
+	Module        []string            `yaml:"module"`
+	Apps          []string            `yaml:"apps"`
+	CORS          CORSConfig          `yaml:"cors"`
+	PermissionCache PermissionCacheConfig `yaml:"permission_cache"`
+}
+
+// PermissionCacheConfig 控制权限 / 数据范围缓存的行为。
+//
+// 装配路径：boot.Init 根据 cfg.Redis.Enabled 决定使用 RedisPermissionCache
+// 还是 MemoryPermissionCache。本配置仅控制缓存参数（TTL / key 前缀），
+// 缓存类型本身由 Redis 是否可用决定。
+type PermissionCacheConfig struct {
+	// PermTTLSeconds 权限码缓存 TTL（秒）。默认 900 (15 分钟)。
+	PermTTLSeconds int `yaml:"perm_ttl_seconds"`
+	// DataScopeTTLSeconds 数据范围缓存 TTL（秒）。默认 1800 (30 分钟)。
+	DataScopeTTLSeconds int `yaml:"data_scope_ttl_seconds"`
+	// KeyPrefix Redis key 前缀，默认 "user:"。修改后可与同 Redis 上的其他服务隔离。
+	KeyPrefix string `yaml:"key_prefix"`
 }
 
 type AppConfig struct {
@@ -155,6 +170,11 @@ func defaults() *Config {
 			Dir:   "logs",
 			Level: "info",
 		},
+		PermissionCache: PermissionCacheConfig{
+			PermTTLSeconds:      900,  // 15 min
+			DataScopeTTLSeconds: 1800, // 30 min
+			KeyPrefix:            "user:",
+		},
 	}
 }
 
@@ -268,6 +288,10 @@ func overrideWithEnv(c *Config) {
 	envStr("XIN_LOG_DIR", &c.Log.Dir)
 	envStr("XIN_LOG_LEVEL", &c.Log.Level)
 	envCSV("XIN_MODULE", &c.Module)
+
+	envInt("XIN_PERMISSION_CACHE_PERM_TTL_SECONDS", &c.PermissionCache.PermTTLSeconds)
+	envInt("XIN_PERMISSION_CACHE_DATA_SCOPE_TTL_SECONDS", &c.PermissionCache.DataScopeTTLSeconds)
+	envStr("XIN_PERMISSION_CACHE_KEY_PREFIX", &c.PermissionCache.KeyPrefix)
 }
 
 func envStr(key string, target *string) {

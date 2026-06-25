@@ -136,8 +136,8 @@ func setupRouter(cfg *config.Config, db *pgxpool.Pool, rt *Runtime, modules []pl
 //   - tenant     → /api/v1/*             （Auth + RequireTenantContext，业务域；模块直接挂资源路径）
 //   - protected  → /api/v1/platform/*    （Auth + RequirePlatformRole，平台域）
 //
-// 三组 RouterGroup 都通过 plugin.Module.Register(ctx, public, tenant, protected)
-// 传给业务模块，由模块自行选择挂在哪一组。
+// 三组 RouterGroup 打包成 plugin.RouterSlots 传给业务模块。
+// 业务模块用 slots.MustGet(plugin.SlotPublic | SlotTenant | SlotProtected) 取。
 func registerModules(r *gin.Engine, cfg *config.Config, db *pgxpool.Pool, appCtx *plugin.AppContext, modules []plugin.Module) {
 	v1 := r.Group("/api/v1")
 
@@ -168,16 +168,31 @@ func registerModules(r *gin.Engine, cfg *config.Config, db *pgxpool.Pool, appCtx
 	// all repositories that were populated during Init.
 	var ctx plugin.Reader = appCtx
 
+	// 打包为 slots。后续要新增第 4 类路由（如 /api/v2）只需在这里往 map 里加一项。
+	slots := plugin.RouterSlots{
+		plugin.SlotPublic: {
+			Name:        plugin.SlotPublic,
+			Group:       public,
+			Description: "公开接口（OptionalAuth）",
+		},
+		plugin.SlotTenant: {
+			Name:        plugin.SlotTenant,
+			Group:       tenant,
+			Description: "租户域业务（Auth + RequireTenantContext）",
+		},
+		plugin.SlotProtected: {
+			Name:        plugin.SlotProtected,
+			Group:       protected,
+			Description: "平台域管理（Auth）",
+		},
+	}
+
 	for _, m := range modules {
 		if !enabled[m.Name()] {
 			log.Printf("module %s not enabled (skip register)", m.Name())
 			continue
 		}
-		// 三组 RouterGroup（public / tenant / protected）
-		// - public:    公开路由（/auth/*、/health、/public/configs 等）
-		// - tenant:    业务域路由（/users、/menus、/configs 等；无 /t 前缀）
-		// - protected: 平台域路由（/platform/configs、/platform/dicts、/platform/tenants、/sys_menus）
-		m.Register(ctx, public, tenant, protected)
+		m.Register(ctx, slots)
 	}
 }
 

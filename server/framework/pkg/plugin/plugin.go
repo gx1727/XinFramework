@@ -5,14 +5,19 @@
 //	type Module interface {
 //	    Name() string
 //	    Init(ctx Reader, w Writer) error
-//	    Register(ctx Reader, public, tenant, protected *gin.RouterGroup)
+//	    Register(ctx Reader, slots RouterSlots)
 //	    Shutdown(ctx Reader) error
 //	}
 //
-// 三组 RouterGroup 语义：
-//   - public     → /api/v1/*             （OptionalAuth，公开；需隔离的子资源挂 /public/<x>）
-//   - tenant     → /api/v1/*             （Auth + RequireTenantContext，业务域；模块直接挂资源路径，无 /t 前缀）
-//   - protected  → /api/v1/platform/*    （Auth，平台域；模块内部追加 RequirePlatformRole）
+// slots 是 framework 在 Register 阶段构造的路由插槽 map，业务模块
+// 通过 slots.MustGet(SlotPublic | SlotTenant | SlotProtected) 取路由组。
+// 如需新增第 4 类路由（如 /api/v2、内部灰度），只需在 framework 侧
+// 往 slots 里多注册一个名字，业务模块无需改接口。
+//
+// 三类内置 slot 语义：
+//   - SlotPublic    → /api/v1/*             （OptionalAuth，公开；需隔离的子资源挂 /public/<x>）
+//   - SlotTenant    → /api/v1/*             （Auth + RequireTenantContext，业务域；模块直接挂资源路径，无 /t 前缀）
+//   - SlotProtected → /api/v1/platform/*    （Auth，平台域；模块内部追加 RequirePlatformRole）
 //
 // 历史背景：旧版本有 NewModule / NewModuleLegacy / NewModuleWithOpts
 // 三种构造器外加 ModuleOption / WithInit 等兼容 API，全部在 Phase 2
@@ -28,16 +33,15 @@ import "github.com/gin-gonic/gin"
 type Module interface {
 	Name() string
 	Init(ctx Reader, w Writer) error
-	// Register 注册路由到三组 RouterGroup：
-	//   - public:     公开接口（无需登录 / OptionalAuth；冲突时挂 /public/<x>）
-	//   - tenant:     业务域（Auth + RequireTenantContext；模块直接挂资源路径）
-	//   - protected:  平台域（/platform/*，Auth；模块内部追加 RequirePlatformRole）
-	Register(ctx Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup)
+	// Register 注册路由到 framework 提供的 slots。
+	// 业务模块通过 slots.MustGet(SlotPublic|SlotTenant|SlotProtected)
+	// 取对应的 *gin.RouterGroup，然后挂载自己的路由。
+	Register(ctx Reader, slots RouterSlots)
 	Shutdown(ctx Reader) error
 }
 
 // ModuleFunc 是简单模块的 Register 回调形状（无需 Init/Shutdown）。
-type ModuleFunc func(ctx Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup)
+type ModuleFunc func(ctx Reader, slots RouterSlots)
 
 // BaseModule 是 Module 接口的默认实现。所有字段可选，nil 字段视为 noop。
 //
@@ -59,9 +63,9 @@ func (m *BaseModule) Init(ctx Reader, w Writer) error {
 	return m.InitFn(ctx, w)
 }
 
-func (m *BaseModule) Register(ctx Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
+func (m *BaseModule) Register(ctx Reader, slots RouterSlots) {
 	if m.RegFn != nil {
-		m.RegFn(ctx, public, tenant, protected)
+		m.RegFn(ctx, slots)
 	}
 }
 
@@ -71,3 +75,9 @@ func (m *BaseModule) Shutdown(ctx Reader) error {
 	}
 	return m.StopFn(ctx)
 }
+
+// 编译期断言：BaseModule 满足 Module 接口。
+var _ Module = (*BaseModule)(nil)
+
+// 抑制未使用的 gin 导入告警（gin.RouterGroup 仅在 RouterSlot.Group 字段间接使用）。
+var _ = (*gin.RouterGroup)(nil)

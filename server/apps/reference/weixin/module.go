@@ -1,8 +1,6 @@
-package weixin
+﻿package weixin
 
 import (
-	"github.com/gin-gonic/gin"
-
 	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/plugin"
 	"gx1727.com/xin/framework/pkg/session"
@@ -23,7 +21,9 @@ func Module(app *appx.App) plugin.Module {
 			SetGlobalConfig(app.Config)
 			return InitConfig()
 		},
-		RegFn: func(ctx plugin.Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
+			public := slots.MustGet(plugin.SlotPublic).Group
+			protected := slots.MustGet(plugin.SlotProtected).Group
 			accountRepo := ctx.AccountRepo()
 			accountAuthRepo := ctx.AccountAuthRepo()
 			tenantRepo := ctx.TenantRepo()

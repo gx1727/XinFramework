@@ -1,7 +1,6 @@
-package flag
+﻿package flag
 
 import (
-	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/plugin"
 )
@@ -10,7 +9,9 @@ import (
 func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "flag",
-		RegFn: func(ctx plugin.Reader, public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
+			public := slots.MustGet(plugin.SlotPublic).Group
+			tenant := slots.MustGet(plugin.SlotTenant).Group
 			pool := app.DB
 			if ctx != nil {
 				if p := ctx.DB(); p != nil {

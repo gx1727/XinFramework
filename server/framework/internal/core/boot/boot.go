@@ -16,6 +16,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"gx1727.com/xin/framework/internal/core/server"
 	"gx1727.com/xin/framework/internal/service"
@@ -63,9 +64,23 @@ func Init(cfg *config.Config) (*appx.App, *server.Server, *plugin.AppContext, er
 	}
 	session.Init(sm)
 
+	// 权限缓存装配：
+	//   - Redis 可用 → 用 RedisPermissionCache（多实例共享缓存）
+	//   - Redis 不可用 → fallback 到 MemoryPermissionCache（仅本进程有效）
+	// 两种实现都满足 permission.PermissionCache 接口，PermissionService
+	// 无需感知具体类型。
 	var permCache permission.PermissionCache
 	if cache.Get() != nil {
 		permCache = permission.NewRedisPermissionCache()
+	} else {
+		memCache := permission.NewMemoryPermissionCache()
+		if cfg.PermissionCache.PermTTLSeconds > 0 {
+			memCache.SetPermTTL(time.Duration(cfg.PermissionCache.PermTTLSeconds) * time.Second)
+		}
+		if cfg.PermissionCache.DataScopeTTLSeconds > 0 {
+			memCache.SetDataScopeTTL(time.Duration(cfg.PermissionCache.DataScopeTTLSeconds) * time.Second)
+		}
+		permCache = memCache
 	}
 
 	appCtx, err := plugin.NewAppContext(pool, cache.Get(), cfg, sm)

@@ -1,9 +1,7 @@
-package tenants
+﻿package tenants
 
 import (
 	"context"
-
-	"github.com/gin-gonic/gin"
 
 	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/plugin"
@@ -28,7 +26,8 @@ func Module(app *appx.App) plugin.Module {
 			w.SetTenantRepo(&tenantPkgAdapter{repo: NewTenantRepository(pool).(*PostgresTenantRepository)})
 			return nil
 		},
-		RegFn: func(_ plugin.Reader, _ *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
+			protected := slots.MustGet(plugin.SlotProtected).Group
 			pool := app.DB
 			h := NewHandler(NewService(pool, NewTenantRepository(pool)))
 			Register(protected, h)

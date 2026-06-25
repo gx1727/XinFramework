@@ -1,8 +1,7 @@
-// Package dict 字典模块入口
+﻿// Package dict 字典模块入口
 package dict
 
 import (
-	"github.com/gin-gonic/gin"
 	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/plugin"
 )
@@ -12,7 +11,9 @@ import (
 func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "dict",
-		RegFn: func(_ plugin.Reader, _ *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
+			tenant := slots.MustGet(plugin.SlotTenant).Group
+			protected := slots.MustGet(plugin.SlotProtected).Group
 			pool := app.DB
 			h := NewHandler(NewService(pool, NewPostgresDictRepository(pool)))
 			Register(tenant, protected, h)

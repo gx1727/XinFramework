@@ -145,7 +145,9 @@ func (u *UserContext) HasPermission(resource, action string) bool {
 	return permission.HasPermission(u.Permissions, resource, action)
 }
 
-// DataScopeFilter returns SQL WHERE clause and args for data filtering
+// DataScopeFilter 返回 SQL WHERE 子句片段和绑定参数。
+//
+// Deprecated: 请改用 xincontext.ScopeFilterFrom(ctx, columns)，无需手动构造 UserContext。
 func (u *UserContext) DataScopeFilter() (string, []any, error) {
 	filter, err := u.DataScopeFilterFor(permission.DefaultScopeColumns)
 	if err != nil {
@@ -154,7 +156,9 @@ func (u *UserContext) DataScopeFilter() (string, []any, error) {
 	return filter.SQL, filter.Args, nil
 }
 
-// DataScopeFilterFor returns a data-scope filter using explicit column mapping.
+// DataScopeFilterFor 返回基于指定列映射的 DataScope SQL 过滤片段。
+//
+// Deprecated: 请改用 xincontext.ScopeFilterFrom(ctx, columns)，无需手动取 UserContext。
 func (u *UserContext) DataScopeFilterFor(columns permission.ScopeColumns) (permission.ScopeFilter, error) {
 	return permission.BuildDataScopeFilter(u.DataScope, u.UserID, u.OrgID, columns)
 }

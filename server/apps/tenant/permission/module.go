@@ -1,8 +1,6 @@
-package permission
+﻿package permission
 
 import (
-	"github.com/gin-gonic/gin"
-
 	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/plugin"
 )
@@ -17,7 +15,8 @@ func Module(app *appx.App) plugin.Module {
 			w.SetPermRepo(NewRoleResourceRepository(pool))
 			return nil
 		},
-		RegFn: func(ctx plugin.Reader, _ *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
+			tenant := slots.MustGet(plugin.SlotTenant).Group
 			pool := app.DB
 			roleResourceRepo := NewRoleResourceRepository(pool)
 			authzSvc := ctx.Authz()

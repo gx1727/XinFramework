@@ -1,15 +1,16 @@
-// Package auth exposes the public auth contract that business modules
-// depend on. The concrete AccountRepository lives in apps/boot/auth —
-// framework's user module (and any other consumer) only sees this
-// interface, so the implementation can be swapped without touching
-// downstream code.
+// Package auth 暴露业务模块依赖的公开鉴权契约。
 //
-// Phase 2 rationale: auth has moved from framework/internal/module/auth
-// to apps/boot/auth. Business modules that need AccountRepository
-// (notably user) cannot import apps/ directly because they live in
-// the framework module. To bridge that gap, the interface definition
-// stays public in framework/pkg/auth/, while the implementation lives
-// in apps/boot/auth/.
+// 具体的 AccountRepository / AccountAuthRepository 实现在 apps/boot/auth
+// （原来在 framework/internal/module/auth，Phase 2 重构后迁移到 apps）。
+// 业务模块（如 user）不能直接 import apps/*，因此只能看到 framework/pkg/auth
+// 中的接口。实现通过 plugin.AppContext.SetAccountRepo 在启动期注入。
+//
+// 为什么要公开接口、却把实现放在 apps？
+//   - 业务模块能合法 import framework 包、不能 import apps 包
+//   - 接口公开在 framework，实现具体放在 apps，两边都能访问
+//   - 实现可插拔：未来想替换实现（比如迁到 LDAP），只需重写 apps/boot/auth
+//   - 字段重复：Account / AccountAuth 结构体在两边都有，字段类型必须一致
+//     以保证接口隐式满足
 package auth
 
 import (
@@ -17,9 +18,8 @@ import (
 	"time"
 )
 
-// Account is the global (cross-tenant) account record. Same struct
-// shape as the one in apps/boot/auth — duplicated here to keep the
-// framework module free of dependencies on the apps module.
+// Account 是跨租户的全局账号记录。结构与 apps/boot/auth 中的同名结构一致，
+// 这里重复定义是为了让 framework 包不依赖 apps 包。
 type Account struct {
 	ID        uint      `json:"id"`
 	Username  string    `json:"username"`
@@ -31,7 +31,7 @@ type Account struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// AccountAuth is a third-party authentication binding (wechat/qq/weibo).
+// AccountAuth 是第三方授权绑定记录（微信/QQ/微博）。
 type AccountAuth struct {
 	ID         uint      `json:"id"`
 	TenantID   uint      `json:"tenant_id"`
@@ -64,10 +64,8 @@ type TenantIdentity struct {
 	Email      string `json:"email,omitempty"`
 }
 
-// AccountRepository is the minimal subset of account data access that
-// other business modules are allowed to depend on. The concrete
-// implementation in apps/boot/auth satisfies this interface implicitly
-// because the field types are identical.
+// AccountRepository 是业务模块可依赖的账号数据访问接口子集。
+// 具体实现在 apps/boot/auth，依靠字段类型一致隐式满足本接口。
 type AccountRepository interface {
 	GetByID(ctx context.Context, id uint) (*Account, error)
 	GetByUsername(ctx context.Context, username string) (*Account, error)
@@ -96,7 +94,7 @@ type AccountRepository interface {
 	ListTenantIdentities(ctx context.Context, accountID uint) ([]TenantIdentity, error)
 }
 
-// AccountAuthRepository is the third-party auth binding data access.
+// AccountAuthRepository 是第三方授权绑定的数据访问接口。
 type AccountAuthRepository interface {
 	GetByOpenID(ctx context.Context, tenantID uint, authType, openID string) (*AccountAuth, error)
 	GetByAccountID(ctx context.Context, accountID uint) ([]AccountAuth, error)

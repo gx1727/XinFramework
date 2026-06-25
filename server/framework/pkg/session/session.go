@@ -1,3 +1,15 @@
+// Package session 提供会话生命周期管理（创建 / 校验 / 撤销）。
+//
+// 框架设计：
+//   - 接口 SessionManager 定义能力，实现有 redisSessionManager（默认）与
+//     dbSessionManager（Redis 不可用时 fallback）
+//   - 进程级 defaultManager 由 Init 注入，业务代码通过 Manager() 拿
+//   - Redis key 模板：sess:{SessionID} → JSON payload
+//
+// 会话与 JWT 的关系：
+//   - JWT 中携带 SessionID，Auth 中间件在每次请求里调 Manager().Validate(SessionID)
+//     检会话存活——这是“未撤销 + 未过期” 的唯一权威来源
+//   - 退出登录调 Revoke(SessionID) 即可让该会话立即失效，无需等待 JWT 自然过期
 package session
 
 import (
@@ -10,8 +22,10 @@ import (
 	"gx1727.com/xin/framework/pkg/cache"
 )
 
+// sessionKeyPrefix 是 Redis 会话 key 的统一前缀。
 const sessionKeyPrefix = "sess:"
 
+// payload 是会话持久化到 Redis / DB 的载荷结构。
 type payload struct {
 	SessionID string `json:"session_id"`
 	UserID    uint   `json:"user_id"`
@@ -20,18 +34,26 @@ type payload struct {
 	ExpiresAt int64  `json:"expires_at"`
 }
 
+// SessionManager 定义会话生命周期管理能力。
+//
+//   - Create：登录成功后写入会话
+//   - Validate：Auth 中间件每个请求调用，存在且未过期返回 true
+//   - Revoke：退出登录时调用，立刻让该 SessionID 失效
 type SessionManager interface {
 	Create(sessionID string, userID, tenantID uint, role string, ttl time.Duration) error
 	Validate(sessionID string) (bool, error)
 	Revoke(sessionID string) error
 }
 
+// defaultManager 是进程级会话管理器单例，由 Init 注入。
 var defaultManager SessionManager
 
+// Init 注入全局 SessionManager。boot.Init 阶段调用一次。
 func Init(manager SessionManager) {
 	defaultManager = manager
 }
 
+// Manager 返回当前 SessionManager。
 func Manager() SessionManager {
 	return defaultManager
 }

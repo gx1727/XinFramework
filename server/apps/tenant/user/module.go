@@ -1,9 +1,7 @@
-package user
+﻿package user
 
 import (
 	"log"
-
-	"github.com/gin-gonic/gin"
 
 	"gx1727.com/xin/apps/tenant/organization"
 	"gx1727.com/xin/apps/tenant/role"
@@ -25,7 +23,8 @@ func Module(app *appx.App) plugin.Module {
 			w.SetUserRepo(NewUserRepository(pool))
 			return nil
 		},
-		RegFn: func(ctx plugin.Reader, _ *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup) {
+		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
+			tenant := slots.MustGet(plugin.SlotTenant).Group
 			pool := app.DB
 			if ctx != nil {
 				if p := ctx.DB(); p != nil {

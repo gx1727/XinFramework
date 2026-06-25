@@ -1,35 +1,25 @@
-// Package identity holds the field-level base types shared by the
-// platform domain (sys_*) and the tenant domain (tenant_*). The
-// platform and tenant packages each define their own Go struct
-// (platformauth.User, tenant/auth.User, …) that embeds the
-// corresponding identity struct, so cross-domain consumers can read
-// the common fields without depending on either side.
+// Package identity 定义平台域（sys_*）与租户域（tenant_*）共享的字段级基础类型。
+// 平台与租户包各自定义自己的 Go 结构（platformauth.User / tenant/auth.User 等），
+// 通过嵌入对应的 identity 结构，让跨域消费者可以读取公共字段而不依赖任一侧。
 //
-// Why a base package?
+// 为什么要有 identity 这个基础包？
 //
-//   - One source of truth for "what is a User / Role / Menu /
-//     Permission" across domains. When a field is added, the
-//     identity struct is updated first, then both domains pick it up
-//     via embedding.
-//   - Stable contract: identity does not import framework/internal
-//     or apps/, so it sits in pkg/ and can be consumed by both layers.
+//   - “用户 / 角色 / 菜单 / 权限是什么”的唯一事实来源。新增字段时，
+//     先改 identity，两侧通过嵌入自动跟随。
+//   - 稳定契约：identity 不依赖 framework/internal 或 apps/，位于 pkg/
+//     可以被两层同时消费。
 //
-// When NOT to add a field here:
-//
-//   - If the field is platform-only (e.g. "platform_level") put it on
-//     platformauth.User directly.
-//   - If the field is tenant-only (e.g. TenantID) put it on the
-//     tenant-side struct directly.
+// 哪些字段不应加在这里：
+//   - 仅平台域（如 platform_level）请直接放在 platformauth.User
+//   - 仅租户域（如 TenantID）请直接放在租户侧的结构
 package identity
 
 import "time"
 
-// User is the cross-domain base for a user identity entity.
+// User 是跨域的用户身份基础类型。
 //
-// Platform users (sys_users) and tenant users (tenant_users) both
-// expose these fields. The only true difference between the two
-// domains is that the tenant side has an extra TenantID; the
-// platform side does not.
+// 平台用户（sys_users）与租户用户（tenant_users）都暴露这些字段。
+// 两域的唯一真实差异是租户侧多一个 TenantID，平台侧没有。
 type User struct {
 	ID        uint      `json:"id"`
 	AccountID uint      `json:"account_id"`
@@ -43,7 +33,7 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// Org is the cross-domain base for an organization / department.
+// Org 是跨域的组织 / 部门基础类型。
 type Org struct {
 	ID          uint      `json:"id"`
 	ParentID    *uint     `json:"parent_id"`

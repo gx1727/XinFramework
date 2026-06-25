@@ -16,6 +16,7 @@ const (
 	ResAuth         = "auth"
 	ResFlag         = "flag"
 	ResConfig       = "config"
+	ResMessage      = "message"
 )
 
 // Action definition constants
