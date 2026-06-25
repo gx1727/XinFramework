@@ -38,8 +38,7 @@ import (
 //     Serve / signal 处理等 framework 内部代码。
 //
 // Session / Authz 等共享资源由 appCtx 持有：Session 在 NewAppContext 时填充，
-// Authz 在本函数末尾 SetAuthz 填充；framework 通过 rt.AppCtx.Session() /
-// rt.AppCtx.Authz() 读取，不必再单独持有。
+// Authz 在本函数末尾 SetAuthz 填充；framework 通过 rt.AppCtx.Session() / rt.AppCtx.Authz() 读取，不必再单独持有。
 func Init(cfg *config.Config) (*appx.App, *server.Server, *plugin.AppContext, error) {
 	logger.Init(cfg.Log.Dir, cfg.Log.Level)
 
