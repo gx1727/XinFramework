@@ -45,6 +45,7 @@ import (
 	"gx1727.com/xin/apps/reference/dict"
 	"gx1727.com/xin/apps/reference/weixin"
 	"gx1727.com/xin/apps/system"
+	"gx1727.com/xin/apps/task"
 	"gx1727.com/xin/framework"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/plugin"
@@ -87,6 +88,8 @@ func main() {
 		refconfig.Module(app),
 		dict.Module(app),
 		weixin.Module(app),
+
+		task.Module(app),                   // Phase 0024：长时任务系统
 
 		// system
 		system.Module(app),

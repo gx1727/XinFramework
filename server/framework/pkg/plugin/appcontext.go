@@ -1,4 +1,5 @@
 // Package plugin 定义了 AppContext 类型 —— 这是一个共享的依赖容器，
+// 用于替代框架原先依赖的 12 个跨模块包级全局变量（Phase B 重构）。
 //
 // 设计理念
 //
@@ -10,7 +11,7 @@
 //     所有字段都是强类型（没有 any 类型断言），
 //     当读取到 nil 值时，意味着对应的依赖模块未被启用，这是文档化的检测方式。
 //
-//   - Writer 是写端句柄，只提供给拥有特定插槽的模块。
+//   - Writer 是写端句柄，仅提供给拥有特定插槽的模块。
 //     没有声明"我贡献 X"的模块不会获得该插槽的 Writer，
 //     因此无法意外覆盖其他模块的仓库。
 //
@@ -29,6 +30,7 @@ import (
 	"gx1727.com/xin/framework/pkg/authz"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/session"
+	"gx1727.com/xin/framework/pkg/task"
 	"gx1727.com/xin/framework/pkg/tenant"
 	pkgauth "gx1727.com/xin/framework/pkg/tenant/auth"
 )
@@ -64,12 +66,14 @@ type Reader interface {
 	RoleRepo() pkgauth.RoleRepository
 	OrgRepo() pkgauth.OrganizationRepository
 	PermRepo() pkgauth.RoleResourceRepository
+
+	// TaskQueue 长期任务队列（由 apps/task 注入）。Nil 表示 task 模块未启用。
+	TaskQueue() task.Queue
 }
 
-// Writer 是写端句柄，仅提供给拥有特定插槽的模块。
-// 每个 SetX 方法设计为最多调用一次，由与插槽名称匹配的模块调用：
+// Writer 是写端句柄，仅提供给拥有特定插槽的模块。每个 SetX 方法设计为仅由匹配的模块调用一次：
 //
-//   - SetAuthz             ← framework（boot.Init）或 apps/<authn-svc>
+//   - SetAuthz             ← framework (boot.Init) 或 apps/<authn-svc>
 //   - SetAccountRepo       ← apps/boot/auth
 //   - SetAccountAuthRepo   ← apps/boot/auth
 //   - SetTenantRepo        ← apps/boot/tenant
@@ -86,20 +90,21 @@ type Writer interface {
 	SetRoleRepo(r pkgauth.RoleRepository)
 	SetOrgRepo(r pkgauth.OrganizationRepository)
 	SetPermRepo(r pkgauth.RoleResourceRepository)
+	SetTaskQueue(q task.Queue)
 }
 
 // AppContext 是具体的实现。它在 framework/internal/core/boot.Init 中构造，
-// 并以指针形式传递给每个模块的 Init 和 Register。
+// 然后以指针形式传递给每个模块的 Init 和 Register。
 //
-// 注意：零值不可用 —— 必须在 boot.Init 中调用 NewAppContext 进行构造。
+// 注意：零值不可用 —— 必须由 boot.Init 中的 NewAppContext 构造。
 type AppContext struct {
-	// 基础设施，在模块 Init 之前设置一次。
+	// 基础设施，Init 之前设置一次。
 	db      *pgxpool.Pool
 	cache   *redis.Client
 	cfg     *config.Config
 	session session.SessionManager
 
-	// 跨模块贡献，在各模块 Init() 阶段设置。
+	// 跨模块贡献，由模块的 Init() 阶段填充。
 	authz_       authz.Authorization
 	accountRepo  auth.AccountRepository
 	accountAuthR auth.AccountAuthRepository
@@ -108,13 +113,14 @@ type AppContext struct {
 	roleRepo     pkgauth.RoleRepository
 	orgRepo      pkgauth.OrganizationRepository
 	permRepo     pkgauth.RoleResourceRepository
+	taskQueue    task.Queue
 }
 
-// NewAppContext 构造 AppContext 并预先填充基础设施插槽。
-// 其余插槽将在各模块 Init() 阶段填充。
+// NewAppContext 构造 AppContext 并预填充基础设施插槽。
+// 其他插槽由模块的 Init() 阶段填充。
 //
-// db 连接池和 config 必须非空。cache 和 session 仅在引导时
-// 明确禁用相应子系统时才允许为 nil（例如关闭 Redis 并使用 DB 会话管理器）。
+// db 连接池和 config 必须非 nil。cache 和 session 可能为 nil，
+// 仅当对应的子系统在启动时被显式禁用（例如 Redis 禁用且使用 DB 会话管理器）。
 func NewAppContext(
 	db *pgxpool.Pool,
 	cache *redis.Client,
@@ -122,10 +128,10 @@ func NewAppContext(
 	session session.SessionManager,
 ) (*AppContext, error) {
 	if db == nil {
-		return nil, errors.New("NewAppContext: db 连接池不能为空")
+		return nil, errors.New("NewAppContext: db connection pool cannot be nil")
 	}
 	if cfg == nil {
-		return nil, errors.New("NewAppContext: config 不能为空")
+		return nil, errors.New("NewAppContext: config cannot be nil")
 	}
 	return &AppContext{
 		db:      db,
@@ -135,7 +141,7 @@ func NewAppContext(
 	}, nil
 }
 
-// 编译期断言：确保 *AppContext 同时满足 Reader 和 Writer 两个接口。
+// Compile-time assertions: ensure *AppContext satisfies both Reader and Writer.
 var (
 	_ Reader = (*AppContext)(nil)
 	_ Writer = (*AppContext)(nil)
@@ -143,70 +149,78 @@ var (
 
 // --- Reader ---
 
-// DB 返回底层数据库连接池。
+// DB returns the underlying database connection pool.
 func (a *AppContext) DB() *pgxpool.Pool { return a.db }
 
-// Cache 返回 Redis 客户端（若禁用 Redis 则可能为 nil）。
+// Cache returns the Redis client (may be nil if Redis is disabled).
 func (a *AppContext) Cache() *redis.Client { return a.cache }
 
-// Config 返回全局配置对象。
+// Config returns the global config object.
 func (a *AppContext) Config() *config.Config { return a.cfg }
 
-// Session 返回会话管理器。
+// Session returns the session manager.
 func (a *AppContext) Session() session.SessionManager { return a.session }
 
-// Authz 返回鉴权（授权）服务。
+// Authz returns the authorization service.
 func (a *AppContext) Authz() authz.Authorization { return a.authz_ }
 
-// AccountRepo 返回账户仓库（由 apps/boot/auth 注入）。
+// AccountRepo returns the account repository (injected by apps/boot/auth).
 func (a *AppContext) AccountRepo() auth.AccountRepository {
 	return a.accountRepo
 }
 
-// AccountAuthRepo 返回账户鉴权仓库（由 apps/boot/auth 注入）。
+// AccountAuthRepo returns the account auth repository (injected by apps/boot/auth).
 func (a *AppContext) AccountAuthRepo() auth.AccountAuthRepository {
 	return a.accountAuthR
 }
 
-// TenantRepo 返回租户仓库（由 apps/boot/tenant 注入）。
+// TenantRepo returns the tenant repository (injected by apps/boot/tenant).
 func (a *AppContext) TenantRepo() tenant.TenantRepository {
 	return a.tenantRepo
 }
 
-// UserRepo 返回用户仓库（由 apps/tenant/user 注入）。
+// UserRepo returns the user repository (injected by apps/tenant/user).
 func (a *AppContext) UserRepo() pkgauth.UserRepository { return a.userRepo }
 
-// RoleRepo 返回角色仓库（由 apps/tenant/role 注入）。
+// RoleRepo returns the role repository (injected by apps/tenant/role).
 func (a *AppContext) RoleRepo() pkgauth.RoleRepository { return a.roleRepo }
 
-// OrgRepo 返回组织仓库（由 apps/tenant/organization 注入）。
+// OrgRepo returns the organization repository (injected by apps/tenant/organization).
 func (a *AppContext) OrgRepo() pkgauth.OrganizationRepository { return a.orgRepo }
 
-// PermRepo 返回角色-资源（权限）仓库（由 apps/tenant/permission 注入）。
+// PermRepo returns the role-resource (permission) repository (injected by apps/tenant/permission).
 func (a *AppContext) PermRepo() pkgauth.RoleResourceRepository { return a.permRepo }
+
+// TaskQueue 实现 Reader.TaskQueue。
+//
+// nil 表示未注入 task 模块，调用方需自行 nil-check 跳过。
+func (a *AppContext) TaskQueue() task.Queue                   { return a.taskQueue }
 
 // --- Writer ---
 
-// SetAuthz 设置鉴权服务。
+// SetAuthz sets the authorization service.
 func (a *AppContext) SetAuthz(v authz.Authorization) { a.authz_ = v }
 
-// SetAccountRepo 设置账户仓库。
+// SetAccountRepo sets the account repository.
 func (a *AppContext) SetAccountRepo(v auth.AccountRepository) { a.accountRepo = v }
 
-// SetAccountAuthRepo 设置账户鉴权仓库。
+// SetAccountAuthRepo sets the account auth repository.
 func (a *AppContext) SetAccountAuthRepo(v auth.AccountAuthRepository) { a.accountAuthR = v }
 
-// SetTenantRepo 设置租户仓库。
+// SetTenantRepo sets the tenant repository.
 func (a *AppContext) SetTenantRepo(v tenant.TenantRepository) { a.tenantRepo = v }
 
-// SetUserRepo 设置用户仓库。
+// SetUserRepo sets the user repository.
 func (a *AppContext) SetUserRepo(v pkgauth.UserRepository) { a.userRepo = v }
 
-// SetRoleRepo 设置角色仓库。
+// SetRoleRepo sets the role repository.
 func (a *AppContext) SetRoleRepo(v pkgauth.RoleRepository) { a.roleRepo = v }
 
-// SetOrgRepo 设置组织仓库。
+// SetOrgRepo sets the organization repository.
 func (a *AppContext) SetOrgRepo(v pkgauth.OrganizationRepository) { a.orgRepo = v }
 
-// SetPermRepo 设置角色-资源（权限）仓库。
+// SetPermRepo sets the role-resource (permission) repository.
 func (a *AppContext) SetPermRepo(v pkgauth.RoleResourceRepository) { a.permRepo = v }
+
+// SetTaskQueue 注入任务队列。供 apps/task 模块在 Init 阶段调用。
+func (a *AppContext) SetTaskQueue(v task.Queue)              { a.taskQueue = v }

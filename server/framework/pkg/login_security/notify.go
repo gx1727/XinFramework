@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"gx1727.com/xin/framework/pkg/logger"
+	"gx1727.com/xin/framework/pkg/task"
 )
 
 // Channel 通知通道枚举。
@@ -104,6 +105,64 @@ func (l *LogNotifier) Notify(_ context.Context, p NotificationPayload) error {
 	return nil
 }
 
+// QueueNotifier 把通知入队到后台任务系统，由 worker 异步执行。
+//
+// 适用场景：
+//   - 需要真实短信/邮件通道，但调用方不希望被第三方 API 拖慢
+//   - 失败可重试（5 次指数退避）
+//   - 不丢失：即使 worker 进程崩溃，DB 里的任务仍可被下一个 worker 消费
+//
+// 使用方式（在 apps/task/module.go 注册 send_notification handler）：
+//
+//	taskpkg.RegisterHandler(taskpkg.HandlerFunc{
+//	    KindStr: "send_notification",
+//	    HandleFn: func(ctx context.Context, t *taskpkg.Task) error {
+//	        var p login_security.NotificationPayload
+//	        if err := json.Unmarshal(t.Payload, &p); err != nil {
+//	            return err
+//	        }
+//	        return sendSMSOrEmail(ctx, p)
+//	    },
+//	})
+//
+// SecurityService 在 Notifier != nil 时自动优先用 QueueNotifier（详见 SecurityService 配置）。
+type QueueNotifier struct {
+	queue task.Queue
+	// KindName 是入队的任务 kind（默认 "send_notification"）。
+	// handler 注册时必须用同样的字符串。
+	KindName string
+}
+
+// NewQueueNotifier 构造异步通知器。
+//
+// queue 为 nil 时退化为 panic-free noop（Notify 直接返回 nil）。
+func NewQueueNotifier(queue task.Queue) *QueueNotifier {
+	return &QueueNotifier{queue: queue, KindName: "send_notification"}
+}
+
+// Notify 把 payload 序列化为 JSON 后入队。失败仅记日志（不阻塞业务路径）。
+func (q *QueueNotifier) Notify(ctx context.Context, p NotificationPayload) error {
+	if q.queue == nil {
+		return nil
+	}
+	payload := task.MarshalPayload(p)
+	kind := q.KindName
+	if kind == "" {
+		kind = "send_notification"
+	}
+	_, err := q.queue.Enqueue(ctx, kind, payload,
+		task.WithPriority(10),  // 通知类任务高优先级
+		task.WithMaxAttempts(5),
+		task.WithTimeout(60),
+	)
+	if err != nil {
+		logger.Module("login_security").Warnf("enqueue notification failed: %v", err)
+		// 入队失败不回传给调用方——通知是 best-effort
+	}
+	return nil
+}
+
 // Compile-time guarantee.
 var _ Notifier = (*LogNotifier)(nil)
 var _ Notifier = (*MultiNotifier)(nil)
+var _ Notifier = (*QueueNotifier)(nil)

@@ -38,6 +38,7 @@ type Config struct {
 	CORS           CORSConfig           `yaml:"cors"`
 	PermissionCache PermissionCacheConfig `yaml:"permission_cache"`
 	LoginSecurity   LoginSecurityConfig  `yaml:"login_security"`
+	Task            TaskConfig           `yaml:"task"`
 }
 
 // PermissionCacheConfig 控制权限 / 数据范围缓存的行为。
@@ -81,6 +82,44 @@ type LoginSecurityConfig struct {
 	LockNotifyInSite bool `yaml:"lock_notify_in_site"`
 	LockNotifyEmail  bool `yaml:"lock_notify_email"`
 	LockNotifySMS    bool `yaml:"lock_notify_sms"`
+}
+
+// TaskConfig 控制长时任务系统的运行参数。
+//
+// 详见 framework/pkg/task 包与 doc/task-design.md。
+type TaskConfig struct {
+	WorkerCount          int                 `yaml:"worker_count"`           // 进程内 worker goroutine 数（默认 4）
+	PollIntervalMs       int                 `yaml:"poll_interval_ms"`       // 轮询间隔（默认 1000）
+	HeartbeatIntervalSec int                 `yaml:"heartbeat_interval_sec"` // 心跳间隔（默认 30）
+	HeartbeatTimeoutSec  int                 `yaml:"heartbeat_timeout_sec"`  // 心跳超时视为僵死（默认 90）
+	ReclaimIntervalSec   int                 `yaml:"reclaim_interval_sec"`   // 僵死回收周期（默认 60）
+	DefaultMaxAttempts   int                 `yaml:"default_max_attempts"`   // 默认重试次数（默认 3）
+	DefaultTimeoutSec    int                 `yaml:"default_timeout_sec"`    // 默认单任务超时（默认 300）
+	RetryStrategy        string              `yaml:"retry_strategy"`         // exponential/linear/fixed（默认 exponential）
+	Cleanup              TaskCleanupConfig   `yaml:"cleanup"`
+	Cron                 TaskCronConfig      `yaml:"cron"`
+}
+
+// IsEnabled cron 调度器总开关。
+//
+// false 时 module.go 完全跳过 CronScheduler 启动 + 管理 API 注册，
+// 但 PGCronStore 仍可被其他代码调用（如 TriggerNow）。
+func (c TaskCronConfig) IsEnabled() bool { return c.Enabled }
+
+// TaskCronConfig 控制 cron 周期性调度器的行为。
+//
+// 详见 framework/pkg/task/cron.go 与 doc/task-cron.md。
+type TaskCronConfig struct {
+	Enabled         bool `yaml:"enabled"`           // 是否启用 cron 调度器
+	ScanIntervalSec int  `yaml:"scan_interval_sec"` // scanner 周期（默认 60）
+	RegisterDefaults bool `yaml:"register_defaults"` // 启动期是否注册框架默认 cron job
+}
+
+// TaskCleanupConfig 控制后台任务清理历史周期。
+type TaskCleanupConfig struct {
+	SucceededKeepDays int `yaml:"succeeded_keep_days"` // succeeded 保留天数（默认 7）
+	FailedKeepDays    int `yaml:"failed_keep_days"`    // failed 保留天数（默认 30）
+	DeadKeepDays      int `yaml:"dead_keep_days"`      // dead 保留天数（默认 90）
 }
 
 type AppConfig struct {
@@ -222,6 +261,26 @@ func defaults() *Config {
 			LockNotifyEmail:     true,
 			LockNotifySMS:       true,
 		},
+		Task: TaskConfig{
+			WorkerCount:          4,
+			PollIntervalMs:       1000,
+			HeartbeatIntervalSec: 30,
+			HeartbeatTimeoutSec:  90,
+			ReclaimIntervalSec:   60,
+			DefaultMaxAttempts:   3,
+			DefaultTimeoutSec:    300,
+			RetryStrategy:        "exponential",
+			Cleanup: TaskCleanupConfig{
+				SucceededKeepDays: 7,
+				FailedKeepDays:    30,
+				DeadKeepDays:      90,
+			},
+			Cron: TaskCronConfig{
+				Enabled:         true,
+				ScanIntervalSec: 60,
+				RegisterDefaults: true,
+			},
+		},
 	}
 }
 
@@ -355,6 +414,22 @@ func overrideWithEnv(c *Config) {
 	envBool("XIN_LOGIN_SECURITY_LOCK_NOTIFY_IN_SITE", &c.LoginSecurity.LockNotifyInSite)
 	envBool("XIN_LOGIN_SECURITY_LOCK_NOTIFY_EMAIL", &c.LoginSecurity.LockNotifyEmail)
 	envBool("XIN_LOGIN_SECURITY_LOCK_NOTIFY_SMS", &c.LoginSecurity.LockNotifySMS)
+
+	envInt("XIN_TASK_WORKER_COUNT", &c.Task.WorkerCount)
+	envInt("XIN_TASK_POLL_INTERVAL_MS", &c.Task.PollIntervalMs)
+	envInt("XIN_TASK_HEARTBEAT_INTERVAL_SEC", &c.Task.HeartbeatIntervalSec)
+	envInt("XIN_TASK_HEARTBEAT_TIMEOUT_SEC", &c.Task.HeartbeatTimeoutSec)
+	envInt("XIN_TASK_RECLAIM_INTERVAL_SEC", &c.Task.ReclaimIntervalSec)
+	envInt("XIN_TASK_DEFAULT_MAX_ATTEMPTS", &c.Task.DefaultMaxAttempts)
+	envInt("XIN_TASK_DEFAULT_TIMEOUT_SEC", &c.Task.DefaultTimeoutSec)
+	envStr("XIN_TASK_RETRY_STRATEGY", &c.Task.RetryStrategy)
+	envInt("XIN_TASK_CLEANUP_SUCCEEDED_KEEP_DAYS", &c.Task.Cleanup.SucceededKeepDays)
+	envInt("XIN_TASK_CLEANUP_FAILED_KEEP_DAYS", &c.Task.Cleanup.FailedKeepDays)
+	envInt("XIN_TASK_CLEANUP_DEAD_KEEP_DAYS", &c.Task.Cleanup.DeadKeepDays)
+
+	envBool("XIN_TASK_CRON_ENABLED", &c.Task.Cron.Enabled)
+	envInt("XIN_TASK_CRON_SCAN_INTERVAL_SEC", &c.Task.Cron.ScanIntervalSec)
+	envBool("XIN_TASK_CRON_REGISTER_DEFAULTS", &c.Task.Cron.RegisterDefaults)
 }
 
 func envStr(key string, target *string) {
@@ -431,6 +506,8 @@ var optOutModules = []string{
 	"sys_role",
 	"sys_menu",
 	"sys_permission",
+	// 长时任务
+	"task",
 }
 
 func validateModules(c *Config) error {

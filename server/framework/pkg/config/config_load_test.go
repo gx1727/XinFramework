@@ -32,11 +32,11 @@ func TestLoad_DevConfig_ModuleListMatchesSpec(t *testing.T) {
 		t.Fatalf("Load(%q) failed: %v", cfgPath, err)
 	}
 
-	// 期望：alwaysOn (3) + optOut (13) + config.yaml 显式列出的 3 项 = 19 项
+	// 期望：alwaysOn (3) + optOut (14，含 task) + config.yaml 显式列出的 3 项 = 20 项
 	// alwaysOn: system, auth, platform_tenant
 	// optOut   : menu, user, role, resource, organization, permission,
 	//            dict, asset, config,
-	//            sys_user, sys_role, sys_menu, sys_permission
+	//            sys_user, sys_role, sys_menu, sys_permission, task
 	// config.yaml module: weixin, cms, flag
 	want := []string{
 		// alwaysOn（顺序敏感：永远在列表头部）
@@ -44,7 +44,7 @@ func TestLoad_DevConfig_ModuleListMatchesSpec(t *testing.T) {
 		// optOut（默认启用）
 		"menu", "user", "role", "resource", "organization", "permission",
 		"dict", "asset", "config",
-		"sys_user", "sys_role", "sys_menu", "sys_permission",
+		"sys_user", "sys_role", "sys_menu", "sys_permission", "task",
 		// config.yaml 显式列出的 optional
 		"weixin", "cms", "flag",
 	}
