@@ -12,7 +12,7 @@ func Module(app *appx.App) plugin.Module {
 		NameStr: "menu",
 		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
 			tenant := slots.MustGet(plugin.SlotTenant).Group
-			pool := app.DB
+			pool := app.DB.Raw()
 			h := NewHandler(NewService(NewMenuRepository(pool)))
 			Register(tenant, h)
 		},

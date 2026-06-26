@@ -14,7 +14,7 @@ func Module(app *appx.App) plugin.Module {
 		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
 			tenant := slots.MustGet(plugin.SlotTenant).Group
 			protected := slots.MustGet(plugin.SlotProtected).Group
-			pool := app.DB
+			pool := app.DB.Raw()
 			h := NewHandler(NewService(pool, NewPostgresDictRepository(pool)))
 			Register(tenant, protected, h)
 		},

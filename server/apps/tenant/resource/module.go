@@ -15,7 +15,7 @@ func Module(app *appx.App) plugin.Module {
 		},
 		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
 			tenant := slots.MustGet(plugin.SlotTenant).Group
-			pool := app.DB
+			pool := app.DB.Raw()
 			authzSvc := ctx.Authz()
 			h := NewHandler(NewService(NewResourceRepository(pool), authzSvc))
 			Register(tenant, h)

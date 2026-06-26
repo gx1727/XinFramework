@@ -20,7 +20,7 @@ func Module(app *appx.App) plugin.Module {
 		},
 		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
 			tenant := slots.MustGet(plugin.SlotTenant).Group
-			pool := app.DB
+			pool := app.DB.Raw()
 			repo := NewRepository(pool)
 			svc := NewService(pool, repo)
 			h := NewHandler(svc)

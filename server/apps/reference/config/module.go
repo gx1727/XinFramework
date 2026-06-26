@@ -15,7 +15,7 @@ import (
 
 // Module 返回 config 模块的完整定义
 func Module(app *appx.App) plugin.Module {
-	pool := app.DB
+	pool := app.DB.Raw()
 	repo := NewPostgresConfigRepository(pool)
 	cache := NewCache()
 	svc := NewService(pool, repo, cache)

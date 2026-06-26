@@ -44,7 +44,7 @@ const (
 //   - 启 HTTP server，阻塞到收到信号后优雅退出
 //   - 信号触发后调各模块 Shutdown()，再释放基础设施
 func Serve(cfg *config.Config, app *appx.App, rt *Runtime, modules []plugin.Module) {
-	if err := migrate.Run(app.DB, "migrations"); err != nil {
+	if err := migrate.Run(app.DB.Raw(), "migrations"); err != nil {
 		log.Fatalf("migrations failed: %v", err)
 	}
 
@@ -64,7 +64,7 @@ func Serve(cfg *config.Config, app *appx.App, rt *Runtime, modules []plugin.Modu
 	}
 
 	// 配置全局中间件 + 路由
-	setupRouter(cfg, app.DB, rt, modules)
+	setupRouter(cfg, app.DB.Raw(), rt, modules)
 
 	// 启动 HTTP server
 	addr := fmt.Sprintf("%s:%d", cfg.App.Host, cfg.App.Port)

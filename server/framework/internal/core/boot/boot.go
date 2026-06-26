@@ -85,6 +85,7 @@ func Init(cfg *config.Config) (*appx.App, *server.Server, *plugin.AppContext, er
 
 	appCtx, err := plugin.NewAppContext(pool, cache.Get(), cfg, sm)
 	if err != nil {
+		pool.Close()
 		return nil, nil, nil, fmt.Errorf("new app context: %w", err)
 	}
 
@@ -102,18 +103,13 @@ func Init(cfg *config.Config) (*appx.App, *server.Server, *plugin.AppContext, er
 
 	srv := server.New(cfg)
 
-	app := &appx.App{
-		Config: cfg,
-		DB:     pool,
-	}
+	// Phase 0024：用强类型 Pool 包装，构造期 fail-fast 消灭所有 nil-check
+	// 散落到各 module 的 `if p := ctx.DB(); p != nil` 模式。
+	app := appx.MustNewApp(cfg, appx.MustNewPool(pool))
 
 	return app, srv, appCtx, nil
 }
 
-// Shutdown 释放基础设施资源（cache / DB pool / logger）。
-//
-// 模块级 Shutdown 由 framework.Serve 在收到信号后调用 shutdownModules 完成，
-// 不在此处——boot 包不持有模块列表，模块生命周期归 framework 管。
 func Shutdown(app *appx.App) {
 	if app == nil {
 		return

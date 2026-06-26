@@ -11,13 +11,13 @@ func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "organization",
 		InitFn: func(_ plugin.Reader, w plugin.Writer) error {
-			pool := app.DB
+			pool := app.DB.Raw()
 			w.SetOrgRepo(NewOrganizationRepository(pool))
 			return nil
 		},
 		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
 			tenant := slots.MustGet(plugin.SlotTenant).Group
-			pool := app.DB
+			pool := app.DB.Raw()
 			h := NewHandler(NewService(pool, NewOrganizationRepository(pool)))
 			Register(tenant, h)
 		},

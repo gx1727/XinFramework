@@ -22,13 +22,13 @@ func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "platform_tenant",
 		InitFn: func(_ plugin.Reader, w plugin.Writer) error {
-			pool := app.DB
+			pool := app.DB.Raw()
 			w.SetTenantRepo(&tenantPkgAdapter{repo: NewTenantRepository(pool).(*PostgresTenantRepository)})
 			return nil
 		},
 		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
 			protected := slots.MustGet(plugin.SlotProtected).Group
-			pool := app.DB
+			pool := app.DB.Raw()
 			h := NewHandler(NewService(pool, NewTenantRepository(pool)))
 			Register(protected, h)
 		},

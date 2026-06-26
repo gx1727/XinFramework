@@ -15,7 +15,7 @@ func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "auth",
 		InitFn: func(_ plugin.Reader, w plugin.Writer) error {
-			pool := app.DB
+			pool := app.DB.Raw()
 			w.SetAccountRepo(NewAccountRepository(pool))
 			w.SetAccountAuthRepo(NewAccountAuthRepository(pool))
 			return nil
@@ -23,7 +23,7 @@ func Module(app *appx.App) plugin.Module {
 		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
 			public := slots.MustGet(plugin.SlotPublic).Group
 			protected := slots.MustGet(plugin.SlotProtected).Group
-			pool := app.DB
+			pool := app.DB.Raw()
 			if ctx != nil {
 				if p := ctx.DB(); p != nil {
 					pool = p

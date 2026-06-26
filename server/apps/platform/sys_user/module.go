@@ -17,7 +17,7 @@ func Module(app *appx.App) plugin.Module {
 		NameStr: "sys_user",
 		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
 			protected := slots.MustGet(plugin.SlotProtected).Group
-			pool := app.DB
+			pool := app.DB.Raw()
 			h := NewHandler(NewService(pool, NewRepository(pool)))
 			Register(protected, h)
 		},

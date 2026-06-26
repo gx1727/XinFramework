@@ -19,7 +19,7 @@ func Module(app *appx.App) plugin.Module {
 			public := slots.MustGet(plugin.SlotPublic).Group
 			protected := slots.MustGet(plugin.SlotProtected).Group
 			cfg := app.Config
-			pool := app.DB
+			pool := app.DB.Raw()
 			// 创建 storage
 			var s storage.Storage
 			if cfg.Storage.Provider == "cos" {

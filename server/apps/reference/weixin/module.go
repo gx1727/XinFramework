@@ -12,7 +12,6 @@ import (
 // globals to AppContext.Reader. The Init phase runs once at boot and
 // calls InitConfig(); downstream dependencies are resolved lazily on
 // first request through the closed-over reader.
-//
 func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "weixin",
@@ -37,7 +36,7 @@ func Module(app *appx.App) plugin.Module {
 			}
 
 			svc := NewService(
-				app.DB,
+				app.DB.Raw(),
 				session.Manager(),
 				accountAuthRepo,
 				accountRepo,

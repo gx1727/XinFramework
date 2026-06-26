@@ -12,13 +12,13 @@ func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "role",
 		InitFn: func(_ plugin.Reader, w plugin.Writer) error {
-			pool := app.DB
+			pool := app.DB.Raw()
 			w.SetRoleRepo(NewRoleRepository(pool))
 			return nil
 		},
 		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
 			tenant := slots.MustGet(plugin.SlotTenant).Group
-			pool := app.DB
+			pool := app.DB.Raw()
 			authzSvc := ctx.Authz()
 			h := NewHandler(NewService(
 				pool,

@@ -1,4 +1,4 @@
-package task
+﻿package task
 
 import (
 	"context"
@@ -29,7 +29,7 @@ func Module(app *appx.App) plugin.Module {
 	return &plugin.BaseModule{
 		NameStr: "task",
 		InitFn: func(_ plugin.Reader, w plugin.Writer) error {
-			pool := app.DB
+			pool := app.DB.Raw()
 			q := taskpkg.NewPGQueue(pool)
 			w.SetTaskQueue(q)
 			return nil
@@ -43,7 +43,7 @@ func Module(app *appx.App) plugin.Module {
 			}
 
 			// 注册内置 cleanup handler
-			registerBuiltinHandlers(queue, app.DB, app.Config)
+			registerBuiltinHandlers(queue, app.DB.Raw(), app.Config)
 
 			// 启动 worker pool
 			taskCfg := app.Config.Task
@@ -70,7 +70,7 @@ func Module(app *appx.App) plugin.Module {
 			if !cronCfg.IsEnabled() {
 				return
 			}
-			cronStore := taskpkg.NewPGCronStore(app.DB)
+			cronStore := taskpkg.NewPGCronStore(app.DB.Raw())
 			cronSvc := NewCronService(cronStore, queue, cronCfg.ScanIntervalSec)
 			cronH := NewCronHandler(cronSvc)
 			RegisterCron(protected, cronH)
@@ -109,8 +109,8 @@ var builtinHandlerKinds = []string{
 }
 
 // registerBuiltinHandlers 注册 task 模块自带的两个 cleanup handler：
-//   1. cleanup_expired_locks —— 清理 login_security.account_locks 中已过期锁定
-//   2. cleanup_old_tasks —— 清理 background_tasks 中 finished_at < NOW() - N 的记录
+//  1. cleanup_expired_locks —— 清理 login_security.account_locks 中已过期锁定
+//  2. cleanup_old_tasks —— 清理 background_tasks 中 finished_at < NOW() - N 的记录
 //
 // 失败仅记 warn（不影响其他 handler 注册）。
 // registerDefaultCronJobs 注册框架默认的周期性任务（幂等）。
@@ -122,13 +122,13 @@ var builtinHandlerKinds = []string{
 func registerDefaultCronJobs(store taskpkg.CronStore) error {
 	defaults := []taskpkg.CronJob{
 		{
-			Name:       "cleanup_old_tasks_daily",
-			CronExpr:   "0 3 * * *",                     // 每天凌晨 3 点
-			Timezone:   "Asia/Shanghai",
-			Kind:       "cleanup_old_tasks",
-			Enabled:    true,
-			MissPolicy: taskpkg.MissPolicySkip,
-			Payload:    []byte(`{"keep_days":7}`),
+			Name:        "cleanup_old_tasks_daily",
+			CronExpr:    "0 3 * * *", // 每天凌晨 3 点
+			Timezone:    "Asia/Shanghai",
+			Kind:        "cleanup_old_tasks",
+			Enabled:     true,
+			MissPolicy:  taskpkg.MissPolicySkip,
+			Payload:     []byte(`{"keep_days":7}`),
 			Description: "每天清理 background_tasks 中 7 天前的 succeeded/dead 记录",
 		},
 	}
@@ -155,7 +155,7 @@ func registerDefaultCronJobs(store taskpkg.CronStore) error {
 
 func registerBuiltinHandlers(queue taskpkg.Queue, pool *pgxpool.Pool, cfg *config.Config) {
 	lockCleaner := taskpkg.HandlerFunc{
-		KindStr: "cleanup_expired_locks",
+		KindStr:  "cleanup_expired_locks",
 		TimeoutV: 60,
 		HandleFn: func(ctx context.Context, t *taskpkg.Task) error {
 			_, err := pool.Exec(ctx,
@@ -169,7 +169,7 @@ func registerBuiltinHandlers(queue taskpkg.Queue, pool *pgxpool.Pool, cfg *confi
 	}
 
 	oldTaskCleaner := taskpkg.HandlerFunc{
-		KindStr: "cleanup_old_tasks",
+		KindStr:  "cleanup_old_tasks",
 		TimeoutV: 120,
 		HandleFn: func(ctx context.Context, t *taskpkg.Task) error {
 			keepDays := cfg.Task.Cleanup.SucceededKeepDays
