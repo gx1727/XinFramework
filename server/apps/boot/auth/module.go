@@ -1,4 +1,4 @@
-﻿package auth
+package auth
 
 import (
 	"time"
@@ -25,7 +25,7 @@ func Module(app *appx.App) plugin.Module {
 			protected := slots.MustGet(plugin.SlotProtected).Group
 			pool := app.DB.Raw()
 			if ctx != nil {
-				if p := ctx.DB(); p != nil {
+				if p := ctx.DB().Raw(); p != nil {
 					pool = p
 				}
 			}

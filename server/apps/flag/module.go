@@ -1,4 +1,4 @@
-﻿package flag
+package flag
 
 import (
 	"gx1727.com/xin/framework/pkg/appx"
@@ -14,7 +14,7 @@ func Module(app *appx.App) plugin.Module {
 			tenant := slots.MustGet(plugin.SlotTenant).Group
 			pool := app.DB.Raw()
 			if ctx != nil {
-				if p := ctx.DB(); p != nil {
+				if p := ctx.DB().Raw(); p != nil {
 					pool = p
 				}
 			}

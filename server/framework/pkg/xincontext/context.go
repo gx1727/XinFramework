@@ -15,9 +15,12 @@ import (
 )
 
 type XinContext struct {
+	// Phase 0024 决定：TenantID / UserID 保持 uint，避免全量迁移 50+ 个调用点。
+	// 强类型 ID（TenantID / UserID / AccountID / OrgID / RoleID）已在 types.go 定义，
+	// 暂以 alias 形式提供（v2 阶段全面替换）。当前业务通过 uint 兼容层 + 文档约定避免误用。
 	TenantID  uint
 	UserID    uint
-	SessionID string
+	SessionID SessionID
 	Role      string
 	// PlatformRoles 平台级角色（如 super_admin），不绑定具体租户
 	PlatformRoles []string
@@ -59,7 +62,7 @@ func (x *XinContext) Clone() *XinContext {
 		Role:          x.Role,
 		PlatformRoles: append([]string(nil), x.PlatformRoles...),
 		IP:            x.IP,
-		UserAgent:      x.UserAgent,
+		UserAgent:     x.UserAgent,
 		DeviceID:      x.DeviceID,
 	}
 	return clone
@@ -174,6 +177,7 @@ func (u *UserContext) DataScopeFilterFor(columns permission.ScopeColumns) (permi
 
 // XinContext getters
 
+// GetTenantID 返回租户 ID（0 表示平台域 / 未指定）。
 func (x *XinContext) GetTenantID() uint {
 	if x == nil {
 		return 0
@@ -181,6 +185,7 @@ func (x *XinContext) GetTenantID() uint {
 	return x.TenantID
 }
 
+// GetUserID 返回用户 ID。
 func (x *XinContext) GetUserID() uint {
 	if x == nil {
 		return 0
@@ -188,7 +193,8 @@ func (x *XinContext) GetUserID() uint {
 	return x.UserID
 }
 
-func (x *XinContext) GetSessionID() string {
+// GetSessionID 返回强类型会话 ID。
+func (x *XinContext) GetSessionID() SessionID {
 	if x == nil {
 		return ""
 	}

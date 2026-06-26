@@ -24,8 +24,8 @@ import (
 	"errors"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/jackc/pgx/v5/pgxpool"
 
+	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/auth"
 	"gx1727.com/xin/framework/pkg/authz"
 	"gx1727.com/xin/framework/pkg/config"
@@ -50,7 +50,7 @@ import (
 //   - 测试中可以构造一个轻量的伪造 Reader，无需构建完整的 AppContext。
 type Reader interface {
 	// 基础设施（boot.Init 之后始终存在）。
-	DB() *pgxpool.Pool
+	DB() *appx.Pool
 	Cache() *redis.Client // 当 Redis 禁用时可能返回 nil
 	Config() *config.Config
 	Session() session.SessionManager
@@ -99,7 +99,7 @@ type Writer interface {
 // 注意：零值不可用 —— 必须由 boot.Init 中的 NewAppContext 构造。
 type AppContext struct {
 	// 基础设施，Init 之前设置一次。
-	db      *pgxpool.Pool
+	db      *appx.Pool
 	cache   *redis.Client
 	cfg     *config.Config
 	session session.SessionManager
@@ -119,16 +119,16 @@ type AppContext struct {
 // NewAppContext 构造 AppContext 并预填充基础设施插槽。
 // 其他插槽由模块的 Init() 阶段填充。
 //
-// db 连接池和 config 必须非 nil。cache 和 session 可能为 nil，
-// 仅当对应的子系统在启动时被显式禁用（例如 Redis 禁用且使用 DB 会话管理器）。
+// pool / config 必须非 nil（pool 应是 appx.MustNewPool 的产物）；
+// cache / session 可能为 nil，仅当对应的子系统在启动时被显式禁用。
 func NewAppContext(
-	db *pgxpool.Pool,
+	db *appx.Pool,
 	cache *redis.Client,
 	cfg *config.Config,
 	session session.SessionManager,
 ) (*AppContext, error) {
 	if db == nil {
-		return nil, errors.New("NewAppContext: db connection pool cannot be nil")
+		return nil, errors.New("NewAppContext: db pool cannot be nil")
 	}
 	if cfg == nil {
 		return nil, errors.New("NewAppContext: config cannot be nil")
@@ -149,8 +149,11 @@ var (
 
 // --- Reader ---
 
-// DB returns the underlying database connection pool.
-func (a *AppContext) DB() *pgxpool.Pool { return a.db }
+// DB returns the underlying database connection pool (强类型包装，构造期必非空)。
+//
+// 业务模块用 ctx.DB().Raw() 拿原生 *pgxpool.Pool 传给 Repository 构造函数。
+// 不需要 nil-check（构造期已保证非空）。
+func (a *AppContext) DB() *appx.Pool { return a.db }
 
 // Cache returns the Redis client (may be nil if Redis is disabled).
 func (a *AppContext) Cache() *redis.Client { return a.cache }
@@ -194,7 +197,7 @@ func (a *AppContext) PermRepo() pkgauth.RoleResourceRepository { return a.permRe
 // TaskQueue 实现 Reader.TaskQueue。
 //
 // nil 表示未注入 task 模块，调用方需自行 nil-check 跳过。
-func (a *AppContext) TaskQueue() task.Queue                   { return a.taskQueue }
+func (a *AppContext) TaskQueue() task.Queue { return a.taskQueue }
 
 // --- Writer ---
 
@@ -223,4 +226,4 @@ func (a *AppContext) SetOrgRepo(v pkgauth.OrganizationRepository) { a.orgRepo = 
 func (a *AppContext) SetPermRepo(v pkgauth.RoleResourceRepository) { a.permRepo = v }
 
 // SetTaskQueue 注入任务队列。供 apps/task 模块在 Init 阶段调用。
-func (a *AppContext) SetTaskQueue(v task.Queue)              { a.taskQueue = v }
+func (a *AppContext) SetTaskQueue(v task.Queue) { a.taskQueue = v }

@@ -1,11 +1,11 @@
-﻿package user
+package user
 
 import (
 	"log"
 
+	"gx1727.com/xin/apps/reference/asset"
 	"gx1727.com/xin/apps/tenant/organization"
 	"gx1727.com/xin/apps/tenant/role"
-	"gx1727.com/xin/apps/reference/asset"
 	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/plugin"
 	"gx1727.com/xin/framework/pkg/storage"
@@ -27,7 +27,7 @@ func Module(app *appx.App) plugin.Module {
 			tenant := slots.MustGet(plugin.SlotTenant).Group
 			pool := app.DB.Raw()
 			if ctx != nil {
-				if p := ctx.DB(); p != nil {
+				if p := ctx.DB().Raw(); p != nil {
 					pool = p
 				}
 			}

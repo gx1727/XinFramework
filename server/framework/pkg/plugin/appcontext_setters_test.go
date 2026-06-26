@@ -5,10 +5,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/auth"
 	"gx1727.com/xin/framework/pkg/config"
-	pkgauth "gx1727.com/xin/framework/pkg/tenant/auth"
 	"gx1727.com/xin/framework/pkg/tenant"
+	pkgauth "gx1727.com/xin/framework/pkg/tenant/auth"
 )
 
 // -----------------------------------------------------------------------------
@@ -171,7 +172,7 @@ func TestAppContext_AllSetters_CanBeClearedWithNil(t *testing.T) {
 // -----------------------------------------------------------------------------
 
 func newTestContext() *AppContext {
-	ctx, err := NewAppContext(&pgxpool.Pool{}, nil, &config.Config{}, nil)
+	ctx, err := NewAppContext(appx.MustNewPool(&pgxpool.Pool{}), nil, &config.Config{}, nil)
 	if err != nil {
 		panic(err) // 测试辅助函数,boot 期 panic 可接受
 	}

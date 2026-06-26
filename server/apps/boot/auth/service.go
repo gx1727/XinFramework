@@ -13,16 +13,16 @@ import (
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
-	"gx1727.com/xin/framework/pkg/login_security"
 	"gx1727.com/xin/framework/pkg/logger"
-	"gx1727.com/xin/framework/pkg/xincontext"
+	"gx1727.com/xin/framework/pkg/login_security"
 	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
+	"gx1727.com/xin/framework/pkg/xincontext"
 )
 
 type LoginIdentity struct {
-	AccountID    uint   // accounts.id（用于 login_security.history）
-	UserID       uint
-	TenantID     uint
+	AccountID    xincontext.AccountID // accounts.id（用于 login_security.history）
+	UserID       xincontext.UserID    // tenant_users.id
+	TenantID     xincontext.TenantID
 	UserCode     string
 	UserStatus   int16
 	RoleCode     string
@@ -35,7 +35,7 @@ type LoginIdentity struct {
 	Email    string
 }
 
-func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, tenantID uint) (*LoginIdentity, error) {
+func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, tenantID xincontext.TenantID) (*LoginIdentity, error) {
 	if d == nil {
 		return nil, ErrBackendUnavailable
 	}
@@ -45,7 +45,7 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 
 	var identity LoginIdentity
 
-	err := db.RunInTenantTx(ctx, d, tenantID, func(ctx context.Context) error {
+	err := db.RunInTenantTx(ctx, d, uint(tenantID), func(ctx context.Context) error {
 		querier, err := db.GetQuerier(ctx, d)
 		if err != nil {
 			return err
@@ -66,8 +66,8 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 		}
 
 		var (
-			uID       uint
-			uTenantID uint
+			uID       xincontext.UserID
+			uTenantID xincontext.TenantID
 			uCode     string
 			uStatus   int16
 			uNickname string
@@ -107,7 +107,7 @@ func ResolveLoginIdentity(ctx context.Context, d *pgxpool.Pool, account string, 
 		}
 
 		identity = LoginIdentity{
-			AccountID:    accID,
+			AccountID:    xincontext.NewAccountID(accID),
 			UserID:       uID,
 			TenantID:     uTenantID,
 			UserCode:     uCode,
@@ -369,7 +369,7 @@ func (s *Service) Login(ctx context.Context, req tenantLoginRequest) (*LoginResu
 		return nil, err
 	}
 
-	identity, err := ResolveLoginIdentity(ctx, s.db, req.Account, req.TenantID)
+	identity, err := ResolveLoginIdentity(ctx, s.db, req.Account, xincontext.NewTenantID(req.TenantID))
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrBackendUnavailable):
@@ -410,7 +410,7 @@ func (s *Service) Login(ctx context.Context, req tenantLoginRequest) (*LoginResu
 		RefreshToken: tokens.refreshToken,
 		Scope:        LoginScopeTenant,
 	}
-	res.User.ID = identity.UserID
+	res.User.ID = uint(identity.UserID)
 	res.User.TenantID = identity.TenantID
 	res.User.Code = identity.UserCode
 	res.User.Role = identity.RoleCode

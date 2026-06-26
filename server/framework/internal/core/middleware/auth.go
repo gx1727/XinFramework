@@ -9,12 +9,12 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/config"
-	"gx1727.com/xin/framework/pkg/xincontext"
 	"gx1727.com/xin/framework/pkg/db"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/resp"
 	"gx1727.com/xin/framework/pkg/session"
+	"gx1727.com/xin/framework/pkg/xincontext"
 )
 
 // SecurityContextLoader defines the authorization methods needed by auth middleware.
@@ -89,14 +89,14 @@ func injectBaseContext(c *gin.Context, claims *jwtpkg.Claims) {
 		xc = existingXc.Clone()
 		xc.TenantID = claims.TenantID
 		xc.UserID = claims.UserID
-		xc.SessionID = claims.SessionID
+		xc.SessionID = xincontext.NewSessionID(claims.SessionID)
 		xc.Role = claims.Role
 		xc.PlatformRoles = claims.PlatformRoles
 	} else {
 		xc = &xincontext.XinContext{
 			TenantID:      claims.TenantID,
 			UserID:        claims.UserID,
-			SessionID:     claims.SessionID,
+			SessionID:     xincontext.NewSessionID(claims.SessionID),
 			Role:          claims.Role,
 			PlatformRoles: claims.PlatformRoles,
 		}
@@ -135,7 +135,7 @@ func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc SecurityCo
 		xc = &xincontext.XinContext{
 			TenantID:      claims.TenantID,
 			UserID:        claims.UserID,
-			SessionID:     claims.SessionID,
+			SessionID:     xincontext.NewSessionID(claims.SessionID),
 			Role:          claims.Role,
 			PlatformRoles: claims.PlatformRoles,
 		}

@@ -83,7 +83,7 @@ func Init(cfg *config.Config) (*appx.App, *server.Server, *plugin.AppContext, er
 		permCache = memCache
 	}
 
-	appCtx, err := plugin.NewAppContext(pool, cache.Get(), cfg, sm)
+	appCtx, err := plugin.NewAppContext(appx.MustNewPool(pool), cache.Get(), cfg, sm)
 	if err != nil {
 		pool.Close()
 		return nil, nil, nil, fmt.Errorf("new app context: %w", err)

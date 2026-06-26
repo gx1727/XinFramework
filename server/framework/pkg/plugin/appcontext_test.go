@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"gx1727.com/xin/framework/pkg/appx"
 	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/permission"
 )
@@ -26,7 +27,7 @@ func TestNewAppContext_NilDB_ReturnsError(t *testing.T) {
 
 // TestNewAppContext_NilConfig_ReturnsError: same rationale as the db check.
 func TestNewAppContext_NilConfig_ReturnsError(t *testing.T) {
-	if _, err := NewAppContext(&pgxpool.Pool{}, nil, nil, nil); err == nil {
+	if _, err := NewAppContext(appx.MustNewPool(&pgxpool.Pool{}), nil, nil, nil); err == nil {
 		t.Fatal("NewAppContext(pool, nil, nil, nil) must return error on nil cfg")
 	}
 }
@@ -39,12 +40,12 @@ func TestNewAppContext_HappyPath(t *testing.T) {
 		cfg  = &config.Config{}
 	)
 
-	ctx, err := NewAppContext(pool, nil, cfg, nil)
+	ctx, err := NewAppContext(appx.MustNewPool(pool), nil, cfg, nil)
 	if err != nil {
 		t.Fatalf("happy-path NewAppContext returned error: %v", err)
 	}
-	if ctx.DB() != pool {
-		t.Error("Reader.DB() should return the pool passed to NewAppContext")
+	if got := ctx.DB().Raw(); got != pool {
+		t.Errorf("Reader.DB().Raw() should return the pool passed to NewAppContext")
 	}
 	if ctx.Cache() != nil {
 		t.Error("Reader.Cache() should be nil when cache was nil at construction")
@@ -66,7 +67,7 @@ func TestNewAppContext_HappyPath(t *testing.T) {
 // single source of truth that "module not enabled" is observable as a
 // nil repository rather than a panic.
 func TestAppContext_DefaultsAreNil(t *testing.T) {
-	ctx, err := NewAppContext(&pgxpool.Pool{}, nil, &config.Config{}, nil)
+	ctx, err := NewAppContext(appx.MustNewPool(&pgxpool.Pool{}), nil, &config.Config{}, nil)
 	if err != nil {
 		t.Fatalf("NewAppContext returned error: %v", err)
 	}
@@ -109,21 +110,21 @@ type fakeAuthz struct{}
 func (fakeAuthz) LoadPermissions(context.Context, uint) (map[string]bool, error) {
 	return nil, nil
 }
-func (fakeAuthz) LoadRoles(context.Context, uint) ([]string, error)          { return nil, nil }
+func (fakeAuthz) LoadRoles(context.Context, uint) ([]string, error) { return nil, nil }
 func (fakeAuthz) LoadDataScope(context.Context, uint) (*permission.DataScope, error) {
 	return nil, nil
 }
 func (fakeAuthz) LoadUserSecurityContext(context.Context, uint) (map[string]bool, []string, *permission.DataScope, int64, error) {
 	return nil, nil, nil, 0, nil
 }
-func (fakeAuthz) InvalidateUser(context.Context, uint) error                 { return nil }
-func (fakeAuthz) InvalidateRole(context.Context, uint) error                 { return nil }
-func (fakeAuthz) InvalidateResource(context.Context, uint) error             { return nil }
+func (fakeAuthz) InvalidateUser(context.Context, uint) error     { return nil }
+func (fakeAuthz) InvalidateRole(context.Context, uint) error     { return nil }
+func (fakeAuthz) InvalidateResource(context.Context, uint) error { return nil }
 
 // TestAppContext_SetAuthz_RoundTrip is the most important Writer/Reader
 // property: after SetAuthz, Reader.Authz() returns the same value.
 func TestAppContext_SetAuthz_RoundTrip(t *testing.T) {
-	ctx, err := NewAppContext(&pgxpool.Pool{}, nil, &config.Config{}, nil)
+	ctx, err := NewAppContext(appx.MustNewPool(&pgxpool.Pool{}), nil, &config.Config{}, nil)
 	if err != nil {
 		t.Fatalf("NewAppContext returned error: %v", err)
 	}
@@ -141,7 +142,7 @@ func TestAppContext_SetAuthz_RoundTrip(t *testing.T) {
 // writer and only runs once, but tests of third-party wiring may set
 // then override.
 func TestAppContext_SetAuthz_Overwrite(t *testing.T) {
-	ctx, err := NewAppContext(&pgxpool.Pool{}, nil, &config.Config{}, nil)
+	ctx, err := NewAppContext(appx.MustNewPool(&pgxpool.Pool{}), nil, &config.Config{}, nil)
 	if err != nil {
 		t.Fatalf("NewAppContext returned error: %v", err)
 	}

@@ -2,8 +2,8 @@ package auth
 
 import (
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/framework/pkg/xincontext"
 	"gx1727.com/xin/framework/pkg/resp"
+	"gx1727.com/xin/framework/pkg/xincontext"
 )
 
 type Handler struct {
@@ -17,14 +17,14 @@ func NewHandler(svc *Service) *Handler {
 // serializeAuthUser 把 auth.User 拍平成 gin.H，供 login/register 响应复用。
 func serializeAuthUser(u User) gin.H {
 	return gin.H{
-		"id":            u.ID,
-		"tenant_id":     u.TenantID,
-		"code":          u.Code,
-		"role":          u.Role,
-		"nickname":      u.Nickname,
-		"real_name":     u.RealName,
-		"avatar":        u.Avatar,
-		"email":         u.Email,
+		"id":             u.ID,
+		"tenant_id":      u.TenantID,
+		"code":           u.Code,
+		"role":           u.Role,
+		"nickname":       u.Nickname,
+		"real_name":      u.RealName,
+		"avatar":         u.Avatar,
+		"email":          u.Email,
 		"platform_roles": u.PlatformRoles,
 	}
 }
@@ -49,10 +49,10 @@ func (h *Handler) TenantLogin(c *gin.Context) {
 	}
 
 	resp.Success(c, gin.H{
-		"scope":        result.Scope,
-		"token":        result.Token,
+		"scope":         result.Scope,
+		"token":         result.Token,
 		"refresh_token": result.RefreshToken,
-		"user":         serializeAuthUser(result.User),
+		"user":          serializeAuthUser(result.User),
 	})
 }
 
@@ -106,10 +106,10 @@ func (h *Handler) SelectTenant(c *gin.Context) {
 	}
 
 	resp.Success(c, gin.H{
-		"scope":        result.Scope,
-		"token":        result.Token,
+		"scope":         result.Scope,
+		"token":         result.Token,
 		"refresh_token": result.RefreshToken,
-		"user":         serializeAuthUser(result.User),
+		"user":          serializeAuthUser(result.User),
 	})
 }
 
@@ -129,15 +129,15 @@ func (h *Handler) PlatformLogin(c *gin.Context) {
 	}
 
 	resp.Success(c, gin.H{
-		"scope":        result.Scope,
-		"token":        result.Token,
+		"scope":         result.Scope,
+		"token":         result.Token,
 		"refresh_token": result.RefreshToken,
-		"user":         serializeAuthUser(result.User),
+		"user":          serializeAuthUser(result.User),
 	})
 }
 
 func (h *Handler) Logout(c *gin.Context) {
-	if err := h.svc.Logout(xincontext.New(c).GetSessionID()); err != nil {
+	if err := h.svc.Logout(string(xincontext.New(c).GetSessionID())); err != nil {
 		resp.HandleError(c, err)
 		return
 	}
@@ -157,10 +157,10 @@ func (h *Handler) Register(c *gin.Context) {
 	}
 
 	resp.Success(c, gin.H{
-		"scope":        result.Scope,
-		"token":        result.Token,
+		"scope":         result.Scope,
+		"token":         result.Token,
 		"refresh_token": result.RefreshToken,
-		"user":         serializeAuthUser(result.User),
+		"user":          serializeAuthUser(result.User),
 	})
 }
 
