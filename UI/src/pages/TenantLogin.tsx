@@ -36,12 +36,12 @@ export function TenantLoginPage() {
             <LoginForm mode="tenant" />
           </div>
         </div>
-        <div className="text-center text-sm text-muted-foreground">
+        {/* <div className="text-center text-sm text-muted-foreground">
           平台管理员？{" "}
           <Link to="/platform/login" className="underline underline-offset-4">
             进入平台登录入口
           </Link>
-        </div>
+        </div> */}
       </div>
       <div className="relative hidden bg-muted lg:block">
         <img

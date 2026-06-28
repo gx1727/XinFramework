@@ -289,7 +289,7 @@ waitForSignal → shutdownModules
 | `tenant` | `Auth(&cfg.JWT, sm, authzSvc, db)` + `RequireTenantContext()` |
 | `protected` | `Auth(...)`（模块内部再追加 `RequirePlatformRole("super_admin")`） |
 
-`Auth` 注入 `XinContext`（轻量身份）和 `UserContext` 懒加载器（RBAC + DataScope）；`OptionalAuth` 是 Auth 的弱化版（无 token 时从 `X-Tenant-ID` header 兜底注入 `XinContext.TenantID`）。
+`Auth` 注入 `Context`（轻量身份）和 `UserContext` 懒加载器（RBAC + DataScope）；`OptionalAuth` 是 Auth 的弱化版（无 token 时从 `X-Tenant-ID` header 兜底注入 `Context.TenantID`）。
 
 ---
 
@@ -334,7 +334,7 @@ err = q.QueryRow(ctx, `SELECT ...`, id).Scan(&v)
 `framework/pkg/xincontext/context.go`：
 
 ```go
-type XinContext struct {
+type Context struct {
     TenantID       uint
     UserID         uint
     SessionID      string
@@ -343,12 +343,12 @@ type XinContext struct {
 }
 
 type UserContext struct {
-    *XinContext
+    *Context
     // RBAC + DataScope 懒加载
 }
 ```
 
-`XinContext` 注入到 `gin.Context`（`Auth` 中间件）：
+`Context` 注入到 `gin.Context`（`Auth` 中间件）：
 
 ```go
 type Handler struct{}
@@ -360,7 +360,7 @@ func (h *Handler) Get(c *gin.Context) {
 }
 ```
 
-`UserContext` 包装 `XinContext`，提供 `LoadPermissions / LoadRoles / LoadDataScope` 懒加载，按需查 DB（由 `authz.AuthorizationService` 实现）。
+`UserContext` 包装 `Context`，提供 `LoadPermissions / LoadRoles / LoadDataScope` 懒加载，按需查 DB（由 `authz.AuthorizationService` 实现）。
 
 ---
 
@@ -414,7 +414,7 @@ Request → Auth 中间件
     ├─ 解析 Authorization: Bearer <token>
     ├─ jwt.Validate(token, cfg) → Claims
     ├─ session.Validate(claims.SessionID) → 检查 session 存活
-    ├─ 把 Claims 灌进 XinContext
+    ├─ 把 Claims 灌进 Context
     └─ 注册 UserContext 懒加载器（不立即查 DB）
 
 业务 Handler
@@ -439,7 +439,7 @@ Require(spec) 中间件
 | **依赖倒置** | `AppContext` 注入而非全局；`Authz Authorization` 接口而非具体类型 |
 | **显式 Build** | `main.go` 列 `[]plugin.Module{...}`，无 `init()` 注册表 |
 | **纵深防御** | DB RLS + 应用层 `RunInTenantTx` + 中间件 `RequireTenantContext` |
-| **单一来源** | 配置 → `config.Config`；DB pool → `appx.App`；context 身份 → `XinContext` |
+| **单一来源** | 配置 → `config.Config`；DB pool → `appx.App`；context 身份 → `Context` |
 | **失败不抛** | `audit.Log` 失败仅记日志；Redis 不可用自动降级到 DB session |
 | **显式错误** | DB sentinel + service mapRepoError + handler HandleError |
 | **可关闭副作用** | Redis `required=false` 时不可用继续；JWT secret 校验仅 prod 强制 |

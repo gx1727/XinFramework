@@ -193,7 +193,7 @@ g := protected.Group("/tenants",
 )
 ```
 
-`RequirePlatformRole(roles...)` 检查 `XinContext.PlatformRoles` 包含任一 role。
+`RequirePlatformRole(roles...)` 检查 `Context.PlatformRoles` 包含任一 role。
 
 ### 5.4 双重防御
 
@@ -208,7 +208,7 @@ g.POST("/tenants",
 
 ### 5.5 短路
 
-`requireWithSpecs` 在 `XinContext.HasPlatformRole(super_admin)` 时**短路放行**——但实际上双层守卫更严格。建议**关键操作（删除租户、purge）**显式双层守卫，**普通查询**可以靠 super_admin 短路。
+`requireWithSpecs` 在 `Context.HasPlatformRole(super_admin)` 时**短路放行**——但实际上双层守卫更严格。建议**关键操作（删除租户、purge）**显式双层守卫，**普通查询**可以靠 super_admin 短路。
 
 ---
 
@@ -220,7 +220,7 @@ g.POST("/tenants",
 
 1. 解析 JWT → Claims
 2. 检查 `session.Validate(SessionID)` → session 存活
-3. 注入 `XinContext`
+3. 注入 `Context`
 4. 注册 `UserContext` 懒加载器（**不立即查 DB**）
 
 ### 6.2 懒加载
@@ -338,7 +338,7 @@ public.GET("/configs", h.GetPublicConfigs)
 
 `auth/login-precheck` 列出所有身份；`select-tenant` / `tenant-login` 后 JWT 的 `Role` 字段是该身份的 tenant role code。
 
-**切换租户**：`refresh_token` + `tenant_id` → 新 JWT。`XinContext.PlatformRoles` 不变（平台角色是账号级，与租户无关）。
+**切换租户**：`refresh_token` + `tenant_id` → 新 JWT。`Context.PlatformRoles` 不变（平台角色是账号级，与租户无关）。
 
 ---
 
@@ -369,7 +369,7 @@ audit.Log(ctx, pool, audit.Entry{
 })
 ```
 
-`actor_id` 从 `XinContext.UserID` 自动取。
+`actor_id` 从 `Context.UserID` 自动取。
 
 ---
 

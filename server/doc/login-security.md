@@ -192,10 +192,10 @@ login_security:
 
 ## 7. 请求元数据采集
 
-### 7.1 `xincontext.XinContext` 新增字段
+### 7.1 `xincontext.Context` 新增字段
 
 ```go
-type XinContext struct {
+type Context struct {
     // ... 已有字段 ...
     IP        string // c.ClientIP()，处理 X-Forwarded-For 后
     UserAgent string // User-Agent header

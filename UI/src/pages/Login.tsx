@@ -32,7 +32,7 @@ export function LoginPage() {
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
-            <LoginForm />
+            <LoginForm mode="tenant" />
           </div>
         </div>
       </div>

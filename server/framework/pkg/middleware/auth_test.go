@@ -7,10 +7,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	pkgcontext "gx1727.com/xin/framework/pkg/xincontext"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/resp"
+	pkgcontext "gx1727.com/xin/framework/pkg/xincontext"
 )
 
 // buildCtx constructs a *gin.Context pre-loaded with the supplied
@@ -31,7 +31,7 @@ func buildCtx(uc *pkgcontext.UserContext) (*gin.Context, *httptest.ResponseRecor
 			pkgcontext.WithUserContext(c.Request.Context(), uc),
 		)
 		c.Request = c.Request.WithContext(
-			pkgcontext.WithXinContext(c.Request.Context(), uc.XinContext),
+			pkgcontext.WithXinContext(c.Request.Context(), uc.Context),
 		)
 	}
 	return c, rec
@@ -41,7 +41,7 @@ func buildCtx(uc *pkgcontext.UserContext) (*gin.Context, *httptest.ResponseRecor
 // provided map and leaves DataScope at zero value.
 func makeUC(userID uint, platformRoles []string, perms map[string]bool) *pkgcontext.UserContext {
 	return &pkgcontext.UserContext{
-		XinContext:  &pkgcontext.XinContext{UserID: userID, PlatformRoles: platformRoles},
+		Context:     &pkgcontext.Context{UserID: userID, PlatformRoles: platformRoles},
 		Permissions: perms,
 	}
 }

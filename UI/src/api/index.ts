@@ -19,9 +19,13 @@ export {
   authApi,
   type LoginRequest,
   type LoginResponse,
+  type LoginScope,
+  type PlatformLoginRequest,
   type RegisterRequest,
   type RefreshRequest,
   type RefreshResponse,
+  type TenantIdentity,
+  type LoginPrecheckResponse,
 } from "./auth"
 
 export {

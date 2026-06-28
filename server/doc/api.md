@@ -258,7 +258,7 @@ file: <binary>
 |---|---|---|
 | `Authorization: Bearer <token>` | 业务 API 必填 | 访问令牌 |
 | `Content-Type: application/json` | POST/PUT 必填 | 请求体格式 |
-| `X-Tenant-ID: <id>` | 公开域可选 | 当无 token 时，用 `X-Tenant-ID` 兜底注入 `XinContext.TenantID` |
+| `X-Tenant-ID: <id>` | 公开域可选 | 当无 token 时，用 `X-Tenant-ID` 兜底注入 `Context.TenantID` |
 | `X-Request-ID` | 自动 | 由 RequestID 中间件生成 |
 | `X-Requested-With` | 可选 | 跨域兼容性 |
 

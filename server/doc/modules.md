@@ -221,7 +221,7 @@ flag ─── (avatar/frame 模块，依赖 asset 上传)
 
 每个路由都至少经过：
 
-1. **JWT 解析**（Auth / OptionalAuth）— 注入 `XinContext`
+1. **JWT 解析**（Auth / OptionalAuth）— 注入 `Context`
 2. **资源权限**（`middleware.Require(permission.P(ResXxx, ActYyy))`）— 细粒度 RBAC
 
 `platform` 域路由额外叠加 `RequirePlatformRole("super_admin")`。

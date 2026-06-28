@@ -215,15 +215,15 @@ type Claims struct {
 
 | 中间件 | 行为 |
 |---|---|
-| `Auth` | 必登录，注入 `XinContext`（轻量身份） + 注册 `UserContext` 懒加载器（RBAC + DataScope） |
-| `AuthLite` | 必登录，只注入 `XinContext`；不挂权限加载器 |
-| `OptionalAuth` | 有 token 走 `Auth`；无 token 时从 `X-Tenant-ID` header 兜底注入 `XinContext.TenantID` |
+| `Auth` | 必登录，注入 `Context`（轻量身份） + 注册 `UserContext` 懒加载器（RBAC + DataScope） |
+| `AuthLite` | 必登录，只注入 `Context`；不挂权限加载器 |
+| `OptionalAuth` | 有 token 走 `Auth`；无 token 时从 `X-Tenant-ID` header 兜底注入 `Context.TenantID` |
 | `Require(spec)` | 全部 spec 校验（`MatchAll`），缺一个 403 |
 | `RequireAny(specs...)` / `RequireAll(specs...)` | 任一通过 / 全部通过 |
 | `RequireAuthenticated()` | 只校验登录 |
-| `RequirePlatformRole(roles...)` | 校验 `XinContext.PlatformRoles` 包含任一 role |
-| `RequireTenantContext()` | `XinContext.TenantID > 0`；挡住 platform token |
-| `RequirePlatformScope()` | `XinContext.TenantID == 0`；挡住 tenant token |
+| `RequirePlatformRole(roles...)` | 校验 `Context.PlatformRoles` 包含任一 role |
+| `RequireTenantContext()` | `Context.TenantID > 0`；挡住 platform token |
+| `RequirePlatformScope()` | `Context.TenantID == 0`；挡住 tenant token |
 
 **短路**：拥有 `*:*` 资源权限或 `super_admin` 平台角色时，`Require*` 全部放行。
 

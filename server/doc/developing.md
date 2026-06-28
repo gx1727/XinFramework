@@ -420,7 +420,7 @@ import cycle not allowed
 ### 3.2 业务 Handler 拿不到 tenant
 
 ```
-XinContext.TenantID == 0
+Context.TenantID == 0
 ```
 
 → 检查路由是否挂到 `tenant` group（不是 `public`），并确保请求带了有效 token。

@@ -1,4 +1,4 @@
-// Package xincontext 提供框架自定义的请求上下文类型（XinContext），
+// Package xincontext 提供框架自定义的请求上下文类型（Context），
 // 封装从 JWT claims 中解析出的 UserID、TenantID、SessionID 等身份信息。
 //
 // 注意：包名刻意使用 xincontext 而非 context，以避免遮蔽标准库 context 包，
@@ -14,7 +14,7 @@ import (
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
-type XinContext struct {
+type Context struct {
 	// Phase 0024 决定：TenantID / UserID 保持 uint，避免全量迁移 50+ 个调用点。
 	// 强类型 ID（TenantID / UserID / AccountID / OrgID / RoleID）已在 types.go 定义，
 	// 暂以 alias 形式提供（v2 阶段全面替换）。当前业务通过 uint 兼容层 + 文档约定避免误用。
@@ -41,7 +41,7 @@ type XinContext struct {
 // 与 RBAC 通配符判定的区别：
 //   - HasPlatformRole：检查 PlatformRoles 切片中的角色字符串
 //   - permission.HasGlobalPermission：检查 perms map 中的 "*:*" 通配符
-func (x *XinContext) HasPlatformRole(role string) bool {
+func (x *Context) HasPlatformRole(role string) bool {
 	if x == nil || role == "" {
 		return false
 	}
@@ -53,9 +53,9 @@ func (x *XinContext) HasPlatformRole(role string) bool {
 	return false
 }
 
-// Clone returns a copy of XinContext
-func (x *XinContext) Clone() *XinContext {
-	clone := &XinContext{
+// Clone returns a copy of Context
+func (x *Context) Clone() *Context {
+	clone := &Context{
 		TenantID:      x.TenantID,
 		UserID:        x.UserID,
 		SessionID:     x.SessionID,
@@ -68,9 +68,9 @@ func (x *XinContext) Clone() *XinContext {
 	return clone
 }
 
-// UserContext extends XinContext with RBAC + DataScope
+// UserContext extends Context with RBAC + DataScope
 type UserContext struct {
-	*XinContext
+	*Context
 	OrgID       int64
 	Roles       []string
 	Permissions map[string]bool
@@ -88,27 +88,27 @@ type userContextWrapper struct {
 	loader func() *UserContext
 }
 
-func WithXinContext(parent context.Context, xc *XinContext) context.Context {
+func WithXinContext(parent context.Context, xc *Context) context.Context {
 	return context.WithValue(parent, xinContextKey{}, xc)
 }
 
-func XinContextFrom(parent context.Context) (*XinContext, bool) {
-	v, ok := parent.Value(xinContextKey{}).(*XinContext)
+func XinContextFrom(parent context.Context) (*Context, bool) {
+	v, ok := parent.Value(xinContextKey{}).(*Context)
 	return v, ok
 }
 
-func New(c *gin.Context) *XinContext {
+func New(c *gin.Context) *Context {
 	if xc, ok := XinContextFrom(c.Request.Context()); ok {
 		return xc
 	}
-	return &XinContext{}
+	return &Context{}
 }
 
-func FromRequest(req *http.Request) *XinContext {
+func FromRequest(req *http.Request) *Context {
 	if xc, ok := XinContextFrom(req.Context()); ok {
 		return xc
 	}
-	return &XinContext{}
+	return &Context{}
 }
 
 func WithUserContext(parent context.Context, uc *UserContext) context.Context {
@@ -142,14 +142,14 @@ func NewUserContext(c *gin.Context) *UserContext {
 	if uc, ok := UserContextFrom(c.Request.Context()); ok {
 		return uc
 	}
-	return &UserContext{XinContext: &XinContext{}}
+	return &UserContext{Context: &Context{}}
 }
 
 func UserContextFromRequest(req *http.Request) *UserContext {
 	if uc, ok := UserContextFrom(req.Context()); ok {
 		return uc
 	}
-	return &UserContext{XinContext: &XinContext{}}
+	return &UserContext{Context: &Context{}}
 }
 
 // HasPermission checks if user has the specified permission
@@ -175,10 +175,10 @@ func (u *UserContext) DataScopeFilterFor(columns permission.ScopeColumns) (permi
 	return permission.BuildDataScopeFilter(u.DataScope, u.UserID, u.OrgID, columns)
 }
 
-// XinContext getters
+// Context getters
 
 // GetTenantID 返回租户 ID（0 表示平台域 / 未指定）。
-func (x *XinContext) GetTenantID() uint {
+func (x *Context) GetTenantID() uint {
 	if x == nil {
 		return 0
 	}
@@ -186,7 +186,7 @@ func (x *XinContext) GetTenantID() uint {
 }
 
 // GetUserID 返回用户 ID。
-func (x *XinContext) GetUserID() uint {
+func (x *Context) GetUserID() uint {
 	if x == nil {
 		return 0
 	}
@@ -194,14 +194,14 @@ func (x *XinContext) GetUserID() uint {
 }
 
 // GetSessionID 返回强类型会话 ID。
-func (x *XinContext) GetSessionID() SessionID {
+func (x *Context) GetSessionID() SessionID {
 	if x == nil {
 		return ""
 	}
 	return x.SessionID
 }
 
-func (x *XinContext) GetRole() string {
+func (x *Context) GetRole() string {
 	if x == nil {
 		return ""
 	}

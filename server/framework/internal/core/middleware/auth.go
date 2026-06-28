@@ -35,7 +35,7 @@ func injectRequestMeta(c *gin.Context) {
 
 	xc, ok := xincontext.XinContextFrom(ctx)
 	if !ok || xc == nil {
-		xc = &xincontext.XinContext{}
+		xc = &xincontext.Context{}
 		ctx = xincontext.WithXinContext(ctx, xc)
 	} else {
 		// 不 clone——base context 在更早的步骤已经填过身份字段。
@@ -84,7 +84,7 @@ func processAuthToken(c *gin.Context, cfg *config.JWTConfig, sm session.SessionM
 // 调用方应当接着注册 UserContextLoader（见 injectAuthContext）。
 func injectBaseContext(c *gin.Context, claims *jwtpkg.Claims) {
 	ctx := c.Request.Context()
-	var xc *xincontext.XinContext
+	var xc *xincontext.Context
 	if existingXc, ok := xincontext.XinContextFrom(ctx); ok {
 		xc = existingXc.Clone()
 		xc.TenantID = claims.TenantID
@@ -93,7 +93,7 @@ func injectBaseContext(c *gin.Context, claims *jwtpkg.Claims) {
 		xc.Role = claims.Role
 		xc.PlatformRoles = claims.PlatformRoles
 	} else {
-		xc = &xincontext.XinContext{
+		xc = &xincontext.Context{
 			TenantID:      claims.TenantID,
 			UserID:        claims.UserID,
 			SessionID:     xincontext.NewSessionID(claims.SessionID),
@@ -132,7 +132,7 @@ func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc SecurityCo
 	if xc == nil {
 		// 没有 base context 时先补上——理论上前置 injectBaseContext 已写入，
 		// 但保留独立路径避免依赖顺序。
-		xc = &xincontext.XinContext{
+		xc = &xincontext.Context{
 			TenantID:      claims.TenantID,
 			UserID:        claims.UserID,
 			SessionID:     xincontext.NewSessionID(claims.SessionID),
@@ -166,7 +166,7 @@ func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc SecurityCo
 		}
 
 		return &xincontext.UserContext{
-			XinContext:  xc,
+			Context:     xc,
 			OrgID:       orgID,
 			Roles:       roles,
 			Permissions: perms,
@@ -228,12 +228,12 @@ func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc Secu
 			if tenantIDStr := c.GetHeader("X-Tenant-ID"); tenantIDStr != "" {
 				if tenantID, parseErr := strconv.ParseUint(tenantIDStr, 10, 64); parseErr == nil {
 					tid := uint(tenantID)
-					var xc *xincontext.XinContext
+					var xc *xincontext.Context
 					if existingXc, ok := xincontext.XinContextFrom(c.Request.Context()); ok {
 						xc = existingXc.Clone()
 						xc.TenantID = tid
 					} else {
-						xc = &xincontext.XinContext{TenantID: tid}
+						xc = &xincontext.Context{TenantID: tid}
 					}
 					c.Request = c.Request.WithContext(xincontext.WithTenantID(xincontext.WithXinContext(c.Request.Context(), xc), tid))
 				}

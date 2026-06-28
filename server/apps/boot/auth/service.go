@@ -171,7 +171,7 @@ func NewService(deps Dependencies) *Service {
 
 // attemptFromContext 从 ctx 中提取登录尝试所需的请求元数据（IP/UA/DeviceID）。
 //
-// Auth 中间件已经把 IP/UA/DeviceID 注入到 XinContext 里（xincontext.XinContextFrom）。
+// Auth 中间件已经把 IP/UA/DeviceID 注入到 XinContext 里（xincontext.ContextFrom）。
 // 登录流程的特殊性：登录时 ctx 里通常没有 UserContext（没登录），所以直接从 XinContext 读。
 func attemptFromContext(ctx context.Context) (ip, ua, deviceID string) {
 	xc, ok := xincontext.XinContextFrom(ctx)

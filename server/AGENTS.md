@@ -75,7 +75,7 @@ server/
     │   ├── resp/                         # 统一响应 + 错误码分段
     │   ├── logger/                       # zap 包装
     │   ├── storage/{local,cos}/          # 对象存储实现
-    │   ├── xincontext/                   # 请求上下文（XinContext / UserContext）
+    │   ├── xincontext/                   # 请求上下文（Context / UserContext）
     │   └── identity/                     # 平台 + 租户共享的 User/Role/Menu/Permission/Org 基类
     └── ...
 ```
@@ -251,16 +251,16 @@ type Claims struct {
 
 | 中间件 | 行为 |
 |---|---|
-| `Auth` | 必登录，注入 `XinContext`（轻量身份） + 注册 `UserContext` 懒加载器（RBAC + DataScope） |
-| `AuthLite` | 必登录，只注入 `XinContext`；不挂权限加载器，杜绝 `MustNewUserContext` 误调用 |
-| `OptionalAuth` | 有 token 走 `Auth`；无 token 时从 `X-Tenant-ID` header 兜底注入 `XinContext.TenantID`，用于公共接口租户识别 |
+| `Auth` | 必登录，注入 `Context`（轻量身份） + 注册 `UserContext` 懒加载器（RBAC + DataScope） |
+| `AuthLite` | 必登录，只注入 `Context`；不挂权限加载器，杜绝 `MustNewUserContext` 误调用 |
+| `OptionalAuth` | 有 token 走 `Auth`；无 token 时从 `X-Tenant-ID` header 兜底注入 `Context.TenantID`，用于公共接口租户识别 |
 | `Require(spec)` | 全部 spec 校验（`MatchAll`），缺一个 403 |
 | `RequireAny(specs...)` | 任一通过即可 |
 | `RequireAll(specs...)` | 同 Require，签名版 |
 | `RequireAuthenticated()` | 只校验登录 |
-| `RequirePlatformRole(roles...)` | 校验 `XinContext.PlatformRoles` 包含任一 role |
-| `RequireTenantContext()` | `XinContext.TenantID > 0`；挡住 platform token |
-| `RequirePlatformScope()` | `XinContext.TenantID == 0`；挡住 tenant token |
+| `RequirePlatformRole(roles...)` | 校验 `Context.PlatformRoles` 包含任一 role |
+| `RequireTenantContext()` | `Context.TenantID > 0`；挡住 platform token |
+| `RequirePlatformScope()` | `Context.TenantID == 0`；挡住 tenant token |
 
 **短路**：拥有 `*:*` 资源权限或 `super_admin` 平台角色时，`Require*` 全部放行（`requireWithSpecs` L119）。
 
@@ -394,7 +394,7 @@ spec := permission.P(permission.ResUser, permission.ActDelete)  // = "user:delet
 g.DELETE("/users/:id", middleware.Require(spec), h.Delete)
 ```
 
-通配符 `*:*` = 全资源全操作（admin role 默认绑定）。`requireWithSpecs` 在 `XinContext.HasPlatformRole(super_admin)` 时短路放行。
+通配符 `*:*` = 全资源全操作（admin role 默认绑定）。`requireWithSpecs` 在 `Context.HasPlatformRole(super_admin)` 时短路放行。
 
 ### 9.3 DataScope
 
@@ -426,7 +426,7 @@ audit.Log(ctx, pool, audit.Entry{
 })
 ```
 
-`TenantID` / `UserID` / `IP` 留 0 时从 `XinContext` 自动取。
+`TenantID` / `UserID` / `IP` 留 0 时从 `Context` 自动取。
 
 ---
 

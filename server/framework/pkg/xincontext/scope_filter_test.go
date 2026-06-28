@@ -44,8 +44,8 @@ func TestScopeFilterFrom_NilContext(t *testing.T) {
 // 取出 DataScope 并委托给 BuildDataScopeFilter 生成 SQL。
 func TestScopeFilterFrom_SelfScope(t *testing.T) {
 	uc := &UserContext{
-		XinContext: &XinContext{UserID: 42},
-		DataScope:  permission.DataScope{Type: permission.DataScopeSelf},
+		Context:   &Context{UserID: 42},
+		DataScope: permission.DataScope{Type: permission.DataScopeSelf},
 	}
 	ctx := WithUserContext(context.Background(), uc)
 
@@ -67,8 +67,8 @@ func TestScopeFilterFrom_SelfScope(t *testing.T) {
 // TestScopeFilterFrom_AllScope 验证 DataScope=ALL 时返回空 filter。
 func TestScopeFilterFrom_AllScope(t *testing.T) {
 	uc := &UserContext{
-		XinContext: &XinContext{UserID: 42},
-		DataScope:  permission.DataScope{Type: permission.DataScopeAll},
+		Context:   &Context{UserID: 42},
+		DataScope: permission.DataScope{Type: permission.DataScopeAll},
 	}
 	ctx := WithUserContext(context.Background(), uc)
 
@@ -87,9 +87,9 @@ func TestScopeFilterFrom_AllScope(t *testing.T) {
 // TestScopeFilterFrom_ColumnsApplied 验证传入 columns 的列名会被使用。
 func TestScopeFilterFrom_ColumnsApplied(t *testing.T) {
 	uc := &UserContext{
-		XinContext: &XinContext{UserID: 42},
-		OrgID:      7,
-		DataScope:  permission.DataScope{Type: permission.DataScopeDept},
+		Context:   &Context{UserID: 42},
+		OrgID:     7,
+		DataScope: permission.DataScope{Type: permission.DataScopeDept},
 	}
 	ctx := WithUserContext(context.Background(), uc)
 
@@ -115,8 +115,8 @@ func TestScopeFilterFrom_LoaderUsed(t *testing.T) {
 	loader := func() *UserContext {
 		called++
 		return &UserContext{
-			XinContext: &XinContext{UserID: 99},
-			DataScope:  permission.DataScope{Type: permission.DataScopeSelf},
+			Context:   &Context{UserID: 99},
+			DataScope: permission.DataScope{Type: permission.DataScopeSelf},
 		}
 	}
 	ctx := WithUserContextLoader(context.Background(), loader)

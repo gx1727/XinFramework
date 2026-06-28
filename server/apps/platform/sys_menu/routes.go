@@ -8,7 +8,7 @@ import (
 )
 
 func Register(protected *gin.RouterGroup, h *Handler) {
-	g := protected.Group("/sys-menus",
+	g := protected.Group("/menus",
 		pkgmiddleware.RequirePlatformRole(jwtpkg.PlatformRoleSuperAdmin),
 	)
 	{
