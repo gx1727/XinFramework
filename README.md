@@ -58,7 +58,7 @@ docker run --name xin-pg -e POSTGRES_PASSWORD=dev -p 5432:5432 -d postgres:16
 
 # 2. 配置 bootstrap 凭据（首次启动必须）
 cd server
-cp .env.example .env  # 编辑 .env 填入 XIN_BOOTSTRAP_* 变量
+cp .env.example .env  # 编辑 .env 
 
 # 3. 启动后端
 go run ./cmd/xin run

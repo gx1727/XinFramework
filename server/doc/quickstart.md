@@ -47,8 +47,6 @@ cd server
 
 # 2. 准备 .env（首次启动注入 bootstrap admin）
 cp .env.example .env
-# 编辑 .env，至少填入 XIN_BOOTSTRAP_* 变量
-# （首次启动会从 .env 创建 super_admin）
 
 # 3. 启动（前台模式）
 go run ./cmd/xin run
@@ -63,7 +61,6 @@ go build -o bin/xin ./cmd/xin
 - 执行 `init_schema.sql` 建表 + RLS policy
 - 执行 `init_seed.sql` 插入种子数据
 - 执行 `asset.sql` / `cms.sql` / `flag.sql`（如果启用对应模块）
-- 从 `XIN_BOOTSTRAP_*` 注入 super_admin
 
 **关键日志**：
 ```
@@ -113,7 +110,6 @@ VITE_ASSET_BASE_URL=http://localhost:8087
 
 ### 5.2 默认登录账号
 
-首次启动后，从 `.env` 的 `XIN_BOOTSTRAP_*` 读出的 `super_admin` 可登录：
 - `/platform/login` → 平台管理后台
 - `/login` → 业务后台（需要选择 tenant_id）
 
