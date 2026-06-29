@@ -1,4 +1,4 @@
-﻿package role
+package role
 
 import (
 	"gx1727.com/xin/framework/pkg/appx"

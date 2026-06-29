@@ -393,6 +393,26 @@ INSERT INTO sys_user_roles (user_id, role_id)
 VALUES (1, 1)
 ON CONFLICT (user_id, role_id) WHERE is_deleted = FALSE DO NOTHING;
 
+-- 11.4 平台域菜单树（sys_menus）
+-- 这些菜单是 super_admin 在"平台管理"分组下看到的入口，
+-- 与前端 App.tsx 中 /platform/* 路由对齐。
+-- 注意：sys_menus 无 tenant_id 字段（平台域单租户概念）。
+
+-- 顶级：平台管理（id=100）
+INSERT INTO sys_menus (id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
+    OVERRIDING SYSTEM VALUE
+VALUES (100, 'platform-admin', '平台管理', 'super_admin 专属入口', '', '/platform', 'ShieldIcon', 999, 0, '0', TRUE, TRUE)
+ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
+
+-- 子菜单（id=101..104）：与前端 App.tsx /platform/* 路由对齐
+INSERT INTO sys_menus (id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
+    OVERRIDING SYSTEM VALUE
+VALUES (101, 'platform-tenants', '租户管理', '跨租户平台管理', '', '/platform/tenants', 'Building2Icon', 1, 100, '100', TRUE, TRUE),
+       (102, 'platform-menus',   '平台菜单', 'sys_menus CRUD',   '', '/platform/menus',   'MenuIcon',       2, 100, '100', TRUE, TRUE),
+       (103, 'platform-configs', '平台配置', 'config_categories / config_items 维护', '', '/platform/configs', 'SettingsIcon', 3, 100, '100', TRUE, TRUE),
+       (104, 'platform-dicts',   '平台字典', 'dicts / dict_items 维护', '', '/platform/dicts', 'BookIcon',       4, 100, '100', TRUE, TRUE)
+ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
+
 -- ============================================
 -- 12. 序列号兜底（防止 first_install 复制时 id 冲突）
 -- ============================================
@@ -408,3 +428,4 @@ SELECT setval('config_items_id_seq', GREATEST(
 
 SELECT setval('sys_users_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM sys_users), 1), true);
 SELECT setval('sys_roles_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM sys_roles), 1), true);
+SELECT setval('sys_menus_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM sys_menus), 1000), true);

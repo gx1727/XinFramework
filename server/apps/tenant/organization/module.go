@@ -1,4 +1,4 @@
-﻿package organization
+package organization
 
 import (
 	"gx1727.com/xin/framework/pkg/appx"

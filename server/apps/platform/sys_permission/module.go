@@ -1,4 +1,4 @@
-﻿package syspermission
+package syspermission
 
 import (
 	"gx1727.com/xin/framework/pkg/appx"

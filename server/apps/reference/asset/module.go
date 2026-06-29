@@ -1,4 +1,4 @@
-﻿package asset
+package asset
 
 import (
 	"log"

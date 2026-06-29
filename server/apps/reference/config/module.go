@@ -1,4 +1,4 @@
-﻿// Package config 通用配置模块入口
+// Package config 通用配置模块入口
 //
 //   - 三 handler 拆分（Business / Platform / Public）
 //   - 路由 /configs 业务 + /configs/platform 平台 + /configs/public 公共

@@ -1,4 +1,4 @@
-﻿package message
+package message
 
 import (
 	"gx1727.com/xin/framework/pkg/appx"

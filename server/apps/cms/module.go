@@ -1,4 +1,4 @@
-﻿package cms
+package cms
 
 import (
 	"gx1727.com/xin/framework/pkg/appx"

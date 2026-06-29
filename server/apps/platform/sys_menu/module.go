@@ -1,4 +1,4 @@
-﻿package sysmenu
+package sysmenu
 
 import (
 	"gx1727.com/xin/framework/pkg/appx"

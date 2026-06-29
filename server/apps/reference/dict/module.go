@@ -1,4 +1,4 @@
-﻿// Package dict 字典模块入口
+// Package dict 字典模块入口
 package dict
 
 import (

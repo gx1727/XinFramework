@@ -1,4 +1,4 @@
-﻿package permission
+package permission
 
 import (
 	"gx1727.com/xin/framework/pkg/appx"

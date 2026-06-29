@@ -1,4 +1,4 @@
-﻿package weixin
+package weixin
 
 import (
 	"gx1727.com/xin/framework/pkg/appx"

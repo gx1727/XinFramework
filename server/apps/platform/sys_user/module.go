@@ -1,4 +1,4 @@
-﻿package sysuser
+package sysuser
 
 import (
 	"gx1727.com/xin/framework/pkg/appx"

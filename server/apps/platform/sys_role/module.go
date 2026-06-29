@@ -1,4 +1,4 @@
-﻿package sysrole
+package sysrole
 
 import (
 	"gx1727.com/xin/framework/pkg/appx"

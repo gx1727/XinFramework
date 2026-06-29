@@ -1,4 +1,4 @@
-﻿package resource
+package resource
 
 import (
 	"gx1727.com/xin/framework/pkg/appx"
