@@ -52,7 +52,7 @@ type UpdateTenantReq struct {
 }
 
 type UpdateTenantStatusReq struct {
-	Status int16 `json:"status" binding:"required,oneof=0 1"`
+	Status *int16 `json:"status" binding:"required,oneof=0 1"`
 }
 
 type ListTenantReq struct {

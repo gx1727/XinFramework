@@ -168,6 +168,11 @@ export const configApi = {
   //
   // 挂在 /api/v1/platform/configs 下，需 RequirePlatformRole("super_admin")。
   // 前端如果用租户 token 调用会 403——这是后端设计。
+  listPlatformGroups: () => api<ConfigCategory[]>("/platform/configs"),
+
+  getPlatformGroup: (id: number) =>
+    api<ConfigCategory>(`/platform/configs/${id}`),
+
   createPlatformGroup: (data: CreatePlatformGroupRequest) =>
     api<ConfigCategory>("/platform/configs", {
       method: "POST",

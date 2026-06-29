@@ -60,7 +60,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 		resp.BadRequest(c, "请求参数格式错误")
 		return
 	}
-	result, err := h.svc.UpdateStatus(c.Request.Context(), id, req.Status)
+	result, err := h.svc.UpdateStatus(c.Request.Context(), id, *req.Status)
 	if err != nil {
 		resp.HandleError(c, err)
 		return

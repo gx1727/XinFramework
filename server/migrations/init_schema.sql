@@ -599,6 +599,7 @@ CREATE TABLE IF NOT EXISTS dicts
     tenant_id  BIGINT      NOT NULL,
     code       VARCHAR(32) NOT NULL,
     name       VARCHAR(64) NOT NULL,
+    scope      VARCHAR(16) NOT NULL DEFAULT 'tenant',
     visibility VARCHAR(16) NOT NULL DEFAULT 'all',
     status     SMALLINT    DEFAULT 1,
     sort       INT         DEFAULT 0,
@@ -612,6 +613,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_dict_code_platform
 CREATE UNIQUE INDEX IF NOT EXISTS uk_dict_code_tenant
     ON dicts (tenant_id, code) WHERE tenant_id <> 0 AND is_deleted = FALSE;
 CREATE INDEX IF NOT EXISTS idx_dicts_tenant ON dicts (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_dicts_scope ON dicts (scope) WHERE is_deleted = FALSE;
 COMMENT ON TABLE dicts IS '字典主表（tenant_id=0 平台级，>0 租户级）';
 
 -- 5.2 dict_items 字典项
@@ -622,6 +624,7 @@ CREATE TABLE IF NOT EXISTS dict_items
     dict_id          BIGINT       NOT NULL,
     code             VARCHAR(64)  NOT NULL,
     name             VARCHAR(128) NOT NULL,
+    scope            VARCHAR(16)  NOT NULL DEFAULT 'tenant',
     platform_item_id BIGINT,
     is_override      BOOLEAN      NOT NULL DEFAULT FALSE,
     sort             INT          DEFAULT 0,
@@ -643,6 +646,8 @@ CREATE INDEX IF NOT EXISTS idx_dict_items_dict ON dict_items (dict_id) WHERE is_
 CREATE INDEX IF NOT EXISTS idx_dict_items_tenant ON dict_items (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_dict_items_platform_ref
     ON dict_items (dict_id, id) WHERE tenant_id = 0 AND is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_dict_items_scope
+    ON dict_items (scope) WHERE is_deleted = FALSE;
 COMMENT ON TABLE dict_items IS '字典项表（tenant_id=0 平台级，>0 租户级）';
 
 -- 5.3 dict_visibility 字典可见性矩阵
@@ -670,10 +675,12 @@ CREATE TABLE IF NOT EXISTS config_categories
     description VARCHAR(255),
     icon        VARCHAR(64),
     sort        INT          DEFAULT 0,
+    scope       VARCHAR(16)  NOT NULL DEFAULT 'tenant',
     is_system   BOOLEAN      DEFAULT FALSE,
     is_public   BOOLEAN      DEFAULT FALSE,
     visibility  VARCHAR(16)  NOT NULL DEFAULT 'all',
     status      SMALLINT     DEFAULT 1,
+    extend      JSONB,
     created_at  TIMESTAMPTZ  DEFAULT NOW(),
     updated_at  TIMESTAMPTZ  DEFAULT NOW(),
     is_deleted  BOOLEAN      DEFAULT FALSE
@@ -683,6 +690,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_config_group_code_platform
 CREATE UNIQUE INDEX IF NOT EXISTS uk_config_group_code_tenant
     ON config_categories (tenant_id, code) WHERE tenant_id <> 0 AND is_deleted = FALSE;
 CREATE INDEX IF NOT EXISTS idx_config_groups_tenant ON config_categories (tenant_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_config_categories_scope
+    ON config_categories (scope) WHERE is_deleted = FALSE;
 COMMENT ON TABLE config_categories IS '配置分组表';
 
 -- 5.5 config_items 配置项
