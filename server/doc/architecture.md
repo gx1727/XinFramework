@@ -179,7 +179,7 @@ v1 = /api/v1
     ├─ /platform/tenants/*              # super_admin 限定
     ├─ /platform/sys-users/*
     ├─ /platform/sys-roles/*
-    ├─ /platform/sys-menus/*
+    ├─ /platform/menus/*
     ├─ /platform/sys-permissions/*
     ├─ /platform/dicts/*
     └─ /platform/configs/*

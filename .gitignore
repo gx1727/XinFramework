@@ -76,3 +76,7 @@ UI/coverage/
 
 # Misc
 *.local
+
+# Windows reserved name (PowerShell `echo > nul` 误操作产物,会被当成设备文件)
+/nul
+nul

@@ -471,7 +471,7 @@ audit.Log(ctx, pool, audit.Entry{
 | `/platform/tenants`（CRUD + `:id/status` + `:id/purge`） | `platform/tenants` |
 | `/platform/sys-users`（CRUD + `:id/status` + `:id/roles`） | `platform/sys_user` |
 | `/platform/sys-roles`（CRUD + `:id/menus` + `:id/permissions`） | `platform/sys_role` |
-| `/platform/sys-menus`（CRUD + `/tree`） | `platform/sys_menu` |
+| `/platform/menus`（CRUD + `/tree`） | `platform/sys_menu` |
 | `/platform/sys-permissions`（CRUD） | `platform/sys_permission` |
 | `/platform/dicts` + `/platform/dicts/:id/items` + `/platform/dicts/:id/visibility` | `reference/dict` |
 | `/platform/configs` + `/platform/configs/:id/items` + `/platform/configs/:id/visibility` | `reference/config` |

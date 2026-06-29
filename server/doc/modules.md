@@ -180,8 +180,7 @@ flag ─── (avatar/frame 模块，依赖 asset 上传)
 | `POST /flag/generate` | flag |
 | `GET /flag/my-avatars` | flag |
 | `POST /weixin/bind-phone` | weixin |
-| `GET /system/server-info` / `POST /system/clear-cache` | system |
-| `GET /system/cache/*` | system |
+| `GET /system/server-info` | system |
 | `GET /cms/me` / `GET /cms/users` / `GET /cms/tenant` | cms |
 | `GET /cms/posts*` / `POST /cms/posts*` | cms |
 
@@ -201,9 +200,9 @@ flag ─── (avatar/frame 模块，依赖 asset 上传)
 | `GET/PUT/DELETE /platform/sys-roles/:id` | sys_role |
 | `GET/PUT /platform/sys-roles/:id/menus` | sys_role |
 | `GET/PUT /platform/sys-roles/:id/permissions` | sys_role |
-| `GET /platform/sys-menus` / `POST /platform/sys-menus` | sys_menu |
-| `GET/PUT/DELETE /platform/sys-menus/:id` | sys_menu |
-| `GET /platform/sys-menus/tree` | sys_menu |
+| `GET /platform/menus` / `POST /platform/menus` | sys_menu |
+| `GET/PUT/DELETE /platform/menus/:id` | sys_menu |
+| `GET /platform/menus/tree` | sys_menu |
 | `GET /platform/sys-permissions` / `POST /platform/sys-permissions` | sys_permission |
 | `GET/PUT/DELETE /platform/sys-permissions/:id` | sys_permission |
 | `GET /platform/dicts` / `POST /platform/dicts` | dict |
@@ -214,6 +213,11 @@ flag ─── (avatar/frame 模块，依赖 asset 上传)
 | `GET/PUT/DELETE /platform/configs/:id` | config |
 | `GET /platform/configs/:id/items` | config |
 | `GET /platform/configs/:id/visibility` | config |
+| `POST /platform/system/clear-cache` | system |
+| `GET /platform/system/cache/info` | system |
+| `GET /platform/system/cache/keys` | system |
+| `GET /platform/system/cache/value/*key` | system |
+| `DELETE /platform/system/cache/keys/*key` | system |
 
 ---
 

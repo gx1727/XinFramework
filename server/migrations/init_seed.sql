@@ -404,13 +404,14 @@ INSERT INTO sys_menus (id, code, name, subtitle, url, path, icon, sort, parent_i
 VALUES (100, 'platform-admin', '平台管理', 'super_admin 专属入口', '', '/platform', 'ShieldIcon', 999, 0, '0', TRUE, TRUE)
 ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
 
--- 子菜单（id=101..104）：与前端 App.tsx /platform/* 路由对齐
+-- 子菜单（id=101..105）：与前端 App.tsx /platform/* 路由对齐
 INSERT INTO sys_menus (id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
     OVERRIDING SYSTEM VALUE
 VALUES (101, 'platform-tenants', '租户管理', '跨租户平台管理', '', '/platform/tenants', 'Building2Icon', 1, 100, '100', TRUE, TRUE),
        (102, 'platform-menus',   '平台菜单', 'sys_menus CRUD',   '', '/platform/menus',   'MenuIcon',       2, 100, '100', TRUE, TRUE),
        (103, 'platform-configs', '平台配置', 'config_categories / config_items 维护', '', '/platform/configs', 'SettingsIcon', 3, 100, '100', TRUE, TRUE),
-       (104, 'platform-dicts',   '平台字典', 'dicts / dict_items 维护', '', '/platform/dicts', 'BookIcon',       4, 100, '100', TRUE, TRUE)
+       (104, 'platform-dicts',   '平台字典', 'dicts / dict_items 维护', '', '/platform/dicts', 'BookIcon',       4, 100, '100', TRUE, TRUE),
+       (105, 'platform-cache',   '缓存管理', 'Redis cache 运维 (Cache.tsx)', '', '/platform/cache', 'DatabaseIcon', 5, 100, '100', TRUE, TRUE)
 ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
 
 -- ============================================

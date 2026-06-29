@@ -204,11 +204,7 @@ export function App() {
         />
         <Route
           path="/app/cache"
-          element={
-            <RequireScope scope="tenant">
-              <CachePage />
-            </RequireScope>
-          }
+          element={<Navigate to="/platform/cache" replace />}
         />
 
         {/* ===== 平台域 /platform/*（super_admin） ===== */}
@@ -253,6 +249,14 @@ export function App() {
           element={
             <RequireScope scope="platform">
               <PlatformDictsPage />
+            </RequireScope>
+          }
+        />
+        <Route
+          path="/platform/cache"
+          element={
+            <RequireScope scope="platform">
+              <CachePage />
             </RequireScope>
           }
         />

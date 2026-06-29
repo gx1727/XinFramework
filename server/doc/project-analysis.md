@@ -320,7 +320,7 @@ func (h *Handler) Get(c *gin.Context) {
 |---|---|---|
 | public | `POST /auth/*`、`GET /health`、`GET /public/configs`、`GET /flag/frames*` | `/login`、`/platform/login` |
 | tenant | `/users` `/roles` `/menus` `/resources` `/organizations` `/dicts` `/configs` `/asset` `/flag/*` `/messages` 等 | `/app/*` |
-| platform | `/platform/tenants`、`/platform/sys-users`、`/platform/sys-roles`、`/platform/sys-menus`、`/platform/sys-permissions`、`/platform/dicts`、`/platform/configs` | `/platform/*`（仅 super_admin） |
+| platform | `/platform/tenants`、`/platform/sys-users`、`/platform/sys-roles`、`/platform/menus`、`/platform/sys-permissions`、`/platform/dicts`、`/platform/configs` | `/platform/*`（仅 super_admin） |
 
 ### 12.3 关键模块映射
 
@@ -330,7 +330,7 @@ func (h *Handler) Get(c *gin.Context) {
 | `user` | Users.tsx | `/app/users` | `userApi` | `/users/*` |
 | `role` | Roles.tsx | `/app/roles` | `roleApi` | `/roles/*` |
 | `menu`（租户域） | Menus.tsx | `/app/menus` | `menuApi` | `/menus/*` |
-| `menu`（平台域） | Menus.tsx（Tab） | `/platform/menus` | `platformMenuApi` | `/platform/sys-menus/*` |
+| `menu`（平台域） | Menus.tsx（Tab） | `/platform/menus` | `platformMenuApi` | `/platform/menus/*` |
 | `organization` | Organizations.tsx | `/app/organizations` | `organizationApi` | `/organizations/*` |
 | `resource` | Resources.tsx | `/app/resources` | `resourceApi` | `/resources/*` |
 | `asset` | （无独立页） | — | `assetApi` | `/asset/*` |
@@ -339,11 +339,11 @@ func (h *Handler) Get(c *gin.Context) {
 | `flag` | Frames.tsx / FrameCategories.tsx / Avatars.tsx / AvatarCategories.tsx | `/app/frames` 等 | `frameApi` 等 | `/flag/*` |
 | `cms` | — | — | — | `/cms/*` |
 | `tenants` | Tenants.tsx | `/platform/tenants` | `tenantApi` | `/platform/tenants/*` |
-| `system` | Cache.tsx | `/app/cache` | `systemApi` | `/system/*` |
+| `system` | Cache.tsx | `/platform/cache` | `systemApi` | `/platform/system/cache/*`, `/platform/system/clear-cache` |
 | `weixin` | （无独立页） | — | — | `/weixin/*` |
 | `sys_user` | — | `/platform/users` | — | `/platform/sys-users/*` |
 | `sys_role` | — | `/platform/roles` | — | `/platform/sys-roles/*` |
-| `sys_menu` | Menus.tsx（Tab） | `/platform/menus` | `platformMenuApi` | `/platform/sys-menus/*` |
+| `sys_menu` | Menus.tsx（Tab） | `/platform/menus` | `platformMenuApi` | `/platform/menus/*` |
 
 **关键约定**：
 - 前端路由带 scope 前缀：`/app/*`（tenant）、`/platform/*`（platform）

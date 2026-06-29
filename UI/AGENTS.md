@@ -276,11 +276,11 @@ export function XxxPage() {
 | flag | Frames.tsx / FrameCategories.tsx / Avatars.tsx / AvatarCategories.tsx | `/app/frames`, etc | `frameApi` 等 | `/flag/*` |
 | cms | — | — | — | `/cms/*` |
 | **tenants**（仅 super_admin） | Tenants.tsx | `/platform/tenants` | `tenantApi` | `/platform/tenants/*` |
-| system | Cache.tsx | `/app/cache` | `systemApi` | `/system/*` |
+| system | Cache.tsx | `/platform/cache` | `systemApi` | `/platform/system/cache/*` |
 | weixin | （无独立页面） | — | — | `/weixin/*` |
 | sys_user | （通常通过平台管理页面） | `/platform/users` | — | `/platform/sys-users/*` |
 | sys_role | （平台角色） | `/platform/roles` | — | `/platform/sys-roles/*` |
-| sys_menu | Menus.tsx（平台 Tab） | `/platform/menus` | `platformMenuApi` | `/platform/sys-menus/*` |
+| sys_menu | Menus.tsx（平台 Tab） | `/platform/menus` | `platformMenuApi` | `/platform/menus/*` |
 
 > **关键约定**：
 >

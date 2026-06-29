@@ -14,7 +14,7 @@
 //     SQL 表 7 张 rename（users → tenant_users 等）+ resources → tenant_permissions +
 //     menus 物理拆 tenant_menus / sys_menus
 //   - 0023.4：apps/platform/menu 模块删除（broken：旧 tenant_menus WHERE tenant_id=0 已失效），
-//     由 apps/platform/sys_menu 接管 /platform/sys-menus 路由
+//     由 apps/platform/sys_menu 接管 /platform/menus 路由
 //   - 0023.5：文档同步（architecture.md / modules.md / AGENTS.md / migrations/README.md）
 //
 // 终态分层：
