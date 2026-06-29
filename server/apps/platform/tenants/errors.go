@@ -18,6 +18,8 @@ var (
 	ErrTenantHasUsers       = resp.Err(3009, "租户下存在未删除用户，禁止删除")
 	ErrTenantPurgeNotAllowed = resp.Err(3010, "租户未软删，禁止硬删；请先调 DELETE /tenants/:id")
 	ErrTenantPurgeFailed    = resp.Err(3011, "硬删租户失败")
+	ErrTenantImpersonateNoAdmin = resp.Err(3012, "租户尚未配置管理员账号，无法模拟登录")
+	ErrTenantImpersonateFailed = resp.Err(3013, "模拟登录失败")
 )
 
 func mapRepoError(err error) error {
@@ -29,6 +31,8 @@ func mapRepoError(err error) error {
 		return ErrTenantNotFound
 	case errors.Is(err, ErrTenantCodeExistsDB):
 		return ErrTenantCodeExists
+	case errors.Is(err, ErrNoAdminUserDB):
+		return ErrTenantImpersonateNoAdmin
 	default:
 		return err
 	}

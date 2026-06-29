@@ -38,5 +38,8 @@ func Register(protected *gin.RouterGroup, h *Handler) {
 		g.POST("/:id/purge", pkgmiddleware.Require(permission.P(permission.ResTenant, permission.ActDelete)), h.Purge)
 		g.GET("/:id", pkgmiddleware.Require(permission.P(permission.ResTenant, permission.ActList)), h.Get)
 		g.GET("", pkgmiddleware.Require(permission.P(permission.ResTenant, permission.ActList)), h.List)
+		// Impersonate 模拟登录：高敏操作，复用 ResTenant:list 资源权限
+		// （super_admin 平台角色守卫已在 group 级；资源权限保持最宽松）
+		g.POST("/:id/impersonate", pkgmiddleware.Require(permission.P(permission.ResTenant, permission.ActList)), h.Impersonate)
 	}
 }

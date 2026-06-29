@@ -41,9 +41,12 @@ type TenantRepository interface {
 	CountActiveUsers(ctx context.Context, tenantID uint) (int64, error)
 	// UpdateStatus 仅修改status 字段（如禁用 / 启用），与通用 Update 拆开便于审计与权限细分
 	UpdateStatus(ctx context.Context, id uint, status int16) (*Tenant, error)
+	// FindAdminUser 查找租户下绑定了 admin role 的第一个有效用户，供 super_admin 模拟登录使用
+	FindAdminUser(ctx context.Context, tenantID uint) (*AdminUser, error)
 }
 
 var (
 	ErrTenantNotFoundDB   = errors.New("tenant not found")
 	ErrTenantCodeExistsDB = errors.New("tenant code already exists")
+	ErrNoAdminUserDB      = errors.New("tenant has no admin user")
 )

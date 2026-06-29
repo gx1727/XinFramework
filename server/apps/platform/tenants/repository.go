@@ -253,6 +253,44 @@ func (r *PostgresTenantRepository) CountActiveUsers(ctx context.Context, tenantI
 	return n, nil
 }
 
+// AdminUser 租户内 admin 角色的用户快照。供 super_admin 模拟登录定位目标身份
+type AdminUser struct {
+	ID        uint
+	AccountID uint
+	RealName  string
+}
+
+// FindAdminUser 查找租户下绑定了 admin role 的第一个有效用户。
+//
+// first_install 时会创建 code='admin' 的内置角色并绑定到首装 admin user；
+// 此处取该 user 作为模拟登录目标身份（保留原 tenant RBAC 权限，避免越权）。
+//
+// 注意：必须在 RunInPlatformTx 内调用，绕过 tenant_users / tenant_user_roles / tenant_roles 的 RLS。
+//
+// 找不到时返回 ErrNoAdminUserDB；调用方需先 GetByID 校验租户存在。
+func (r *PostgresTenantRepository) FindAdminUser(ctx context.Context, tenantID uint) (*AdminUser, error) {
+	q, err := db.GetQuerier(ctx, r.db)
+	if err != nil {
+		return nil, err
+	}
+	var u AdminUser
+	err = q.QueryRow(ctx, `
+		SELECT u.id, u.account_id, COALESCE(u.real_name, '')
+		FROM tenant_users u
+		JOIN tenant_user_roles ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.id AND ur.is_deleted = FALSE
+		JOIN tenant_roles r ON r.tenant_id = u.tenant_id AND r.id = ur.role_id AND r.code = 'admin' AND r.is_deleted = FALSE
+		WHERE u.tenant_id = $1 AND u.is_deleted = FALSE
+		ORDER BY u.id ASC
+		LIMIT 1`, tenantID).Scan(&u.ID, &u.AccountID, &u.RealName)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNoAdminUserDB
+		}
+		return nil, fmt.Errorf("find admin user: %w", err)
+	}
+	return &u, nil
+}
+
 // UpdateStatus 仅修攀status 字段，回填完整行便于审计快照　
 func (r *PostgresTenantRepository) UpdateStatus(ctx context.Context, id uint, status int16) (*Tenant, error) {
 	q, err := db.GetQuerier(ctx, r.db)

@@ -71,7 +71,7 @@ func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminA
 	var rootOrgID uint
 	if err := q.QueryRow(ctx, `
 		INSERT INTO tenant_organizations (tenant_id, code, name, type, ancestors, sort, status)
-		VALUES ($1, 'root', '根组绀, 'company', '', 0, 1)
+		VALUES ($1, 'root', '根组织', 'company', '', 0, 1)
 		RETURNING id`, tenantID).Scan(&rootOrgID); err != nil {
 		return nil, fmt.Errorf("first-install root org: %w", err)
 	}
@@ -140,7 +140,7 @@ func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminA
 	var adminRoleID uint
 	if err := q.QueryRow(ctx, `
 		INSERT INTO tenant_roles (tenant_id, code, name, description, data_scope, sort, status)
-		VALUES ($1, 'admin', '系统管理呀, '首装自动创建的内置超级管理员', 1, 1, 1)
+		VALUES ($1, 'admin', '系统管理员', '首装自动创建的内置超级管理员', 1, 1, 1)
 		RETURNING id`, tenantID).Scan(&adminRoleID); err != nil {
 		return nil, fmt.Errorf("first-install admin role: %w", err)
 	}
@@ -155,16 +155,15 @@ func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminA
 		return nil, fmt.Errorf("first-install role_menus: %w", err)
 	}
 
-	// 4b) admin role 绑定超级资源 *:*（resources 复制时已包含此条，仅做绑定）
+	// 4b) admin role 绑定超级资源 *:*（permissions 复制时已包含此条，仅做绑定）
 	if _, err := q.Exec(ctx, `
-		INSERT INTO tenant_role_resources (tenant_id, role_id, resource_id, effect)
+		INSERT INTO tenant_role_resources (tenant_id, role_id, permission_id, effect)
 		SELECT $1, $2, id, 1
 		FROM tenant_permissions
 		WHERE tenant_id = $1 AND code = '*' AND action = '*' AND is_deleted = FALSE
 		LIMIT 1`,
 		tenantID, adminRoleID); err != nil {
-		rep.WarnMessages = append(rep.WarnMessages,
-			fmt.Sprintf("admin role 绑定超级资源失败: %v", err))
+		return nil, fmt.Errorf("first-install admin role super-permission: %w", err)
 	}
 
 	// 5) 复制 dicts：用 code 重映射（dict_items 皀dict_id 引用：
@@ -250,7 +249,7 @@ func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminA
 
 	// 8) tenant_user_seq 初始化（用于 user_code 自增：
 	if _, err := q.Exec(ctx, `
-		INSERT INTO tenant_user_seq (tenant_id, last_seq)
+		INSERT INTO tenant_user_seq (tenant_id, seq)
 		VALUES ($1, 0)
 		ON CONFLICT (tenant_id) DO NOTHING`, tenantID); err != nil {
 		if !isUniqueViolation(err) {
@@ -284,20 +283,20 @@ func installAdminUser(ctx context.Context, q db.Querier, tenantID, adminAccountI
 		return nil
 	}
 
-	// 7b) INSERT admin user（uk_users_account 昀partial unique index on account_id WHERE is_deleted=FALSE：
-	// ON CONFLICT 兜底重查；同一账号可能被多租户共享　
+// 7b) INSERT admin user（uk_tenant_users_account_tenant 是 partial unique index on (account_id, tenant_id) WHERE is_deleted=FALSE）：
+// ON CONFLICT 字段必须与该索引完全一致；同一账号可在不同租户各有一个 user。
 	var adminUserID uint
 	err = q.QueryRow(ctx, `
 		INSERT INTO tenant_users (tenant_id, account_id, org_id, real_name, status)
 		VALUES ($1, $2, $3, 'Administrator', 1)
-		ON CONFLICT (account_id) WHERE is_deleted = FALSE
+		ON CONFLICT (account_id, tenant_id) WHERE is_deleted = FALSE
 		DO UPDATE SET org_id = EXCLUDED.org_id, updated_at = NOW()
 		RETURNING id`, tenantID, adminAccountID, rootOrgID).Scan(&adminUserID)
 	if err != nil {
 		if isUniqueViolation(err) {
 			if err := q.QueryRow(ctx, `
-				SELECT id FROM tenant_users WHERE account_id = $1 AND is_deleted = FALSE LIMIT 1`,
-				adminAccountID).Scan(&adminUserID); err != nil {
+				SELECT id FROM tenant_users WHERE account_id = $1 AND tenant_id = $2 AND is_deleted = FALSE LIMIT 1`,
+				adminAccountID, tenantID).Scan(&adminUserID); err != nil {
 				return fmt.Errorf("first-install locate existing user: %w", err)
 			}
 		} else {

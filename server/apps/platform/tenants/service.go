@@ -4,19 +4,24 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"gx1727.com/xin/framework/pkg/audit"
+	"gx1727.com/xin/framework/pkg/config"
 	"gx1727.com/xin/framework/pkg/db"
+	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
+	"gx1727.com/xin/framework/pkg/xincontext"
 )
 
 type Service struct {
 	pool       *pgxpool.Pool
 	tenantRepo TenantRepository
+	jwtCfg     *config.JWTConfig
 }
 
-func NewService(pool *pgxpool.Pool, repo TenantRepository) *Service {
-	return &Service{pool: pool, tenantRepo: repo}
+func NewService(pool *pgxpool.Pool, repo TenantRepository, jwtCfg *config.JWTConfig) *Service {
+	return &Service{pool: pool, tenantRepo: repo, jwtCfg: jwtCfg}
 }
 
 // GetByID 平台级操作：赀RunInPlatformTx，绕迀RLS　
@@ -43,16 +48,31 @@ func (s *Service) GetByID(ctx context.Context, id uint) (*TenantResp, error) {
 // 全程单一 RunInPlatformTx 事务：tenant INSERT ↀfirstInstall ↀcommit　
 // 任一环节失败回滚，租户不留半成品　
 //
+// admin_account_id 解析规则：
+//   - req.AdminAccountID != nil && *req.AdminAccountID > 0：用 req 提供的账号（精确绑定）
+//   - 否则：fallback 用当前 super_admin 的 account_id（= Context.UserID，平台域登录时即 account_id）
+//   - 这样 super_admin 创建的每个租户都自动有 super_admin 自己的 admin 身份，
+//     后续可直接用 POST /platform/tenants/:id/impersonate 切进去验收。
+//   - 极端情况（super_admin 缺失 / context 不可读）：fallback 为 0，
+//     installAdminUser 走 warn 跳过分支；后续可手动补 admin user。
+//
 // 首装内容：
 //   - root 组织（每个租户必须有，作为后续组织祖先）
 //   - admin role + 绑定超级资源 *:*（保证全权限：
-//   - admin user（若 req.AdminAccountID 提供且账号存在）
+//   - admin user（若 adminAccountID > 0 且账号存在）
 //   - starter dicts: gender / user_status / education
 //   - tenant_user_seq 初始化（用于 user_code 自增：
 func (s *Service) Create(ctx context.Context, req CreateTenantReq) (*TenantResp, error) {
 	if s.tenantRepo == nil {
 		return nil, ErrBackendUnavailable
 	}
+
+	// 取 actor（super_admin 的 account_id）—— 用于 admin_account_id fallback
+	var actorAccountID uint
+	if xc, ok := xincontext.XinContextFrom(ctx); ok {
+		actorAccountID = xc.UserID
+	}
+
 	var (
 		t   *Tenant
 		rep *FirstInstallReport
@@ -65,8 +85,10 @@ func (s *Service) Create(ctx context.Context, req CreateTenantReq) (*TenantResp,
 		}
 		// 首装：单一事务内继续，失败全回滀
 		var adminAccountID uint
-		if req.AdminAccountID != nil {
+		if req.AdminAccountID != nil && *req.AdminAccountID > 0 {
 			adminAccountID = *req.AdminAccountID
+		} else {
+			adminAccountID = actorAccountID // fallback：super_admin 自身
 		}
 		rep, err = firstInstall(ctx, s.pool, t.ID, adminAccountID)
 		return err
@@ -75,19 +97,23 @@ func (s *Service) Create(ctx context.Context, req CreateTenantReq) (*TenantResp,
 		return nil, mapRepoError(err)
 	}
 
-	// 审计：tenant.create + 首装明细 — 高敏操作必须留痕　
+	// 审计：tenant.create + 首装明细 — 高敏操作必须留痕
 	audit.Log(ctx, s.pool, audit.Entry{
 		Action:    "tenant:create",
 		TableName: "tenants",
 		RecordID:  t.ID,
+		TenantID:  t.ID,
+		UserID:    actorAccountID,
 		NewData: map[string]any{
-			"id":      t.ID,
-			"code":    t.Code,
-			"name":    t.Name,
-			"status":  t.Status,
-			"contact": t.Contact,
-			"phone":   t.Phone,
-			"email":   t.Email,
+			"id":               t.ID,
+			"code":             t.Code,
+			"name":             t.Name,
+			"status":           t.Status,
+			"contact":          t.Contact,
+			"phone":            t.Phone,
+			"email":            t.Email,
+			"actor_account_id": actorAccountID,
+			"admin_account_id": resolveAdminAccountID(req.AdminAccountID, actorAccountID),
 			"first_install": map[string]any{
 				"template":                    TemplateTenantCode,
 				"root_org_id":                 rep.RootOrgID,
@@ -104,6 +130,14 @@ func (s *Service) Create(ctx context.Context, req CreateTenantReq) (*TenantResp,
 	})
 	resp := toResp(t)
 	return &resp, nil
+}
+
+// resolveAdminAccountID audit 中显式记录最终使用的 admin_account_id 来源。
+func resolveAdminAccountID(reqID *uint, actor uint) uint {
+	if reqID != nil && *reqID > 0 {
+		return *reqID
+	}
+	return actor
 }
 
 // Update 平台级操作：档案字段更新。OldData 在改前抓快照便于审计 diff　
@@ -386,4 +420,133 @@ func (s *Service) Purge(ctx context.Context, id uint) (*PurgeResult, error) {
 		},
 	})
 	return &result, nil
+}
+
+// Impersonate 平台管理员（super_admin）模拟登录到指定租户。
+//
+// 业务动机：super_admin 创建新租户后，新租户通常没有绑定任何账号，
+// 无法用现有 /auth/select-tenant 切进去验证。本端点签发一个
+// 临时的"模拟 token"，让 super_admin 以租户 admin 角色身份进入，
+// 走完整租户 RBAC（不享受平台域短路），操作可审计。
+//
+// 流程（事务保证原子性）：
+//  1. 校验租户存在且 status=1
+//  2. 找租户的 admin user（first_install 创建的 admin role 绑定用户）
+//  3. 在 auth_sessions 写入新会话（account_id = 当前 super_admin account）
+//  4. 签 access + refresh token，把 ImpersonatedBy/ImpersonationSID 写入 claims
+//  5. 写 audit：tenant:impersonate_start，含 actor/tenant/admin user 关联
+//
+// 退出模拟：前端保存原 platform refresh_token，调 /auth/refresh（不传 tenant_id）
+// 即可用原 platform 会话恢复 platform token。
+//
+// RunInPlatformTx 是必须的：tenant_users / tenant_user_roles / tenant_roles
+// 都有 RLS，bypass_rls=on 才能跨租户查询。
+func (s *Service) Impersonate(ctx context.Context, tenantID uint) (*ImpersonateResp, error) {
+	if s.tenantRepo == nil {
+		return nil, ErrBackendUnavailable
+	}
+	if s.jwtCfg == nil {
+		return nil, fmt.Errorf("%w: jwt config missing", ErrTenantImpersonateFailed)
+	}
+
+	// 1) 取 actor（当前 super_admin account_id）—— 平台域登录时 JWT.UserID = account_id
+	var actorAccountID uint
+	var originalSID string
+	if xc, ok := xincontext.XinContextFrom(ctx); ok {
+		actorAccountID = xc.UserID
+		originalSID = string(xc.SessionID)
+	}
+	if actorAccountID == 0 {
+		return nil, fmt.Errorf("%w: actor account_id missing (must be platform login)", ErrTenantImpersonateFailed)
+	}
+
+	var (
+		resp     ImpersonateResp
+		adminUsr *AdminUser
+		tenant   *Tenant
+	)
+	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
+		q, err := db.GetQuerier(ctx, s.pool)
+		if err != nil {
+			return err
+		}
+
+		// a) 校验租户存在
+		t, err := s.tenantRepo.GetByID(ctx, tenantID)
+		if err != nil {
+			return err
+		}
+		if t.Status != 1 {
+			return ErrTenantDisabled
+		}
+		tenant = t
+
+		// b) 找 admin role 绑定的用户
+		adminUsr, err = s.tenantRepo.FindAdminUser(ctx, tenantID)
+		if err != nil {
+			return err
+		}
+
+		// c) 写 auth_session（按 account 维度；session_id = uuid）
+		sid := uuid.NewString()
+		expireSec := s.jwtCfg.Expire
+		if _, err := q.Exec(ctx, `
+			INSERT INTO auth_sessions (account_id, token, ip, user_agent, expires_at)
+			VALUES ($1, $2, '', 'impersonation', NOW() + make_interval(secs => $3))`,
+			actorAccountID, sid, expireSec); err != nil {
+			return fmt.Errorf("create impersonation session: %w", err)
+		}
+
+		// d) 签 access + refresh token
+		access, err := jwtpkg.GenerateImpersonation(s.jwtCfg,
+			adminUsr.ID, tenantID, "admin",
+			sid, actorAccountID, originalSID,
+			jwtpkg.TokenTypeAccess)
+		if err != nil {
+			return fmt.Errorf("sign access token: %w", err)
+		}
+		refresh, err := jwtpkg.GenerateImpersonation(s.jwtCfg,
+			adminUsr.ID, tenantID, "admin",
+			sid, actorAccountID, originalSID,
+			jwtpkg.TokenTypeRefresh)
+		if err != nil {
+			return fmt.Errorf("sign refresh token: %w", err)
+		}
+
+		resp = ImpersonateResp{
+			Scope:              ImpersonateScopeTenant,
+			Token:              access,
+			RefreshToken:       refresh,
+			ExpiresIn:          s.jwtCfg.Expire,
+			TenantID:           tenantID,
+			TenantName:         tenant.Name,
+			ImpersonatedUserID: adminUsr.ID,
+			ImpersonatedBy:     actorAccountID,
+			ImpersonationSID:   originalSID,
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, mapRepoError(err)
+	}
+
+	// 审计（事务外写）：写明 actor、原 platform SID、目标租户、admin user
+	audit.Log(ctx, s.pool, audit.Entry{
+		Action:    "tenant:impersonate_start",
+		TableName: "tenants",
+		RecordID:  tenantID,
+		TenantID:  tenantID,
+		UserID:    actorAccountID,
+		NewData: map[string]any{
+			"actor_account_id":     actorAccountID,
+			"original_session_id":  originalSID,
+			"target_tenant_id":     tenantID,
+			"target_tenant_code":   tenant.Code,
+			"target_tenant_name":   tenant.Name,
+			"impersonated_user_id": adminUsr.ID,
+			"impersonated_user":    adminUsr.RealName,
+			"role":                 "admin",
+		},
+	})
+	return &resp, nil
 }

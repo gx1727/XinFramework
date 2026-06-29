@@ -236,6 +236,27 @@ POST /api/v1/platform/tenants
 
 → 201 { code: 0, msg: "ok", data: { id: 5, code: "acme", ... } }
 # 后台自动跑 first_install.go 复制 menu/permission/dict/config
+
+# super_admin 模拟登录到指定租户（impersonation）
+# 前端：保存原 platform refresh_token 用于"退出模拟"恢复
+POST /api/v1/platform/tenants/:id/impersonate
+Authorization: Bearer <super_admin_token>
+
+→ 200 { code: 0, msg: "ok", data: {
+  scope: "tenant",
+  token: "<impersonation_access_token>",
+  refresh_token: "<impersonation_refresh_token>",
+  expires_in: 3600,
+  tenant_id: 5,
+  tenant_name: "ACME Corp",
+  impersonated_user_id: 12,    # 租户内 admin role 绑定的 user
+  impersonated_by: 1,          # 原 super_admin account_id
+  impersonation_sid: "<原 platform session_id>"
+} }
+# 模拟 token 内嵌 ImpersonatedBy/ImpersonationSessionID；
+# PlatformRoles 字段为空 → 中间件不短路、走租户 RBAC。
+# 退出模拟：前端用 impersonation_sid 对应的原 platform refresh_token
+# 调 POST /auth/refresh（不传 tenant_id）恢复 platform token。
 ```
 
 ### 5.6 文件上传

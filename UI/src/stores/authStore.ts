@@ -8,6 +8,7 @@ import {
   type LoginScope,
   type TenantIdentity,
   type LoginPrecheckResponse,
+  tenantApi,
 } from "@/api"
 import type { LoginResponse } from "@/api"
 
@@ -45,6 +46,20 @@ interface AuthState {
   /** 当前账号的 account_id（precheck 后填） */
   accountId: number | null
 
+  // === 平台管理员模拟登录租户（super_admin 专用） ===
+  /**
+   * 非空 = 当前正在模拟某个租户。保存原 platform tokens（用于"退出模拟"时
+   * 调 /auth/refresh 恢复）+ 模拟 token + 目标租户信息。
+   */
+  impersonation: {
+    originalTokens: { token: string; refreshToken: string }
+    tenantId: number
+    tenantName: string
+    impersonatedUserId: number
+    impersonatedBy: number
+    startedAt: number
+  } | null
+
   /** 租户域登录（业务用户登录）。跳转到 /app/dashboard。 */
   tenantLogin: (account: string, password: string, tenantId: number) => Promise<boolean>
   /** 平台域登录（super_admin 登录）。跳转到 /platform/dashboard。 */
@@ -57,6 +72,16 @@ interface AuthState {
   switchTenant: (tenantId: number) => Promise<boolean>
   /** 清空 identities 缓存（强制下次重新 precheck）。 */
   clearIdentities: () => void
+  /**
+   * 平台管理员模拟登录租户。
+   * 流程：调 /platform/tenants/:id/impersonate → 保存原 tokens → 写入模拟 token → 跳转租户域。
+   */
+  startImpersonation: (tenantId: number, tenantName: string) => Promise<boolean>
+  /**
+   * 退出模拟：用原 platform refresh_token 调 /auth/refresh 恢复 platform token。
+   * 不走 /auth/logout（会同时撤销原 session）。
+   */
+  stopImpersonation: () => Promise<boolean>
   logout: () => void
   clearError: () => void
   clearApiError: () => void
@@ -79,6 +104,9 @@ export const useAuthStore = create<AuthState>()(
       platformAvailable: false,
       availablePlatformRoles: [],
       accountId: null,
+
+      // 模拟登录默认 null
+      impersonation: null,
 
       tenantLogin: async (account, password, tenantId) => {
         set({ isLoading: true, error: null })
@@ -314,7 +342,108 @@ export const useAuthStore = create<AuthState>()(
           platformAvailable: false,
           availablePlatformRoles: [],
           accountId: null,
+          impersonation: null,
         })
+      },
+
+      startImpersonation: async (tenantId, tenantName) => {
+        const { token: currentToken, refreshToken: currentRefresh, user } = get()
+        if (!currentToken || !currentRefresh) {
+          set({ error: "未登录" })
+          return false
+        }
+        set({ isLoading: true, error: null })
+        try {
+          // 用当前 platform token 调 impersonate 端点（后端会保留原 platform session）
+          const data = await tenantApi.impersonate(tenantId)
+
+          // 1. 把当前 platform tokens 保存到 impersonation.originalTokens
+          //    （退出模拟时用 refresh_token 调 /auth/refresh 即可恢复 platform token）
+          // 2. 把模拟 token 写到 localStorage + authStore 主 token
+          setAuthTokens(data.token, data.refresh_token)
+          set({
+            token: data.token,
+            refreshToken: data.refresh_token,
+            user: user
+              ? {
+                  ...user,
+                  id: data.impersonated_user_id,
+                  tenant_id: data.tenant_id,
+                  role: "admin",
+                  // 模拟期间 PlatformRoles 留空（不走 super_admin 短路）
+                  platform_roles: [],
+                }
+              : user,
+            scope: "tenant",
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+            impersonation: {
+              originalTokens: {
+                token: currentToken,
+                refreshToken: currentRefresh,
+              },
+              tenantId: data.tenant_id,
+              tenantName: data.tenant_name ?? tenantName,
+              impersonatedUserId: data.impersonated_user_id,
+              impersonatedBy: data.impersonated_by,
+              startedAt: Date.now(),
+            },
+          })
+
+          return true
+        } catch (err) {
+          const errorMessage =
+            err instanceof ApiError
+              ? err.message
+              : err instanceof Error
+                ? err.message
+                : "模拟登录失败"
+          set({
+            isLoading: false,
+            error: errorMessage,
+          })
+          return false
+        }
+      },
+
+      stopImpersonation: async () => {
+        const { impersonation } = get()
+        if (!impersonation) {
+          return false
+        }
+        set({ isLoading: true, error: null })
+        try {
+          // 用原 platform refresh_token 调 /auth/refresh（不传 tenant_id）恢复 platform token
+          const data = await authApi.refresh({
+            refresh_token: impersonation.originalTokens.refreshToken,
+          })
+
+          setAuthTokens(data.token, data.refresh_token)
+
+          set({
+            token: data.token,
+            refreshToken: data.refresh_token ?? impersonation.originalTokens.refreshToken,
+            scope: "platform",
+            isLoading: false,
+            error: null,
+            impersonation: null,
+          })
+
+          return true
+        } catch (err) {
+          const errorMessage =
+            err instanceof ApiError
+              ? err.message
+              : err instanceof Error
+                ? err.message
+                : "退出模拟失败"
+          set({
+            isLoading: false,
+            error: errorMessage,
+          })
+          return false
+        }
       },
 
       clearError: () => {
@@ -337,6 +466,8 @@ export const useAuthStore = create<AuthState>()(
         platformAvailable: state.platformAvailable,
         availablePlatformRoles: state.availablePlatformRoles,
         accountId: state.accountId,
+        // 模拟登录状态必须持久化：刷新页面后 stopImpersonation 仍能拿到原 platform refresh_token
+        impersonation: state.impersonation,
       }),
       onRehydrateStorage: () => (state) => {
         const token = localStorage.getItem("token")
@@ -350,6 +481,7 @@ export const useAuthStore = create<AuthState>()(
           state.platformAvailable = false
           state.availablePlatformRoles = []
           state.accountId = null
+          state.impersonation = null
         }
       },
     },

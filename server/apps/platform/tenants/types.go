@@ -62,6 +62,29 @@ type ListTenantReq struct {
 	Status  *int16 `form:"status"`
 }
 
+// ImpersonateResp 模拟登录响应。前端收到后应保存原 platform refresh_token（用于"退出模拟"），
+// 并将 token/refresh_token 替换为模拟 token，跳转到租户域首页。
+type ImpersonateResp struct {
+	Scope         LoginScopeString `json:"scope"`
+	Token         string           `json:"token"`
+	RefreshToken  string           `json:"refresh_token"`
+	ExpiresIn     int              `json:"expires_in"`
+	TenantID      uint             `json:"tenant_id"`
+	TenantName    string           `json:"tenant_name"`
+	ImpersonatedUserID uint        `json:"impersonated_user_id"`
+	// ImpersonatedBy 原 super_admin 的 account_id（用于审计展示）
+	ImpersonatedBy uint   `json:"impersonated_by"`
+	// ImpersonationSID 原 platform 会话 ID；前端"退出模拟"时调 /auth/refresh 即可恢复
+	ImpersonationSID string `json:"impersonation_sid"`
+}
+
+// LoginScopeString 复用 auth.LoginScope 的字面值，避免反向依赖 auth 包
+type LoginScopeString = string
+
+const (
+	ImpersonateScopeTenant LoginScopeString = "tenant"
+)
+
 type TenantResp struct {
 	ID        uint        `json:"id"`
 	Code      string      `json:"code"`

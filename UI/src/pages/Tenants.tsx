@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react"
+import { useNavigate } from "react-router-dom"
 import { PageLayout } from "@/components/page-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -31,6 +32,7 @@ import {
   PhoneIcon,
   MailIcon,
   ActivityIcon,
+  LogInIcon,
 } from "lucide-react"
 import { t } from "@/locales"
 import { tenantApi, type TenantItem } from "@/api"
@@ -46,6 +48,7 @@ import { FormDialog } from "@/components/schema/DynamicForm"
 import type { FormSchema } from "@/types/schema"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { useAuthStore } from "@/stores/authStore"
 
 type StatusFilter = "all" | "active" | "disabled"
 
@@ -97,6 +100,11 @@ const mockTenants: TenantItem[] = [
 ]
 
 export function TenantsPage() {
+  const navigate = useNavigate()
+  const isSuperAdmin =
+    (useAuthStore((s) => s.user?.platform_roles) ?? []).includes("super_admin")
+  const startImpersonation = useAuthStore((s) => s.startImpersonation)
+
   const [tenants, setTenants] = useState<TenantItem[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
@@ -110,7 +118,7 @@ export function TenantsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [confirmOpen, setConfirmOpen] = useState<null | {
-    type: "soft-delete" | "purge" | "toggle-status"
+    type: "soft-delete" | "purge" | "toggle-status" | "impersonate"
     tenant: TenantItem
     nextStatus?: 0 | 1
   }>(null)
@@ -280,6 +288,10 @@ export function TenantsPage() {
     setConfirmOpen({ type: "soft-delete", tenant })
   }
 
+  const handleImpersonate = (tenant: TenantItem) => {
+    setConfirmOpen({ type: "impersonate", tenant })
+  }
+
   const executeConfirm = async () => {
     if (!confirmOpen) return
     const { type, tenant, nextStatus } = confirmOpen
@@ -296,6 +308,23 @@ export function TenantsPage() {
         const res = await tenantApi.purge(tenant.id)
         toast.success(`租户「${tenant.code}」已硬删（清理 ${res.tables_purged} 张表）`)
         await load()
+      } else if (type === "impersonate") {
+        // 关闭确认框后再发起，避免 Dialog 蒙层还在时跳页
+        const targetTenant = tenant
+        setConfirmOpen(null)
+        const ok = await startImpersonation(targetTenant.id, targetTenant.name)
+        if (ok) {
+          toast.success(
+            t.pages.tenants.impersonation.toastSuccess.replace(
+              "{name}",
+              targetTenant.name,
+            ),
+          )
+          navigate("/app/dashboard", { replace: true })
+        } else {
+          toast.error(t.pages.tenants.impersonation.toastFailed)
+        }
+        return
       }
     } catch (err: any) {
       const msg = err?.response?.data?.msg ?? err?.message ?? "操作失败"
@@ -517,6 +546,24 @@ export function TenantsPage() {
                           >
                             <TrashIcon className="h-4 w-4 text-amber-600" />
                           </Button>
+                          {isSuperAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleImpersonate(tenant)}
+                              title={t.pages.tenants.actions.impersonate}
+                              disabled={tenant.status !== 1}
+                            >
+                              <LogInIcon
+                                className={cn(
+                                  "h-4 w-4",
+                                  tenant.status === 1
+                                    ? "text-blue-600"
+                                    : "text-gray-300",
+                                )}
+                              />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -554,7 +601,9 @@ export function TenantsPage() {
                 ? t.pages.tenants.confirm.purgeTitle
                 : confirmOpen?.type === "soft-delete"
                   ? t.pages.tenants.confirm.deleteTitle
-                  : t.pages.tenants.confirm.statusTitle}
+                  : confirmOpen?.type === "impersonate"
+                    ? t.pages.tenants.confirm.impersonateTitle
+                    : t.pages.tenants.confirm.statusTitle}
             </DialogTitle>
             <DialogDescription>
               {confirmOpen?.type === "purge" && (
@@ -584,6 +633,14 @@ export function TenantsPage() {
                     )}
                 </>
               )}
+              {confirmOpen?.type === "impersonate" && (
+                <>
+                  {t.pages.tenants.confirm.impersonateDesc.replace(
+                    "{name}",
+                    confirmOpen.tenant.name,
+                  )}
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -596,7 +653,9 @@ export function TenantsPage() {
             >
               {confirmOpen?.type === "purge"
                 ? t.pages.tenants.confirm.purgeOk
-                : t.pages.tenants.confirm.ok}
+                : confirmOpen?.type === "impersonate"
+                  ? t.pages.tenants.actions.impersonate
+                  : t.pages.tenants.confirm.ok}
             </Button>
           </DialogFooter>
         </DialogContent>

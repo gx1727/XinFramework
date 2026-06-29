@@ -116,6 +116,25 @@ func (h *Handler) Get(c *gin.Context) {
 	resp.Success(c, result)
 }
 
+// Impersonate super_admin 模拟登录到指定租户。
+// POST /api/v1/platform/tenants/:id/impersonate
+//
+// 返回与 /auth/tenant-login 同构的 token 响应；前端应保存原 platform refresh_token
+// 用于"退出模拟"时调 /auth/refresh 恢复。
+func (h *Handler) Impersonate(c *gin.Context) {
+	id, err := parseIDParam(c, "id")
+	if err != nil {
+		resp.BadRequest(c, "无效的ID参数")
+		return
+	}
+	result, err := h.svc.Impersonate(c.Request.Context(), id)
+	if err != nil {
+		resp.HandleError(c, err)
+		return
+	}
+	resp.Success(c, result)
+}
+
 func (h *Handler) List(c *gin.Context) {
 	var req ListTenantReq
 	if err := c.ShouldBindQuery(&req); err != nil {

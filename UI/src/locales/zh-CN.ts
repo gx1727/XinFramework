@@ -152,6 +152,7 @@ export const zhCN = {
         disable: "停用",
         softDelete: "软删",
         purge: "硬删",
+        impersonate: "模拟登录",
       },
       form: {
         createTitle: "新建租户",
@@ -180,7 +181,21 @@ export const zhCN = {
         statusTitle: "修改租户状态",
         statusDesc: "确定将租户「{name}」{action}？",
         purgeOk: "硬删（不可逆）",
+        impersonateTitle: "模拟登录租户",
+        impersonateDesc: "将以 super_admin 身份模拟登录租户「{name}」，可进入租户域执行所有操作。所有操作将被审计记录。是否继续？",
       },
+      impersonation: {
+        toastSuccess: "已进入租户「{name}」（模拟登录）",
+        toastExit: "已退出模拟，返回平台域",
+        toastFailed: "模拟登录失败",
+        toastExitFailed: "退出模拟失败",
+      },
+    },
+    impersonation: {
+      banner: "当前正在模拟租户「{name}」",
+      bannerHint: "所有操作将以租户管理员身份执行并记录审计",
+      exit: "退出模拟",
+      exiting: "退出中...",
     },
     roles: {
       title: "角色管理",

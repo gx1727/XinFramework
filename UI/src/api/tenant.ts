@@ -77,4 +77,24 @@ export const tenantApi = {
       `/platform/tenants/${id}/purge`,
       { method: "POST" }
     ),
+
+  /**
+   * 平台管理员（super_admin）模拟登录到指定租户。
+   * 返回与 /auth/tenant-login 同构的 token 响应；前端应保存原 platform refresh_token
+   * 用于"退出模拟"时调 /auth/refresh 恢复。
+   *
+   * 后端：POST /api/v1/platform/tenants/:id/impersonate
+   */
+  impersonate: (id: number) =>
+    api<{
+      scope: string
+      token: string
+      refresh_token: string
+      expires_in: number
+      tenant_id: number
+      tenant_name: string
+      impersonated_user_id: number
+      impersonated_by: number
+      impersonation_sid: string
+    }>(`/platform/tenants/${id}/impersonate`, { method: "POST" }),
 }
