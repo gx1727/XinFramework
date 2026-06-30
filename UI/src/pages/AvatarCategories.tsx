@@ -5,14 +5,28 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet"
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
-import { PlusIcon, EditIcon, TrashIcon } from "lucide-react"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog"
+import { PlusIcon, EditIcon, TrashIcon, AlertCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 import { t } from "@/locales"
 import { avatarCategoryApi, type AvatarCategoryItem, ApiError } from "@/api"
-
-const mockCategories: AvatarCategoryItem[] = []
 
 interface CategoryFormData {
   id: number | null
@@ -37,27 +51,39 @@ const defaultFormData: CategoryFormData = {
 export function AvatarCategoriesPage() {
   const [categories, setCategories] = useState<AvatarCategoryItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [formData, setFormData] = useState<CategoryFormData>(defaultFormData)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<AvatarCategoryItem | null>(null)
-
-  useEffect(() => {
-    fetchCategories()
-  }, [])
+  const [deleteTarget, setDeleteTarget] = useState<AvatarCategoryItem | null>(
+    null
+  )
 
   const fetchCategories = async () => {
     setIsLoading(true)
+    setError(null)
     try {
       const res = await avatarCategoryApi.list()
       const list = (res as AvatarCategoryItem[]) || []
-      setCategories(list.length ? list : mockCategories)
-    } catch {
-      setCategories(mockCategories)
+      setCategories(list)
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : String(err)
+      setError(`加载头像分类失败：${msg}`)
+      setCategories([])
     } finally {
       setIsLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchCategories()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleOpenCreate = () => {
     setFormData(defaultFormData)
@@ -86,8 +112,10 @@ export function AvatarCategoriesPage() {
     try {
       await avatarCategoryApi.delete(deleteTarget.id)
       setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id))
-    } catch {
-      setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id))
+      toast.success("删除成功")
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : "删除失败，请重试"
+      toast.error(message)
     } finally {
       setDeleteTarget(null)
     }
@@ -124,7 +152,10 @@ export function AvatarCategoriesPage() {
         if (created?.id) {
           setCategories((prev) => [...prev, created])
         } else {
-          setCategories((prev) => [...prev, { ...payload, id: Date.now(), status: 1 } as AvatarCategoryItem])
+          setCategories((prev) => [
+            ...prev,
+            { ...payload, id: Date.now(), status: 1 } as AvatarCategoryItem,
+          ])
         }
       }
       setSheetOpen(false)
@@ -145,7 +176,7 @@ export function AvatarCategoriesPage() {
   return (
     <PageLayout>
       <div className="px-4 lg:px-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">头像分类</h1>
             <p className="text-sm text-muted-foreground">管理头像分类</p>
@@ -156,20 +187,41 @@ export function AvatarCategoriesPage() {
           </Button>
         </div>
 
+        {error && (
+          <div className="mb-4 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+            <AlertCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+            <div className="min-w-0 flex-1">
+              <div className="font-medium text-destructive">接口调用失败</div>
+              <div className="mt-0.5 text-xs break-all text-muted-foreground">
+                {error}
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" onClick={fetchCategories}>
+              重试
+            </Button>
+          </div>
+        )}
+
         <Card>
           <CardHeader>
-            <Badge variant="secondary">共 {sortedCategories.length} 个分类</Badge>
+            <Badge variant="secondary">
+              共 {sortedCategories.length} 个分类
+            </Badge>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="text-sm text-muted-foreground">{t.common.loading}</div>
+                <div className="text-sm text-muted-foreground">
+                  {t.common.loading}
+                </div>
               </div>
             ) : sortedCategories.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">{t.common.noData}</div>
+              <div className="py-8 text-center text-muted-foreground">
+                {t.common.noData}
+              </div>
             ) : (
-              <div className="border rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[1fr_120px_120px_80px_60px_100px] gap-4 px-4 py-3 bg-muted/50 text-sm font-medium text-muted-foreground">
+              <div className="overflow-hidden rounded-lg border">
+                <div className="grid grid-cols-[1fr_120px_120px_80px_60px_100px] gap-4 bg-muted/50 px-4 py-3 text-sm font-medium text-muted-foreground">
                   <span>分类名称</span>
                   <span>编码</span>
                   <span>类型</span>
@@ -179,19 +231,38 @@ export function AvatarCategoriesPage() {
                 </div>
                 {sortedCategories.map((cat) => (
                   <div key={cat.id} className="border-t">
-                    <div className="grid grid-cols-[1fr_120px_120px_80px_60px_100px] gap-4 px-4 py-3 items-center hover:bg-muted/30 transition-colors">
+                    <div className="grid grid-cols-[1fr_120px_120px_80px_60px_100px] items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/30">
                       <span className="font-medium">{cat.name}</span>
-                      <span className="text-sm text-muted-foreground font-mono">{cat.code}</span>
-                      <span className="text-sm text-muted-foreground">{cat.type}</span>
-                      <span className="text-sm text-muted-foreground">{cat.sort}</span>
-                      <Badge variant={cat.status === 1 ? "default" : "secondary"} className="text-xs">
+                      <span className="font-mono text-sm text-muted-foreground">
+                        {cat.code}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {cat.type}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {cat.sort}
+                      </span>
+                      <Badge
+                        variant={cat.status === 1 ? "default" : "secondary"}
+                        className="text-xs"
+                      >
                         {cat.status === 1 ? "启用" : "停用"}
                       </Badge>
-                      <div className="flex gap-1 justify-end">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(cat)}>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleOpenEdit(cat)}
+                        >
                           <EditIcon className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(cat)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleDelete(cat)}
+                        >
                           <TrashIcon className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -205,9 +276,14 @@ export function AvatarCategoriesPage() {
       </div>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetContent
+          side="right"
+          className="w-full overflow-y-auto sm:max-w-lg"
+        >
           <SheetHeader>
-            <SheetTitle>{isEditing ? (t.common.edit || "编辑") : (t.common.add || "添加")}分类</SheetTitle>
+            <SheetTitle>
+              {isEditing ? t.common.edit || "编辑" : t.common.add || "添加"}分类
+            </SheetTitle>
             <SheetDescription>管理头像分类信息</SheetDescription>
           </SheetHeader>
           <div className="flex flex-col gap-4 px-4">
@@ -217,7 +293,9 @@ export function AvatarCategoriesPage() {
                 id="cat-code"
                 placeholder="请输入分类编码"
                 value={formData.code}
-                onChange={(e) => setFormData((prev) => ({ ...prev, code: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, code: e.target.value }))
+                }
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -226,7 +304,9 @@ export function AvatarCategoriesPage() {
                 id="cat-name"
                 placeholder="请输入分类名称"
                 value={formData.name}
-                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, name: e.target.value }))
+                }
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -235,7 +315,9 @@ export function AvatarCategoriesPage() {
                 id="cat-icon"
                 placeholder="请输入图标地址（可选）"
                 value={formData.icon}
-                onChange={(e) => setFormData((prev) => ({ ...prev, icon: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, icon: e.target.value }))
+                }
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -243,7 +325,9 @@ export function AvatarCategoriesPage() {
               <select
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={formData.type}
-                onChange={(e) => setFormData((prev) => ({ ...prev, type: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, type: e.target.value }))
+                }
               >
                 <option value="public">公开</option>
                 <option value="custom">自定义</option>
@@ -256,7 +340,9 @@ export function AvatarCategoriesPage() {
                 type="number"
                 placeholder="0"
                 value={formData.sort}
-                onChange={(e) => setFormData((prev) => ({ ...prev, sort: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, sort: e.target.value }))
+                }
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -264,7 +350,9 @@ export function AvatarCategoriesPage() {
               <select
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={formData.status}
-                onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, status: e.target.value }))
+                }
               >
                 <option value="1">启用</option>
                 <option value="0">停用</option>
@@ -272,23 +360,34 @@ export function AvatarCategoriesPage() {
             </div>
           </div>
           <SheetFooter>
-            <div className="flex gap-2 w-full">
-              <Button variant="outline" className="flex-1" onClick={() => setSheetOpen(false)}>
+            <div className="flex w-full gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setSheetOpen(false)}
+              >
                 {t.common.cancel || "取消"}
               </Button>
               <Button
                 className="flex-1"
                 onClick={handleSubmit}
-                disabled={isSubmitting || !formData.code.trim() || !formData.name.trim()}
+                disabled={
+                  isSubmitting || !formData.code.trim() || !formData.name.trim()
+                }
               >
-                {isSubmitting ? "保存中..." : (t.common.save || "保存")}
+                {isSubmitting ? "保存中..." : t.common.save || "保存"}
               </Button>
             </div>
           </SheetFooter>
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除</AlertDialogTitle>
@@ -298,7 +397,9 @@ export function AvatarCategoriesPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={confirmDelete}>删除</AlertDialogAction>
+            <AlertDialogAction variant="destructive" onClick={confirmDelete}>
+              删除
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

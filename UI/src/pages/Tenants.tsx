@@ -1,7 +1,13 @@
 import { useEffect, useState, useCallback, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { PageLayout } from "@/components/page-layout"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -29,6 +35,7 @@ import {
   RefreshCw,
   PowerIcon,
   AlertTriangleIcon,
+  AlertCircleIcon,
   PhoneIcon,
   MailIcon,
   ActivityIcon,
@@ -52,57 +59,11 @@ import { useAuthStore } from "@/stores/authStore"
 
 type StatusFilter = "all" | "active" | "disabled"
 
-// Mock fallback（API 401 或断网时使用）
-const mockTenants: TenantItem[] = [
-  {
-    id: 1,
-    code: "default",
-    name: "默认租户",
-    status: 1,
-    contact: "管理员",
-    phone: "13800138000",
-    email: "admin@example.com",
-    province: "北京市",
-    city: "北京市",
-    area: "朝阳区",
-    address: "xxx 街道",
-    created_at: "2026-01-01 10:00:00",
-    updated_at: "2026-04-26 10:00:00",
-  },
-  {
-    id: 100,
-    code: "acme",
-    name: "Acme Corp",
-    status: 1,
-    contact: "张总",
-    phone: "13900000001",
-    email: "zhang@acme.com",
-    province: "上海市",
-    city: "上海市",
-    area: "浦东新区",
-    created_at: "2026-03-15 09:00:00",
-    updated_at: "2026-04-20 14:00:00",
-  },
-  {
-    id: 101,
-    code: "beta",
-    name: "Beta 科技",
-    status: 0,
-    contact: "李工",
-    phone: "13900000002",
-    email: "li@beta.com",
-    province: "广东省",
-    city: "深圳市",
-    area: "南山区",
-    created_at: "2026-02-10 11:00:00",
-    updated_at: "2026-04-15 16:00:00",
-  },
-]
-
 export function TenantsPage() {
   const navigate = useNavigate()
-  const isSuperAdmin =
-    (useAuthStore((s) => s.user?.platform_roles) ?? []).includes("super_admin")
+  const isSuperAdmin = (
+    useAuthStore((s) => s.user?.platform_roles) ?? []
+  ).includes("super_admin")
   const startImpersonation = useAuthStore((s) => s.startImpersonation)
 
   const [tenants, setTenants] = useState<TenantItem[]>([])
@@ -110,7 +71,6 @@ export function TenantsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [dataSource, setDataSource] = useState<"api" | "mock" | null>(null)
 
   const [formOpen, setFormOpen] = useState(false)
   const [formMode, setFormMode] = useState<"create" | "edit">("create")
@@ -130,13 +90,12 @@ export function TenantsPage() {
     try {
       const res = await tenantApi.list({ page: 1, size: 100 })
       const list = res?.list ?? []
-      setTenants(list.length ? list : mockTenants)
-      setDataSource(list.length ? "api" : "mock")
-    } catch (err: any) {
+      setTenants(list)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
       console.error("[tenants] load failed:", err)
-      setTenants(mockTenants)
-      setDataSource("mock")
-      setError(err?.message ?? "API 不可用，已加载 mock 数据")
+      setError(`加载租户失败：${msg}`)
+      setTenants([])
     } finally {
       setIsLoading(false)
     }
@@ -158,7 +117,7 @@ export function TenantsPage() {
           x.code.toLowerCase().includes(kw) ||
           x.name.toLowerCase().includes(kw) ||
           (x.contact ?? "").toLowerCase().includes(kw) ||
-          (x.email ?? "").toLowerCase().includes(kw),
+          (x.email ?? "").toLowerCase().includes(kw)
       )
     }
     return arr
@@ -171,7 +130,7 @@ export function TenantsPage() {
       active: tenants.filter((x) => x.status === 1).length,
       disabled: tenants.filter((x) => x.status === 0).length,
     }),
-    [tenants],
+    [tenants]
   )
 
   // ----- Schema（与 Users/Organizations 风格一致：单列 + gap-4） -----
@@ -215,10 +174,26 @@ export function TenantsPage() {
         label: t.pages.tenants.form.regionTitle,
         type: "divider",
       })
-      items.push({ field: "province", label: t.pages.tenants.form.provinceLabel, type: "text" })
-      items.push({ field: "city", label: t.pages.tenants.form.cityLabel, type: "text" })
-      items.push({ field: "area", label: t.pages.tenants.form.areaLabel, type: "text" })
-      items.push({ field: "address", label: t.pages.tenants.form.addressLabel, type: "text" })
+      items.push({
+        field: "province",
+        label: t.pages.tenants.form.provinceLabel,
+        type: "text",
+      })
+      items.push({
+        field: "city",
+        label: t.pages.tenants.form.cityLabel,
+        type: "text",
+      })
+      items.push({
+        field: "area",
+        label: t.pages.tenants.form.areaLabel,
+        type: "text",
+      })
+      items.push({
+        field: "address",
+        label: t.pages.tenants.form.addressLabel,
+        type: "text",
+      })
     }
     return { items }
   }, [formMode])
@@ -298,7 +273,9 @@ export function TenantsPage() {
     try {
       if (type === "toggle-status" && nextStatus !== undefined) {
         await tenantApi.updateStatus(tenant.id, nextStatus)
-        toast.success(`租户「${tenant.name}」已${nextStatus === 1 ? "启用" : "停用"}`)
+        toast.success(
+          `租户「${tenant.name}」已${nextStatus === 1 ? "启用" : "停用"}`
+        )
         await load()
       } else if (type === "soft-delete") {
         await tenantApi.delete(tenant.id)
@@ -306,7 +283,9 @@ export function TenantsPage() {
         await load()
       } else if (type === "purge") {
         const res = await tenantApi.purge(tenant.id)
-        toast.success(`租户「${tenant.code}」已硬删（清理 ${res.tables_purged} 张表）`)
+        toast.success(
+          `租户「${tenant.code}」已硬删（清理 ${res.tables_purged} 张表）`
+        )
         await load()
       } else if (type === "impersonate") {
         // 关闭确认框后再发起，避免 Dialog 蒙层还在时跳页
@@ -317,8 +296,8 @@ export function TenantsPage() {
           toast.success(
             t.pages.tenants.impersonation.toastSuccess.replace(
               "{name}",
-              targetTenant.name,
-            ),
+              targetTenant.name
+            )
           )
           navigate("/app/dashboard", { replace: true })
         } else {
@@ -340,21 +319,28 @@ export function TenantsPage() {
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
+            <h1 className="flex items-center gap-2 text-2xl font-bold">
               <Building2Icon className="h-6 w-6" />
               {t.pages.tenants.title}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="mt-1 text-sm text-muted-foreground">
               {t.pages.tenants.subtitle}
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={load} disabled={isLoading}>
-              <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={load}
+              disabled={isLoading}
+            >
+              <RefreshCw
+                className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")}
+              />
               {t.pages.tenants.refresh}
             </Button>
             <Button size="sm" onClick={openCreate}>
-              <PlusIcon className="h-4 w-4 mr-2" />
+              <PlusIcon className="mr-2 h-4 w-4" />
               {t.pages.tenants.create}
             </Button>
           </div>
@@ -369,7 +355,7 @@ export function TenantsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold flex items-center gap-2">
+              <div className="flex items-center gap-2 text-2xl font-bold">
                 <Building2Icon className="h-5 w-5" />
                 {stats.total}
               </div>
@@ -382,7 +368,7 @@ export function TenantsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600 flex items-center gap-2">
+              <div className="flex items-center gap-2 text-2xl font-bold text-green-600">
                 <ActivityIcon className="h-5 w-5" />
                 {stats.active}
               </div>
@@ -395,7 +381,7 @@ export function TenantsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-500 flex items-center gap-2">
+              <div className="flex items-center gap-2 text-2xl font-bold text-gray-500">
                 <PowerIcon className="h-5 w-5" />
                 {stats.disabled}
               </div>
@@ -406,14 +392,30 @@ export function TenantsPage() {
         {/* Table（搜索 + 状态筛选直接放在 CardHeader，与 Users.tsx 风格一致） */}
         <Card>
           <CardHeader>
+            {error && (
+              <div className="mb-3 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+                <AlertCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-destructive">
+                    接口调用失败
+                  </div>
+                  <div className="mt-0.5 text-xs break-all text-muted-foreground">
+                    {error}
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" onClick={load}>
+                  重试
+                </Button>
+              </div>
+            )}
             <CardTitle>{t.pages.tenants.list}</CardTitle>
             <CardDescription>
               {t.pages.tenants.total} {filtered.length} {t.pages.tenants.unit}
             </CardDescription>
             <div className="flex items-center gap-2 pt-2">
               {/* 搜索框：max-w-sm 与 Users.tsx / Organizations.tsx 一致 */}
-              <div className="relative flex-1 max-w-sm">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <div className="relative max-w-sm flex-1">
+                <SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder={t.pages.tenants.searchPlaceholder}
                   value={searchTerm}
@@ -429,7 +431,9 @@ export function TenantsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t.pages.tenants.filter.all}</SelectItem>
+                  <SelectItem value="all">
+                    {t.pages.tenants.filter.all}
+                  </SelectItem>
                   <SelectItem value="active">
                     {t.pages.tenants.filter.active}
                   </SelectItem>
@@ -438,11 +442,6 @@ export function TenantsPage() {
                   </SelectItem>
                 </SelectContent>
               </Select>
-              {dataSource === "mock" && (
-                <Badge variant="outline" className="text-amber-600 border-amber-300">
-                  {error || "mock"}
-                </Badge>
-              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -465,7 +464,7 @@ export function TenantsPage() {
                   <TableRow>
                     <TableCell
                       colSpan={7}
-                      className="text-center text-muted-foreground py-8"
+                      className="py-8 text-center text-muted-foreground"
                     >
                       {isLoading ? "加载中..." : t.pages.tenants.empty}
                     </TableCell>
@@ -477,21 +476,23 @@ export function TenantsPage() {
                         {tenant.id}
                       </TableCell>
                       <TableCell>
-                        <code className="px-1.5 py-0.5 rounded bg-muted text-xs font-mono">
+                        <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
                           {tenant.code}
                         </code>
                       </TableCell>
-                      <TableCell className="font-medium">{tenant.name}</TableCell>
+                      <TableCell className="font-medium">
+                        {tenant.name}
+                      </TableCell>
                       <TableCell>
                         <div className="text-sm">
                           {tenant.contact && <div>{tenant.contact}</div>}
                           {tenant.email && (
-                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
                               <MailIcon className="h-3 w-3" /> {tenant.email}
                             </div>
                           )}
                           {tenant.phone && (
-                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
                               <PhoneIcon className="h-3 w-3" /> {tenant.phone}
                             </div>
                           )}
@@ -534,7 +535,7 @@ export function TenantsPage() {
                             <PowerIcon
                               className={cn(
                                 "h-4 w-4",
-                                tenant.status === 0 && "text-green-600",
+                                tenant.status === 0 && "text-green-600"
                               )}
                             />
                           </Button>
@@ -559,7 +560,7 @@ export function TenantsPage() {
                                   "h-4 w-4",
                                   tenant.status === 1
                                     ? "text-blue-600"
-                                    : "text-gray-300",
+                                    : "text-gray-300"
                                 )}
                               />
                             </Button>
@@ -592,7 +593,10 @@ export function TenantsPage() {
       />
 
       {/* Confirm Dialog */}
-      <Dialog open={!!confirmOpen} onOpenChange={(o) => !o && setConfirmOpen(null)}>
+      <Dialog
+        open={!!confirmOpen}
+        onOpenChange={(o) => !o && setConfirmOpen(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -617,7 +621,7 @@ export function TenantsPage() {
                 <>
                   {t.pages.tenants.confirm.deleteDesc.replace(
                     "{name}",
-                    confirmOpen.tenant.name,
+                    confirmOpen.tenant.name
                   )}
                 </>
               )}
@@ -629,7 +633,7 @@ export function TenantsPage() {
                       "{action}",
                       confirmOpen.nextStatus === 1
                         ? t.pages.tenants.actions.enable
-                        : t.pages.tenants.actions.disable,
+                        : t.pages.tenants.actions.disable
                     )}
                 </>
               )}
@@ -637,7 +641,7 @@ export function TenantsPage() {
                 <>
                   {t.pages.tenants.confirm.impersonateDesc.replace(
                     "{name}",
-                    confirmOpen.tenant.name,
+                    confirmOpen.tenant.name
                   )}
                 </>
               )}
@@ -648,7 +652,9 @@ export function TenantsPage() {
               {t.pages.tenants.confirm.cancel}
             </Button>
             <Button
-              variant={confirmOpen?.type === "purge" ? "destructive" : "default"}
+              variant={
+                confirmOpen?.type === "purge" ? "destructive" : "default"
+              }
               onClick={executeConfirm}
             >
               {confirmOpen?.type === "purge"

@@ -27,123 +27,16 @@ export type UnifiedMenuItem = {
 interface MenuState {
   /** 当前用户能看到的所有菜单（已合并 platform + tenant）。 */
   menus: UnifiedMenuItem[]
-  /** 数据源："api" 实时；"mock" 来自前端 mock；null 加载中。 */
-  dataSource: "api" | "mock" | null
+  /** 数据源："api" 实时；null 加载中。 */
+  dataSource: "api" | null
   isLoading: boolean
   /** 顶部错误条消息；null 时不显示。 */
   error: string | null
-  /** 用户主动勾选的 mock 兜底（持久化到 localStorage）。 */
-  useMockFallback: boolean
 
   fetchMenus: () => Promise<void>
   setMenus: (menus: UnifiedMenuItem[]) => void
-  setUseMockFallback: (v: boolean) => void
   clearError: () => void
 }
-
-const LS_KEY_USE_MOCK = "menuStore.useMockFallback"
-
-// ---------- mock 数据（仅在 useMockFallback=true 时使用） ----------
-
-const mockPlatformMenus: UnifiedMenuItem[] = [
-  {
-    id: 100,
-    scope: "platform",
-    code: "admin",
-    name: "平台管理",
-    path: "/admin",
-    icon: "ShieldIcon",
-    sort: 999,
-    parent_id: 0,
-    children: [
-      {
-        id: 101,
-        scope: "platform",
-        code: "platform-tenants",
-        name: "平台租户",
-        path: "/tenants",
-        icon: "Building2Icon",
-        sort: 1,
-        parent_id: 100,
-      },
-      {
-        id: 102,
-        scope: "platform",
-        code: "platform-menus",
-        name: "平台菜单",
-        path: "/menus",
-        icon: "MenuIcon",
-        sort: 2,
-        parent_id: 100,
-      },
-    ],
-  },
-]
-
-const mockTenantMenus: UnifiedMenuItem[] = [
-  {
-    id: 1,
-    scope: "tenant",
-    code: "dashboard",
-    name: "仪表盘",
-    path: "/dashboard",
-    icon: "LayoutDashboardIcon",
-    sort: 1,
-    parent_id: 0,
-  },
-  {
-    id: 2,
-    scope: "tenant",
-    code: "analytics",
-    name: "数据分析",
-    path: "/analytics",
-    icon: "ChartBarIcon",
-    sort: 2,
-    parent_id: 0,
-  },
-  {
-    id: 5,
-    scope: "tenant",
-    code: "system",
-    name: "系统管理",
-    path: "/system",
-    icon: "SettingsIcon",
-    sort: 5,
-    parent_id: 0,
-    children: [
-      {
-        id: 51,
-        scope: "tenant",
-        code: "users",
-        name: "用户管理",
-        path: "/users",
-        icon: "UsersIcon",
-        sort: 1,
-        parent_id: 5,
-      },
-      {
-        id: 52,
-        scope: "tenant",
-        code: "roles",
-        name: "角色管理",
-        path: "/roles",
-        icon: "ShieldIcon",
-        sort: 2,
-        parent_id: 5,
-      },
-      {
-        id: 53,
-        scope: "tenant",
-        code: "menus",
-        name: "菜单管理",
-        path: "/menus",
-        icon: "MenuIcon",
-        sort: 3,
-        parent_id: 5,
-      },
-    ],
-  },
-]
 
 // ---------- helpers ----------
 
@@ -173,7 +66,7 @@ function fromTenantMenu(m: MenuItem): UnifiedMenuItem {
  */
 export function mergeMenus(
   platform: UnifiedMenuItem[],
-  tenant: UnifiedMenuItem[],
+  tenant: UnifiedMenuItem[]
 ): UnifiedMenuItem[] {
   const seen = new Set<string>()
   const out: UnifiedMenuItem[] = []
@@ -184,7 +77,8 @@ export function mergeMenus(
       if (seen.has(key)) return
       seen.add(key)
       const cloned: UnifiedMenuItem = { ...it, children: [] }
-      if (it.children?.length) cloned.children = mergeMenus(it.children as UnifiedMenuItem[], [])
+      if (it.children?.length)
+        cloned.children = mergeMenus(it.children as UnifiedMenuItem[], [])
       out.push(cloned)
     })
   }
@@ -200,38 +94,20 @@ export function mergeMenus(
 
 // ---------- store ----------
 
-export const useMenuStore = create<MenuState>((set, get) => ({
+export const useMenuStore = create<MenuState>((set) => ({
   menus: [],
   dataSource: null,
   isLoading: false,
   error: null,
-  useMockFallback:
-    typeof window !== "undefined" &&
-    window.localStorage.getItem(LS_KEY_USE_MOCK) === "1",
 
   setMenus: (menus) => set({ menus }),
-  setUseMockFallback: (v) => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(LS_KEY_USE_MOCK, v ? "1" : "0")
-    }
-    set({ useMockFallback: v })
-  },
   clearError: () => set({ error: null }),
 
   fetchMenus: async () => {
-    const useMock = get().useMockFallback
     const scope = useAuthStore.getState().scope
 
     set({ isLoading: true, error: null })
 
-    // ---------- mock 分支（用户主动勾选） ----------
-    if (useMock) {
-      const merged = mergeMenus(mockPlatformMenus, mockTenantMenus)
-      set({ menus: merged, dataSource: "mock", isLoading: false })
-      return
-    }
-
-    // ---------- api 分支 ----------
     // 路径 B 单身份登录：scope 决定走哪组菜单接口。
     //   - tenant   : /menus/tree          (受 RequireTenantContext 约束)
     //   - platform : /platform/menus/tree (受 RequirePlatformRole 约束)
@@ -248,7 +124,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
       if (scope === "platform") {
         const res = await platformMenuApi.tree()
         platformMenus = ((res as PlatformMenuItem[]) ?? []).map(
-          fromPlatformMenu,
+          fromPlatformMenu
         )
       } else {
         const res = await menuApi.tree()

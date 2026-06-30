@@ -1,12 +1,49 @@
 import { useEffect, useState, useCallback } from "react"
 import { PageLayout } from "@/components/page-layout"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { PlusIcon, ShieldIcon, UsersIcon, LayoutDashboardIcon, EditIcon, TrashIcon, RefreshCw, CheckSquare, Square, ChevronDown, ChevronRight } from "lucide-react"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  PlusIcon,
+  ShieldIcon,
+  UsersIcon,
+  LayoutDashboardIcon,
+  EditIcon,
+  TrashIcon,
+  RefreshCw,
+  CheckSquare,
+  Square,
+  ChevronDown,
+  ChevronRight,
+  AlertCircleIcon,
+} from "lucide-react"
+import { toast } from "sonner"
 import { t } from "@/locales"
-import { roleApi, menuApi, resourceApi, organizationApi, type RoleItem, type MenuItem, type ResourceItem, type OrganizationItem } from "@/api"
+import {
+  roleApi,
+  menuApi,
+  resourceApi,
+  organizationApi,
+  type RoleItem,
+  type MenuItem,
+  type ResourceItem,
+  type OrganizationItem,
+  ApiError,
+} from "@/api"
 import { FormDialog } from "@/components/schema/DynamicForm"
 import type { FormSchema } from "@/types/schema"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -27,24 +64,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-const mockRoles: RoleItem[] = [
-  { id: 1, code: "super_admin", name: "超级管理员", description: "拥有系统所有权限", sort: 1, status: 1 },
-  { id: 2, code: "admin", name: "管理员", description: "管理系统大部分功能", sort: 2, status: 1 },
-  { id: 3, code: "user", name: "普通用户", description: "使用基本功能", sort: 3, status: 1 },
-  { id: 4, code: "guest", name: "访客", description: "只读权限", sort: 4, status: 1 },
-]
-
-const mockStats = {
-  roleCount: 4,
-  userCount: 197,
-  activeUserCount: 163,
-  permissionCount: 180,
-}
-
 export function RolesPage() {
   const [roles, setRoles] = useState<RoleItem[]>([])
-  const [stats, setStats] = useState(mockStats)
+  const [stats, setStats] = useState({
+    roleCount: 0,
+    userCount: 0,
+    activeUserCount: 0,
+    permissionCount: 0,
+  })
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -64,12 +93,20 @@ export function RolesPage() {
 
   const fetchRoles = useCallback(async () => {
     setIsLoading(true)
+    setError(null)
     try {
       const response = await roleApi.list({ page: 1, size: 100 })
       setRoles(response?.list || [])
-      setStats(prev => ({ ...prev, roleCount: response?.total || 0 }))
-    } catch {
-      setRoles(mockRoles)
+      setStats((prev) => ({ ...prev, roleCount: response?.total || 0 }))
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : String(err)
+      setError(`加载角色失败：${msg}`)
+      setRoles([])
     } finally {
       setIsLoading(false)
     }
@@ -112,7 +149,10 @@ export function RolesPage() {
           { label: t.pages.roles?.dataScopeAll || "全部数据", value: 1 },
           { label: t.pages.roles?.dataScopeCustom || "自定义", value: 2 },
           { label: t.pages.roles?.dataScopeDept || "本部门", value: 3 },
-          { label: t.pages.roles?.dataScopeDeptAndBelow || "本部门及以下", value: 4 },
+          {
+            label: t.pages.roles?.dataScopeDeptAndBelow || "本部门及以下",
+            value: 4,
+          },
           { label: t.pages.roles?.dataScopeSelf || "本人数据", value: 5 },
         ],
       },
@@ -152,9 +192,15 @@ export function RolesPage() {
     try {
       await roleApi.delete(role.id)
       await fetchRoles()
+      toast.success("删除成功")
     } catch (error) {
-      console.error("Delete role failed:", error)
-      alert("删除失败，请重试")
+      const msg =
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "删除失败，请重试"
+      toast.error(msg)
     }
   }
 
@@ -173,9 +219,15 @@ export function RolesPage() {
       }
       await fetchRoles()
       setDialogOpen(false)
+      toast.success(dialogMode === "add" ? "创建成功" : "更新成功")
     } catch (error) {
-      console.error("Save role failed:", error)
-      alert("保存失败，请重试")
+      const msg =
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "保存失败，请重试"
+      toast.error(msg)
     } finally {
       setIsSubmitting(false)
     }
@@ -192,10 +244,19 @@ export function RolesPage() {
     setSelectedOrgIds([])
     setPermDataScope(role.data_scope ?? 1)
     try {
-      const [menus, permData, allResources, resPermData, orgTreeData, scopeData] = await Promise.all([
+      const [
+        menus,
+        permData,
+        allResources,
+        resPermData,
+        orgTreeData,
+        scopeData,
+      ] = await Promise.all([
         menuApi.tree().catch(() => []),
         roleApi.getMenus(role.id).catch(() => ({ menu_ids: [] })),
-        resourceApi.list({ page: 1, size: 1000 }).catch(() => ({ list: [], total: 0 })),
+        resourceApi
+          .list({ page: 1, size: 1000 })
+          .catch(() => ({ list: [], total: 0 })),
         roleApi.getPermissions(role.id).catch(() => ({ list: [] })),
         organizationApi.tree().catch(() => ({ tree: [] })),
         roleApi.getDataScopes(role.id).catch(() => ({ org_ids: [] })),
@@ -203,7 +264,7 @@ export function RolesPage() {
       setMenuOptions(menus || [])
       setSelectedMenus(permData?.menu_ids || [])
       setResources(allResources?.list || [])
-      setSelectedResources(resPermData?.list?.map(r => r.id) || [])
+      setSelectedResources(resPermData?.list?.map((r) => r.id) || [])
       setOrgTree(orgTreeData?.tree || [])
       setSelectedOrgIds(scopeData?.org_ids || [])
     } catch (error) {
@@ -230,14 +291,21 @@ export function RolesPage() {
           ? [roleApi.setDataScopes(currentPermRole.id, selectedOrgIds)]
           : []),
         // data_scope 整型（1~5）通过 PATCH /roles/:id 写入 roles.data_scope 列
-        roleApi.patch(currentPermRole.id, { data_scope: scopeNum } as Partial<RoleItem>),
+        roleApi.patch(currentPermRole.id, {
+          data_scope: scopeNum,
+        } as Partial<RoleItem>),
       ]
       await Promise.all(tasks)
       await fetchRoles()
       setPermDialogOpen(false)
     } catch (error) {
-      console.error("Save permissions failed:", error)
-      alert("保存权限失败，请重试")
+      const msg =
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "保存权限失败，请重试"
+      toast.error(msg)
     } finally {
       setIsSubmitting(false)
     }
@@ -259,19 +327,25 @@ export function RolesPage() {
 
   const getDataScopeLabel = (scope?: number) => {
     switch (scope) {
-      case 1: return t.pages.roles?.dataScopeAll || "全部数据"
-      case 2: return t.pages.roles?.dataScopeCustom || "自定义"
-      case 3: return t.pages.roles?.dataScopeDept || "本部门"
-      case 4: return t.pages.roles?.dataScopeDeptAndBelow || "本部门及以下"
-      case 5: return t.pages.roles?.dataScopeSelf || "本人数据"
-      default: return "-"
+      case 1:
+        return t.pages.roles?.dataScopeAll || "全部数据"
+      case 2:
+        return t.pages.roles?.dataScopeCustom || "自定义"
+      case 3:
+        return t.pages.roles?.dataScopeDept || "本部门"
+      case 4:
+        return t.pages.roles?.dataScopeDeptAndBelow || "本部门及以下"
+      case 5:
+        return t.pages.roles?.dataScopeSelf || "本人数据"
+      default:
+        return "-"
     }
   }
 
   const getAllMenuIds = (): number[] => {
     const ids: number[] = []
     const collect = (menus: MenuItem[]) => {
-      menus.forEach(menu => {
+      menus.forEach((menu) => {
         ids.push(menu.id)
         if (menu.children && menu.children.length > 0) {
           collect(menu.children)
@@ -292,27 +366,29 @@ export function RolesPage() {
 
   const handleMenuToggle = (menuId: number, checked: boolean) => {
     if (checked) {
-      setSelectedMenus(prev => [...prev, menuId])
+      setSelectedMenus((prev) => [...prev, menuId])
     } else {
-      setSelectedMenus(prev => prev.filter(id => id !== menuId))
+      setSelectedMenus((prev) => prev.filter((id) => id !== menuId))
     }
   }
 
   const handleSelectChildren = (menuId: number, childIds: number[]) => {
-    setSelectedMenus(prev => {
+    setSelectedMenus((prev) => {
       const newSet = new Set(prev)
       newSet.add(menuId)
-      childIds.forEach(id => newSet.add(id))
+      childIds.forEach((id) => newSet.add(id))
       return Array.from(newSet)
     })
   }
 
   const handleDeselectChildren = (menuId: number, childIds: number[]) => {
-    setSelectedMenus(prev => prev.filter(id => id !== menuId && !childIds.includes(id)))
+    setSelectedMenus((prev) =>
+      prev.filter((id) => id !== menuId && !childIds.includes(id))
+    )
   }
 
   const handleSelectAllResources = () => {
-    setSelectedResources(resources.map(r => r.id))
+    setSelectedResources(resources.map((r) => r.id))
   }
 
   const handleDeselectAllResources = () => {
@@ -321,37 +397,43 @@ export function RolesPage() {
 
   const handleResourceToggle = (resourceId: number, checked: boolean) => {
     if (checked) {
-      setSelectedResources(prev => [...prev, resourceId])
+      setSelectedResources((prev) => [...prev, resourceId])
     } else {
-      setSelectedResources(prev => prev.filter(id => id !== resourceId))
+      setSelectedResources((prev) => prev.filter((id) => id !== resourceId))
     }
   }
 
   const handleSelectMenuResources = (menuId: number, checked: boolean) => {
-    const menuResourceIds = resources.filter(r => (r.menu_id || 0) === menuId).map(r => r.id)
+    const menuResourceIds = resources
+      .filter((r) => (r.menu_id || 0) === menuId)
+      .map((r) => r.id)
     if (checked) {
-      setSelectedResources(prev => {
+      setSelectedResources((prev) => {
         const newSet = new Set(prev)
-        menuResourceIds.forEach(id => newSet.add(id))
+        menuResourceIds.forEach((id) => newSet.add(id))
         return Array.from(newSet)
       })
     } else {
-      setSelectedResources(prev => prev.filter(id => !menuResourceIds.includes(id)))
+      setSelectedResources((prev) =>
+        prev.filter((id) => !menuResourceIds.includes(id))
+      )
     }
   }
 
   const handleOrgToggle = (orgId: number, checked: boolean) => {
     if (checked) {
-      setSelectedOrgIds(prev => prev.includes(orgId) ? prev : [...prev, orgId])
+      setSelectedOrgIds((prev) =>
+        prev.includes(orgId) ? prev : [...prev, orgId]
+      )
     } else {
-      setSelectedOrgIds(prev => prev.filter(id => id !== orgId))
+      setSelectedOrgIds((prev) => prev.filter((id) => id !== orgId))
     }
   }
 
   const handleSelectAllOrgs = () => {
     const ids: number[] = []
     const collect = (list: OrganizationItem[]) => {
-      list.forEach(o => {
+      list.forEach((o) => {
         ids.push(o.id)
         if (o.children) collect(o.children)
       })
@@ -367,14 +449,20 @@ export function RolesPage() {
   return (
     <PageLayout>
       <div className="px-4 lg:px-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">{t.pages.roles?.title || "角色管理"}</h1>
-            <p className="text-sm text-muted-foreground">{t.pages.roles?.subtitle || "管理系统角色和权限分配"}</p>
+            <h1 className="text-2xl font-bold">
+              {t.pages.roles?.title || "角色管理"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {t.pages.roles?.subtitle || "管理系统角色和权限分配"}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={fetchRoles} disabled={isLoading}>
-              <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+              />
               {t.pages.roles?.refresh || "刷新列表"}
             </Button>
             <Button onClick={handleAdd}>
@@ -384,7 +472,21 @@ export function RolesPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {error && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm md:col-span-2 lg:col-span-4">
+              <AlertCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-destructive">接口调用失败</div>
+                <div className="mt-0.5 text-xs break-all text-muted-foreground">
+                  {error}
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={fetchRoles}>
+                重试
+              </Button>
+            </div>
+          )}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">总角色数</CardTitle>
@@ -392,7 +494,9 @@ export function RolesPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.roleCount}</div>
-              <p className="text-xs text-muted-foreground">{t.pages.roles?.userCount || "角色数量"}</p>
+              <p className="text-xs text-muted-foreground">
+                {t.pages.roles?.userCount || "角色数量"}
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -412,7 +516,11 @@ export function RolesPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.activeUserCount}</div>
-              <p className="text-xs text-muted-foreground">{((stats.activeUserCount / stats.userCount) * 100).toFixed(1)}% 活跃率</p>
+              <p className="text-xs text-muted-foreground">
+                {stats.userCount > 0
+                  ? `${((stats.activeUserCount / stats.userCount) * 100).toFixed(1)}% 活跃率`
+                  : "—"}
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -430,7 +538,9 @@ export function RolesPage() {
         <Card>
           <CardHeader>
             <CardTitle>{t.pages.roles?.roleList || "角色列表"}</CardTitle>
-            <CardDescription>{t.pages.roles?.roleDesc || "管理系统中的所有角色"}</CardDescription>
+            <CardDescription>
+              {t.pages.roles?.roleDesc || "管理系统中的所有角色"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -440,7 +550,9 @@ export function RolesPage() {
                   <TableHead>{t.pages.roles?.name || "角色名称"}</TableHead>
                   <TableHead>{t.pages.roles?.code || "角色代码"}</TableHead>
                   <TableHead>{t.pages.roles?.description || "描述"}</TableHead>
-                  <TableHead>{t.pages.roles?.dataScope || "数据范围"}</TableHead>
+                  <TableHead>
+                    {t.pages.roles?.dataScope || "数据范围"}
+                  </TableHead>
                   <TableHead>{t.pages.roles?.sortOrder || "排序"}</TableHead>
                   <TableHead>{t.pages.roles?.status || "状态"}</TableHead>
                   <TableHead className="text-right">{t.common.edit}</TableHead>
@@ -453,28 +565,50 @@ export function RolesPage() {
                     <TableCell>
                       <Badge variant="outline">{role.name}</Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-sm">{role.code}</TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {role.code}
+                    </TableCell>
                     <TableCell>{role.description || "-"}</TableCell>
                     <TableCell>
-                      <Badge variant={role.data_scope === 2 ? "default" : "secondary"}>
+                      <Badge
+                        variant={
+                          role.data_scope === 2 ? "default" : "secondary"
+                        }
+                      >
                         {getDataScopeLabel(role.data_scope)}
                       </Badge>
                     </TableCell>
                     <TableCell>{role.sort}</TableCell>
                     <TableCell>
-                      <Badge variant={role.status === 1 ? "default" : "secondary"}>
+                      <Badge
+                        variant={role.status === 1 ? "default" : "secondary"}
+                      >
                         {role.status === 1 ? "启用" : "停用"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => handlePermission(role)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handlePermission(role)}
+                        >
                           权限
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(role)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleEdit(role)}
+                        >
                           <EditIcon className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(role)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleDelete(role)}
+                        >
                           <TrashIcon className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -483,7 +617,10 @@ export function RolesPage() {
                 ))}
                 {roles.length === 0 && !isLoading && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell
+                      colSpan={8}
+                      className="py-8 text-center text-muted-foreground"
+                    >
                       {t.common.noData}
                     </TableCell>
                   </TableRow>
@@ -492,7 +629,9 @@ export function RolesPage() {
             </Table>
             {isLoading && (
               <div className="flex items-center justify-center py-8">
-                <div className="text-sm text-muted-foreground">{t.common.loading}</div>
+                <div className="text-sm text-muted-foreground">
+                  {t.common.loading}
+                </div>
               </div>
             )}
           </CardContent>
@@ -502,7 +641,11 @@ export function RolesPage() {
       <FormDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title={dialogMode === "add" ? (t.pages.roles?.addRole || "添加角色") : (t.pages.roles?.editRole || "编辑角色")}
+        title={
+          dialogMode === "add"
+            ? t.pages.roles?.addRole || "添加角色"
+            : t.pages.roles?.editRole || "编辑角色"
+        }
         schema={roleFormSchema}
         initialValues={getInitialValues()}
         onSubmit={handleSubmit}
@@ -513,36 +656,55 @@ export function RolesPage() {
         <DialogContent className="sm:max-w-[700px]">
           <DialogHeader>
             <DialogTitle>
-              {t.pages.roles?.assignPermissions || "分配权限"} - {currentPermRole?.name}
+              {t.pages.roles?.assignPermissions || "分配权限"} -{" "}
+              {currentPermRole?.name}
             </DialogTitle>
           </DialogHeader>
           <div className="max-h-[60vh] overflow-y-auto py-4">
             <Tabs defaultValue="menus" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="menus">{t.pages.roles?.menuPermissions || "菜单权限"}</TabsTrigger>
+                <TabsTrigger value="menus">
+                  {t.pages.roles?.menuPermissions || "菜单权限"}
+                </TabsTrigger>
                 <TabsTrigger value="resources">资源权限</TabsTrigger>
-                <TabsTrigger value="dataScope">{t.pages.roles?.dataPermissions || "数据范围"}</TabsTrigger>
+                <TabsTrigger value="dataScope">
+                  {t.pages.roles?.dataPermissions || "数据范围"}
+                </TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="menus" className="space-y-4 pt-4">
-                <div className="flex items-center justify-between mb-4 bg-muted/50 p-2 rounded-md border">
+                <div className="mb-4 flex items-center justify-between rounded-md border bg-muted/50 p-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-1 h-4 bg-primary rounded-full"></div>
-                    <h4 className="text-sm font-semibold">{t.pages.roles?.menuPermissions || "菜单权限"}</h4>
+                    <div className="h-4 w-1 rounded-full bg-primary"></div>
+                    <h4 className="text-sm font-semibold">
+                      {t.pages.roles?.menuPermissions || "菜单权限"}
+                    </h4>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button variant="outline" size="sm" onClick={handleSelectAllMenus} className="h-7 text-xs">
-                      <CheckSquare className="w-3.5 h-3.5 mr-1" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSelectAllMenus}
+                      className="h-7 text-xs"
+                    >
+                      <CheckSquare className="mr-1 h-3.5 w-3.5" />
                       {t.pages.roles?.selectAll || "全选"}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleDeselectAllMenus} className="h-7 text-xs">
-                      <Square className="w-3.5 h-3.5 mr-1" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDeselectAllMenus}
+                      className="h-7 text-xs"
+                    >
+                      <Square className="mr-1 h-3.5 w-3.5" />
                       {t.pages.roles?.deselectAll || "全不选"}
                     </Button>
                   </div>
                 </div>
                 {menuOptions.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4">{t.common.loading}</p>
+                  <p className="py-4 text-sm text-muted-foreground">
+                    {t.common.loading}
+                  </p>
                 ) : (
                   <div className="space-y-4">
                     <MenuPermissionTree
@@ -557,24 +719,36 @@ export function RolesPage() {
               </TabsContent>
 
               <TabsContent value="resources" className="space-y-4 pt-4">
-                <div className="flex items-center justify-between mb-4 bg-muted/50 p-2 rounded-md border">
+                <div className="mb-4 flex items-center justify-between rounded-md border bg-muted/50 p-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-1 h-4 bg-primary rounded-full"></div>
+                    <div className="h-4 w-1 rounded-full bg-primary"></div>
                     <h4 className="text-sm font-semibold">操作资源权限</h4>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button variant="outline" size="sm" onClick={handleSelectAllResources} className="h-7 text-xs">
-                      <CheckSquare className="w-3.5 h-3.5 mr-1" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSelectAllResources}
+                      className="h-7 text-xs"
+                    >
+                      <CheckSquare className="mr-1 h-3.5 w-3.5" />
                       {t.pages.roles?.selectAll || "全选"}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleDeselectAllResources} className="h-7 text-xs">
-                      <Square className="w-3.5 h-3.5 mr-1" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDeselectAllResources}
+                      className="h-7 text-xs"
+                    >
+                      <Square className="mr-1 h-3.5 w-3.5" />
                       {t.pages.roles?.deselectAll || "全不选"}
                     </Button>
                   </div>
                 </div>
                 {resources.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4">{t.common.loading}</p>
+                  <p className="py-4 text-sm text-muted-foreground">
+                    {t.common.loading}
+                  </p>
                 ) : (
                   <div className="space-y-6">
                     <ResourceGroupList
@@ -589,8 +763,8 @@ export function RolesPage() {
               </TabsContent>
 
               <TabsContent value="dataScope" className="space-y-4 pt-4">
-                <div className="flex items-center gap-2 mb-4 bg-muted/50 p-2 rounded-md border">
-                  <div className="w-1 h-4 bg-primary rounded-full"></div>
+                <div className="mb-4 flex items-center gap-2 rounded-md border bg-muted/50 p-2">
+                  <div className="h-4 w-1 rounded-full bg-primary"></div>
                   <h4 className="text-sm font-semibold">
                     {t.pages.roles?.dataScope || "数据范围"}
                   </h4>
@@ -599,14 +773,19 @@ export function RolesPage() {
                 <div className="grid gap-2">
                   <Label htmlFor="perm-data-scope" className="text-sm">
                     {t.pages.roles?.dataScope || "数据范围"}
-                    <span className="text-destructive ml-1">*</span>
+                    <span className="ml-1 text-destructive">*</span>
                   </Label>
                   <Select
                     value={String(permDataScope)}
                     onValueChange={(v) => setPermDataScope(Number(v))}
                   >
-                    <SelectTrigger id="perm-data-scope" className="w-full sm:w-[280px]">
-                      <SelectValue placeholder={t.pages.roles?.dataScope || "数据范围"} />
+                    <SelectTrigger
+                      id="perm-data-scope"
+                      className="w-full sm:w-[280px]"
+                    >
+                      <SelectValue
+                        placeholder={t.pages.roles?.dataScope || "数据范围"}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="1">
@@ -634,28 +813,40 @@ export function RolesPage() {
 
                 {permDataScope === 2 && (
                   <>
-                    <div className="flex items-center justify-between mt-4 bg-muted/50 p-2 rounded-md border">
+                    <div className="mt-4 flex items-center justify-between rounded-md border bg-muted/50 p-2">
                       <div className="flex items-center gap-2">
-                        <div className="w-1 h-4 bg-primary rounded-full"></div>
+                        <div className="h-4 w-1 rounded-full bg-primary"></div>
                         <h4 className="text-sm font-semibold">
                           {t.pages.roles?.selectOrgs || "选择组织"}
                         </h4>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Button variant="outline" size="sm" onClick={handleSelectAllOrgs} className="h-7 text-xs">
-                          <CheckSquare className="w-3.5 h-3.5 mr-1" />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleSelectAllOrgs}
+                          className="h-7 text-xs"
+                        >
+                          <CheckSquare className="mr-1 h-3.5 w-3.5" />
                           {t.pages.roles?.selectAll || "全选"}
                         </Button>
-                        <Button variant="outline" size="sm" onClick={handleDeselectAllOrgs} className="h-7 text-xs">
-                          <Square className="w-3.5 h-3.5 mr-1" />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDeselectAllOrgs}
+                          className="h-7 text-xs"
+                        >
+                          <Square className="mr-1 h-3.5 w-3.5" />
                           {t.pages.roles?.deselectAll || "全不选"}
                         </Button>
                       </div>
                     </div>
                     {orgTree.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-4">{t.common.loading}</p>
+                      <p className="py-4 text-sm text-muted-foreground">
+                        {t.common.loading}
+                      </p>
                     ) : (
-                      <div className="space-y-1 border rounded-md p-3 bg-card max-h-[40vh] overflow-y-auto">
+                      <div className="max-h-[40vh] space-y-1 overflow-y-auto rounded-md border bg-card p-3">
                         <OrgPermissionTree
                           orgs={orgTree}
                           selectedOrgIds={selectedOrgIds}
@@ -728,7 +919,10 @@ function MenuPermissionTree({
   )
 }
 
-interface MenuPermissionNodeProps extends Omit<MenuPermissionTreeProps, 'menus'> {
+interface MenuPermissionNodeProps extends Omit<
+  MenuPermissionTreeProps,
+  "menus"
+> {
   menu: MenuItem
 }
 
@@ -741,13 +935,13 @@ function MenuPermissionNode({
   onDeselectChildren,
 }: MenuPermissionNodeProps) {
   const [isExpanded, setIsExpanded] = useState(true)
-  
+
   const hasChildren = menu.children && menu.children.length > 0
   const isSelected = selectedMenus.includes(menu.id)
-  
+
   const childIds: number[] = []
   const collectChildIds = (items: MenuItem[]) => {
-    items.forEach(item => {
+    items.forEach((item) => {
       childIds.push(item.id)
       if (item.children) collectChildIds(item.children)
     })
@@ -756,8 +950,9 @@ function MenuPermissionNode({
     collectChildIds(menu.children!)
   }
 
-  const someChildrenSelected = childIds.length > 0 && childIds.some(id => selectedMenus.includes(id))
-  
+  const someChildrenSelected =
+    childIds.length > 0 && childIds.some((id) => selectedMenus.includes(id))
+
   const handleCheckedChange = (checked: boolean | "indeterminate") => {
     onToggle(menu.id, checked === true)
     if (checked === true) {
@@ -769,40 +964,54 @@ function MenuPermissionNode({
 
   return (
     <div>
-      <div 
-        className="flex items-center gap-2 py-1.5 hover:bg-muted/50 rounded-sm px-2 group"
+      <div
+        className="group flex items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-muted/50"
         style={{ paddingLeft: `${level * 1.5 + 0.5}rem` }}
       >
-        <div className="flex items-center gap-2 flex-1">
+        <div className="flex flex-1 items-center gap-2">
           {hasChildren ? (
-            <button 
+            <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="p-0.5 hover:bg-muted rounded text-muted-foreground"
+              className="rounded p-0.5 text-muted-foreground hover:bg-muted"
             >
-              {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
             </button>
           ) : (
             <div className="w-5" />
           )}
-          <Checkbox 
-            checked={isSelected ? true : someChildrenSelected ? "indeterminate" : false}
+          <Checkbox
+            checked={
+              isSelected ? true : someChildrenSelected ? "indeterminate" : false
+            }
             onCheckedChange={handleCheckedChange}
             id={`menu-${menu.id}`}
           />
-          <label 
+          <label
             htmlFor={`menu-${menu.id}`}
-            className="text-sm cursor-pointer select-none flex-1 flex items-center gap-2"
+            className="flex flex-1 cursor-pointer items-center gap-2 text-sm select-none"
           >
             {menu.name}
-            {(menu as MenuItem & { type?: number })?.type === 2 && <Badge variant="secondary" className="text-[10px] px-1 h-4">按钮</Badge>}
-            {(menu as MenuItem & { type?: number })?.type === 1 && <Badge variant="outline" className="text-[10px] px-1 h-4">菜单</Badge>}
+            {(menu as MenuItem & { type?: number })?.type === 2 && (
+              <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                按钮
+              </Badge>
+            )}
+            {(menu as MenuItem & { type?: number })?.type === 1 && (
+              <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                菜单
+              </Badge>
+            )}
           </label>
         </div>
       </div>
-      
+
       {hasChildren && isExpanded && (
         <div className="mt-1">
-          {menu.children!.map(child => (
+          {menu.children!.map((child) => (
             <MenuPermissionNode
               key={child.id}
               menu={child}
@@ -827,10 +1036,16 @@ interface ResourceGroupListProps {
   onSelectMenuResources: (menuId: number, checked: boolean) => void
 }
 
-function ResourceGroupList({ menus, resources, selectedResources, onToggle, onSelectMenuResources }: ResourceGroupListProps) {
+function ResourceGroupList({
+  menus,
+  resources,
+  selectedResources,
+  onToggle,
+  onSelectMenuResources,
+}: ResourceGroupListProps) {
   const menuMap = new Map<number, MenuItem>()
   const flatMenus = (list: MenuItem[]) => {
-    list.forEach(m => {
+    list.forEach((m) => {
       menuMap.set(m.id, m)
       if (m.children) flatMenus(m.children)
     })
@@ -838,7 +1053,7 @@ function ResourceGroupList({ menus, resources, selectedResources, onToggle, onSe
   flatMenus(menus)
 
   const grouped = new Map<number, ResourceItem[]>()
-  resources.forEach(r => {
+  resources.forEach((r) => {
     const menuId = r.menu_id || 0
     if (!grouped.has(menuId)) grouped.set(menuId, [])
     grouped.get(menuId)!.push(r)
@@ -855,35 +1070,57 @@ function ResourceGroupList({ menus, resources, selectedResources, onToggle, onSe
 
   return (
     <div className="space-y-4">
-      {groupKeys.map(menuId => {
+      {groupKeys.map((menuId) => {
         const groupResources = grouped.get(menuId)!
-        const menuName = menuId === 0 ? "公共资源" : (menuMap.get(menuId)?.name || `未知菜单 ${menuId}`)
-        const allSelected = groupResources.every(r => selectedResources.includes(r.id))
-        const someSelected = groupResources.some(r => selectedResources.includes(r.id))
-        
+        const menuName =
+          menuId === 0
+            ? "公共资源"
+            : menuMap.get(menuId)?.name || `未知菜单 ${menuId}`
+        const allSelected = groupResources.every((r) =>
+          selectedResources.includes(r.id)
+        )
+        const someSelected = groupResources.some((r) =>
+          selectedResources.includes(r.id)
+        )
+
         return (
-          <div key={menuId} className="border rounded-md p-3 bg-card">
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b">
-              <Checkbox 
-                checked={allSelected ? true : someSelected ? "indeterminate" : false}
-                onCheckedChange={(checked) => onSelectMenuResources(menuId, checked === true)}
+          <div key={menuId} className="rounded-md border bg-card p-3">
+            <div className="mb-3 flex items-center gap-2 border-b pb-2">
+              <Checkbox
+                checked={
+                  allSelected ? true : someSelected ? "indeterminate" : false
+                }
+                onCheckedChange={(checked) =>
+                  onSelectMenuResources(menuId, checked === true)
+                }
                 id={`menu-res-${menuId}`}
               />
-              <label htmlFor={`menu-res-${menuId}`} className="text-sm font-semibold cursor-pointer">
+              <label
+                htmlFor={`menu-res-${menuId}`}
+                className="cursor-pointer text-sm font-semibold"
+              >
                 {menuName}
               </label>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {groupResources.map(res => (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {groupResources.map((res) => (
                 <div key={res.id} className="flex items-center gap-2">
-                  <Checkbox 
+                  <Checkbox
                     checked={selectedResources.includes(res.id)}
-                    onCheckedChange={(checked) => onToggle(res.id, checked === true)}
+                    onCheckedChange={(checked) =>
+                      onToggle(res.id, checked === true)
+                    }
                     id={`res-${res.id}`}
                   />
-                  <label htmlFor={`res-${res.id}`} className="text-sm cursor-pointer text-muted-foreground flex items-center gap-1.5 flex-1 min-w-0">
+                  <label
+                    htmlFor={`res-${res.id}`}
+                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-sm text-muted-foreground"
+                  >
                     <span className="truncate">{res.name}</span>
-                    <Badge variant="outline" className="text-[10px] h-4 px-1 py-0 font-normal shrink-0">
+                    <Badge
+                      variant="outline"
+                      className="h-4 shrink-0 px-1 py-0 text-[10px] font-normal"
+                    >
                       {res.action}
                     </Badge>
                   </label>
@@ -904,7 +1141,12 @@ interface OrgPermissionTreeProps {
   onToggle: (orgId: number, checked: boolean) => void
 }
 
-function OrgPermissionTree({ orgs, level = 0, selectedOrgIds, onToggle }: OrgPermissionTreeProps) {
+function OrgPermissionTree({
+  orgs,
+  level = 0,
+  selectedOrgIds,
+  onToggle,
+}: OrgPermissionTreeProps) {
   return (
     <div className="space-y-1">
       {orgs.map((org) => (
@@ -920,11 +1162,16 @@ function OrgPermissionTree({ orgs, level = 0, selectedOrgIds, onToggle }: OrgPer
   )
 }
 
-interface OrgPermissionNodeProps extends Omit<OrgPermissionTreeProps, 'orgs'> {
+interface OrgPermissionNodeProps extends Omit<OrgPermissionTreeProps, "orgs"> {
   org: OrganizationItem
 }
 
-function OrgPermissionNode({ org, level = 0, selectedOrgIds, onToggle }: OrgPermissionNodeProps) {
+function OrgPermissionNode({
+  org,
+  level = 0,
+  selectedOrgIds,
+  onToggle,
+}: OrgPermissionNodeProps) {
   const [isExpanded, setIsExpanded] = useState(true)
   const hasChildren = org.children && org.children.length > 0
   const isSelected = selectedOrgIds.includes(org.id)
@@ -932,16 +1179,20 @@ function OrgPermissionNode({ org, level = 0, selectedOrgIds, onToggle }: OrgPerm
   return (
     <div>
       <div
-        className="flex items-center gap-2 py-1.5 hover:bg-muted/50 rounded-sm px-2 group"
+        className="group flex items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-muted/50"
         style={{ paddingLeft: `${level * 1.5 + 0.5}rem` }}
       >
-        <div className="flex items-center gap-2 flex-1">
+        <div className="flex flex-1 items-center gap-2">
           {hasChildren ? (
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="p-0.5 hover:bg-muted rounded text-muted-foreground"
+              className="rounded p-0.5 text-muted-foreground hover:bg-muted"
             >
-              {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
             </button>
           ) : (
             <div className="w-5" />
@@ -953,17 +1204,21 @@ function OrgPermissionNode({ org, level = 0, selectedOrgIds, onToggle }: OrgPerm
           />
           <label
             htmlFor={`org-${org.id}`}
-            className="text-sm cursor-pointer select-none flex-1 flex items-center gap-2"
+            className="flex flex-1 cursor-pointer items-center gap-2 text-sm select-none"
           >
             {org.name}
-            {org.status === 0 && <Badge variant="secondary" className="text-[10px] px-1 h-4">停用</Badge>}
+            {org.status === 0 && (
+              <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                停用
+              </Badge>
+            )}
           </label>
         </div>
       </div>
 
       {hasChildren && isExpanded && (
         <div className="mt-1">
-          {org.children!.map(child => (
+          {org.children!.map((child) => (
             <OrgPermissionNode
               key={child.id}
               org={child}

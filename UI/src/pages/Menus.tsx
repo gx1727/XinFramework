@@ -4,8 +4,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
 import {
   Table,
   TableBody,
@@ -14,12 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   PlusIcon,
   SearchIcon,
@@ -68,61 +61,6 @@ interface TreeMenuItem {
   children?: TreeMenuItem[]
 }
 
-// ----------------- mock 数据 -----------------
-// 仅在用户主动勾选"使用 Mock"时使用（localStorage 持久化）
-const mockPlatformMenus: TreeMenuItem[] = [
-  {
-    id: 100,
-    scope: "platform",
-    code: "admin",
-    name: "平台管理",
-    path: "/admin",
-    icon: "ShieldIcon",
-    sort: 999,
-    parent_id: 0,
-    children: [
-      {
-        id: 101,
-        scope: "platform",
-        code: "platform-tenants",
-        name: "平台租户",
-        path: "/tenants",
-        icon: "Building2Icon",
-        sort: 1,
-        parent_id: 100,
-      },
-      {
-        id: 102,
-        scope: "platform",
-        code: "platform-menus",
-        name: "平台菜单",
-        path: "/menus",
-        icon: "MenuIcon",
-        sort: 2,
-        parent_id: 100,
-      },
-    ],
-  },
-]
-
-const mockTenantMenus: TreeMenuItem[] = [
-  {
-    id: 1, scope: "tenant", code: "dashboard", name: "仪表盘", path: "/dashboard",
-    icon: "LayoutDashboardIcon", sort: 1, parent_id: 0, children: [],
-  },
-  {
-    id: 5, scope: "tenant", code: "system", name: "系统管理", path: "/system",
-    icon: "SettingsIcon", sort: 5, parent_id: 0,
-    children: [
-      { id: 51, scope: "tenant", code: "users", name: "用户管理", path: "/users", icon: "UsersIcon", sort: 1, parent_id: 5 },
-      { id: 52, scope: "tenant", code: "roles", name: "角色管理", path: "/roles", icon: "ShieldIcon", sort: 2, parent_id: 5 },
-      { id: 53, scope: "tenant", code: "menus", name: "菜单管理", path: "/menus", icon: "MenuIcon", sort: 3, parent_id: 5 },
-    ],
-  },
-]
-
-const LS_KEY_USE_MOCK = "menusPage.useMockFallback"
-
 // ----------------- 转换函数 -----------------
 
 function fromTenantMenu(m: MenuItem): TreeMenuItem {
@@ -158,27 +96,23 @@ function fromPlatformMenu(m: PlatformMenuItem): TreeMenuItem {
 // ----------------- 顶层组件 -----------------
 
 export function MenusPage() {
-  const isSuperAdmin = (useAuthStore((s) => s.user?.platform_roles) ?? []).includes(
-    "super_admin",
-  )
+  const isSuperAdmin = (
+    useAuthStore((s) => s.user?.platform_roles) ?? []
+  ).includes("super_admin")
 
   // 默认 tab：super_admin 先看平台；普通用户进租户
   const [activeTab, setActiveTab] = useState<Scope>(
-    isSuperAdmin ? "platform" : "tenant",
+    isSuperAdmin ? "platform" : "tenant"
   )
 
   // ---------- tenant tab 状态 ----------
   const [tenantMenus, setTenantMenus] = useState<TreeMenuItem[]>([])
   const [tenantError, setTenantError] = useState<string | null>(null)
-  const [tenantDataSource, setTenantDataSource] = useState<"api" | "mock" | null>(null)
   const [tenantLoading, setTenantLoading] = useState(false)
 
   // ---------- platform tab 状态 ----------
   const [platformMenus, setPlatformMenus] = useState<TreeMenuItem[]>([])
   const [platformError, setPlatformError] = useState<string | null>(null)
-  const [platformDataSource, setPlatformDataSource] = useState<"api" | "mock" | null>(
-    null,
-  )
   const [platformLoading, setPlatformLoading] = useState(false)
 
   // ---------- 共享 UI 状态 ----------
@@ -196,33 +130,14 @@ export function MenusPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [menuToDelete, setMenuToDelete] = useState<TreeMenuItem | null>(null)
 
-  // mock 兜底开关（用户主动勾选才生效）
-  const [useMockFallback, setUseMockFallback] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false
-    return window.localStorage.getItem(LS_KEY_USE_MOCK) === "1"
-  })
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(LS_KEY_USE_MOCK, useMockFallback ? "1" : "0")
-    }
-  }, [useMockFallback])
-
   // ---------- fetch ----------
   const fetchTenant = useCallback(async () => {
-    if (useMockFallback) {
-      setTenantMenus(mockTenantMenus)
-      setTenantDataSource("mock")
-      setTenantError(null)
-      return
-    }
     setTenantLoading(true)
     setTenantError(null)
     try {
       const res = (await menuApi.tree()) as MenuItem[]
       const list = (res ?? []).map(fromTenantMenu)
       setTenantMenus(list)
-      setTenantDataSource("api")
     } catch (err) {
       const msg =
         err instanceof ApiError
@@ -232,28 +147,20 @@ export function MenusPage() {
             : "租户菜单加载失败"
       console.error("[Menus] tenant fetch failed:", err)
       setTenantMenus([])
-      setTenantDataSource(null)
       setTenantError(msg)
     } finally {
       setTenantLoading(false)
     }
-  }, [useMockFallback])
+  }, [])
 
   const fetchPlatform = useCallback(async () => {
     if (!isSuperAdmin) return
-    if (useMockFallback) {
-      setPlatformMenus(mockPlatformMenus)
-      setPlatformDataSource("mock")
-      setPlatformError(null)
-      return
-    }
     setPlatformLoading(true)
     setPlatformError(null)
     try {
       const res = (await platformMenuApi.tree()) as PlatformMenuItem[]
       const list = (res ?? []).map(fromPlatformMenu)
       setPlatformMenus(list)
-      setPlatformDataSource("api")
     } catch (err) {
       const msg =
         err instanceof ApiError
@@ -263,12 +170,11 @@ export function MenusPage() {
             : "平台菜单加载失败"
       console.error("[Menus] platform fetch failed:", err)
       setPlatformMenus([])
-      setPlatformDataSource(null)
       setPlatformError(msg)
     } finally {
       setPlatformLoading(false)
     }
-  }, [useMockFallback, isSuperAdmin])
+  }, [isSuperAdmin])
 
   useEffect(() => {
     fetchTenant()
@@ -277,6 +183,18 @@ export function MenusPage() {
   useEffect(() => {
     if (isSuperAdmin) fetchPlatform()
   }, [fetchPlatform, isSuperAdmin])
+
+  const buildParentOptions = useCallback((menuList: TreeMenuItem[]) => {
+    const opts: { label: string; value: number }[] = []
+    const walk = (items: TreeMenuItem[], prefix: string) => {
+      items.forEach((m) => {
+        opts.push({ label: `${prefix}${m.name}`, value: m.id })
+        if (m.children?.length) walk(m.children, prefix + "├── ")
+      })
+    }
+    walk(menuList, "")
+    setParentMenuOptions(opts)
+  }, [])
 
   // 切换 tab 时构建 parent options（form 父菜单下拉）
   useEffect(() => {
@@ -292,32 +210,29 @@ export function MenusPage() {
       })
       // 保留用户已展开的
       prev.forEach((id) => {
-        if (currentList.some((m) => m.id === id || m.children?.some((c) => c.id === id))) {
+        if (
+          currentList.some(
+            (m) => m.id === id || m.children?.some((c) => c.id === id)
+          )
+        ) {
           next.add(id)
         }
       })
       return next
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, platformMenus, tenantMenus, platformLoading, tenantLoading])
-
-  const buildParentOptions = useCallback((menuList: TreeMenuItem[]) => {
-    const opts: { label: string; value: number }[] = []
-    const walk = (items: TreeMenuItem[], prefix: string) => {
-      items.forEach((m) => {
-        opts.push({ label: `${prefix}${m.name}`, value: m.id })
-        if (m.children?.length) walk(m.children, prefix + "├── ")
-      })
-    }
-    walk(menuList, "")
-    setParentMenuOptions(opts)
-  }, [])
+  }, [
+    activeTab,
+    platformMenus,
+    tenantMenus,
+    platformLoading,
+    tenantLoading,
+    buildParentOptions,
+  ])
 
   // 当前 tab 的活跃数据
   const currentMenus = activeTab === "platform" ? platformMenus : tenantMenus
-  const currentLoading = activeTab === "platform" ? platformLoading : tenantLoading
-  const currentError = activeTab === "platform" ? platformError : tenantError
-  const currentDataSource = activeTab === "platform" ? platformDataSource : tenantDataSource
+  const currentLoading =
+    activeTab === "platform" ? platformLoading : tenantLoading
 
   const handleRefresh = () => {
     if (activeTab === "platform") fetchPlatform()
@@ -383,7 +298,7 @@ export function MenusPage() {
         },
       ],
     }),
-    [parentMenuOptions],
+    [parentMenuOptions]
   )
 
   // ---------- handlers ----------
@@ -463,7 +378,7 @@ export function MenusPage() {
         if (currentMenu.scope === "platform") {
           await platformMenuApi.update(
             currentMenu.id,
-            payload as Partial<PlatformMenuItem>,
+            payload as Partial<PlatformMenuItem>
           )
         } else {
           await menuApi.update(currentMenu.id, payload as Partial<MenuItem>)
@@ -517,7 +432,8 @@ export function MenusPage() {
       if (matches || filteredChildren.length > 0) {
         acc.push({
           ...item,
-          children: filteredChildren.length > 0 ? filteredChildren : item.children,
+          children:
+            filteredChildren.length > 0 ? filteredChildren : item.children,
         })
       }
       return acc
@@ -534,15 +450,14 @@ export function MenusPage() {
 
   // ---------- 渲染 ----------
   const renderTable = (
-    dataSource: "api" | "mock" | null,
     errorMsg: string | null,
     onRetry: () => void,
-    loading: boolean,
+    loading: boolean
   ) => (
     <>
       {errorMsg && (
         <div className="mb-4 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          <AlertTriangleIcon className="h-4 w-4 mt-0.5 shrink-0" />
+          <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
           <div className="flex-1">
             <div className="font-medium">加载失败</div>
             <div className="text-xs opacity-80">{errorMsg}</div>
@@ -553,18 +468,11 @@ export function MenusPage() {
         </div>
       )}
 
-      {dataSource === "mock" && (
-        <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-700 flex items-center gap-2">
-          <AlertTriangleIcon className="h-4 w-4" />
-          当前为 Mock 数据，勾选顶部"使用 Mock 兜底"开关获取。
-        </div>
-      )}
-
       <Card>
         <CardHeader>
           <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
-              <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <div className="relative max-w-sm flex-1">
+              <SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder={t.pages.menus?.searchPlaceholder || "搜索菜单..."}
                 className="pl-9"
@@ -576,12 +484,6 @@ export function MenusPage() {
               {t.pages.menus?.totalMenus || "共"} {menuCount}{" "}
               {t.pages.menus?.menus || "个菜单"}
             </Badge>
-            <div className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
-              <span>数据源</span>
-              <Badge variant={dataSource === "api" ? "default" : "outline"}>
-                {dataSource === "api" ? "实时" : dataSource === "mock" ? "Mock" : "—"}
-              </Badge>
-            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -620,7 +522,7 @@ export function MenusPage() {
                 <TableRow>
                   <TableCell
                     colSpan={7}
-                    className="text-center py-8 text-muted-foreground"
+                    className="py-8 text-center text-muted-foreground"
                   >
                     {t.common.noData}
                   </TableCell>
@@ -643,7 +545,7 @@ export function MenusPage() {
   return (
     <PageLayout>
       <div className="px-4 lg:px-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">
               {t.pages.menus?.title || "菜单管理"}
@@ -655,16 +557,6 @@ export function MenusPage() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Switch
-                id="use-mock"
-                checked={useMockFallback}
-                onCheckedChange={setUseMockFallback}
-              />
-              <Label htmlFor="use-mock" className="text-sm cursor-pointer">
-                使用 Mock 兜底
-              </Label>
-            </div>
             <Button
               variant="outline"
               onClick={handleRefresh}
@@ -700,15 +592,15 @@ export function MenusPage() {
             </TabsList>
 
             <TabsContent value="platform">
-              {renderTable(platformDataSource, platformError, fetchPlatform, platformLoading)}
+              {renderTable(platformError, fetchPlatform, platformLoading)}
             </TabsContent>
             <TabsContent value="tenant">
-              {renderTable(tenantDataSource, tenantError, fetchTenant, tenantLoading)}
+              {renderTable(tenantError, fetchTenant, tenantLoading)}
             </TabsContent>
           </Tabs>
         ) : (
           // 普通用户：直接渲染租户 tab，无平台入口
-          renderTable(tenantDataSource, tenantError, fetchTenant, tenantLoading)
+          renderTable(tenantError, fetchTenant, tenantLoading)
         )}
       </div>
 
@@ -793,7 +685,7 @@ function MenuTreeRow({
             {hasChildren ? (
               <button
                 onClick={() => onToggle(item.id)}
-                className="p-1 hover:bg-accent rounded"
+                className="rounded p-1 hover:bg-accent"
               >
                 {isExpanded ? (
                   <ChevronDownIcon className="h-4 w-4" />
@@ -807,7 +699,7 @@ function MenuTreeRow({
             <span className="ml-1">{item.name}</span>
             {item.scope === "platform" && (
               <Badge variant="outline" className="ml-2 text-xs">
-                <GlobeIcon className="h-3 w-3 mr-1" /> 平台
+                <GlobeIcon className="mr-1 h-3 w-3" /> 平台
               </Badge>
             )}
           </div>

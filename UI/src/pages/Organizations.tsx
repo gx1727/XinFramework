@@ -34,6 +34,7 @@ import {
   HashIcon,
   PowerOffIcon,
   PowerIcon,
+  AlertCircleIcon,
 } from "lucide-react"
 import { t } from "@/locales"
 import { organizationApi, type OrganizationItem } from "@/api"
@@ -53,104 +54,12 @@ type TreeOrgItem = OrganizationItem & {
   children?: TreeOrgItem[]
 }
 
-const mockOrgTree: TreeOrgItem[] = [
-  {
-    id: 1,
-    tenant_id: 1,
-    code: "HQ",
-    name: "总部",
-    type: "company",
-    description: "集团总部",
-    admin_code: "ceo",
-    parent_id: 0,
-    ancestors: "0",
-    sort: 0,
-    status: 1,
-    created_at: "2026-04-26 10:00:00",
-    updated_at: "2026-04-26 10:00:00",
-    children: [
-      {
-        id: 2,
-        tenant_id: 1,
-        code: "TECH",
-        name: "技术中心",
-        type: "department",
-        description: "研发中心",
-        admin_code: "cto",
-        parent_id: 1,
-        ancestors: "0.1",
-        sort: 1,
-        status: 1,
-        created_at: "2026-04-26 10:05:00",
-        updated_at: "2026-04-26 10:05:00",
-        children: [
-          {
-            id: 5,
-            tenant_id: 1,
-            code: "FRONTEND",
-            name: "前端组",
-            type: "team",
-            description: "前端研发",
-            parent_id: 2,
-            ancestors: "0.1.2",
-            sort: 1,
-            status: 1,
-            created_at: "2026-04-26 10:30:00",
-            updated_at: "2026-04-26 10:30:00",
-          },
-          {
-            id: 6,
-            tenant_id: 1,
-            code: "BACKEND",
-            name: "后端组",
-            type: "team",
-            description: "服务端研发",
-            parent_id: 2,
-            ancestors: "0.1.2",
-            sort: 2,
-            status: 1,
-            created_at: "2026-04-26 10:35:00",
-            updated_at: "2026-04-26 10:35:00",
-          },
-        ],
-      },
-      {
-        id: 3,
-        tenant_id: 1,
-        code: "PRODUCT",
-        name: "产品中心",
-        type: "department",
-        description: "产品规划",
-        parent_id: 1,
-        ancestors: "0.1",
-        sort: 2,
-        status: 1,
-        created_at: "2026-04-26 10:10:00",
-        updated_at: "2026-04-26 10:10:00",
-      },
-      {
-        id: 4,
-        tenant_id: 1,
-        code: "OPS",
-        name: "运营中心",
-        type: "department",
-        description: "日常运营",
-        parent_id: 1,
-        ancestors: "0.1",
-        sort: 3,
-        status: 0,
-        created_at: "2026-04-26 10:15:00",
-        updated_at: "2026-04-26 10:15:00",
-      },
-    ],
-  },
-]
-
 export function OrganizationsPage() {
   const [orgTree, setOrgTree] = useState<TreeOrgItem[]>([])
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -163,14 +72,18 @@ export function OrganizationsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [orgToDelete, setOrgToDelete] = useState<TreeOrgItem | null>(null)
 
-  const buildParentOptions = (list: TreeOrgItem[], prefix = ""): { label: string; value: number }[] => {
+  const buildParentOptions = (
+    list: TreeOrgItem[],
+    prefix = ""
+  ): { label: string; value: number }[] => {
     const options: { label: string; value: number }[] = []
     list.forEach((org) => {
-      options.push({ label: `${prefix}${org.name} (${org.code})`, value: org.id })
+      options.push({
+        label: `${prefix}${org.name} (${org.code})`,
+        value: org.id,
+      })
       if (org.children && org.children.length > 0) {
-        options.push(
-          ...buildParentOptions(org.children, prefix + "├── ")
-        )
+        options.push(...buildParentOptions(org.children, prefix + "├── "))
       }
     })
     return options
@@ -178,6 +91,7 @@ export function OrganizationsPage() {
 
   const fetchOrgs = useCallback(async () => {
     setIsLoading(true)
+    setError(null)
     try {
       const response = await organizationApi.tree()
       const tree = (response?.tree || []) as TreeOrgItem[]
@@ -195,20 +109,17 @@ export function OrganizationsPage() {
       }
       collectExpandable(tree)
       setExpandedIds(ids)
-    } catch {
-      setOrgTree(mockOrgTree)
-      setParentOptions(buildParentOptions(mockOrgTree))
-      const ids = new Set<number>()
-      const collectExpandable = (items: TreeOrgItem[]) => {
-        items.forEach((o) => {
-          if (o.children && o.children.length > 0) {
-            ids.add(o.id)
-            collectExpandable(o.children)
-          }
-        })
-      }
-      collectExpandable(mockOrgTree)
-      setExpandedIds(ids)
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : String(err)
+      setError(`加载组织失败：${msg}`)
+      setOrgTree([])
+      setParentOptions([])
+      setExpandedIds(new Set())
     } finally {
       setIsLoading(false)
     }
@@ -342,9 +253,7 @@ export function OrganizationsPage() {
   const handleDelete = async () => {
     if (!orgToDelete) return
     if (orgToDelete.parent_id === 0) {
-      alert(
-        t.pages.organizations?.rootDeleteWarn || "根组织不可删除"
-      )
+      alert(t.pages.organizations?.rootDeleteWarn || "根组织不可删除")
       return
     }
     if (orgToDelete.children && orgToDelete.children.length > 0) {
@@ -519,8 +428,7 @@ export function OrganizationsPage() {
 
   const countOrgs = (items: TreeOrgItem[]): number => {
     return items.reduce(
-      (acc, item) =>
-        acc + 1 + (item.children ? countOrgs(item.children) : 0),
+      (acc, item) => acc + 1 + (item.children ? countOrgs(item.children) : 0),
       0
     )
   }
@@ -571,7 +479,7 @@ export function OrganizationsPage() {
   return (
     <PageLayout>
       <div className="px-4 lg:px-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">
               {t.pages.organizations?.title || "组织管理"}
@@ -595,7 +503,21 @@ export function OrganizationsPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {error && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm md:col-span-2 lg:col-span-4">
+              <AlertCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-destructive">接口调用失败</div>
+                <div className="mt-0.5 text-xs break-all text-muted-foreground">
+                  {error}
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={fetchOrgs}>
+                重试
+              </Button>
+            </div>
+          )}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
@@ -632,9 +554,7 @@ export function OrganizationsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{enabledCount}</div>
-              <p className="text-xs text-muted-foreground">
-                status = 1
-              </p>
+              <p className="text-xs text-muted-foreground">status = 1</p>
             </CardContent>
           </Card>
           <Card>
@@ -653,7 +573,7 @@ export function OrganizationsPage() {
 
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <CardTitle>
                   {t.pages.organizations?.orgTree || "组织树"}
@@ -663,13 +583,12 @@ export function OrganizationsPage() {
                     "当前用户数据范围下可见的组织结构"}
                 </CardDescription>
               </div>
-              <div className="flex items-center gap-2 flex-1 max-w-md justify-end">
+              <div className="flex max-w-md flex-1 items-center justify-end gap-2">
                 <div className="relative w-full max-w-xs">
-                  <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder={
-                      t.pages.organizations?.searchPlaceholder ||
-                      "搜索组织..."
+                      t.pages.organizations?.searchPlaceholder || "搜索组织..."
                     }
                     className="pl-9"
                     value={searchTerm}
@@ -741,7 +660,7 @@ export function OrganizationsPage() {
                   <TableRow>
                     <TableCell
                       colSpan={8}
-                      className="text-center py-8 text-muted-foreground"
+                      className="py-8 text-center text-muted-foreground"
                     >
                       {t.common.noData}
                     </TableCell>
@@ -757,7 +676,7 @@ export function OrganizationsPage() {
               </div>
             )}
             {t.pages.organizations?.deleteTip && (
-              <p className="text-xs text-muted-foreground mt-4">
+              <p className="mt-4 text-xs text-muted-foreground">
                 {t.pages.organizations.deleteTip}
               </p>
             )}
@@ -789,12 +708,12 @@ export function OrganizationsPage() {
               {t.pages.organizations?.deleteOrg || "删除组织"}
             </DialogTitle>
             <DialogDescription>
-              {(t.pages.organizations?.confirmDelete || '确定要删除组织 "{name}" 吗？').replace(
-                "{name}",
-                orgToDelete?.name || ""
-              )}
+              {(
+                t.pages.organizations?.confirmDelete ||
+                '确定要删除组织 "{name}" 吗？'
+              ).replace("{name}", orgToDelete?.name || "")}
               {orgToDelete?.parent_id === 0 && (
-                <span className="block mt-2 text-destructive">
+                <span className="mt-2 block text-destructive">
                   {t.pages.organizations?.rootDeleteWarn || "根组织不可删除"}
                 </span>
               )}
@@ -802,7 +721,7 @@ export function OrganizationsPage() {
                 orgToDelete.parent_id !== 0 &&
                 orgToDelete.children &&
                 orgToDelete.children.length > 0 && (
-                  <span className="block mt-2 text-destructive">
+                  <span className="mt-2 block text-destructive">
                     {t.pages.organizations?.hasChildrenWarn ||
                       "该组织下仍有子组织，请先处理子节点"}
                   </span>
@@ -871,7 +790,7 @@ function OrgTreeRow({
             {hasChildren ? (
               <button
                 onClick={() => onToggle(item.id)}
-                className="p-1 hover:bg-accent rounded"
+                className="rounded p-1 hover:bg-accent"
               >
                 {isExpanded ? (
                   <ChevronDownIcon className="h-4 w-4" />
@@ -890,12 +809,12 @@ function OrgTreeRow({
               )}
               <span className="font-medium">{item.name}</span>
               {item.parent_id === 0 && (
-                <Badge variant="outline" className="text-[10px] h-4 px-1">
+                <Badge variant="outline" className="h-4 px-1 text-[10px]">
                   ROOT
                 </Badge>
               )}
               {item.status === 0 && (
-                <Badge variant="secondary" className="text-[10px] h-4 px-1">
+                <Badge variant="secondary" className="h-4 px-1 text-[10px]">
                   {t.pages.organizations?.disabled || "停用"}
                 </Badge>
               )}
@@ -909,7 +828,7 @@ function OrgTreeRow({
           </div>
         </TableCell>
         <TableCell>{renderTypeBadge(item.type)}</TableCell>
-       
+
         <TableCell className="text-sm text-muted-foreground">
           {item.admin_code || "-"}
         </TableCell>
@@ -927,9 +846,7 @@ function OrgTreeRow({
               variant="ghost"
               size="sm"
               onClick={() => onAddChild(item)}
-              title={
-                t.pages.organizations?.addChildOrg || "添加子组织"
-              }
+              title={t.pages.organizations?.addChildOrg || "添加子组织"}
             >
               <PlusIcon className="h-4 w-4" />
             </Button>
@@ -954,20 +871,22 @@ function OrgTreeRow({
           </div>
         </TableCell>
       </TableRow>
-      {hasChildren && isExpanded && item.children?.map((child) => (
-        <OrgTreeRow
-          key={child.id}
-          item={child as TreeOrgItem}
-          level={level + 1}
-          expandedIds={expandedIds}
-          onToggle={onToggle}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onAddChild={onAddChild}
-          searchTerm={searchTerm}
-          renderTypeBadge={renderTypeBadge}
-        />
-      ))}
+      {hasChildren &&
+        isExpanded &&
+        item.children?.map((child) => (
+          <OrgTreeRow
+            key={child.id}
+            item={child as TreeOrgItem}
+            level={level + 1}
+            expandedIds={expandedIds}
+            onToggle={onToggle}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onAddChild={onAddChild}
+            searchTerm={searchTerm}
+            renderTypeBadge={renderTypeBadge}
+          />
+        ))}
     </>
   )
 }

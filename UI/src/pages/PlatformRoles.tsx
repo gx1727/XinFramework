@@ -1,6 +1,12 @@
 import { useEffect, useState, useCallback, useMemo } from "react"
 import { PageLayout } from "@/components/page-layout"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -51,21 +57,11 @@ import {
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
-const LS_KEY_USE_MOCK = "platformRolesPage.useMockFallback"
-
-// ---- Mock 兜底 ----
-const mockRoles: PlatformRoleItem[] = [
-  { id: 1, code: "super_admin", name: "超级管理员", description: "拥有平台所有权限", data_scope: 1, is_default: true, sort: 1, status: 1, menus: [], permissions: [] },
-  { id: 2, code: "ops_admin", name: "运营管理员", description: "负责平台日常运营", data_scope: 1, is_default: false, sort: 2, status: 1, menus: [], permissions: [] },
-  { id: 3, code: "auditor", name: "审计员", description: "只读审计权限", data_scope: 1, is_default: false, sort: 3, status: 0, menus: [], permissions: [] },
-]
-
 export function PlatformRolesPage() {
   const [roles, setRoles] = useState<PlatformRoleItem[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [dataSource, setDataSource] = useState<"api" | "mock" | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -73,43 +69,29 @@ export function PlatformRolesPage() {
   const [currentRole, setCurrentRole] = useState<PlatformRoleItem | null>(null)
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [roleToDelete, setRoleToDelete] = useState<PlatformRoleItem | null>(null)
+  const [roleToDelete, setRoleToDelete] = useState<PlatformRoleItem | null>(
+    null
+  )
 
   // 权限分配对话框
   const [permDialogOpen, setPermDialogOpen] = useState(false)
-  const [currentPermRole, setCurrentPermRole] = useState<PlatformRoleItem | null>(null)
+  const [currentPermRole, setCurrentPermRole] =
+    useState<PlatformRoleItem | null>(null)
   const [menuTree, setMenuTree] = useState<PlatformMenuItem[]>([])
   const [selectedMenuIds, setSelectedMenuIds] = useState<number[]>([])
-  const [allPermissions, setAllPermissions] = useState<PlatformPermissionItem[]>([])
+  const [allPermissions, setAllPermissions] = useState<
+    PlatformPermissionItem[]
+  >([])
   const [selectedPermIds, setSelectedPermIds] = useState<number[]>([])
   const [permLoading, setPermLoading] = useState(false)
 
-  // Mock 兜底开关
-  const [useMockFallback, setUseMockFallback] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false
-    return window.localStorage.getItem(LS_KEY_USE_MOCK) === "1"
-  })
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(LS_KEY_USE_MOCK, useMockFallback ? "1" : "0")
-    }
-  }, [useMockFallback])
-
   // ---- Fetch ----
   const fetchRoles = useCallback(async () => {
-    if (useMockFallback) {
-      setRoles(mockRoles)
-      setDataSource("mock")
-      setError(null)
-      return
-    }
     setIsLoading(true)
     setError(null)
     try {
       const res = await platformRoleApi.list({ page: 1, size: 200 })
       setRoles(res?.list ?? [])
-      setDataSource("api")
     } catch (err) {
       const msg =
         err instanceof ApiError
@@ -119,12 +101,11 @@ export function PlatformRolesPage() {
             : "加载平台角色失败"
       console.error("[PlatformRoles] load failed:", err)
       setRoles([])
-      setDataSource(null)
       setError(msg)
     } finally {
       setIsLoading(false)
     }
-  }, [useMockFallback])
+  }, [])
 
   useEffect(() => {
     fetchRoles()
@@ -138,7 +119,7 @@ export function PlatformRolesPage() {
       (r) =>
         r.code.toLowerCase().includes(kw) ||
         r.name.toLowerCase().includes(kw) ||
-        (r.description ?? "").toLowerCase().includes(kw),
+        (r.description ?? "").toLowerCase().includes(kw)
     )
   }, [roles, searchTerm])
 
@@ -148,7 +129,7 @@ export function PlatformRolesPage() {
       active: roles.filter((r) => r.status === 1).length,
       default: roles.filter((r) => r.is_default).length,
     }),
-    [roles],
+    [roles]
   )
 
   // ---- Form schema ----
@@ -213,7 +194,7 @@ export function PlatformRolesPage() {
         },
       ],
     }),
-    [dialogMode],
+    [dialogMode]
   )
 
   // ---- Handlers ----
@@ -238,15 +219,10 @@ export function PlatformRolesPage() {
     if (!roleToDelete) return
     setIsSubmitting(true)
     try {
-      if (useMockFallback) {
-        setRoles((prev) => prev.filter((r) => r.id !== roleToDelete.id))
-        toast.success("已删除（Mock）")
-      } else {
-        await platformRoleApi.delete(roleToDelete.id)
-        toast.success("删除成功")
-      }
+      await platformRoleApi.delete(roleToDelete.id)
+      toast.success("删除成功")
       setDeleteDialogOpen(false)
-      if (!useMockFallback) await fetchRoles()
+      await fetchRoles()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "删除失败")
     } finally {
@@ -266,39 +242,17 @@ export function PlatformRolesPage() {
         status: Number(values.status) || 1,
       }
       if (dialogMode === "add") {
-        if (useMockFallback) {
-          const newId = Math.max(0, ...roles.map((r) => r.id)) + 1
-          setRoles((prev) => [
-            ...prev,
-            {
-              id: newId,
-              code: String(values.code ?? ""),
-              ...payload,
-              menus: [],
-              permissions: [],
-            },
-          ])
-          toast.success("已新建（Mock）")
-        } else {
-          await platformRoleApi.create({
-            code: String(values.code ?? ""),
-            ...payload,
-          })
-          toast.success("创建成功")
-        }
+        await platformRoleApi.create({
+          code: String(values.code ?? ""),
+          ...payload,
+        })
+        toast.success("创建成功")
       } else if (currentRole) {
-        if (useMockFallback) {
-          setRoles((prev) =>
-            prev.map((r) => (r.id === currentRole.id ? { ...r, ...payload } : r)),
-          )
-          toast.success("已更新（Mock）")
-        } else {
-          await platformRoleApi.update(currentRole.id, payload)
-          toast.success("更新成功")
-        }
+        await platformRoleApi.update(currentRole.id, payload)
+        toast.success("更新成功")
       }
       setDialogOpen(false)
-      if (!useMockFallback) await fetchRoles()
+      await fetchRoles()
     } catch (err) {
       const msg = err instanceof Error ? err.message : "保存失败"
       toast.error(msg)
@@ -318,7 +272,9 @@ export function PlatformRolesPage() {
     try {
       const [menus, perms] = await Promise.all([
         platformMenuApi.tree().catch(() => []),
-        platformPermissionApi.list({ page: 1, size: 500 }).catch(() => ({ list: [], total: 0 })),
+        platformPermissionApi
+          .list({ page: 1, size: 500 })
+          .catch(() => ({ list: [], total: 0 })),
       ])
       setMenuTree(menus || [])
       setAllPermissions(perms?.list ?? [])
@@ -379,65 +335,77 @@ export function PlatformRolesPage() {
   const handleSelectAllMenus = () => setSelectedMenuIds(getAllMenuIds())
   const handleDeselectAllMenus = () => setSelectedMenuIds([])
 
-  const handleSelectAllPermissions = () => setSelectedPermIds(allPermissions.map((p) => p.id))
+  const handleSelectAllPermissions = () =>
+    setSelectedPermIds(allPermissions.map((p) => p.id))
   const handleDeselectAllPermissions = () => setSelectedPermIds([])
 
   return (
     <PageLayout>
       <div className="px-4 lg:px-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
+            <h1 className="flex items-center gap-2 text-2xl font-bold">
               <ShieldIcon className="h-6 w-6" />
               {t.pages.platformRoles?.title || "平台角色"}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {t.pages.platformRoles?.subtitle || "管理平台域角色及其菜单/权限码授权（仅 super_admin）"}
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t.pages.platformRoles?.subtitle ||
+                "管理平台域角色及其菜单/权限码授权（仅 super_admin）"}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Button
-              variant={useMockFallback ? "default" : "outline"}
+              variant="outline"
               size="sm"
-              onClick={() => setUseMockFallback((v) => !v)}
+              onClick={fetchRoles}
+              disabled={isLoading}
             >
-              {useMockFallback ? "Mock 已开启" : "使用 Mock 兜底"}
-            </Button>
-            <Button variant="outline" size="sm" onClick={fetchRoles} disabled={isLoading}>
-              <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
+              <RefreshCw
+                className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")}
+              />
               {t.pages.platformRoles?.refresh || "刷新"}
             </Button>
             <Button size="sm" onClick={handleAdd}>
-              <PlusIcon className="h-4 w-4 mr-2" />
+              <PlusIcon className="mr-2 h-4 w-4" />
               {t.pages.platformRoles?.create || "新建平台角色"}
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="mb-4 grid grid-cols-3 gap-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>{t.pages.platformRoles?.statsTotal || "角色总数"}</CardDescription>
+              <CardDescription>
+                {t.pages.platformRoles?.statsTotal || "角色总数"}
+              </CardDescription>
               <CardTitle className="text-2xl">{stats.total}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>{t.pages.platformRoles?.statsActive || "启用中"}</CardDescription>
-              <CardTitle className="text-2xl text-green-600">{stats.active}</CardTitle>
+              <CardDescription>
+                {t.pages.platformRoles?.statsActive || "启用中"}
+              </CardDescription>
+              <CardTitle className="text-2xl text-green-600">
+                {stats.active}
+              </CardTitle>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>{t.pages.platformRoles?.statsDefault || "默认角色"}</CardDescription>
-              <CardTitle className="text-2xl text-blue-600">{stats.default}</CardTitle>
+              <CardDescription>
+                {t.pages.platformRoles?.statsDefault || "默认角色"}
+              </CardDescription>
+              <CardTitle className="text-2xl text-blue-600">
+                {stats.default}
+              </CardTitle>
             </CardHeader>
           </Card>
         </div>
 
         {error && (
           <div className="mb-4 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            <AlertTriangleIcon className="h-4 w-4 mt-0.5 shrink-0" />
+            <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
             <div className="flex-1">
               <div className="font-medium">加载失败</div>
               <div className="text-xs opacity-80">{error}</div>
@@ -451,22 +419,21 @@ export function PlatformRolesPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-4">
-              <div className="relative flex-1 max-w-sm">
-                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <div className="relative max-w-sm flex-1">
+                <SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder={t.pages.platformRoles?.searchPlaceholder || "搜索 code / 名称 / 描述..."}
+                  placeholder={
+                    t.pages.platformRoles?.searchPlaceholder ||
+                    "搜索 code / 名称 / 描述..."
+                  }
                   className="pl-9"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <Badge variant="secondary">共 {filteredRoles.length} 个角色</Badge>
-              <div className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
-                <span>数据源</span>
-                <Badge variant={dataSource === "api" ? "default" : "outline"}>
-                  {dataSource === "api" ? "实时" : dataSource === "mock" ? "Mock" : "—"}
-                </Badge>
-              </div>
+              <Badge variant="secondary">
+                共 {filteredRoles.length} 个角色
+              </Badge>
             </div>
           </CardHeader>
           <CardContent>
@@ -474,56 +441,87 @@ export function PlatformRolesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[60px]">ID</TableHead>
-                  <TableHead>{t.pages.platformRoles?.name || "角色名称"}</TableHead>
-                  <TableHead>{t.pages.platformRoles?.code || "角色代码"}</TableHead>
+                  <TableHead>
+                    {t.pages.platformRoles?.name || "角色名称"}
+                  </TableHead>
+                  <TableHead>
+                    {t.pages.platformRoles?.code || "角色代码"}
+                  </TableHead>
                   <TableHead>描述</TableHead>
                   <TableHead>数据范围</TableHead>
                   <TableHead className="w-[80px]">默认</TableHead>
-                  <TableHead className="w-[80px]">{t.pages.platformRoles?.sortOrder || "排序"}</TableHead>
-                  <TableHead>{t.pages.platformRoles?.status || "状态"}</TableHead>
+                  <TableHead className="w-[80px]">
+                    {t.pages.platformRoles?.sortOrder || "排序"}
+                  </TableHead>
+                  <TableHead>
+                    {t.pages.platformRoles?.status || "状态"}
+                  </TableHead>
                   <TableHead className="text-right">{t.common.edit}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredRoles.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell
+                      colSpan={9}
+                      className="py-8 text-center text-muted-foreground"
+                    >
                       {isLoading ? t.common.loading : t.common.noData}
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredRoles.map((role) => (
                     <TableRow key={role.id}>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{role.id}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {role.id}
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline">{role.name}</Badge>
                           {role.code === "super_admin" && (
-                            <Badge className="bg-amber-500 text-white text-[10px]">系统内置</Badge>
+                            <Badge className="bg-amber-500 text-[10px] text-white">
+                              系统内置
+                            </Badge>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <code className="px-1.5 py-0.5 rounded bg-muted text-xs font-mono">{role.code}</code>
+                        <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+                          {role.code}
+                        </code>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[260px] truncate">
+                      <TableCell className="max-w-[260px] truncate text-sm text-muted-foreground">
                         {role.description || "-"}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={role.data_scope === 1 ? "default" : "secondary"}>
-                          {role.data_scope === 1 ? "全部" : role.data_scope === 5 ? "本人" : `#${role.data_scope}`}
+                        <Badge
+                          variant={
+                            role.data_scope === 1 ? "default" : "secondary"
+                          }
+                        >
+                          {role.data_scope === 1
+                            ? "全部"
+                            : role.data_scope === 5
+                              ? "本人"
+                              : `#${role.data_scope}`}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         {role.is_default ? (
-                          <Badge variant="default" className="bg-blue-600">默认</Badge>
+                          <Badge variant="default" className="bg-blue-600">
+                            默认
+                          </Badge>
                         ) : (
-                          <span className="text-xs text-muted-foreground/60">-</span>
+                          <span className="text-xs text-muted-foreground/60">
+                            -
+                          </span>
                         )}
                       </TableCell>
                       <TableCell>{role.sort}</TableCell>
                       <TableCell>
-                        <Badge variant={role.status === 1 ? "default" : "secondary"}>
+                        <Badge
+                          variant={role.status === 1 ? "default" : "secondary"}
+                        >
                           {role.status === 1 ? "启用" : "停用"}
                         </Badge>
                       </TableCell>
@@ -551,7 +549,11 @@ export function PlatformRolesPage() {
                             className="h-8 w-8"
                             onClick={() => handleDeleteConfirm(role)}
                             disabled={role.code === "super_admin"}
-                            title={role.code === "super_admin" ? "系统内置角色不可删除" : "删除"}
+                            title={
+                              role.code === "super_admin"
+                                ? "系统内置角色不可删除"
+                                : "删除"
+                            }
                           >
                             <TrashIcon className="h-4 w-4 text-destructive" />
                           </Button>
@@ -564,7 +566,9 @@ export function PlatformRolesPage() {
             </Table>
             {isLoading && (
               <div className="flex items-center justify-center py-8">
-                <div className="text-sm text-muted-foreground">{t.common.loading}</div>
+                <div className="text-sm text-muted-foreground">
+                  {t.common.loading}
+                </div>
               </div>
             )}
           </CardContent>
@@ -591,14 +595,22 @@ export function PlatformRolesPage() {
           <DialogHeader>
             <DialogTitle>删除平台角色</DialogTitle>
             <DialogDescription>
-              确定要删除平台角色 "{roleToDelete?.name}" 吗？已有用户绑定的角色将一并解绑。
+              确定要删除平台角色 "{roleToDelete?.name}"
+              吗？已有用户绑定的角色将一并解绑。
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
               {t.common.cancel}
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={isSubmitting}>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isSubmitting}
+            >
               {t.common.delete}
             </Button>
           </DialogFooter>
@@ -610,7 +622,8 @@ export function PlatformRolesPage() {
           <DialogHeader>
             <DialogTitle>分配权限 - {currentPermRole?.name}</DialogTitle>
             <DialogDescription>
-              为该平台角色授予 sys_menu 与 sys_permission。两次 PUT 全量覆盖现有授权。
+              为该平台角色授予 sys_menu 与 sys_permission。两次 PUT
+              全量覆盖现有授权。
             </DialogDescription>
           </DialogHeader>
           <div className="max-h-[60vh] overflow-y-auto py-2">
@@ -621,25 +634,42 @@ export function PlatformRolesPage() {
               </TabsList>
 
               <TabsContent value="menus" className="space-y-3 pt-3">
-                <div className="flex items-center justify-between bg-muted/50 p-2 rounded-md border">
+                <div className="flex items-center justify-between rounded-md border bg-muted/50 p-2">
                   <span className="text-sm font-semibold">
-                    已选 {selectedMenuIds.length} / 共 {getAllMenuIds().length} 个菜单
+                    已选 {selectedMenuIds.length} / 共 {getAllMenuIds().length}{" "}
+                    个菜单
                   </span>
                   <div className="flex items-center gap-1">
-                    <Button variant="outline" size="sm" onClick={handleSelectAllMenus} className="h-7 text-xs">
-                      <CheckSquare className="w-3.5 h-3.5 mr-1" />全选
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSelectAllMenus}
+                      className="h-7 text-xs"
+                    >
+                      <CheckSquare className="mr-1 h-3.5 w-3.5" />
+                      全选
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleDeselectAllMenus} className="h-7 text-xs">
-                      <Square className="w-3.5 h-3.5 mr-1" />全不选
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDeselectAllMenus}
+                      className="h-7 text-xs"
+                    >
+                      <Square className="mr-1 h-3.5 w-3.5" />
+                      全不选
                     </Button>
                   </div>
                 </div>
                 {permLoading ? (
-                  <p className="text-sm text-muted-foreground py-4">{t.common.loading}</p>
+                  <p className="py-4 text-sm text-muted-foreground">
+                    {t.common.loading}
+                  </p>
                 ) : menuTree.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4">暂无平台菜单</p>
+                  <p className="py-4 text-sm text-muted-foreground">
+                    暂无平台菜单
+                  </p>
                 ) : (
-                  <div className="border rounded-md p-3 bg-card max-h-[50vh] overflow-y-auto">
+                  <div className="max-h-[50vh] overflow-y-auto rounded-md border bg-card p-3">
                     <PlatformMenuPermTree
                       menus={menuTree}
                       selectedIds={selectedMenuIds}
@@ -650,25 +680,42 @@ export function PlatformRolesPage() {
               </TabsContent>
 
               <TabsContent value="permissions" className="space-y-3 pt-3">
-                <div className="flex items-center justify-between bg-muted/50 p-2 rounded-md border">
+                <div className="flex items-center justify-between rounded-md border bg-muted/50 p-2">
                   <span className="text-sm font-semibold">
-                    已选 {selectedPermIds.length} / 共 {allPermissions.length} 个权限码
+                    已选 {selectedPermIds.length} / 共 {allPermissions.length}{" "}
+                    个权限码
                   </span>
                   <div className="flex items-center gap-1">
-                    <Button variant="outline" size="sm" onClick={handleSelectAllPermissions} className="h-7 text-xs">
-                      <CheckSquare className="w-3.5 h-3.5 mr-1" />全选
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSelectAllPermissions}
+                      className="h-7 text-xs"
+                    >
+                      <CheckSquare className="mr-1 h-3.5 w-3.5" />
+                      全选
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleDeselectAllPermissions} className="h-7 text-xs">
-                      <Square className="w-3.5 h-3.5 mr-1" />全不选
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDeselectAllPermissions}
+                      className="h-7 text-xs"
+                    >
+                      <Square className="mr-1 h-3.5 w-3.5" />
+                      全不选
                     </Button>
                   </div>
                 </div>
                 {permLoading ? (
-                  <p className="text-sm text-muted-foreground py-4">{t.common.loading}</p>
+                  <p className="py-4 text-sm text-muted-foreground">
+                    {t.common.loading}
+                  </p>
                 ) : allPermissions.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4">暂无权限码，请先在「平台权限码」页创建</p>
+                  <p className="py-4 text-sm text-muted-foreground">
+                    暂无权限码，请先在「平台权限码」页创建
+                  </p>
                 ) : (
-                  <div className="border rounded-md p-3 bg-card max-h-[50vh] overflow-y-auto space-y-1">
+                  <div className="max-h-[50vh] space-y-1 overflow-y-auto rounded-md border bg-card p-3">
                     {allPermissions.map((p) => (
                       <div key={p.id} className="flex items-center gap-2 py-1">
                         <Checkbox
@@ -677,20 +724,34 @@ export function PlatformRolesPage() {
                           onCheckedChange={(c) => {
                             setSelectedPermIds((prev) =>
                               c === true
-                                ? prev.includes(p.id) ? prev : [...prev, p.id]
-                                : prev.filter((id) => id !== p.id),
+                                ? prev.includes(p.id)
+                                  ? prev
+                                  : [...prev, p.id]
+                                : prev.filter((id) => id !== p.id)
                             )
                           }}
                         />
                         <label
                           htmlFor={`sysperm-${p.id}`}
-                          className="text-sm cursor-pointer flex items-center gap-2 flex-1"
+                          className="flex flex-1 cursor-pointer items-center gap-2 text-sm"
                         >
                           <span>{p.name}</span>
-                          <code className="px-1 rounded bg-muted text-[10px] font-mono">{p.code}</code>
-                          <Badge variant="outline" className="text-[10px] h-4 px-1 py-0">{p.action}</Badge>
+                          <code className="rounded bg-muted px-1 font-mono text-[10px]">
+                            {p.code}
+                          </code>
+                          <Badge
+                            variant="outline"
+                            className="h-4 px-1 py-0 text-[10px]"
+                          >
+                            {p.action}
+                          </Badge>
                           {p.status === 0 && (
-                            <Badge variant="secondary" className="text-[10px] h-4 px-1 py-0">停用</Badge>
+                            <Badge
+                              variant="secondary"
+                              className="h-4 px-1 py-0 text-[10px]"
+                            >
+                              停用
+                            </Badge>
                           )}
                         </label>
                       </div>
@@ -704,7 +765,10 @@ export function PlatformRolesPage() {
             <Button variant="outline" onClick={() => setPermDialogOpen(false)}>
               {t.common.cancel}
             </Button>
-            <Button onClick={handleAssignPermissionSubmit} disabled={isSubmitting}>
+            <Button
+              onClick={handleAssignPermissionSubmit}
+              disabled={isSubmitting}
+            >
               {t.common.save}
             </Button>
           </DialogFooter>
@@ -783,30 +847,38 @@ function PlatformMenuPermNode({
   return (
     <div>
       <div
-        className="flex items-center gap-2 py-1 hover:bg-muted/50 rounded-sm px-2"
+        className="flex items-center gap-2 rounded-sm px-2 py-1 hover:bg-muted/50"
         style={{ paddingLeft: `${level * 1.2 + 0.5}rem` }}
       >
         {hasChildren ? (
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-0.5 hover:bg-muted rounded text-muted-foreground"
+            className="rounded p-0.5 text-muted-foreground hover:bg-muted"
           >
-            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
           </button>
         ) : (
           <div className="w-5" />
         )}
         <Checkbox
-          checked={isSelected ? true : someChildSelected ? "indeterminate" : false}
+          checked={
+            isSelected ? true : someChildSelected ? "indeterminate" : false
+          }
           onCheckedChange={(c) => toggle(c === true)}
           id={`sysmenu-${menu.id}`}
         />
         <label
           htmlFor={`sysmenu-${menu.id}`}
-          className="text-sm cursor-pointer select-none flex items-center gap-2 flex-1"
+          className="flex flex-1 cursor-pointer items-center gap-2 text-sm select-none"
         >
           {menu.name}
-          <code className="px-1 rounded bg-muted text-[10px] font-mono">{menu.code}</code>
+          <code className="rounded bg-muted px-1 font-mono text-[10px]">
+            {menu.code}
+          </code>
         </label>
       </div>
       {hasChildren && isExpanded && (

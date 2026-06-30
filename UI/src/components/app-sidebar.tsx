@@ -34,10 +34,10 @@ import {
   Settings,
   ImageIcon,
   FrameIcon,
+  KeyIcon,
 } from "lucide-react"
 import { t } from "@/locales"
-import { useMenuStore } from "@/stores/menuStore"
-import type { MenuItem } from "@/stores/menuStore"
+import { useMenuStore, type UnifiedMenuItem } from "@/stores/menuStore"
 import { useConfigItem } from "@/stores/configStore"
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -54,16 +54,18 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   DatabaseIcon,
   FileChartColumnIcon,
   FileIcon,
+  CommandIcon,
   ShieldIcon,
   MenuIcon,
   SettingsIcon: Settings,
   Settings: Settings,
   ImageIcon,
   FrameIcon,
+  KeyIcon,
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { menus, fetchMenus, error: menuError } = useMenuStore()
+  const { menus, fetchMenus } = useMenuStore()
   const siteName = useConfigItem("site", "site_name") as string | undefined
   const siteLogo = useConfigItem("site", "site_logo") as string | undefined
   const sidebarTitle = siteName || "XinFramework"
@@ -73,7 +75,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }, [fetchMenus])
 
   const buildNavItems = (
-    menuList: UnifiedMenuItem[],
+    menuList: UnifiedMenuItem[]
   ): {
     title: string
     url: string
@@ -98,7 +100,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               .map((child) => ({
                 title: child.name,
                 url: child.path || child.url || "#",
-                icon: React.createElement(iconMap[child.icon || ""] || FileIcon),
+                icon: React.createElement(
+                  iconMap[child.icon || ""] || FileIcon
+                ),
               })),
           }
         }
@@ -112,7 +116,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // 真实字段映射：real_name 优先 → nickname → code；email 来自 accounts；avatar 来自 users
   const sidebarUser = authUser
     ? {
-        name: authUser.real_name?.trim() || authUser.nickname?.trim() || authUser.code,
+        name:
+          authUser.real_name?.trim() ||
+          authUser.nickname?.trim() ||
+          authUser.code,
         email: authUser.email?.trim() || authUser.role,
         avatar: authUser.avatar?.trim() || "",
       }
@@ -168,7 +175,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <a href="#">
                 {siteLogo ? (
-                  <img src={siteLogo} alt={sidebarTitle} className="size-5! object-contain" />
+                  <img
+                    src={siteLogo}
+                    alt={sidebarTitle}
+                    className="size-5! object-contain"
+                  />
                 ) : (
                   <CommandIcon className="size-5!" />
                 )}

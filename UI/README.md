@@ -105,22 +105,16 @@ const dicts = await dictApi.list({ page: 1, size: 20 })
 
 错误抛 `ApiError(status, code, message, data)`。
 
-### Mock 数据（不再静默兜底）
+### 错误处理
 
-新约定（详见 [UI/AGENTS.md §5.9](AGENTS.md#59-mock-兜底约定重要变更)）：
-
-1. `catch` 内必须 `setError(message)`，UI 顶部显示红色错误条
-2. mock 仅在 `useMockFallback` 状态为 `true` 时才使用（用户主动勾选）
-3. 顶部加"实时数据 / Mock 数据"徽章
-4. mock 开关同步到 `localStorage.<key>_use_mock`
-5. 错误条带 Retry 按钮
+所有 fetch 调用必须 try/catch + setError，UI 顶部 ErrorBar 带重试按钮。详见 [UI/AGENTS.md §5.9](AGENTS.md#59-错误处理约定)。
 
 ## 新增一个 CRUD 页面
 
 1. 在 `api/xxx.ts` 加 `xxxApi = { list, get, create, update, delete }`
 2. 在 `zh-CN.ts` 加 `pages.xxx` 块（先加，作为类型源头）
 3. 在 `App.tsx` 加 `lazy(() => import("@/pages/Xxx"))` + `<Route path="/xxx" element={<XxxPage />} />`
-4. 写 `pages/Xxx.tsx`：`fetch + form + table + dialog + error toast + mock toggle`
+4. 写 `pages/Xxx.tsx`：`fetch + form + table + dialog + error toast`
 
 详见 [UI/AGENTS.md §6](AGENTS.md#6-常用配方)。
 

@@ -91,7 +91,6 @@ export function XxxPage() {
   const [list, setList] = useState<Xxx[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [useMockFallback, setUseMockFallback] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<"add" | "edit">("add")
@@ -99,7 +98,7 @@ export function XxxPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [toDelete, setToDelete] = useState<Xxx | null>(null)
 
-  // 1) fetch + try/catch + setError + 可选 mock fallback（用户主动）
+  // 1) fetch + try/catch + setError
   // 2) form schema (useMemo 依赖 dialogMode)
   // 3) handlers: add / edit / delete confirm / submit / actual delete
   // 4) render: <PageLayout> + Card + Table + FormDialog + 删除确认 Dialog + 顶部 ErrorBar
@@ -221,17 +220,13 @@ export function XxxPage() {
 - `authStore` 管理 `availableIdentities`、`platformAvailable`、`availablePlatformRoles`、`accountId`
 - `switchTenant(tenantId)` 使用 `refresh_token` 无密码切换租户
 
-### 5.9 Mock 兜底约定（重要变更）
+### 5.9 错误处理约定
 
-- **不再静默 mock 兜底**：之前的模式 `try { api } catch { setX(mockX) }` 已被废弃。
-- **新约定**：
-  1. catch 内必须 `setError(message)`，UI 顶部显示红色错误条
-  2. mock 仅在 `useMockFallback` 状态为 true 时才使用（用户主动勾选）
-  3. 顶部加"实时数据 / Mock 数据"徽章明确当前数据源
-  4. mock 开关同步到 `localStorage.<key>_use_mock`，跨会话保留
-  5. 错误条带 Retry 按钮
-- **示例**：见 `Dicts.tsx` 的 `fetchDicts` / `fetchItems` / `useMockFallback` / `error` / `dataSource`。
-- 后续页面（Users / Menus / Roles ...）如有 mock fallback 需同步改造。
+- `fetch` 必须包 `try/catch`
+- catch 内必须 `setError(message)`，UI 顶部显示红色错误条（AlertCircleIcon + 重试按钮）
+- 不再做 mock 兜底（不允许静默 `try { api } catch { setX(mockX) }`）
+- 也不提供"使用 Mock 数据"开关
+- 参考实现：`Dicts.tsx`
 
 ## 6. 常用配方
 
@@ -243,8 +238,7 @@ export function XxxPage() {
 4. 在 `migrations/init_seed.sql` 加菜单和资源（参考现有 seed 格式）
 5. 写 `pages/Xxx.tsx`：
    - fetch + try/catch + setError
-   - useMockFallback state（localStorage 持久化）
-   - 顶部 ErrorBar + 数据源徽章
+   - 顶部 ErrorBar（参考 Dicts.tsx）
    - form schema（useMemo 依赖 dialogMode）
    - table + delete confirm + FormDialog
 
@@ -257,7 +251,7 @@ export function XxxPage() {
 
 1. `api/xxx.ts` 加新方法（沿用 `api(path, { method, body })` 模板）
 2. 类型在 `ApiResponse<T>` / `PageResponse<T>` 上声明返回类型
-3. 出错时必须 `setError(...)`，**不要静默 mock fallback**（除非 `useMockFallback=true`）
+3. 出错时必须 `setError(...)` + ErrorBar 显示重试按钮
 
 ### 后端模块 ↔ 前端页面映射
 

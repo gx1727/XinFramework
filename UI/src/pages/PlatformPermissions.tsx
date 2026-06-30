@@ -42,60 +42,31 @@ import {
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
-const LS_KEY_USE_MOCK = "platformPermissionsPage.useMockFallback"
-
-// ---- Mock 兜底 ----
-const mockPermissions: PlatformPermissionItem[] = [
-  { id: 1, menu_id: 1, code: "platform:menu:view", name: "查看平台菜单", action: "view", sort: 1, status: 1 },
-  { id: 2, menu_id: 1, code: "platform:menu:create", name: "新建平台菜单", action: "create", sort: 2, status: 1 },
-  { id: 3, menu_id: 1, code: "platform:menu:edit", name: "编辑平台菜单", action: "edit", sort: 3, status: 1 },
-  { id: 4, menu_id: 1, code: "platform:menu:delete", name: "删除平台菜单", action: "delete", sort: 4, status: 1 },
-  { id: 5, code: "platform:user:list", name: "列出平台用户", action: "list", sort: 10, status: 1 },
-  { id: 6, code: "platform:user:create", name: "新建平台用户", action: "create", sort: 11, status: 1 },
-]
-
 export function PlatformPermissionsPage() {
   const [permissions, setPermissions] = useState<PlatformPermissionItem[]>([])
   const [menuTree, setMenuTree] = useState<PlatformMenuItem[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [dataSource, setDataSource] = useState<"api" | "mock" | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<"add" | "edit">("add")
-  const [currentPerm, setCurrentPerm] = useState<PlatformPermissionItem | null>(null)
+  const [currentPerm, setCurrentPerm] = useState<PlatformPermissionItem | null>(
+    null
+  )
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [permToDelete, setPermToDelete] = useState<PlatformPermissionItem | null>(null)
-
-  // Mock 兜底开关
-  const [useMockFallback, setUseMockFallback] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false
-    return window.localStorage.getItem(LS_KEY_USE_MOCK) === "1"
-  })
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(LS_KEY_USE_MOCK, useMockFallback ? "1" : "0")
-    }
-  }, [useMockFallback])
+  const [permToDelete, setPermToDelete] =
+    useState<PlatformPermissionItem | null>(null)
 
   // ---- Fetch ----
   const fetchPermissions = useCallback(async () => {
-    if (useMockFallback) {
-      setPermissions(mockPermissions)
-      setDataSource("mock")
-      setError(null)
-      return
-    }
     setIsLoading(true)
     setError(null)
     try {
       const res = await platformPermissionApi.list({ page: 1, size: 500 })
       setPermissions(res?.list ?? [])
-      setDataSource("api")
     } catch (err) {
       const msg =
         err instanceof ApiError
@@ -105,15 +76,13 @@ export function PlatformPermissionsPage() {
             : "加载平台权限码失败"
       console.error("[PlatformPermissions] load failed:", err)
       setPermissions([])
-      setDataSource(null)
       setError(msg)
     } finally {
       setIsLoading(false)
     }
-  }, [useMockFallback])
+  }, [])
 
   const fetchMenuTree = useCallback(async () => {
-    if (useMockFallback) return // mock 模式不需要
     try {
       const tree = await platformMenuApi.tree()
       setMenuTree(tree || [])
@@ -121,7 +90,7 @@ export function PlatformPermissionsPage() {
       console.warn("[PlatformPermissions] load menu tree failed:", err)
       setMenuTree([])
     }
-  }, [useMockFallback])
+  }, [])
 
   useEffect(() => {
     fetchPermissions()
@@ -139,7 +108,7 @@ export function PlatformPermissionsPage() {
       (p) =>
         p.code.toLowerCase().includes(kw) ||
         p.name.toLowerCase().includes(kw) ||
-        p.action.toLowerCase().includes(kw),
+        p.action.toLowerCase().includes(kw)
     )
   }, [permissions, searchTerm])
 
@@ -147,24 +116,33 @@ export function PlatformPermissionsPage() {
     () => ({
       total: permissions.length,
       active: permissions.filter((p) => p.status === 1).length,
-      menuLinked: new Set(permissions.map((p) => p.menu_id).filter((id) => id && id !== 0)).size,
+      menuLinked: new Set(
+        permissions.map((p) => p.menu_id).filter((id) => id && id !== 0)
+      ).size,
     }),
-    [permissions],
+    [permissions]
   )
 
   // 构建菜单 select 选项（递归）
-  const buildMenuOptions = (menus: PlatformMenuItem[], prefix = ""): { label: string; value: number }[] => {
+  const buildMenuOptions = (
+    menus: PlatformMenuItem[],
+    prefix = ""
+  ): { label: string; value: number }[] => {
     const opts: { label: string; value: number }[] = []
     menus.forEach((m) => {
       opts.push({ label: `${prefix}${m.name}`, value: m.id })
-      if (m.children?.length) opts.push(...buildMenuOptions(m.children, prefix + "├── "))
+      if (m.children?.length)
+        opts.push(...buildMenuOptions(m.children, prefix + "├── "))
     })
     return opts
   }
 
   const menuOptions = useMemo(
-    () => [{ label: "无（公共资源）", value: 0 }, ...buildMenuOptions(menuTree)],
-    [menuTree],
+    () => [
+      { label: "无（公共资源）", value: 0 },
+      ...buildMenuOptions(menuTree),
+    ],
+    [menuTree]
   )
 
   // ---- Form schema ----
@@ -236,7 +214,7 @@ export function PlatformPermissionsPage() {
         },
       ],
     }),
-    [menuOptions, dialogMode],
+    [menuOptions, dialogMode]
   )
 
   // ---- Handlers ----
@@ -261,15 +239,10 @@ export function PlatformPermissionsPage() {
     if (!permToDelete) return
     setIsSubmitting(true)
     try {
-      if (useMockFallback) {
-        setPermissions((prev) => prev.filter((p) => p.id !== permToDelete.id))
-        toast.success("已删除（Mock）")
-      } else {
-        await platformPermissionApi.delete(permToDelete.id)
-        toast.success("删除成功")
-      }
+      await platformPermissionApi.delete(permToDelete.id)
+      toast.success("删除成功")
       setDeleteDialogOpen(false)
-      if (!useMockFallback) await fetchPermissions()
+      await fetchPermissions()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "删除失败")
     } finally {
@@ -281,7 +254,10 @@ export function PlatformPermissionsPage() {
     setIsSubmitting(true)
     try {
       const menuIdNum = Number(values.menu_id) || 0
-      const payload: Partial<PlatformPermissionItem> & { name: string; code?: string } = {
+      const payload: Partial<PlatformPermissionItem> & {
+        name: string
+        code?: string
+      } = {
         name: String(values.name ?? ""),
         menu_id: menuIdNum > 0 ? menuIdNum : null,
         action: String(values.action ?? "view"),
@@ -291,27 +267,14 @@ export function PlatformPermissionsPage() {
       }
       if (dialogMode === "add") {
         payload.code = String(values.code ?? "")
-        if (useMockFallback) {
-          const newId = Math.max(0, ...permissions.map((p) => p.id)) + 1
-          setPermissions((prev) => [{ id: newId, ...payload } as PlatformPermissionItem, ...prev])
-          toast.success("已新增（Mock）")
-        } else {
-          await platformPermissionApi.create(payload)
-          toast.success("创建成功")
-        }
+        await platformPermissionApi.create(payload)
+        toast.success("创建成功")
       } else if (currentPerm) {
-        if (useMockFallback) {
-          setPermissions((prev) =>
-            prev.map((p) => (p.id === currentPerm.id ? { ...p, ...payload } : p)),
-          )
-          toast.success("已更新（Mock）")
-        } else {
-          await platformPermissionApi.update(currentPerm.id, payload)
-          toast.success("更新成功")
-        }
+        await platformPermissionApi.update(currentPerm.id, payload)
+        toast.success("更新成功")
       }
       setDialogOpen(false)
-      if (!useMockFallback) await fetchPermissions()
+      await fetchPermissions()
     } catch (err) {
       const msg =
         err instanceof ApiError
@@ -362,7 +325,10 @@ export function PlatformPermissionsPage() {
     return menuNameById.get(menuId) || `菜单 ${menuId}`
   }
 
-  const actionBadge: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
+  const actionBadge: Record<
+    string,
+    { label: string; variant: "default" | "secondary" | "outline" }
+  > = {
     list: { label: "列表", variant: "default" },
     view: { label: "查看", variant: "default" },
     create: { label: "创建", variant: "default" },
@@ -376,36 +342,37 @@ export function PlatformPermissionsPage() {
   return (
     <PageLayout>
       <div className="px-4 lg:px-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
+            <h1 className="flex items-center gap-2 text-2xl font-bold">
               <KeyIcon className="h-6 w-6" />
               {t.pages.platformPermissions?.title || "平台权限码"}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {t.pages.platformPermissions?.subtitle || "管理平台域权限码（sys_permission），格式：resource:action"}
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t.pages.platformPermissions?.subtitle ||
+                "管理平台域权限码（sys_permission），格式：resource:action"}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Button
-              variant={useMockFallback ? "default" : "outline"}
+              variant="outline"
               size="sm"
-              onClick={() => setUseMockFallback((v) => !v)}
+              onClick={fetchPermissions}
+              disabled={isLoading}
             >
-              {useMockFallback ? "Mock 已开启" : "使用 Mock 兜底"}
-            </Button>
-            <Button variant="outline" size="sm" onClick={fetchPermissions} disabled={isLoading}>
-              <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
+              <RefreshCw
+                className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")}
+              />
               {t.pages.platformPermissions?.refresh || "刷新"}
             </Button>
             <Button size="sm" onClick={handleAdd}>
-              <PlusIcon className="h-4 w-4 mr-2" />
+              <PlusIcon className="mr-2 h-4 w-4" />
               {t.pages.platformPermissions?.create || "新建权限码"}
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="mb-4 grid grid-cols-3 gap-4">
           <Card>
             <CardHeader className="pb-2">
               <div className="text-sm text-muted-foreground">权限码总数</div>
@@ -415,20 +382,24 @@ export function PlatformPermissionsPage() {
           <Card>
             <CardHeader className="pb-2">
               <div className="text-sm text-muted-foreground">启用中</div>
-              <div className="text-2xl font-bold text-green-600">{stats.active}</div>
+              <div className="text-2xl font-bold text-green-600">
+                {stats.active}
+              </div>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader className="pb-2">
               <div className="text-sm text-muted-foreground">关联菜单</div>
-              <div className="text-2xl font-bold text-blue-600">{stats.menuLinked}</div>
+              <div className="text-2xl font-bold text-blue-600">
+                {stats.menuLinked}
+              </div>
             </CardHeader>
           </Card>
         </div>
 
         {error && (
           <div className="mb-4 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            <AlertTriangleIcon className="h-4 w-4 mt-0.5 shrink-0" />
+            <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
             <div className="flex-1">
               <div className="font-medium">加载失败</div>
               <div className="text-xs opacity-80">{error}</div>
@@ -442,22 +413,19 @@ export function PlatformPermissionsPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-4">
-              <div className="relative flex-1 max-w-sm">
-                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <div className="relative max-w-sm flex-1">
+                <SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder={t.pages.platformPermissions?.searchPlaceholder || "搜索 code / 名称 / action..."}
+                  placeholder={
+                    t.pages.platformPermissions?.searchPlaceholder ||
+                    "搜索 code / 名称 / action..."
+                  }
                   className="pl-9"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
               <Badge variant="secondary">共 {filteredPerms.length} 条</Badge>
-              <div className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
-                <span>数据源</span>
-                <Badge variant={dataSource === "api" ? "default" : "outline"}>
-                  {dataSource === "api" ? "实时" : dataSource === "mock" ? "Mock" : "—"}
-                </Badge>
-              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -465,45 +433,77 @@ export function PlatformPermissionsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[60px]">ID</TableHead>
-                  <TableHead>{t.pages.platformPermissions?.name || "名称"}</TableHead>
-                  <TableHead>{t.pages.platformPermissions?.code || "代码"}</TableHead>
-                  <TableHead>{t.pages.platformPermissions?.menu || "所属菜单"}</TableHead>
-                  <TableHead>{t.pages.platformPermissions?.action || "操作"}</TableHead>
+                  <TableHead>
+                    {t.pages.platformPermissions?.name || "名称"}
+                  </TableHead>
+                  <TableHead>
+                    {t.pages.platformPermissions?.code || "代码"}
+                  </TableHead>
+                  <TableHead>
+                    {t.pages.platformPermissions?.menu || "所属菜单"}
+                  </TableHead>
+                  <TableHead>
+                    {t.pages.platformPermissions?.action || "操作"}
+                  </TableHead>
                   <TableHead>描述</TableHead>
-                  <TableHead className="w-[80px]">{t.pages.platformPermissions?.sortOrder || "排序"}</TableHead>
-                  <TableHead>{t.pages.platformPermissions?.status || "状态"}</TableHead>
-                  <TableHead className="w-[120px] text-right">{t.common.edit}</TableHead>
+                  <TableHead className="w-[80px]">
+                    {t.pages.platformPermissions?.sortOrder || "排序"}
+                  </TableHead>
+                  <TableHead>
+                    {t.pages.platformPermissions?.status || "状态"}
+                  </TableHead>
+                  <TableHead className="w-[120px] text-right">
+                    {t.common.edit}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredPerms.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell
+                      colSpan={9}
+                      className="py-8 text-center text-muted-foreground"
+                    >
                       {isLoading ? t.common.loading : t.common.noData}
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredPerms.map((perm) => {
-                    const ab = actionBadge[perm.action] || { label: perm.action, variant: "secondary" as const }
+                    const ab = actionBadge[perm.action] || {
+                      label: perm.action,
+                      variant: "secondary" as const,
+                    }
                     return (
                       <TableRow key={perm.id}>
-                        <TableCell className="font-mono text-xs text-muted-foreground">{perm.id}</TableCell>
-                        <TableCell className="font-medium">{perm.name}</TableCell>
-                        <TableCell>
-                          <code className="px-1.5 py-0.5 rounded bg-muted text-xs font-mono">{perm.code}</code>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {perm.id}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {perm.name}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{getMenuName(perm.menu_id)}</Badge>
+                          <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+                            {perm.code}
+                          </code>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {getMenuName(perm.menu_id)}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <Badge variant={ab.variant}>{ab.label}</Badge>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground max-w-[260px] truncate">
+                        <TableCell className="max-w-[260px] truncate text-sm text-muted-foreground">
                           {perm.description || "-"}
                         </TableCell>
                         <TableCell>{perm.sort}</TableCell>
                         <TableCell>
-                          <Badge variant={perm.status === 1 ? "default" : "secondary"}>
+                          <Badge
+                            variant={
+                              perm.status === 1 ? "default" : "secondary"
+                            }
+                          >
                             {perm.status === 1 ? "启用" : "停用"}
                           </Badge>
                         </TableCell>
@@ -535,7 +535,9 @@ export function PlatformPermissionsPage() {
             </Table>
             {isLoading && (
               <div className="flex items-center justify-center py-8">
-                <div className="text-sm text-muted-foreground">{t.common.loading}</div>
+                <div className="text-sm text-muted-foreground">
+                  {t.common.loading}
+                </div>
               </div>
             )}
           </CardContent>
@@ -562,14 +564,22 @@ export function PlatformPermissionsPage() {
           <DialogHeader>
             <DialogTitle>删除平台权限码</DialogTitle>
             <DialogDescription>
-              确定要删除权限码 "{permToDelete?.name}" ({permToDelete?.code}) 吗？删除后将影响已分配该权限的角色。
+              确定要删除权限码 "{permToDelete?.name}" ({permToDelete?.code})
+              吗？删除后将影响已分配该权限的角色。
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
               {t.common.cancel}
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={isSubmitting}>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isSubmitting}
+            >
               {t.common.delete}
             </Button>
           </DialogFooter>

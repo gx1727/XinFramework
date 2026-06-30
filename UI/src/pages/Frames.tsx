@@ -6,28 +6,53 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet"
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import { ImageIcon, PlusIcon, SearchIcon, EditIcon, TrashIcon, UploadIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
+import {
+  ImageIcon,
+  PlusIcon,
+  SearchIcon,
+  EditIcon,
+  TrashIcon,
+  UploadIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  AlertCircleIcon,
+} from "lucide-react"
 import { toast } from "sonner"
 import { t } from "@/locales"
-import { frameApi, frameCategoryApi, assetApi, type FrameItem, type FrameCategoryItem, ApiError } from "@/api"
-
-const mockFrames: FrameItem[] = [
-  { id: 1, category_id: 1, name: "程序员专属", description: "适合程序员的简约头像框", preview_url: "/frames/preview/programmer.png", template_url: "/frames/template/programmer.png", type: "public", sort: 1, status: 1 },
-  { id: 2, category_id: 1, name: "新年快乐", description: "新年主题头像框", preview_url: "/frames/preview/newyear.png", template_url: "/frames/template/newyear.png", type: "public", sort: 2, status: 1 },
-  { id: 3, category_id: 2, name: "校庆100周年", description: "学校100周年庆头像框", preview_url: "/frames/preview/school100.png", template_url: "/frames/template/school100.png", type: "public", sort: 1, status: 1 },
-  { id: 4, category_id: 2, name: "毕业季", description: "毕业生专属头像框", preview_url: "/frames/preview/graduation.png", template_url: "/frames/template/graduation.png", type: "public", sort: 2, status: 1 },
-  { id: 5, category_id: 3, name: "企业员工", description: "企业定制头像框", preview_url: "/frames/preview/company.png", template_url: "/frames/template/company.png", type: "custom", sort: 1, status: 1 },
-]
-
-const mockCategories: FrameCategoryItem[] = [
-  { id: 1, code: "emotion", name: "情绪类", type: "emotion", sort: 1, status: 1 },
-  { id: 2, code: "school", name: "学校活动", type: "custom", sort: 2, status: 1 },
-  { id: 3, code: "company", name: "企业定制", type: "custom", sort: 3, status: 1 },
-]
+import {
+  frameApi,
+  frameCategoryApi,
+  assetApi,
+  type FrameItem,
+  type FrameCategoryItem,
+  ApiError,
+} from "@/api"
 
 interface FrameFormData {
   id: number | null
@@ -115,32 +140,59 @@ function ImageUpload({
     <div className="flex flex-col gap-2">
       <Label>{label}</Label>
       {displayUrl ? (
-        <div className="relative group rounded-lg border overflow-hidden w-32">
-          <img src={displayUrl} alt={label} className="w-full aspect-square object-cover" />
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-            <Button type="button" variant="secondary" size="sm" onClick={() => inputRef.current?.click()}>
+        <div className="group relative w-32 overflow-hidden rounded-lg border">
+          <img
+            src={displayUrl}
+            alt={label}
+            className="aspect-square w-full object-cover"
+          />
+          <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => inputRef.current?.click()}
+            >
               更换
             </Button>
-            <Button type="button" variant="destructive" size="sm" onClick={handleClear}>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleClear}
+            >
               删除
             </Button>
           </div>
         </div>
       ) : (
         <div
-          className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed aspect-square w-32 cursor-pointer transition-colors ${
-            dragOver ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"
+          className={`flex aspect-square w-32 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors ${
+            dragOver
+              ? "border-primary bg-primary/5"
+              : "border-muted-foreground/25 hover:border-primary/50"
           }`}
           onClick={() => inputRef.current?.click()}
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDragOver(true)
+          }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
         >
-          <UploadIcon className="h-8 w-8 text-muted-foreground mb-2" />
-          <span className="text-sm text-muted-foreground">点击或拖拽上传图片</span>
+          <UploadIcon className="mb-2 h-8 w-8 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">
+            点击或拖拽上传图片
+          </span>
         </div>
       )}
-      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFiles(e.target.files)} />
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => handleFiles(e.target.files)}
+      />
     </div>
   )
 }
@@ -151,6 +203,7 @@ export function FramesPage() {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [formData, setFormData] = useState<FrameFormData>(defaultFormData)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -162,12 +215,19 @@ export function FramesPage() {
 
   const fetchData = useCallback(async () => {
     setIsLoading(true)
+    setError(null)
     try {
       const [framesRes, categoriesRes] = await Promise.all([
-        frameApi.list({ ...(selectedCategory ? { category_id: selectedCategory } : {}), page, size: pageSize }),
+        frameApi.list({
+          ...(selectedCategory ? { category_id: selectedCategory } : {}),
+          page,
+          size: pageSize,
+        }),
         frameCategoryApi.list(),
       ])
-      const framesData = framesRes as { list?: FrameItem[]; total?: number } | FrameItem[]
+      const framesData = framesRes as
+        | { list?: FrameItem[]; total?: number }
+        | FrameItem[]
       if (Array.isArray(framesData)) {
         setFrames(framesData)
         setTotal(framesData.length)
@@ -176,10 +236,17 @@ export function FramesPage() {
         setTotal(framesData?.total || 0)
       }
       const catList = (categoriesRes as FrameCategoryItem[]) || []
-      setCategories(catList.length ? catList : mockCategories)
-    } catch {
-      setFrames(mockFrames)
-      setCategories(mockCategories)
+      setCategories(catList)
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : String(err)
+      setError(`加载相框失败：${msg}`)
+      setFrames([])
+      setCategories([])
     } finally {
       setIsLoading(false)
     }
@@ -193,9 +260,10 @@ export function FramesPage() {
     fetchData()
   }, [fetchData])
 
-  const filteredFrames = frames.filter((frame) =>
-    frame.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    frame.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredFrames = frames.filter(
+    (frame) =>
+      frame.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      frame.description?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
@@ -236,8 +304,10 @@ export function FramesPage() {
     try {
       await frameApi.delete(deleteTarget.id)
       setFrames((prev) => prev.filter((f) => f.id !== deleteTarget.id))
-    } catch {
-      setFrames((prev) => prev.filter((f) => f.id !== deleteTarget.id))
+      toast.success("删除成功")
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : "删除失败，请重试"
+      toast.error(message)
     } finally {
       setDeleteTarget(null)
     }
@@ -273,7 +343,9 @@ export function FramesPage() {
         }
         await frameApi.update(formData.id, payload)
         setFrames((prev) =>
-          prev.map((f) => (f.id === formData.id ? { ...f, ...payload, id: f.id } : f))
+          prev.map((f) =>
+            f.id === formData.id ? { ...f, ...payload, id: f.id } : f
+          )
         )
       } else {
         const payload = {
@@ -285,12 +357,17 @@ export function FramesPage() {
           type: formData.type || "public",
           sort: Number(formData.sort),
         }
-        const res = await frameApi.create(payload as Parameters<typeof frameApi.create>[0])
+        const res = await frameApi.create(
+          payload as Parameters<typeof frameApi.create>[0]
+        )
         const created = res as FrameItem
         if (created?.id) {
           setFrames((prev) => [...prev, created])
         } else {
-          setFrames((prev) => [...prev, { ...payload, id: Date.now(), status: 1 } as FrameItem])
+          setFrames((prev) => [
+            ...prev,
+            { ...payload, id: Date.now(), status: 1 } as FrameItem,
+          ])
         }
       }
       setSheetOpen(false)
@@ -309,10 +386,14 @@ export function FramesPage() {
   return (
     <PageLayout>
       <div className="px-4 lg:px-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">{t.pages.frames?.title || "相框管理"}</h1>
-            <p className="text-sm text-muted-foreground">{t.pages.frames?.subtitle || "管理头像相框模板"}</p>
+            <h1 className="text-2xl font-bold">
+              {t.pages.frames?.title || "相框管理"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {t.pages.frames?.subtitle || "管理头像相框模板"}
+            </p>
           </div>
           <Button onClick={handleOpenCreate}>
             <PlusIcon className="mr-2 h-4 w-4" />
@@ -322,11 +403,29 @@ export function FramesPage() {
 
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className="relative flex-1 min-w-[200px] max-w-sm">
-                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            {error && (
+              <div className="mb-3 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+                <AlertCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-destructive">
+                    接口调用失败
+                  </div>
+                  <div className="mt-0.5 text-xs break-all text-muted-foreground">
+                    {error}
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" onClick={fetchData}>
+                  重试
+                </Button>
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="relative max-w-sm min-w-[200px] flex-1">
+                <SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder={t.pages.frames?.searchPlaceholder || "搜索相框..."}
+                  placeholder={
+                    t.pages.frames?.searchPlaceholder || "搜索相框..."
+                  }
                   className="pl-9"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -343,7 +442,9 @@ export function FramesPage() {
                 {categories.map((category) => (
                   <Button
                     key={category.id}
-                    variant={selectedCategory === category.id ? "default" : "outline"}
+                    variant={
+                      selectedCategory === category.id ? "default" : "outline"
+                    }
                     size="sm"
                     onClick={() => setSelectedCategory(category.id)}
                   >
@@ -351,14 +452,12 @@ export function FramesPage() {
                   </Button>
                 ))}
               </div>
-              <Badge variant="secondary">
-                共 {total} 个相框
-              </Badge>
+              <Badge variant="secondary">共 {total} 个相框</Badge>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="border rounded-lg overflow-hidden">
-              <div className="grid grid-cols-[72px_1fr_100px_100px_80px_60px_100px] gap-4 px-4 py-3 bg-muted/50 text-sm font-medium text-muted-foreground">
+            <div className="overflow-hidden rounded-lg border">
+              <div className="grid grid-cols-[72px_1fr_100px_100px_80px_60px_100px] gap-4 bg-muted/50 px-4 py-3 text-sm font-medium text-muted-foreground">
                 <span>缩略图</span>
                 <span>名称</span>
                 <span>分类</span>
@@ -369,42 +468,76 @@ export function FramesPage() {
               </div>
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <div className="text-sm text-muted-foreground">{t.common.loading}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {t.common.loading}
+                  </div>
                 </div>
               ) : filteredFrames.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">{t.common.noData}</div>
+                <div className="py-8 text-center text-muted-foreground">
+                  {t.common.noData}
+                </div>
               ) : (
                 filteredFrames.map((frame) => {
-                  const thumbUrl = resolveAssetUrl(frame.preview_url || frame.template_url)
+                  const thumbUrl = resolveAssetUrl(
+                    frame.preview_url || frame.template_url
+                  )
                   return (
-                    <div key={frame.id} className="grid grid-cols-[72px_1fr_100px_100px_80px_60px_100px] gap-4 px-4 py-3 items-center border-t hover:bg-muted/30 transition-colors">
+                    <div
+                      key={frame.id}
+                      className="grid grid-cols-[72px_1fr_100px_100px_80px_60px_100px] items-center gap-4 border-t px-4 py-3 transition-colors hover:bg-muted/30"
+                    >
                       <div
-                        className={`h-14 w-[72px] rounded overflow-hidden flex items-center justify-center bg-muted ${thumbUrl ? "cursor-pointer" : ""}`}
+                        className={`flex h-14 w-[72px] items-center justify-center overflow-hidden rounded bg-muted ${thumbUrl ? "cursor-pointer" : ""}`}
                         onClick={() => thumbUrl && setPreviewImage(thumbUrl)}
                       >
                         {thumbUrl ? (
-                          <img src={thumbUrl} alt={frame.name} className="w-full h-full object-contain" />
+                          <img
+                            src={thumbUrl}
+                            alt={frame.name}
+                            className="h-full w-full object-contain"
+                          />
                         ) : (
                           <ImageIcon className="h-6 w-6 text-muted-foreground" />
                         )}
                       </div>
                       <div className="min-w-0">
-                        <div className="font-medium truncate">{frame.name}</div>
+                        <div className="truncate font-medium">{frame.name}</div>
                         {frame.description && (
-                          <div className="text-sm text-muted-foreground truncate">{frame.description}</div>
+                          <div className="truncate text-sm text-muted-foreground">
+                            {frame.description}
+                          </div>
                         )}
                       </div>
-                      <span className="text-sm text-muted-foreground">{getCategoryName(frame.category_id)}</span>
-                      <Badge variant="outline" className="text-xs">{frame.type}</Badge>
-                      <span className="text-sm text-muted-foreground">{frame.sort}</span>
-                      <Badge variant={frame.status === 1 ? "default" : "secondary"} className="text-xs">
+                      <span className="text-sm text-muted-foreground">
+                        {getCategoryName(frame.category_id)}
+                      </span>
+                      <Badge variant="outline" className="text-xs">
+                        {frame.type}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {frame.sort}
+                      </span>
+                      <Badge
+                        variant={frame.status === 1 ? "default" : "secondary"}
+                        className="text-xs"
+                      >
                         {frame.status === 1 ? "启用" : "停用"}
                       </Badge>
-                      <div className="flex gap-1 justify-end">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(frame)}>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleOpenEdit(frame)}
+                        >
                           <EditIcon className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(frame)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleDelete(frame)}
+                        >
                           <TrashIcon className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -414,8 +547,10 @@ export function FramesPage() {
               )}
             </div>
             {total > 0 && (
-              <div className="flex items-center justify-between mt-4">
-                <span className="text-sm text-muted-foreground">共 {total} 条</span>
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  共 {total} 条
+                </span>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
@@ -426,7 +561,9 @@ export function FramesPage() {
                   >
                     <ChevronLeftIcon className="h-4 w-4" />
                   </Button>
-                  <span className="text-sm">{page} / {totalPages}</span>
+                  <span className="text-sm">
+                    {page} / {totalPages}
+                  </span>
                   <Button
                     variant="outline"
                     size="icon"
@@ -444,35 +581,55 @@ export function FramesPage() {
       </div>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetContent
+          side="right"
+          className="w-full overflow-y-auto sm:max-w-lg"
+        >
           <SheetHeader>
-            <SheetTitle>{isEditing ? (t.common.edit || "编辑") : (t.common.add || "添加")}</SheetTitle>
-            <SheetDescription>{t.pages.frames?.subtitle || "管理头像相框模板"}</SheetDescription>
+            <SheetTitle>
+              {isEditing ? t.common.edit || "编辑" : t.common.add || "添加"}
+            </SheetTitle>
+            <SheetDescription>
+              {t.pages.frames?.subtitle || "管理头像相框模板"}
+            </SheetDescription>
           </SheetHeader>
           <div className="flex flex-col gap-4 px-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="frame-name">{t.pages.frames?.nameLabel || "名称"}</Label>
+              <Label htmlFor="frame-name">
+                {t.pages.frames?.nameLabel || "名称"}
+              </Label>
               <Input
                 id="frame-name"
                 placeholder="请输入相框名称"
                 value={formData.name}
-                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, name: e.target.value }))
+                }
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="frame-description">{t.pages.frames?.descriptionLabel || "描述"}</Label>
+              <Label htmlFor="frame-description">
+                {t.pages.frames?.descriptionLabel || "描述"}
+              </Label>
               <Input
                 id="frame-description"
                 placeholder="请输入描述"
                 value={formData.description}
-                onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
               />
             </div>
             <div className="flex flex-col gap-2">
               <Label>{t.pages.frames?.categoryLabel || "分类"}</Label>
               <Select
                 value={formData.category_id}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, category_id: value }))}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, category_id: value }))
+                }
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="请选择分类" />
@@ -490,7 +647,9 @@ export function FramesPage() {
               <Label>{t.pages.frames?.typeLabel || "类型"}</Label>
               <Select
                 value={formData.type}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value }))}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, type: value }))
+                }
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="请选择类型" />
@@ -509,28 +668,40 @@ export function FramesPage() {
                 type="number"
                 placeholder="0"
                 value={formData.sort}
-                onChange={(e) => setFormData((prev) => ({ ...prev, sort: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, sort: e.target.value }))
+                }
               />
             </div>
-             <ImageUpload
+            <ImageUpload
               label={t.pages.frames?.templateLabel || "模板图片"}
               value={formData.template_url}
               file={formData.template_file}
-              onChange={(url) => setFormData((prev) => ({ ...prev, template_url: url }))}
-              onFileChange={(file) => setFormData((prev) => ({ ...prev, template_file: file }))}
+              onChange={(url) =>
+                setFormData((prev) => ({ ...prev, template_url: url }))
+              }
+              onFileChange={(file) =>
+                setFormData((prev) => ({ ...prev, template_file: file }))
+              }
             />
             <ImageUpload
               label={t.pages.frames?.previewLabel || "预览图"}
               value={formData.preview_url}
               file={formData.preview_file}
-              onChange={(url) => setFormData((prev) => ({ ...prev, preview_url: url }))}
-              onFileChange={(file) => setFormData((prev) => ({ ...prev, preview_file: file }))}
+              onChange={(url) =>
+                setFormData((prev) => ({ ...prev, preview_url: url }))
+              }
+              onFileChange={(file) =>
+                setFormData((prev) => ({ ...prev, preview_file: file }))
+              }
             />
             <div className="flex flex-col gap-2">
               <Label>{t.pages.frames?.statusLabel || "状态"}</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, status: value }))
+                }
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="请选择状态" />
@@ -543,32 +714,50 @@ export function FramesPage() {
             </div>
           </div>
           <SheetFooter>
-            <div className="flex gap-2 w-full">
-              <Button variant="outline" className="flex-1" onClick={() => setSheetOpen(false)}>
+            <div className="flex w-full gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setSheetOpen(false)}
+              >
                 {t.common.cancel || "取消"}
               </Button>
               <Button
                 className="flex-1"
                 onClick={handleSubmit}
-                disabled={isSubmitting || !formData.name.trim() || !formData.category_id}
+                disabled={
+                  isSubmitting || !formData.name.trim() || !formData.category_id
+                }
               >
-                {isSubmitting ? (t.common.saving || "保存中...") : (t.common.save || "保存")}
+                {isSubmitting
+                  ? t.common.saving || "保存中..."
+                  : t.common.save || "保存"}
               </Button>
             </div>
           </SheetFooter>
         </SheetContent>
       </Sheet>
 
-      <Dialog open={previewImage !== null} onOpenChange={(open) => { if (!open) setPreviewImage(null) }}>
-        <DialogContent className="max-w-3xl p-0 overflow-hidden">
+      <Dialog
+        open={previewImage !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreviewImage(null)
+        }}
+      >
+        <DialogContent className="max-w-3xl overflow-hidden p-0">
           <DialogTitle className="sr-only">图片预览</DialogTitle>
           {previewImage && (
-            <img src={previewImage} alt="预览" className="w-full h-auto" />
+            <img src={previewImage} alt="预览" className="h-auto w-full" />
           )}
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除</AlertDialogTitle>
@@ -578,7 +767,9 @@ export function FramesPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={confirmDelete}>删除</AlertDialogAction>
+            <AlertDialogAction variant="destructive" onClick={confirmDelete}>
+              删除
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

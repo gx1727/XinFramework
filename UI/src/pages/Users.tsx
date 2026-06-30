@@ -24,9 +24,17 @@ import {
   ChevronDownIcon,
   XIcon,
   FolderTreeIcon,
+  AlertCircleIcon,
 } from "lucide-react"
+import { toast } from "sonner"
 import { t } from "@/locales"
-import { userApi, organizationApi, type UserItem, type OrganizationItem } from "@/api"
+import {
+  userApi,
+  organizationApi,
+  type UserItem,
+  type OrganizationItem,
+  ApiError,
+} from "@/api"
 import { FormDialog } from "@/components/schema/DynamicForm"
 import type { FormSchema } from "@/types/schema"
 import {
@@ -43,41 +51,17 @@ type OrgNode = OrganizationItem & { children?: OrgNode[] }
 
 const ALL_ORG_ID = 0
 
-const mockUsers: UserItem[] = [
-  { id: 1, code: "admin", real_name: "超级管理员", email: "admin@example.com", phone: "13800000001", role: "super_admin", status: 1, org_id: 1 },
-  { id: 2, code: "ceo", real_name: "张总", email: "ceo@example.com", phone: "13800000002", role: "admin", status: 1, org_id: 1 },
-  { id: 3, code: "cto", real_name: "李技术", email: "cto@example.com", phone: "13800000003", role: "admin", status: 1, org_id: 2 },
-  { id: 4, code: "fe01", real_name: "王前端", email: "fe01@example.com", phone: "13800000004", role: "user", status: 1, org_id: 5 },
-  { id: 5, code: "fe02", real_name: "赵前端", email: "fe02@example.com", phone: "13800000005", role: "user", status: 1, org_id: 5 },
-  { id: 6, code: "be01", real_name: "钱后端", email: "be01@example.com", phone: "13800000006", role: "user", status: 1, org_id: 6 },
-  { id: 7, code: "be02", real_name: "孙后端", email: "be02@example.com", phone: "13800000007", role: "user", status: 2, org_id: 6 },
-  { id: 8, code: "pm01", real_name: "周产品", email: "pm01@example.com", phone: "13800000008", role: "user", status: 1, org_id: 3 },
-  { id: 9, code: "op01", real_name: "吴运营", email: "op01@example.com", phone: "13800000009", role: "user", status: 1, org_id: 4 },
-  { id: 10, code: "guest", real_name: "访客", email: "guest@example.com", phone: "13800000010", role: "guest", status: 2 },
-]
-
-const mockOrgTree: OrgNode[] = [
-  {
-    id: 1, code: "HQ", name: "总部", type: "company", parent_id: 0, ancestors: "0", sort: 0, status: 1,
-    children: [
-      {
-        id: 2, code: "TECH", name: "技术中心", type: "department", parent_id: 1, ancestors: "0.1", sort: 1, status: 1,
-        children: [
-          { id: 5, code: "FRONTEND", name: "前端组", type: "team", parent_id: 2, ancestors: "0.1.2", sort: 1, status: 1 },
-          { id: 6, code: "BACKEND", name: "后端组", type: "team", parent_id: 2, ancestors: "0.1.2", sort: 2, status: 1 },
-        ],
-      },
-      { id: 3, code: "PRODUCT", name: "产品中心", type: "department", parent_id: 1, ancestors: "0.1", sort: 2, status: 1 },
-      { id: 4, code: "OPS", name: "运营中心", type: "department", parent_id: 1, ancestors: "0.1", sort: 3, status: 1 },
-    ],
-  },
-]
-
-function collectOrgSubtreeIds(nodes: OrgNode[], target: number): Set<number> | null {
+function collectOrgSubtreeIds(
+  nodes: OrgNode[],
+  target: number
+): Set<number> | null {
   let found: OrgNode | null = null
   const walk = (arr: OrgNode[]): boolean => {
     for (const n of arr) {
-      if (n.id === target) { found = n; return true }
+      if (n.id === target) {
+        found = n
+        return true
+      }
       if (n.children && walk(n.children)) return true
     }
     return false
@@ -108,8 +92,11 @@ function filterOrgTree(nodes: OrgNode[], keyword: string): OrgNode[] {
   if (!keyword.trim()) return nodes
   const kw = keyword.toLowerCase()
   const match = (n: OrgNode): OrgNode | null => {
-    const selfMatch = n.name.toLowerCase().includes(kw) || n.code.toLowerCase().includes(kw)
-    const matchedChildren = (n.children || []).map(match).filter(Boolean) as OrgNode[]
+    const selfMatch =
+      n.name.toLowerCase().includes(kw) || n.code.toLowerCase().includes(kw)
+    const matchedChildren = (n.children || [])
+      .map(match)
+      .filter(Boolean) as OrgNode[]
     if (selfMatch || matchedChildren.length) {
       return { ...n, children: matchedChildren }
     }
@@ -120,10 +107,11 @@ function filterOrgTree(nodes: OrgNode[], keyword: string): OrgNode[] {
 
 function collectAllIds(nodes: OrgNode[]): Set<number> {
   const ids = new Set<number>()
-  const walk = (arr: OrgNode[]) => arr.forEach((n) => {
-    ids.add(n.id)
-    n.children && walk(n.children)
-  })
+  const walk = (arr: OrgNode[]) =>
+    arr.forEach((n) => {
+      ids.add(n.id)
+      n.children && walk(n.children)
+    })
   walk(nodes)
   return ids
 }
@@ -159,13 +147,17 @@ function OrgTreeView({
         <button
           onClick={() => onSelect(ALL_ORG_ID)}
           className={cn(
-            "w-full flex items-center gap-1.5 px-2 py-1.5 text-sm rounded hover:bg-muted/60 transition-colors",
-            selectedId === ALL_ORG_ID && "bg-primary/10 text-primary font-medium"
+            "flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-sm transition-colors hover:bg-muted/60",
+            selectedId === ALL_ORG_ID &&
+              "bg-primary/10 font-medium text-primary"
           )}
         >
-          <UsersIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+          <UsersIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="flex-1 text-left">{allLabel}</span>
-          <Badge variant="secondary" className="text-[10px] h-4 px-1.5 font-normal">
+          <Badge
+            variant="secondary"
+            className="h-4 px-1.5 text-[10px] font-normal"
+          >
             {totalCount}
           </Badge>
         </button>
@@ -212,15 +204,18 @@ function OrgTreeNode({
     <div>
       <div
         className={cn(
-          "group flex items-center gap-1 px-1 py-1 text-sm rounded hover:bg-muted/60 transition-colors",
+          "group flex items-center gap-1 rounded px-1 py-1 text-sm transition-colors hover:bg-muted/60",
           isSelected && "bg-primary/10 text-primary"
         )}
         style={{ paddingLeft: `${level * 12 + 4}px` }}
       >
         {hasChildren ? (
           <button
-            onClick={(e) => { e.stopPropagation(); onToggle(node.id) }}
-            className="p-0.5 hover:bg-muted rounded shrink-0"
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggle(node.id)
+            }}
+            className="shrink-0 rounded p-0.5 hover:bg-muted"
             aria-label={isExpanded ? "collapse" : "expand"}
           >
             {isExpanded ? (
@@ -235,19 +230,25 @@ function OrgTreeNode({
         <button
           onClick={() => onSelect(node.id)}
           className={cn(
-            "flex-1 flex items-center gap-1.5 min-w-0 text-left",
+            "flex min-w-0 flex-1 items-center gap-1.5 text-left",
             isSelected && "font-medium"
           )}
         >
-          <Building2Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <Building2Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           <span className="truncate">{node.name}</span>
           {node.status === 0 && (
-            <Badge variant="secondary" className="text-[10px] h-4 px-1 font-normal">
+            <Badge
+              variant="secondary"
+              className="h-4 px-1 text-[10px] font-normal"
+            >
               停用
             </Badge>
           )}
         </button>
-        <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal shrink-0">
+        <Badge
+          variant="outline"
+          className="h-4 shrink-0 px-1.5 text-[10px] font-normal"
+        >
           {count}
         </Badge>
       </div>
@@ -271,12 +272,17 @@ function OrgTreeNode({
   )
 }
 
-
-function flattenOrgOptions(nodes: OrgNode[], depth = 0): { label: string; value: number }[] {
+function flattenOrgOptions(
+  nodes: OrgNode[],
+  depth = 0
+): { label: string; value: number }[] {
   const out: { label: string; value: number }[] = []
   const sorted = [...nodes].sort((a, b) => a.sort - b.sort)
   for (const n of sorted) {
-    out.push({ label: `${"  \u2514\u2500".repeat(depth)}${n.name}`, value: n.id })
+    out.push({
+      label: `${"  \u2514\u2500".repeat(depth)}${n.name}`,
+      value: n.id,
+    })
     if (n.children && n.children.length) {
       out.push(...flattenOrgOptions(n.children, depth + 1))
     }
@@ -288,6 +294,7 @@ export function UsersPage() {
   const [allUsers, setAllUsers] = useState<UserItem[]>([])
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -301,11 +308,14 @@ export function UsersPage() {
   const [currentUser, setCurrentUser] = useState<UserItem | null>(null)
 
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
-  const [currentStatusUser, setCurrentStatusUser] = useState<UserItem | null>(null)
+  const [currentStatusUser, setCurrentStatusUser] = useState<UserItem | null>(
+    null
+  )
   const [newStatus, setNewStatus] = useState<number>(1)
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true)
+    setError(null)
     try {
       const response = await userApi.list({
         keyword: searchTerm || undefined,
@@ -319,13 +329,16 @@ export function UsersPage() {
       })) as UserItem[]
       setAllUsers(list)
       setTotal(response.total)
-    } catch {
-      const list = mockUsers.map((u) => ({ ...u, status: Number(u.status) }))
-      const filtered = selectedOrgId === ALL_ORG_ID
-        ? list
-        : list.filter((u) => u.org_id === selectedOrgId)
-      setAllUsers(filtered)
-      setTotal(mockUsers.length)
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : String(err)
+      setError(`加载用户失败：${msg}`)
+      setAllUsers([])
+      setTotal(0)
     } finally {
       setIsLoading(false)
     }
@@ -337,9 +350,16 @@ export function UsersPage() {
       const tree = (res?.tree || []) as OrgNode[]
       setOrgTree(tree)
       setExpandedIds(collectAllIds(tree))
-    } catch {
-      setOrgTree(mockOrgTree)
-      setExpandedIds(collectAllIds(mockOrgTree))
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : String(err)
+      setError(`加载组织树失败：${msg}`)
+      setOrgTree([])
+      setExpandedIds(new Set())
     }
   }, [])
 
@@ -387,7 +407,8 @@ export function UsersPage() {
   }, [])
 
   const selectedOrgName = useMemo(() => {
-    if (selectedOrgId === ALL_ORG_ID) return t.pages.users?.allUsers || "全部用户"
+    if (selectedOrgId === ALL_ORG_ID)
+      return t.pages.users?.allUsers || "全部用户"
     return findOrgName(orgTree, selectedOrgId) || `#${selectedOrgId}`
   }, [selectedOrgId, orgTree, t])
 
@@ -477,9 +498,15 @@ export function UsersPage() {
     try {
       await userApi.delete(user.id)
       await fetchUsers()
+      toast.success("删除成功")
     } catch (error) {
-      console.error("Delete user failed:", error)
-      alert("删除失败，请重试")
+      const msg =
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "删除失败，请重试"
+      toast.error(msg)
     }
   }
 
@@ -496,9 +523,15 @@ export function UsersPage() {
       await userApi.updateStatus(currentStatusUser.id, newStatus)
       await fetchUsers()
       setStatusDialogOpen(false)
+      toast.success("状态已更新")
     } catch (error) {
-      console.error("Update status failed:", error)
-      alert("更新状态失败，请重试")
+      const msg =
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "更新状态失败，请重试"
+      toast.error(msg)
     } finally {
       setIsSubmitting(false)
     }
@@ -512,7 +545,10 @@ export function UsersPage() {
           ? parseInt(values.status as string, 10)
           : Number(values.status)
       if (dialogMode === "add") {
-        const createPayload: Partial<UserItem> & { username: string; password?: string } = {
+        const createPayload: Partial<UserItem> & {
+          username: string
+          password?: string
+        } = {
           username: String(values.username ?? ""),
           real_name: String(values.real_name ?? ""),
           phone: (values.phone as string) || "",
@@ -524,7 +560,11 @@ export function UsersPage() {
         if (values.password) {
           createPayload.password = String(values.password)
         }
-        if (values.org_id !== undefined && values.org_id !== null && Number(values.org_id) > 0) {
+        if (
+          values.org_id !== undefined &&
+          values.org_id !== null &&
+          Number(values.org_id) > 0
+        ) {
           createPayload.org_id = Number(values.org_id)
         }
         await userApi.create(createPayload)
@@ -535,17 +575,26 @@ export function UsersPage() {
           email: (values.email as string) || "",
           status: statusNum,
         }
-        updatePayload.org_id = values.org_id !== undefined && values.org_id !== null ? Number(values.org_id) : null
+        updatePayload.org_id =
+          values.org_id !== undefined && values.org_id !== null
+            ? Number(values.org_id)
+            : null
         await userApi.patch(currentUser.id, updatePayload)
       }
       await fetchUsers()
       setDialogOpen(false)
+      toast.success(dialogMode === "add" ? "创建成功" : "更新成功")
     } catch (error: any) {
-      console.error("Save user failed:", error)
       if (error?.status === 409) {
-        alert("用户名已存在")
+        toast.error("用户名已存在")
       } else {
-        alert("保存失败，请重试")
+        const msg =
+          error instanceof ApiError
+            ? error.message
+            : error instanceof Error
+              ? error.message
+              : "保存失败，请重试"
+        toast.error(msg)
       }
     } finally {
       setIsSubmitting(false)
@@ -570,7 +619,9 @@ export function UsersPage() {
     if (Number(status) === 1) {
       return <Badge variant="default">{t.pages.users?.active || "启用"}</Badge>
     }
-    return <Badge variant="secondary">{t.pages.users?.inactive || "停用"}</Badge>
+    return (
+      <Badge variant="secondary">{t.pages.users?.inactive || "停用"}</Badge>
+    )
   }
 
   const activeCount = filteredUsers.filter((u) => Number(u.status) === 1).length
@@ -579,14 +630,20 @@ export function UsersPage() {
   return (
     <PageLayout>
       <div className="px-4 lg:px-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">{t.pages.users?.title || "用户管理"}</h1>
-            <p className="text-sm text-muted-foreground">{t.pages.users?.subtitle || "管理系统用户和权限"}</p>
+            <h1 className="text-2xl font-bold">
+              {t.pages.users?.title || "用户管理"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {t.pages.users?.subtitle || "管理系统用户和权限"}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={fetchUsers} disabled={isLoading}>
-              <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+              />
               {t.pages.users?.refresh || "刷新列表"}
             </Button>
             <Button onClick={handleAdd}>
@@ -597,8 +654,29 @@ export function UsersPage() {
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-          <Card className="lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)] flex flex-col">
-            <CardHeader className="pb-3 space-y-2">
+          {error && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm lg:col-span-2">
+              <AlertCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-destructive">接口调用失败</div>
+                <div className="mt-0.5 text-xs break-all text-muted-foreground">
+                  {error}
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  fetchUsers()
+                  fetchOrgTree()
+                }}
+              >
+                重试
+              </Button>
+            </div>
+          )}
+          <Card className="flex flex-col lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)] lg:self-start">
+            <CardHeader className="space-y-2 pb-3">
               <div className="flex items-center gap-2">
                 <FolderTreeIcon className="h-4 w-4 text-muted-foreground" />
                 <CardTitle className="text-sm font-medium">
@@ -606,10 +684,12 @@ export function UsersPage() {
                 </CardTitle>
               </div>
               <div className="relative">
-                <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <SearchIcon className="absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder={t.pages.users?.searchOrgPlaceholder || "搜索组织..."}
-                  className="pl-8 h-8 text-sm"
+                  placeholder={
+                    t.pages.users?.searchOrgPlaceholder || "搜索组织..."
+                  }
+                  className="h-8 pl-8 text-sm"
                   value={orgSearch}
                   onChange={(e) => setOrgSearch(e.target.value)}
                 />
@@ -630,10 +710,10 @@ export function UsersPage() {
             </CardContent>
           </Card>
 
-          <div className="space-y-4 min-w-0">
+          <div className="min-w-0 space-y-4">
             {selectedOrgId !== ALL_ORG_ID && (
               <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="px-2 py-1 gap-1">
+                <Badge variant="secondary" className="gap-1 px-2 py-1">
                   <Building2Icon className="h-3 w-3" />
                   {selectedOrgName}
                   <button
@@ -645,25 +725,30 @@ export function UsersPage() {
                   </button>
                 </Badge>
                 <span className="text-xs text-muted-foreground">
-                  {t.pages.users?.matchedUsers || "个匹配用户"}: {filteredUsers.length}
+                  {t.pages.users?.matchedUsers || "个匹配用户"}:{" "}
+                  {filteredUsers.length}
                 </span>
               </div>
             )}
-            
+
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <div className="relative flex-1 max-w-sm">
-                    <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <div className="relative max-w-sm flex-1">
+                    <SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                      placeholder={t.pages.users?.searchPlaceholder || "搜索用户..."}
+                      placeholder={
+                        t.pages.users?.searchPlaceholder || "搜索用户..."
+                      }
                       className="pl-9"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
                   <Badge variant="secondary">
-                    {t.pages.users?.total || "共"} {filteredUsers.length} {t.pages.users?.matchedUsers?.replace("个匹配用户", "个") || "个用户"}
+                    {t.pages.users?.total || "共"} {filteredUsers.length}{" "}
+                    {t.pages.users?.matchedUsers?.replace("个匹配用户", "个") ||
+                      "个用户"}
                   </Badge>
                 </div>
               </CardHeader>
@@ -672,14 +757,20 @@ export function UsersPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>ID</TableHead>
-                      <TableHead>{t.pages.users?.nameLabel || "姓名"}</TableHead>
+                      <TableHead>
+                        {t.pages.users?.nameLabel || "姓名"}
+                      </TableHead>
                       <TableHead>{t.pages.users?.account || "账户"}</TableHead>
                       <TableHead>{t.pages.users?.email || "邮箱"}</TableHead>
                       <TableHead>{t.pages.users?.phone || "手机"}</TableHead>
                       <TableHead>{t.pages.users?.role || "角色"}</TableHead>
-                      <TableHead>{t.pages.users?.orgName || "所属组织"}</TableHead>
+                      <TableHead>
+                        {t.pages.users?.orgName || "所属组织"}
+                      </TableHead>
                       <TableHead>{t.pages.users?.status || "状态"}</TableHead>
-                      <TableHead className="text-right">{t.common.edit}</TableHead>
+                      <TableHead className="text-right">
+                        {t.common.edit}
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -687,7 +778,9 @@ export function UsersPage() {
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">{user.id}</TableCell>
                         <TableCell>{user.real_name}</TableCell>
-                        <TableCell className="font-mono text-sm">{user.code}</TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {user.code}
+                        </TableCell>
                         <TableCell>{user.email || "-"}</TableCell>
                         <TableCell>{user.phone || "-"}</TableCell>
                         <TableCell>
@@ -695,7 +788,9 @@ export function UsersPage() {
                         </TableCell>
                         <TableCell className="text-sm">
                           {user.org_name ? (
-                            <span className="text-muted-foreground">{user.org_name}</span>
+                            <span className="text-muted-foreground">
+                              {user.org_name}
+                            </span>
                           ) : (
                             <span className="text-muted-foreground/50">-</span>
                           )}
@@ -710,10 +805,20 @@ export function UsersPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(user)}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleEdit(user)}
+                            >
                               <EditIcon className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(user)}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleDelete(user)}
+                            >
                               <TrashIcon className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
@@ -722,7 +827,10 @@ export function UsersPage() {
                     ))}
                     {filteredUsers.length === 0 && !isLoading && (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                        <TableCell
+                          colSpan={9}
+                          className="py-8 text-center text-muted-foreground"
+                        >
                           {t.common.noData}
                         </TableCell>
                       </TableRow>
@@ -731,7 +839,9 @@ export function UsersPage() {
                 </Table>
                 {isLoading && (
                   <div className="flex items-center justify-center py-8">
-                    <div className="text-sm text-muted-foreground">{t.common.loading}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {t.common.loading}
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -743,7 +853,11 @@ export function UsersPage() {
       <FormDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title={dialogMode === "add" ? (t.pages.users?.addUser || "添加用户") : (t.pages.users?.editUser || "编辑用户")}
+        title={
+          dialogMode === "add"
+            ? t.pages.users?.addUser || "添加用户"
+            : t.pages.users?.editUser || "编辑用户"
+        }
         schema={userFormSchema}
         initialValues={getInitialValues()}
         onSubmit={handleSubmit}
@@ -753,13 +867,19 @@ export function UsersPage() {
       <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>{t.pages.users?.changeStatus || "修改状态"}</DialogTitle>
+            <DialogTitle>
+              {t.pages.users?.changeStatus || "修改状态"}
+            </DialogTitle>
             <DialogDescription>
-              确定要{newStatus === 1 ? "启用" : "停用"}用户 "{currentStatusUser?.real_name}" 吗？
+              确定要{newStatus === 1 ? "启用" : "停用"}用户 "
+              {currentStatusUser?.real_name}" 吗？
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setStatusDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setStatusDialogOpen(false)}
+            >
               {t.common.cancel}
             </Button>
             <Button onClick={handleStatusSubmit} disabled={isSubmitting}>
