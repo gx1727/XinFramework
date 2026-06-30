@@ -87,6 +87,84 @@ func (r *PostgresRepository) GetAll(ctx context.Context) ([]Menu, error) {
 	return out, rows.Err()
 }
 
+// ListByUserRoles 返回被分配给 callerRoles 任一角色的菜单。
+//
+// 路径：sys_users(account_id) -> sys_user_roles -> sys_roles(code = ANY($2)) -> sys_role_menus -> sys_menus。
+//
+// 多角色取并集并去重（一个账号同时拥有 [test, devops] 时，
+// 两个角色下的菜单合并去重返回）。
+//
+// 软删过滤：sys_user_roles / sys_role_menus / sys_menus 都加上 is_deleted = FALSE，
+// 与仓内其他查询保持一致。
+//
+// ⚠️ CTE 内部 SELECT 必须以 `m.` 给每个列加表别名，因为同时 JOIN 了
+// sys_role_menus / sys_roles / sys_user_roles / sys_users，每个表都带 `id` 与 `code`，
+// PG 会以 SQLSTATE 42702（"column reference 'id' is ambiguous"）拒绝。
+// sysMenuSelectCols 是单表专用，不能直接复用。
+//
+// ⭐ 祖先补全：用户可能只勾选子菜单（如平台用户 106），未勾父菜单（平台管理 100），
+// 写路径只把 106 写入 sys_role_menus。如果原样返回，buildTree 看到 106.parent_id=100
+// 但 100 不在结果集里，会把 106 当作孤儿根挂出去，导航栏只剩一个孤零零的“平台用户”。
+//
+// 解法：用递归 CTE 沿 parent_id 链上溯，把所有缺失的祖先都拉进结果集。
+// 为什么不用 sys_menus.ancestors 字段：该字段只在 init_seed 中被维护，API 创建/更新
+// 的菜单不会自动写入 ancestors（model 透传 req.Ancestors），新菜单 ancestors 经常是
+// 空字符串。CTE 走 parent_id 更健壮，且一次查询完成、无 N+1。
+//
+// 防环：UNION（不是 UNION ALL）天然去重，递归中遇到已访问的节点即停。
+const sysMenuSelectColsPrefixed = `m.id, m.code, m.name, m.subtitle, m.url, m.path, m.icon, m.sort, m.parent_id, m.ancestors, m.visible, m.enabled, m.created_at, m.updated_at`
+
+func (r *PostgresRepository) ListByUserRoles(ctx context.Context, accountID uint, callerRoles []string) ([]Menu, error) {
+	if len(callerRoles) == 0 {
+		return []Menu{}, nil
+	}
+	q, err := db.GetQuerier(ctx, r.db)
+	if err != nil {
+		return nil, err
+	}
+	// 递归 CTE：
+	//   阶段 1（anchor）= 直接分配给该用户角色的菜单（叶子）
+	//   阶段 2（recursive）= 沿 parent_id 链上溯，把所有祖先拉进来
+	// 外层 SELECT 从 sys_menus 取完整行（与单表 sysMenuSelectCols 一致，无 JOIN 无歧义）
+	rows, err := q.Query(ctx, `
+		WITH RECURSIVE menu_chain AS (
+			SELECT m.id, m.parent_id
+			FROM sys_menus m
+			JOIN sys_role_menus rm ON rm.menu_id = m.id AND rm.is_deleted = FALSE
+			JOIN sys_roles r ON r.id = rm.role_id AND r.is_deleted = FALSE
+			JOIN sys_user_roles sur ON sur.role_id = r.id AND sur.is_deleted = FALSE
+			JOIN sys_users su ON su.id = sur.user_id AND su.is_deleted = FALSE
+			WHERE m.is_deleted = FALSE
+			  AND su.account_id = $1
+			  AND r.code = ANY($2)
+
+			UNION
+
+			SELECT m.id, m.parent_id
+			FROM sys_menus m
+			INNER JOIN menu_chain mc ON m.id = mc.parent_id
+			WHERE m.is_deleted = FALSE
+		)
+		SELECT `+sysMenuSelectCols+`
+		FROM sys_menus
+		WHERE id IN (SELECT id FROM menu_chain) AND is_deleted = FALSE
+		ORDER BY sort ASC, id ASC
+	`, accountID, callerRoles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Menu{}
+	for rows.Next() {
+		m, err := scanMenu(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *m)
+	}
+	return out, rows.Err()
+}
+
 func (r *PostgresRepository) Create(ctx context.Context, req CreateRepoReq) (*Menu, error) {
 	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {

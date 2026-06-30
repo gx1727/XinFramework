@@ -17,20 +17,37 @@ func NewPermissionRepository(db *pgxpool.Pool) *PostgresPermissionRepository {
 	return &PostgresPermissionRepository{db: db}
 }
 
-// GetUserPermissions returns map of "resource:action" -> true
-// Joins through: users -> user_roles -> roles -> role_resources -> resources
+// GetUserPermissions returns map of "resource:action" -> true.
+//
+// 路径合集：tenant 域 + platform 域。
+//
+//	(1) tenant 域：userID = tenant_users.id
+//	    tenant_users -> tenant_user_roles -> tenant_roles
+//	    -> tenant_role_resources -> tenant_permissions
+//	(2) platform 域：userID = sys_users.account_id（per JWT 注释：platform admin 的
+//	    Claims.UserID = account_id；同一个人可能同时拥有 tenant 身份与 platform 身份，
+//	    但 userID 解析到的表不同，所以 UNOIN ALL 不会重复）
+//
+// 变更记录：
+//   - rr.resource_id → rr.permission_id
+//     原 SQL 错列名（tenant_role_resources 实际列名是 permission_id），
+//     导致整个函数在原状下对 tenant 域也返回空。0016.x 遗留。
+//   - 加 platform 域分支
+//     0023 phase 之前的代码未考虑 sys_* 表（平台域未拆为独立表），
+//     修正后 platform 用户的 sys_role_permissions 也能加载到 UserContext.Permissions。
 func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, userID uint) (map[string]bool, error) {
 	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
 	}
 	rows, err := q.Query(ctx, `
+		-- (1) tenant 域权限
 		SELECT DISTINCT res.code, res.action
 		FROM tenant_users u
 		JOIN tenant_user_roles ur ON ur.user_id = u.id
 		JOIN tenant_roles rol ON rol.id = ur.role_id
 		JOIN tenant_role_resources rr ON rr.role_id = rol.id
-		JOIN tenant_permissions res ON res.id = rr.resource_id
+		JOIN tenant_permissions res ON res.id = rr.permission_id
 		WHERE u.id = $1
 		  AND u.is_deleted = FALSE
 		  AND ur.is_deleted = FALSE
@@ -40,6 +57,29 @@ func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, u
 		  AND rr.effect = 1
 		  AND res.is_deleted = FALSE
 		  AND res.status = 1
+
+		UNION ALL
+
+		-- (2) platform 域权限（0023 phase 后）
+		-- 注意：sys_permissions.code 是 "resource:action" 完整串，action 列是展示名（"view"）。
+		-- 中间件 HasPermission 是按 "resource:action" 查 map（与 permission.P(Res, Act) 对齐），
+		-- 所以这里要从 code 里 split_part 拆出 resource 与 action，不用 p.action 列。
+		SELECT DISTINCT split_part(p.code, ':', 1) AS code, split_part(p.code, ':', 2) AS action
+		FROM sys_users su
+		JOIN sys_user_roles sur ON sur.user_id = su.id
+		JOIN sys_roles r ON r.id = sur.role_id
+		JOIN sys_role_permissions rp ON rp.role_id = r.id
+		JOIN sys_permissions p ON p.id = rp.permission_id
+		WHERE su.account_id = $1
+		  AND su.is_deleted = FALSE
+		  AND sur.is_deleted = FALSE
+		  AND r.is_deleted = FALSE
+		  AND r.status = 1
+		  AND rp.is_deleted = FALSE
+		  AND rp.effect = 1
+		  AND p.is_deleted = FALSE
+		  AND p.status = 1
+		  AND p.code LIKE '%:%'  -- split_part 依赖该格式（service 层也加了同样校验）
 	`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get user permissions: %w", err)

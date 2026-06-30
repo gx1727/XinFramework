@@ -44,6 +44,17 @@ const itemSelectCols = `
 	platform_item_id, is_override,
 	status, created_at, updated_at`
 
+// itemSelectColsPrefixed 与 itemSelectCols 同序，但每列带 `ci.` 别名。
+// 专用于同时 JOIN config_categories cg 的查询（避免与 cg.id / cg.tenant_id /
+// cg.description / cg.sort / cg.status 等同名列冲突，PG 会报 SQLSTATE 42702）。
+// 与单表查询里使用的 itemSelectCols 不可互换。
+const itemSelectColsPrefixed = `
+	ci.id, ci.tenant_id, ci.category_id, ci.key, ci.value, ci.default_value,
+	ci.type, ci.label, ci.description, ci.options, ci.validation,
+	ci.sort, ci.is_public, ci.is_readonly, ci.is_system,
+	ci.platform_item_id, ci.is_override,
+	ci.status, ci.created_at, ci.updated_at`
+
 func scanGroup(row pgx.Row) (ConfigCategory, error) {
 	var g ConfigCategory
 	var extendStr string
@@ -364,8 +375,9 @@ func (r *PostgresConfigRepository) ListPublicItemsByTenant(ctx context.Context, 
 	if err != nil {
 		return nil, err
 	}
+	// JOIN config_categories cg → 必须用 itemSelectColsPrefixed（带 ci.）避免 SQLSTATE 42702
 	rows, err := q.Query(ctx, `
-		SELECT `+itemSelectCols+`
+		SELECT `+itemSelectColsPrefixed+`
 		FROM config_items ci
 		JOIN config_categories cg ON cg.id = ci.category_id
 		WHERE ci.is_deleted = FALSE AND cg.is_deleted = FALSE AND cg.is_public = TRUE
@@ -391,8 +403,9 @@ func (r *PostgresConfigRepository) ListPublicItemsByGroupCode(ctx context.Contex
 	if err != nil {
 		return nil, err
 	}
+	// JOIN config_categories cg → 必须用 itemSelectColsPrefixed（带 ci.）避免 SQLSTATE 42702
 	rows, err := q.Query(ctx, `
-		SELECT `+itemSelectCols+`
+		SELECT `+itemSelectColsPrefixed+`
 		FROM config_items ci
 		JOIN config_categories cg ON cg.id = ci.category_id
 		WHERE ci.is_deleted = FALSE AND cg.is_deleted = FALSE AND cg.is_public = TRUE
@@ -657,12 +670,12 @@ func (r *PostgresConfigRepository) DeleteVisibility(ctx context.Context, categor
 // ResolveGroupForTenant 返回租户视角的合并配置
 //
 // 合并逻辑：
-//   1. 找 platform scope 的 group（code 匹配）
-//   2. 检查 visibility：access='invisible' 直接返回 ErrGroupInvisible
-//   3. 检查 config_visibility：access 限制
-//   4. 拉 platform items
-//   5. 拉 tenant override items（is_override=TRUE）
-//   6. 合并：override 覆盖 platform
+//  1. 找 platform scope 的 group（code 匹配）
+//  2. 检查 visibility：access='invisible' 直接返回 ErrGroupInvisible
+//  3. 检查 config_visibility：access 限制
+//  4. 拉 platform items
+//  5. 拉 tenant override items（is_override=TRUE）
+//  6. 合并：override 覆盖 platform
 func (r *PostgresConfigRepository) ResolveGroupForTenant(ctx context.Context, tenantID uint, groupCode string) (*ResolvedConfig, error) {
 	q, err := db.GetQuerier(ctx, r.pool)
 	if err != nil {
@@ -675,7 +688,7 @@ func (r *PostgresConfigRepository) ResolveGroupForTenant(ctx context.Context, te
 		SELECT `+groupSelectCols+`
 		FROM config_categories
 		WHERE is_deleted = FALSE AND scope = 'platform' AND code = $1
-		LIMIT 1`, groupCode).Scan(/* ... */)
+		LIMIT 1`, groupCode).Scan( /* ... */ )
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrGroupNotFound
@@ -720,7 +733,7 @@ func (r *PostgresConfigRepository) ResolveGroupForTenant(ctx context.Context, te
 		CategoryID:   group.ID,
 		CategoryCode: group.Code,
 		CategoryName: group.Name,
-		Items:     make(map[string]ResolvedItem, len(platformItems)),
+		Items:        make(map[string]ResolvedItem, len(platformItems)),
 	}
 	for _, it := range platformItems {
 		out.Items[it.Key] = ResolvedItem{

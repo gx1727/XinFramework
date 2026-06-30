@@ -2,6 +2,7 @@ package sysuser
 
 import (
 	"gx1727.com/xin/framework/pkg/appx"
+	pkgauth "gx1727.com/xin/framework/pkg/auth"
 	"gx1727.com/xin/framework/pkg/plugin"
 )
 
@@ -18,7 +19,14 @@ func Module(app *appx.App) plugin.Module {
 		RegFn: func(ctx plugin.Reader, slots plugin.RouterSlots) {
 			protected := slots.MustGet(plugin.SlotProtected).Group
 			pool := app.DB.Raw()
-			h := NewHandler(NewService(pool, NewRepository(pool)))
+			// accountRepo 由 apps/boot/auth 在 Init 阶段注入。
+			// 未注入时 service 仍可工作（只能使用模式 1 绑定已有账号），
+			// 仅模式 2（一并建可登录账号）会报 ErrSysUserAccountRepoMissing。
+			var accountRepo pkgauth.AccountRepository
+			if ctx != nil {
+				accountRepo = ctx.AccountRepo()
+			}
+			h := NewHandler(NewService(pool, NewRepository(pool), accountRepo))
 			Register(protected, h)
 		},
 	}

@@ -44,6 +44,7 @@ export function DynamicForm({
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始化/重置表单是约定写法，外部 initialValues 变化需要重新赋值
     setValues(initialValues)
   }, [initialValues])
 
@@ -60,32 +61,48 @@ export function DynamicForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     const newErrors: Record<string, string> = {}
     for (const item of schema.items) {
       if (item.showIf && !evaluateShowIf(item.showIf, values)) {
         continue
       }
-      
+
       const value = values[item.field]
-      
-      if (item.required && (value === undefined || value === null || value === "")) {
+
+      if (
+        item.required &&
+        (value === undefined || value === null || value === "")
+      ) {
         newErrors[item.field] = `${item.label}不能为空`
         continue
       }
-      
+
       if (item.rules) {
         for (const rule of item.rules) {
-          if (rule.required && (value === undefined || value === null || value === "")) {
+          if (
+            rule.required &&
+            (value === undefined || value === null || value === "")
+          ) {
             newErrors[item.field] = rule.message || `${item.label}不能为空`
             break
           }
-          if (rule.minLength && typeof value === "string" && value.length < rule.minLength) {
-            newErrors[item.field] = rule.message || `${item.label}长度不能少于${rule.minLength}`
+          if (
+            rule.minLength &&
+            typeof value === "string" &&
+            value.length < rule.minLength
+          ) {
+            newErrors[item.field] =
+              rule.message || `${item.label}长度不能少于${rule.minLength}`
             break
           }
-          if (rule.maxLength && typeof value === "string" && value.length > rule.maxLength) {
-            newErrors[item.field] = rule.message || `${item.label}长度不能超过${rule.maxLength}`
+          if (
+            rule.maxLength &&
+            typeof value === "string" &&
+            value.length > rule.maxLength
+          ) {
+            newErrors[item.field] =
+              rule.message || `${item.label}长度不能超过${rule.maxLength}`
             break
           }
           if (rule.pattern) {
@@ -124,7 +141,7 @@ export function DynamicForm({
           />
         ))}
       </div>
-      
+
       <DialogFooter>
         {onCancel && (
           <Button type="button" variant="outline" onClick={onCancel}>
@@ -171,18 +188,20 @@ function FormField({ schema, value, error, onChange }: FormFieldProps) {
             disabled={schema.disabled || schema.readonly}
           />
         )
-      
+
       case "number":
         return (
           <Input
             type="number"
             placeholder={schema.placeholder}
             value={value !== undefined ? String(value) : ""}
-            onChange={(e) => onChange(e.target.value ? Number(e.target.value) : undefined)}
+            onChange={(e) =>
+              onChange(e.target.value ? Number(e.target.value) : undefined)
+            }
             disabled={schema.disabled}
           />
         )
-      
+
       case "textarea":
         return (
           <Textarea
@@ -193,7 +212,7 @@ function FormField({ schema, value, error, onChange }: FormFieldProps) {
             {...schema.props}
           />
         )
-      
+
       case "select":
         return (
           <Select
@@ -202,7 +221,9 @@ function FormField({ schema, value, error, onChange }: FormFieldProps) {
             disabled={schema.disabled}
           >
             <SelectTrigger>
-              <SelectValue placeholder={schema.placeholder || `请选择${schema.label}`} />
+              <SelectValue
+                placeholder={schema.placeholder || `请选择${schema.label}`}
+              />
             </SelectTrigger>
             <SelectContent>
               {schema.options?.map((option) => (
@@ -217,12 +238,15 @@ function FormField({ schema, value, error, onChange }: FormFieldProps) {
             </SelectContent>
           </Select>
         )
-      
+
       case "radio":
         return (
           <div className="flex flex-col gap-2">
             {schema.options?.map((option) => (
-              <div key={String(option.value)} className="flex items-center gap-2">
+              <div
+                key={String(option.value)}
+                className="flex items-center gap-2"
+              >
                 <input
                   type="radio"
                   id={`${schema.field}-${option.value}`}
@@ -254,7 +278,7 @@ function FormField({ schema, value, error, onChange }: FormFieldProps) {
             ))}
           </div>
         )
-      
+
       case "checkbox":
         return (
           <div className="flex flex-col gap-2">
@@ -283,7 +307,7 @@ function FormField({ schema, value, error, onChange }: FormFieldProps) {
             ))}
           </div>
         )
-      
+
       case "switch":
         return (
           <Switch
@@ -292,7 +316,7 @@ function FormField({ schema, value, error, onChange }: FormFieldProps) {
             disabled={schema.disabled}
           />
         )
-      
+
       case "date":
       case "datetime":
       case "time":
@@ -304,7 +328,7 @@ function FormField({ schema, value, error, onChange }: FormFieldProps) {
             disabled={schema.disabled}
           />
         )
-      
+
       case "icon":
         return (
           <IconPicker
@@ -314,7 +338,7 @@ function FormField({ schema, value, error, onChange }: FormFieldProps) {
             disabled={schema.disabled}
           />
         )
-      
+
       default:
         return (
           <Input
@@ -329,18 +353,16 @@ function FormField({ schema, value, error, onChange }: FormFieldProps) {
   }
 
   return (
-    <div
-      className={`grid gap-2 ${
-        colSpan > 1 ? `col-span-${colSpan}` : ""
-      }`}
-    >
+    <div className={`grid gap-2 ${colSpan > 1 ? `col-span-${colSpan}` : ""}`}>
       <div className="flex items-center gap-2">
         <Label htmlFor={schema.field}>
           {schema.label}
-          {schema.required && <span className="text-destructive ml-1">*</span>}
+          {schema.required && <span className="ml-1 text-destructive">*</span>}
         </Label>
         {schema.tooltip && (
-          <span className="text-xs text-muted-foreground">({schema.tooltip})</span>
+          <span className="text-xs text-muted-foreground">
+            ({schema.tooltip})
+          </span>
         )}
       </div>
       {fieldContent()}
@@ -353,6 +375,11 @@ interface FormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
+  /**
+   * 位于 DialogHeader 内、DialogTitle 之下、表单之上的额外内容。
+   * 用于放置只读信息块（例如系统自动生成的 account_id / code）。
+   */
+  headerExtra?: React.ReactNode
   width?: number | string
   schema: FormSchema
   initialValues?: Record<string, unknown>
@@ -364,6 +391,7 @@ export function FormDialog({
   open,
   onOpenChange,
   title,
+  headerExtra,
   width = 520,
   schema,
   initialValues,
@@ -374,6 +402,7 @@ export function FormDialog({
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 重置 formKey 使子组件 remount 是约定写法
       setFormKey((prev) => prev + 1)
     }
   }, [open])
@@ -385,10 +414,13 @@ export function FormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]" style={{ maxWidth: typeof width === "number" ? `${width}px` : width }}>
+      <DialogContent
+        className="sm:max-w-[425px]"
+        style={{ maxWidth: typeof width === "number" ? `${width}px` : width }}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription />
+          {headerExtra != null ? headerExtra : <DialogDescription />}
         </DialogHeader>
         <DynamicForm
           key={formKey}

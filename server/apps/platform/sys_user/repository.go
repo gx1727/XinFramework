@@ -14,9 +14,9 @@ import (
 // PostgresRepository 是 Repository 的 PostgreSQL 实现。
 //
 // 关键不变量：
-//   1. 所有 SQL 走 db.RunInPlatformTx 上下文（bypass_rls=on）。
-//   2. sys_users 表**不携带 tenant_id**——platform 域单租户。
-//   3. 软删除统一 is_deleted = FALSE 谓词。
+//  1. 所有 SQL 走 db.RunInPlatformTx 上下文（bypass_rls=on）。
+//  2. sys_users 表**不携带 tenant_id**——platform 域单租户。
+//  3. 软删除统一 is_deleted = FALSE 谓词。
 type PostgresRepository struct {
 	db *pgxpool.Pool
 }
@@ -25,7 +25,11 @@ func NewRepository(pool *pgxpool.Pool) *PostgresRepository {
 	return &PostgresRepository{db: pool}
 }
 
-const sysUserSelectCols = `id, account_id, org_id, code, real_name, nickname, avatar, status, created_at, updated_at`
+// sysUserSelectCols 把 schema 里允许 NULL 的字符串列（code/real_name/nickname/avatar）
+// 用 COALESCE 兜底成空串，避免 pgx Scan 时报 "cannot scan NULL into *string"。
+// org_id 已在 Go 端用 *uint 指针承载 NULL，无需 COALESCE。
+// COALESCE(x, ”) 在 PG 里默认列名是 "coalesce"，用 AS 保留原名以便 Go 端按列名映射。
+const sysUserSelectCols = `id, account_id, org_id, COALESCE(code, '') AS code, COALESCE(real_name, '') AS real_name, COALESCE(nickname, '') AS nickname, COALESCE(avatar, '') AS avatar, status, created_at, updated_at`
 
 func scanUser(row pgx.Row) (*User, error) {
 	var u User

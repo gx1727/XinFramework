@@ -104,6 +104,7 @@ export function PlatformUsersPage() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 首次加载触发请求是约定写法，cascading render 可接受
     fetchUsers()
   }, [fetchUsers])
 
@@ -127,23 +128,64 @@ export function PlatformUsersPage() {
 
   // ---- Form schema ----
   const userFormSchema: FormSchema = useMemo(() => {
-    const items: FormSchema["items"] = [
+    const items: FormSchema["items"] = []
+
+    if (dialogMode === "add") {
+      // ---- 模式 2：一并新建可登录账号 ----
+      // 物理上是一个表单，但由分隔条划成两块：账号信息 + 平台身份。
+      items.push(
+        {
+          field: "section_account",
+          label:
+            t.pages.platformUsers?.sectionAccount || "账号信息（首次登录使用）",
+          type: "divider",
+        },
+        {
+          field: "phone",
+          label: t.pages.platformUsers?.phone || "手机号",
+          type: "text",
+          required: true,
+          placeholder:
+            t.pages.platformUsers?.phonePlaceholder ||
+            "请输入手机号（作为登录账号）",
+        },
+        {
+          field: "username",
+          label: t.pages.platformUsers?.username || "用户名",
+          type: "text",
+          placeholder:
+            t.pages.platformUsers?.usernamePlaceholder ||
+            "可选，留空默认同手机号",
+        },
+        {
+          field: "email",
+          label: t.pages.platformUsers?.email || "邮箱",
+          type: "email",
+          placeholder:
+            t.pages.platformUsers?.emailPlaceholder || "可选，账号找回用",
+        },
+        {
+          field: "password",
+          label: t.pages.platformUsers?.password || "初始密码",
+          type: "password",
+          required: true,
+          placeholder:
+            t.pages.platformUsers?.passwordPlaceholder || "6-32 位，区分大小写",
+          rules: [
+            { minLength: 6, maxLength: 32, message: "密码长度需在 6-32 之间" },
+          ],
+        }
+      )
+    }
+
+    // ---- 平台身份区（两种模式都需要） ----
+    // account_id 和 code 是系统字段：新建时后端自动生成（phone → accounts.id → "u<id>"），
+    // 编辑时不可改（只读展示在表单上方），所以这里不再列为 form field，避免被误输入。
+    items.push(
       {
-        field: "account_id",
-        label: t.pages.platformUsers?.accountId || "账户 ID",
-        type: "number",
-        required: true,
-        placeholder: "请输入登录账号的 account_id",
-        disabled: dialogMode === "edit",
-        tooltip: "对应 accounts.id；同一 account 已绑定则后端会报错",
-      },
-      {
-        field: "code",
-        label: t.pages.platformUsers?.code || "用户代码",
-        type: "text",
-        required: true,
-        placeholder: "请输入用户代码（平台域内唯一）",
-        disabled: dialogMode === "edit",
+        field: "section_identity",
+        label: t.pages.platformUsers?.sectionIdentity || "平台身份信息",
+        type: "divider",
       },
       {
         field: "real_name",
@@ -167,8 +209,9 @@ export function PlatformUsersPage() {
           { label: t.common.enable || "启用", value: 1 },
           { label: t.common.disable || "停用", value: 0 },
         ],
-      },
-    ]
+      }
+    )
+
     return { items }
   }, [dialogMode])
 
@@ -239,9 +282,13 @@ export function PlatformUsersPage() {
           ? parseInt(values.status as string, 10)
           : Number(values.status)
       if (dialogMode === "add") {
+        // 模式 2：AccountID 不传，由后端在同事务内创建 accounts 行 + sys_user 行
+        // code/account_id 是系统字段，不由前端提交。
         await platformUserApi.create({
-          account_id: Number(values.account_id),
-          code: String(values.code ?? ""),
+          phone: String(values.phone ?? ""),
+          username: (values.username as string) || undefined,
+          email: (values.email as string) || undefined,
+          password: String(values.password ?? ""),
           real_name: String(values.real_name ?? ""),
           nickname: (values.nickname as string) || undefined,
           status: statusNum || 1,
@@ -307,9 +354,8 @@ export function PlatformUsersPage() {
 
   const getInitialValues = () => {
     if (currentUser) {
+      // code / account_id 不进表单（只读展示在 dialog 顶部）
       return {
-        account_id: currentUser.account_id,
-        code: currentUser.code,
         real_name: currentUser.real_name,
         nickname: currentUser.nickname || "",
         status: currentUser.status,
@@ -570,6 +616,40 @@ export function PlatformUsersPage() {
           dialogMode === "add"
             ? t.pages.platformUsers?.create || "新建平台用户"
             : t.pages.platformUsers?.edit || "编辑平台用户"
+        }
+        // 只读展示系统字段（account_id / code），不在表单里让用户输
+        headerExtra={
+          <div className="mt-2 space-y-1 rounded-md border bg-muted/40 p-2 text-xs text-muted-foreground">
+            {dialogMode === "edit" && currentUser ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">
+                    {t.pages.platformUsers?.accountId || "账户 ID"}:
+                  </span>
+                  <code className="rounded bg-background px-1 py-0.5 font-mono">
+                    {currentUser.account_id}
+                  </code>
+                  <span className="font-semibold">
+                    {t.pages.platformUsers?.code || "用户代码"}:
+                  </span>
+                  <code className="rounded bg-background px-1 py-0.5 font-mono">
+                    {currentUser.code}
+                  </code>
+                </div>
+                <p>
+                  系统自动生成，保存后不可修改。如需更换，请删除后重新创建。
+                </p>
+              </>
+            ) : (
+              <p>
+                账户 ID 与用户代码将在创建后由系统自动生成（格式： code ={" "}
+                <code className="rounded bg-background px-1 font-mono">
+                  u&lt;account_id&gt;
+                </code>
+                ）。
+              </p>
+            )}
+          </div>
         }
         width={520}
         schema={userFormSchema}

@@ -93,10 +93,12 @@ export function PlatformPermissionsPage() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 首次加载触发请求是约定写法
     fetchPermissions()
   }, [fetchPermissions])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 首次加载触发请求是约定写法
     fetchMenuTree()
   }, [fetchMenuTree])
 

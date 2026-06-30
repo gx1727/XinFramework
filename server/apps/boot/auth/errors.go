@@ -3,6 +3,7 @@ package auth
 import (
 	"errors"
 
+	pkgauth "gx1727.com/xin/framework/pkg/auth"
 	"gx1727.com/xin/framework/pkg/resp"
 )
 
@@ -24,8 +25,11 @@ var (
 	ErrSessionCreateFailed = resp.Err(1006, "创建会话失败")
 	ErrSessionRevokeFailed = resp.Err(1007, "注销会话失败")
 	ErrGenerateTokenFailed = resp.Err(1008, "生成令牌失败")
-	ErrAccountNotFound     = resp.Err(1009, "账号不存在")
 )
+
+// ErrAccountNotFound 复用 framework/pkg/auth 里的同名哨兵，保证
+// 业务模块能通过 errors.Is(err, auth.ErrAccountNotFound) 跨包识别。
+var ErrAccountNotFound = pkgauth.ErrAccountNotFound
 
 var (
 	ErrInvalidHashFormat = errors.New("invalid argon2id hash format")
@@ -42,7 +46,7 @@ var (
 // 包含 ErrAccountLocked、ErrTooManyAttempts、ErrAnomalyLoginConfirmed 三种语义。
 // 详见 framework/pkg/login_security 包。
 var (
-	ErrAccountLocked           = resp.Err(1020, "账号已被锁定，请在锁定结束后再试或联系管理员")
+	ErrAccountLocked            = resp.Err(1020, "账号已被锁定，请在锁定结束后再试或联系管理员")
 	ErrTooManyAttempts          = resp.Err(1021, "登录失败次数过多，请稍后再试")
 	ErrAnomalyLoginConfirmed    = resp.Err(1022, "检测到异地登录，如非本人操作请尽快修改密码")
 	ErrLoginSecurityUnavailable = resp.Err(1023, "登录安全服务暂时不可用")

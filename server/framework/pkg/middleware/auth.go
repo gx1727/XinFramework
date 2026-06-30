@@ -2,10 +2,10 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
-	"gx1727.com/xin/framework/pkg/xincontext"
 	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/resp"
+	"gx1727.com/xin/framework/pkg/xincontext"
 )
 
 // Require 创建权限检查中间件 - 用户必须拥有指定权限才能访问
@@ -100,6 +100,29 @@ func RequirePlatformRole(roles ...string) gin.HandlerFunc {
 		}
 		resp.Forbidden(c, "平台角色不足")
 		c.Abort()
+	}
+}
+
+// RequireAnyPlatformRole 校验当前 token 至少携带一个平台级角色（不限定具体角色）。
+//
+// 适用场景：平台域运行时接口（如 /platform/menus/tree 给任何 platform 用户拉自己的
+// 可访问菜单树）。该中间件仅检查“是不是平台用户”，具体能看哪些资源由
+// handler/service 层按 PlatformRoles 过滤实现。
+//
+// 与 RequirePlatformRole 的区别：
+//   - RequirePlatformRole(super_admin) 严格白名单，仅放行指定角色
+//   - RequireAnyPlatformRole()          宽泛闸口，放行任何 platform 角色
+//   - RequirePlatformRole()             【注意】零参调用会被原函数视为
+//     “不指定角色”直接放行，并不会检查 PlatformRoles 长度——不要用它代替本函数。
+func RequireAnyPlatformRole() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		xc := xincontext.New(c)
+		if xc == nil || len(xc.PlatformRoles) == 0 {
+			resp.Forbidden(c, "需要平台级角色")
+			c.Abort()
+			return
+		}
+		c.Next()
 	}
 }
 

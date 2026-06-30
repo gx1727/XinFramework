@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"gx1727.com/xin/framework/pkg/resp"
+	"gx1727.com/xin/framework/pkg/xincontext"
 )
 
 type Handler struct {
@@ -34,8 +35,20 @@ func (h *Handler) List(c *gin.Context) {
 	resp.Paginate(c, total, list)
 }
 
+// Tree 返回当前平台用户可见的菜单树。
+//
+// 鉴权层级：
+//   - 路由层 RequireAnyPlatformRole 已保证 PlatformRoles 非空（"需要平台级角色"）
+//   - service 层按 isSuperAdmin(roles) 分支：super_admin 返回全量，其他角色按
+//     用户被分配的角色取菜单并集
+//
+// 取值方式：xinc → xincontext.New(c)（Auth 中间件把 JWT claims 里的
+// UserID / PlatformRoles 注入了 request context）。
 func (h *Handler) Tree(c *gin.Context) {
-	tree, err := h.svc.Tree(c.Request.Context())
+	xc := xincontext.New(c)
+	accountID := xc.UserID    // 平台用户 JWT UserID 即 account_id
+	roles := xc.PlatformRoles // 已被中间件校验非空
+	tree, err := h.svc.Tree(c.Request.Context(), accountID, roles)
 	if err != nil {
 		resp.HandleError(c, err)
 		return

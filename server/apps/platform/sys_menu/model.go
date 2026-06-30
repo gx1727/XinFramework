@@ -16,21 +16,21 @@ import (
 )
 
 type Menu struct {
-	ID        uint       `json:"id"`
-	Code      string     `json:"code"`
-	Name      string     `json:"name"`
-	Subtitle  *string    `json:"subtitle"`
-	URL       *string    `json:"url"`
-	Path      *string    `json:"path"`
-	Icon      *string    `json:"icon"`
-	Sort      int        `json:"sort"`
-	ParentID  *uint      `json:"parent_id"`
-	Ancestors *string    `json:"ancestors"`
-	Visible   bool       `json:"visible"`
-	Enabled   bool       `json:"enabled"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
-	Children  []*Menu    `json:"children,omitempty"`
+	ID        uint      `json:"id"`
+	Code      string    `json:"code"`
+	Name      string    `json:"name"`
+	Subtitle  *string   `json:"subtitle"`
+	URL       *string   `json:"url"`
+	Path      *string   `json:"path"`
+	Icon      *string   `json:"icon"`
+	Sort      int       `json:"sort"`
+	ParentID  *uint     `json:"parent_id"`
+	Ancestors *string   `json:"ancestors"`
+	Visible   bool      `json:"visible"`
+	Enabled   bool      `json:"enabled"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Children  []*Menu   `json:"children,omitempty"`
 }
 
 type CreateRepoReq struct {
@@ -67,6 +67,9 @@ type Repository interface {
 	GetByID(ctx context.Context, id uint) (*Menu, error)
 	GetByCode(ctx context.Context, code string) (*Menu, error)
 	GetAll(ctx context.Context) ([]Menu, error)
+	// ListByUserRoles 返回被分配给 callerRoles 任一角色的菜单（多角色并集去重）。
+	// 运行时接口“按角色过滤”专用，super_admin 仍走 GetAll。
+	ListByUserRoles(ctx context.Context, accountID uint, callerRoles []string) ([]Menu, error)
 	Create(ctx context.Context, req CreateRepoReq) (*Menu, error)
 	Update(ctx context.Context, id uint, req UpdateRepoReq) (*Menu, error)
 	Delete(ctx context.Context, id uint, updatedBy uint) error

@@ -39,13 +39,28 @@ func (s *Service) List(ctx context.Context) ([]*SysMenuResp, int64, error) {
 	return out, total, err
 }
 
-func (s *Service) Tree(ctx context.Context) ([]*SysMenuResp, error) {
+// Tree 返回平台菜单树。super_admin 全量；其他 platform 角色仅返回其角色被分配的菜单。
+//
+// callerAccountID 来自 JWT Claims.UserID（平台用户 = account_id，参见
+// apps/boot/auth.PlatformLogin）。callerRoles 来自 XinContext.PlatformRoles。
+//
+// 为什么把过滤逻辑放在 service 而不是 handler：过滤在 RunInPlatformTx 事务里走，
+// 与现有 GetAll 的事务路径保持一致；handler 只负责从 gin ctx 拼出参数。
+func (s *Service) Tree(ctx context.Context, callerAccountID uint, callerRoles []string) ([]*SysMenuResp, error) {
 	if s.repo == nil {
 		return nil, ErrBackendUnavailable
 	}
 	var tree []*SysMenuResp
 	err := db.RunInPlatformTx(ctx, s.pool, func(txCtx context.Context) error {
-		menus, err := s.repo.GetAll(txCtx)
+		var menus []Menu
+		var err error
+		if isSuperAdmin(callerRoles) {
+			menus, err = s.repo.GetAll(txCtx)
+		} else {
+			// 零角色送进来会被中间件拦住，这里加个安全勾兑：
+			// 万一被直接调用不经过中间件，返回空树而不是泄漏全量。
+			menus, err = s.repo.ListByUserRoles(txCtx, callerAccountID, callerRoles)
+		}
 		if err != nil {
 			return err
 		}
@@ -53,6 +68,16 @@ func (s *Service) Tree(ctx context.Context) ([]*SysMenuResp, error) {
 		return nil
 	})
 	return tree, err
+}
+
+// isSuperAdmin 脱耦于 jwt.PlatformRoleSuperAdmin 常量，避免 sysmenu 包对 jwt 包的直接依赖。
+func isSuperAdmin(roles []string) bool {
+	for _, r := range roles {
+		if r == "super_admin" {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Service) GetByID(ctx context.Context, id uint) (*SysMenuResp, error) {

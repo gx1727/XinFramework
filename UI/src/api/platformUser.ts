@@ -38,16 +38,26 @@ export const platformUserApi = {
   list: (params?: { keyword?: string; page?: number; size?: number }) =>
     api<PageResponse<PlatformUserItem>>("/platform/sys-users", { params }),
 
-  get: (id: number) =>
-    api<PlatformUserItem>(`/platform/sys-users/${id}`),
+  get: (id: number) => api<PlatformUserItem>(`/platform/sys-users/${id}`),
 
-  create: (
-    data: Partial<PlatformUserItem> & {
-      account_id: number
-      code: string
-      real_name: string
-    },
-  ) =>
+  create: (data: {
+    // 模式 1：绑定已有账号（向后兼容）
+    account_id?: number
+    // 模式 2：AccountID 不传或为 0 时启用
+    //   - phone + password 必填，username/email 可选
+    //   - password 走 HTTPS，backend 用 Argon2id 哈希后入库
+    username?: string
+    phone?: string
+    email?: string
+    password?: string
+    // 平台身份字段
+    code?: string
+    real_name: string
+    nickname?: string
+    avatar?: string
+    status?: number
+    role_ids?: number[]
+  }) =>
     api<PlatformUserItem>("/platform/sys-users", {
       method: "POST",
       body: JSON.stringify(data),

@@ -108,6 +108,7 @@ export function PlatformRolesPage() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 首次加载触发请求是约定写法
     fetchRoles()
   }, [fetchRoles])
 
@@ -263,19 +264,44 @@ export function PlatformRolesPage() {
 
   const handleAssignPermission = async (role: PlatformRoleItem) => {
     setCurrentPermRole(role)
-    setSelectedMenuIds((role.menus ?? []).map((m) => m.id))
-    setSelectedPermIds((role.permissions ?? []).map((p) => p.id))
+    // 重置状态：后端 list 接口不返回 menus/permissions（只有 GetByID 返回），
+    // 所以不能从传入的 role 读已选项，必须专门拉一次详情。
+    setSelectedMenuIds([])
+    setSelectedPermIds([])
     setMenuTree([])
     setAllPermissions([])
     setPermDialogOpen(true)
     setPermLoading(true)
     try {
-      const [menus, perms] = await Promise.all([
-        platformMenuApi.tree().catch(() => []),
-        platformPermissionApi
-          .list({ page: 1, size: 500 })
-          .catch(() => ({ list: [], total: 0 })),
+      const [detail, menus, perms] = await Promise.all([
+        platformRoleApi.get(role.id).catch((err) => {
+          console.warn("[PlatformRoles] get role detail failed", role.id, err)
+          return null
+        }),
+        platformMenuApi.tree().catch((err) => {
+          console.warn("[PlatformRoles] get menu tree failed", err)
+          return []
+        }),
+        platformPermissionApi.list({ page: 1, size: 500 }).catch((err) => {
+          console.warn("[PlatformRoles] get permission list failed", err)
+          return { list: [], total: 0 }
+        }),
       ])
+      // GetByID 后端会填好 menus/permissions，这是唯一可信源
+      const menuIds = (detail?.menus ?? []).map((m) => m.id)
+      const permIds = (detail?.permissions ?? []).map((p) => p.id)
+      // 临时调试日志：排查"重开 dialog 时选项不还原"问题
+      console.info("[PlatformRoles] perm dialog opened for role", role.id, {
+        detailKeys: detail ? Object.keys(detail) : null,
+        detailMenusLen: (detail?.menus ?? []).length,
+        detailPermsLen: (detail?.permissions ?? []).length,
+        menuTreeLen: (menus || []).length,
+        permListLen: (perms?.list ?? []).length,
+        selectedMenuIds: menuIds,
+        selectedPermIds: permIds,
+      })
+      setSelectedMenuIds(menuIds)
+      setSelectedPermIds(permIds)
       setMenuTree(menus || [])
       setAllPermissions(perms?.list ?? [])
     } catch (err) {
