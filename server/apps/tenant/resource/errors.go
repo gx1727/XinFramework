@@ -11,6 +11,9 @@ var (
 	ErrResourceCodeExists   = resp.Err(8002, "资源编码已存在")
 	ErrCannotDeleteResource = resp.Err(8003, "不能删除系统资源")
 	ErrBackendUnavailable   = resp.Err(8004, "服务后端未初始化或不可用")
+	// ErrResourceInvalidCode 权限码格式错误：必须为 resource:action 或 resource:*（仅含一个冒号）。
+	// 与 apps/platform/sys_permission/service.go permissionCodeValid 规则一致。
+	ErrResourceInvalidCode = resp.Err(8005, "权限码格式错误，必须为 resource:action 或 resource:*（仅含一个冒号）")
 )
 
 // mapRepoError 把 DB 层 sentinel 翻译为 BizError，未识别 error 原样返回。

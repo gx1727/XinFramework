@@ -145,7 +145,7 @@ func (r *PostgresResourceRepository) GetUserResources(ctx context.Context, tenan
 	rows, err := q.Query(ctx, `
 		SELECT DISTINCT r.id, r.tenant_id, r.menu_id, r.code, r.name, r.action, r.description, r.sort, r.status, r.created_at, r.updated_at
 		FROM tenant_permissions r
-		JOIN tenant_role_resources rr ON rr.resource_id = r.id AND rr.is_deleted = FALSE AND rr.effect = 1
+		JOIN tenant_role_resources rr ON rr.permission_id = r.id AND rr.is_deleted = FALSE AND rr.effect = 1
 		JOIN tenant_roles rol ON rol.id = rr.role_id AND rol.is_deleted = FALSE AND rol.status = 1
 		JOIN tenant_user_roles ur ON ur.role_id = rol.id AND ur.is_deleted = FALSE
 		WHERE r.is_deleted = FALSE AND r.tenant_id = $1 AND ur.user_id = $2
@@ -182,7 +182,7 @@ func (r *PostgresResourceRepository) GetUserResourcesByMenu(ctx context.Context,
 	rows, err := q.Query(ctx, `
 		SELECT DISTINCT r.id, r.tenant_id, r.menu_id, r.code, r.name, r.action, r.description, r.sort, r.status, r.created_at, r.updated_at
 		FROM tenant_permissions r
-		JOIN tenant_role_resources rr ON rr.resource_id = r.id AND rr.is_deleted = FALSE AND rr.effect = 1
+		JOIN tenant_role_resources rr ON rr.permission_id = r.id AND rr.is_deleted = FALSE AND rr.effect = 1
 		JOIN tenant_roles rol ON rol.id = rr.role_id AND rol.is_deleted = FALSE AND rol.status = 1
 		JOIN tenant_user_roles ur ON ur.role_id = rol.id AND ur.is_deleted = FALSE
 		WHERE r.is_deleted = FALSE AND r.tenant_id = $1 AND ur.user_id = $2
@@ -226,7 +226,7 @@ func (r *PostgresResourceRepository) Create(ctx context.Context, tenantID uint, 
 		&res.CreatedAt, &res.UpdatedAt,
 	)
 	if err != nil {
-		if strings.Contains(err.Error(), "uk_resource_code") {
+		if strings.Contains(err.Error(), "uk_tenant_permissions_code") {
 			return nil, ErrResourceCodeExistsDB
 		}
 		return nil, fmt.Errorf("create resource: %w", err)
@@ -238,6 +238,29 @@ func (r *PostgresResourceRepository) Update(ctx context.Context, id uint, req Up
 	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
 		return nil, err
+	}
+	// Code 单独处理：nil 表示不改；非 nil 才更新。
+	// 走两段 SQL 而不是动态 SET 是为了保留 QueryRow + RETURNING 的简洁形态。
+	if req.Code != nil {
+		var res Resource
+		err = q.QueryRow(ctx, `
+			UPDATE tenant_permissions SET code = $2, name = $3, action = $4, description = $5, sort = $6, status = $7, updated_at = NOW()
+			WHERE is_deleted = FALSE AND id = $1
+			RETURNING id, tenant_id, menu_id, code, name, action, description, sort, status, created_at, updated_at
+		`, id, *req.Code, req.Name, req.Action, req.Description, req.Sort, req.Status).Scan(
+			&res.ID, &res.TenantID, &res.MenuID, &res.Code, &res.Name, &res.Action, &res.Description, &res.Sort, &res.Status,
+			&res.CreatedAt, &res.UpdatedAt,
+		)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, ErrResourceNotFound
+			}
+			if strings.Contains(err.Error(), "uk_tenant_permissions_code") {
+				return nil, ErrResourceCodeExistsDB
+			}
+			return nil, fmt.Errorf("update resource: %w", err)
+		}
+		return &res, nil
 	}
 	var res Resource
 	err = q.QueryRow(ctx, `

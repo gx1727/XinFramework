@@ -31,9 +31,9 @@ func (r *PostgresRoleResourceRepository) GetByRoleID(ctx context.Context, roleID
 	}
 
 	rows, err := q.Query(ctx, `
-		SELECT resource_id FROM tenant_role_resources
+		SELECT permission_id FROM tenant_role_resources
 		WHERE is_deleted = FALSE AND role_id = $1
-		ORDER BY resource_id ASC`, roleID)
+		ORDER BY permission_id ASC`, roleID)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (r *PostgresRoleResourceRepository) SetForRole(ctx context.Context, roleID 
 	_, err = q.Exec(ctx, `
 		UPDATE tenant_role_resources SET is_deleted = TRUE, updated_at = NOW()
 		WHERE is_deleted = FALSE AND role_id = $1
-		  AND resource_id NOT IN (
+		  AND permission_id NOT IN (
 			SELECT unnest($2::bigint[])
 		  )`, roleID, resourceIDs)
 	if err != nil {
@@ -83,10 +83,10 @@ func (r *PostgresRoleResourceRepository) SetForRole(ctx context.Context, roleID 
 	}
 
 	_, err = q.Exec(ctx, `
-		INSERT INTO tenant_role_resources (role_id, resource_id, tenant_id)
+		INSERT INTO tenant_role_resources (role_id, permission_id, tenant_id)
 		SELECT $1, unnest, $3
 		FROM unnest($2::bigint[]) AS unnest
-		ON CONFLICT (role_id, resource_id) WHERE is_deleted = FALSE
+		ON CONFLICT (role_id, permission_id) WHERE is_deleted = FALSE
 		DO UPDATE SET is_deleted = FALSE, updated_at = NOW()`, roleID, resourceIDs, tenantID)
 	if err != nil {
 		return fmt.Errorf("insert role resources: %w", err)

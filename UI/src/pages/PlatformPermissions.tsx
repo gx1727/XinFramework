@@ -190,6 +190,7 @@ export function PlatformPermissionsPage() {
             { label: "导出 (export)", value: "export" },
             { label: "导入 (import)", value: "import" },
             { label: "授权 (assign)", value: "assign" },
+            { label: "全部操作 (*)", value: "*" },
           ],
         },
         {

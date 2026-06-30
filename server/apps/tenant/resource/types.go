@@ -18,11 +18,12 @@ type CreateReq struct {
 }
 
 type UpdateReq struct {
-	Name        string `json:"name" binding:"required"`
-	Action      string `json:"action"`
-	Description string `json:"description"`
-	Sort        int    `json:"sort"`
-	Status      int8   `json:"status"`
+	Code        *string `json:"code"`
+	Name        string  `json:"name" binding:"required"`
+	Action      string  `json:"action"`
+	Description string  `json:"description"`
+	Sort        int     `json:"sort"`
+	Status      int8    `json:"status"`
 }
 
 type ResourceResp struct {

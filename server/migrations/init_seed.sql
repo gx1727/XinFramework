@@ -115,20 +115,19 @@ VALUES (1, 56, 'dict:list', '查询字典', 'list', '查询字典列表', 1, 1),
        (1, 56, 'dict:update', '更新字典', 'update', '更新字典及字典项', 4, 1),
        (1, 56, 'dict:delete', '删除字典', 'delete', '删除字典及字典项', 5, 1);
 
--- 超级通配权限码
+-- 超级通配权限码（0024+ 约定：code 用完整串 "*:*"；运行时按 *:* 走全局通配）
 INSERT INTO tenant_permissions (tenant_id, code, name, action, description, status)
-VALUES (1, '*', '超级管理员通配权限', '*', '拥有系统所有权限', 1);
+VALUES (1, '*:*', '超级管理员通配权限', '*', '拥有系统所有权限', 1);
 
 SELECT setval('tenant_permissions_id_seq', 100, true);
 
 -- ============================================
--- 6. admin 角色绑菜单 + 绑通配权限码
--- ============================================
+-- admin 角色绑菜单 + 绑通配权限码
 INSERT INTO tenant_role_menus (tenant_id, role_id, menu_id)
 SELECT 1, 1, id FROM tenant_menus WHERE is_deleted = FALSE;
 
 INSERT INTO tenant_role_resources (tenant_id, role_id, permission_id, effect)
-VALUES (1, 1, (SELECT id FROM tenant_permissions WHERE code = '*'), 1);
+VALUES (1, 1, (SELECT id FROM tenant_permissions WHERE code = '*:*'), 1);
 
 -- ============================================
 -- 7. 字典（平台级 + bootstrap 副本）
@@ -398,13 +397,13 @@ ON CONFLICT (user_id, role_id) WHERE is_deleted = FALSE DO NOTHING;
 -- HasPermission(perms, res, act) 在 framework/pkg/permission/types.go 已支持 `*:*` 全局通配。
 INSERT INTO sys_permissions (id, code, name, action, description, sort, status, created_by, updated_by)
 OVERRIDING SYSTEM VALUE
-VALUES (1, '*', '超级通配权限', '*', '平台域所有资源所有操作（替代旧 super_admin 中间件短路）', 1, 1, 0, 0)
+VALUES (1, '*:*', '超级通配权限', '*', '平台域所有资源所有操作（替代旧 super_admin 中间件短路）', 1, 1, 0, 0)
 ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
 
 -- 11.3c super_admin 绑定通配权限
 INSERT INTO sys_role_permissions (role_id, permission_id)
 SELECT 1, p.id FROM sys_permissions p
-WHERE p.code = '*' AND p.is_deleted = FALSE
+WHERE p.code = '*:*' AND p.is_deleted = FALSE
 ON CONFLICT (role_id, permission_id) WHERE is_deleted = FALSE DO NOTHING;
 
 -- 11.4 平台域菜单树（sys_menus）

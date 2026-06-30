@@ -2,6 +2,7 @@ package resource
 
 import (
 	"context"
+	"strings"
 
 	"gx1727.com/xin/framework/pkg/authz"
 )
@@ -16,6 +17,20 @@ func NewService(resourceRepo ResourceRepository, authzSvc authz.Authorization) *
 		resourceRepo: resourceRepo,
 		authz:        authzSvc,
 	}
+}
+
+// permissionCodeValid 校验权限码格式：resource:action（仅含一个冒号，前后非空）。
+// 与 apps/platform/sys_permission/service.go permissionCodeValid 规则一致；
+// 0024 统一约定后，tenant_permissions.code 必须是完整串，不再两段式。
+func permissionCodeValid(code string) bool {
+	idx := strings.Index(code, ":")
+	if idx <= 0 || idx == len(code)-1 {
+		return false
+	}
+	if strings.Count(code, ":") != 1 {
+		return false
+	}
+	return true
 }
 
 func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]ResourceResp, int64, error) {
@@ -60,6 +75,9 @@ func (s *Service) Get(ctx context.Context, id uint) (*ResourceResp, error) {
 }
 
 func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*ResourceResp, error) {
+	if !permissionCodeValid(req.Code) {
+		return nil, ErrResourceInvalidCode
+	}
 	if req.Status == 0 {
 		req.Status = 1
 	}
@@ -80,7 +98,11 @@ func (s *Service) Create(ctx context.Context, tenantID uint, req CreateReq) (*Re
 }
 
 func (s *Service) Update(ctx context.Context, id uint, req UpdateReq) (*ResourceResp, error) {
+	if req.Code != nil && !permissionCodeValid(*req.Code) {
+		return nil, ErrResourceInvalidCode
+	}
 	r, err := s.resourceRepo.Update(ctx, id, UpdateResourceRepoReq{
+		Code:        req.Code,
 		Name:        req.Name,
 		Action:      req.Action,
 		Description: req.Description,

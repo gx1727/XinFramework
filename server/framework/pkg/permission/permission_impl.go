@@ -3,6 +3,7 @@ package permission
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gx1727.com/xin/framework/pkg/db"
@@ -17,6 +18,32 @@ func NewPermissionRepository(db *pgxpool.Pool) *PostgresPermissionRepository {
 	return &PostgresPermissionRepository{db: db}
 }
 
+// allActions 列出了 resource 通配符 * 展开时注入的 action。
+// 与 constants.go 的 Act* 常量保持同步；中间件 HasPermission 查的是同样的 key。
+var allActions = []string{ActList, ActGet, ActCreate, ActUpdate, ActDelete, ActTree}
+
+// expandPermissionCode 把单条 permission code 展开成一组运行时 map key。
+// 规则（与 apps/platform/sys_permission/service.go permissionCodeValid 对齐）：
+//   - "x:y"  → {"x:y"}                                  正常
+//   - "x:*"  → {"x:list","x:get","x:create","x:update","x:delete","x:tree"}  通配
+//   - "*:*"  → {"*:*"}                                  全局通配（admin 专用）
+//
+// 其他格式（无冒号、多个冒号、空段）应被 service 层拦截，到不了这里。
+func expandPermissionCode(code string) []string {
+	if code == "*:*" {
+		return []string{"*:*"}
+	}
+	if strings.HasSuffix(code, ":*") {
+		resource := strings.TrimSuffix(code, ":*")
+		keys := make([]string, 0, len(allActions))
+		for _, act := range allActions {
+			keys = append(keys, resource+":"+act)
+		}
+		return keys
+	}
+	return []string{code}
+}
+
 // GetUserPermissions returns map of "resource:action" -> true.
 //
 // 路径合集：tenant 域 + platform 域。
@@ -28,13 +55,15 @@ func NewPermissionRepository(db *pgxpool.Pool) *PostgresPermissionRepository {
 //	    Claims.UserID = account_id；同一个人可能同时拥有 tenant 身份与 platform 身份，
 //	    但 userID 解析到的表不同，所以 UNOIN ALL 不会重复）
 //
+// 约定（0024+ 终态）：
+//   - tenant_permissions.code / sys_permissions.code 均为完整串 "resource:action"，
+//     存储层禁止两段式（service 层 permissionCodeValid 拦截）。
+//   - 运行时 map key 直接用 code；不拼装、不 split_part。
+//   - "x:*" 表示该资源所有操作（allActions 展开）；"*:*" 表示全局通配（admin 专用）。
+//
 // 变更记录：
-//   - rr.resource_id → rr.permission_id
-//     原 SQL 错列名（tenant_role_resources 实际列名是 permission_id），
-//     导致整个函数在原状下对 tenant 域也返回空。0016.x 遗留。
-//   - 加 platform 域分支
-//     0023 phase 之前的代码未考虑 sys_* 表（平台域未拆为独立表），
-//     修正后 platform 用户的 sys_role_permissions 也能加载到 UserContext.Permissions。
+//   - 0024：两域统一约定（不再 split_part、不再 code+":"+action 拼装）。
+//     统一 SQL 只选 code 列；客户端用 expandPermissionCode 处理通配展开。
 func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, userID uint) (map[string]bool, error) {
 	q, err := db.GetQuerier(ctx, r.db)
 	if err != nil {
@@ -42,7 +71,7 @@ func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, u
 	}
 	rows, err := q.Query(ctx, `
 		-- (1) tenant 域权限
-		SELECT DISTINCT res.code, res.action
+		SELECT DISTINCT res.code
 		FROM tenant_users u
 		JOIN tenant_user_roles ur ON ur.user_id = u.id
 		JOIN tenant_roles rol ON rol.id = ur.role_id
@@ -60,11 +89,8 @@ func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, u
 
 		UNION ALL
 
-		-- (2) platform 域权限（0023 phase 后）
-		-- 注意：sys_permissions.code 是 "resource:action" 完整串，action 列是展示名（"view"）。
-		-- 中间件 HasPermission 是按 "resource:action" 查 map（与 permission.P(Res, Act) 对齐），
-		-- 所以这里要从 code 里 split_part 拆出 resource 与 action，不用 p.action 列。
-		SELECT DISTINCT split_part(p.code, ':', 1) AS code, split_part(p.code, ':', 2) AS action
+		-- (2) platform 域权限
+		SELECT DISTINCT p.code
 		FROM sys_users su
 		JOIN sys_user_roles sur ON sur.user_id = su.id
 		JOIN sys_roles r ON r.id = sur.role_id
@@ -79,7 +105,7 @@ func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, u
 		  AND rp.effect = 1
 		  AND p.is_deleted = FALSE
 		  AND p.status = 1
-		  AND p.code LIKE '%:%'  -- split_part 依赖该格式（service 层也加了同样校验）
+		  AND p.code LIKE '%:%'  -- service 层加 permissionCodeValid 拦截，这里再守一道
 	`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get user permissions: %w", err)
@@ -88,13 +114,13 @@ func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, u
 
 	perms := make(map[string]bool)
 	for rows.Next() {
-		var code, action string
-		if err := rows.Scan(&code, &action); err != nil {
+		var code string
+		if err := rows.Scan(&code); err != nil {
 			return nil, err
 		}
-		// Format: "resource_code:action" e.g., "user:create"
-		key := code + ":" + action
-		perms[key] = true
+		for _, key := range expandPermissionCode(code) {
+			perms[key] = true
+		}
 	}
 	return perms, nil
 }
@@ -171,7 +197,7 @@ func (r *PostgresPermissionRepository) GetUserIDsByResource(ctx context.Context,
 		FROM tenant_role_resources rr
 		JOIN tenant_user_roles ur ON ur.role_id = rr.role_id AND ur.is_deleted = FALSE
 		JOIN tenant_roles rol ON rol.id = rr.role_id AND rol.is_deleted = FALSE AND rol.status = 1
-		WHERE rr.resource_id = $1
+		WHERE rr.permission_id = $1
 		  AND rr.is_deleted = FALSE
 		  AND rr.effect = 1
 	`, resourceID)

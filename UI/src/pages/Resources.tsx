@@ -133,7 +133,11 @@ export function ResourcesPage() {
         label: t.pages.resources?.code || "资源代码",
         type: "text",
         required: true,
-        placeholder: "请输入资源代码，如 user:view",
+        placeholder: "如 user:view 或 user:*（必须含且仅含一个冒号）",
+        props: {
+          pattern: "^[a-zA-Z_][a-zA-Z0-9_-]*:([a-zA-Z*][a-zA-Z0-9_-]*|\\*)$",
+        },
+        tooltip: "后端强校验：resource:action 或 resource:* 格式",
       },
       {
         field: "action",
@@ -148,6 +152,7 @@ export function ResourcesPage() {
           { label: "删除 (delete)", value: "delete" },
           { label: "导出 (export)", value: "export" },
           { label: "导入 (import)", value: "import" },
+          { label: "全部操作 (*)", value: "*" },
         ],
       },
       {

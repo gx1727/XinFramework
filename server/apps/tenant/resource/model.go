@@ -47,6 +47,7 @@ type CreateResourceRepoReq struct {
 
 // UpdateResourceRepoReq fields for resource update
 type UpdateResourceRepoReq struct {
+	Code        *string
 	Name        string
 	Action      string
 	Description string

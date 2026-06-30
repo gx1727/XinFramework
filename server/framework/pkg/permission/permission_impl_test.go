@@ -2,6 +2,7 @@ package permission
 
 import (
 	"context"
+	"sort"
 	"testing"
 )
 
@@ -53,5 +54,50 @@ func TestPostgresDataScopeRepository_NilDB_AllMethodsPropagateError(t *testing.T
 	}
 	if err := r.SetForRole(ctx, 1, []uint{2, 3}); err == nil {
 		t.Errorf("SetForRole(nil-db) returned nil error")
+	}
+}
+
+// TestExpandPermissionCode 覆盖 0024 通配展开逻辑。
+// 规则：
+//   - "x:y"  → {"x:y"}
+//   - "x:*"  → allActions 展开
+//   - "*:*"  → {"*:*"}
+func TestExpandPermissionCode(t *testing.T) {
+	tests := []struct {
+		name string
+		code string
+		want []string
+	}{
+		{"normal", "user:list", []string{"user:list"}},
+		{"normal-create", "platform-permissions:create", []string{"platform-permissions:create"}},
+		{"global-wildcard", "*:*", []string{"*:*"}},
+		{
+			"resource-wildcard",
+			"platform-permissions:*",
+			[]string{
+				"platform-permissions:list",
+				"platform-permissions:get",
+				"platform-permissions:create",
+				"platform-permissions:update",
+				"platform-permissions:delete",
+				"platform-permissions:tree",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := expandPermissionCode(tt.code)
+			sort.Strings(got)
+			want := append([]string(nil), tt.want...)
+			sort.Strings(want)
+			if len(got) != len(want) {
+				t.Fatalf("expandPermissionCode(%q) len=%d want=%d (got=%v)", tt.code, len(got), len(want), got)
+			}
+			for i := range got {
+				if got[i] != want[i] {
+					t.Errorf("expandPermissionCode(%q)[%d]=%q want=%q", tt.code, i, got[i], want[i])
+				}
+			}
+		})
 	}
 }
