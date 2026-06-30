@@ -393,15 +393,29 @@ INSERT INTO sys_user_roles (user_id, role_id)
 VALUES (1, 1)
 ON CONFLICT (user_id, role_id) WHERE is_deleted = FALSE DO NOTHING;
 
+-- 11.3b 平台域通配权限码
+-- 0024+ 终态：super_admin 不再走中间件硬编码短路，改由 `*:*` 通配权限授权。
+-- HasPermission(perms, res, act) 在 framework/pkg/permission/types.go 已支持 `*:*` 全局通配。
+INSERT INTO sys_permissions (id, code, name, action, description, sort, status, created_by, updated_by)
+OVERRIDING SYSTEM VALUE
+VALUES (1, '*', '超级通配权限', '*', '平台域所有资源所有操作（替代旧 super_admin 中间件短路）', 1, 1, 0, 0)
+ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
+
+-- 11.3c super_admin 绑定通配权限
+INSERT INTO sys_role_permissions (role_id, permission_id)
+SELECT 1, p.id FROM sys_permissions p
+WHERE p.code = '*' AND p.is_deleted = FALSE
+ON CONFLICT (role_id, permission_id) WHERE is_deleted = FALSE DO NOTHING;
+
 -- 11.4 平台域菜单树（sys_menus）
--- 这些菜单是 super_admin 在"平台管理"分组下看到的入口，
--- 与前端 App.tsx 中 /platform/* 路由对齐。
+-- 这些菜单是平台管理分组的入口，与前端 App.tsx 中 /platform/* 路由对齐。
 -- 注意：sys_menus 无 tenant_id 字段（平台域单租户概念）。
+-- 哪些 platform 角色能看到哪些菜单，由 sys_role_menus 显式分配（11.4b）。
 
 -- 顶级：平台管理（id=100）
 INSERT INTO sys_menus (id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
     OVERRIDING SYSTEM VALUE
-VALUES (100, 'platform-admin', '平台管理', 'super_admin 专属入口', '', '/platform', 'ShieldIcon', 999, 0, '0', TRUE, TRUE)
+VALUES (100, 'platform-admin', '平台管理', '平台域管理入口', '', '/platform', 'ShieldIcon', 999, 0, '0', TRUE, TRUE)
 ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
 
 -- 子菜单（id=101..108）：与前端 App.tsx /platform/* 路由对齐
@@ -416,6 +430,14 @@ VALUES (101, 'platform-tenants',     '租户管理', '跨租户平台管理',   
        (107, 'platform-roles',       '平台角色', 'sys_roles CRUD + 菜单/权限绑定',     '', '/platform/roles',       'ShieldIcon',     7, 100, '100', TRUE, TRUE),
        (108, 'platform-permissions', '平台权限', 'sys_permissions CRUD',             '', '/platform/permissions', 'KeyIcon',        8, 100, '100', TRUE, TRUE)
 ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
+
+-- 11.4b super_admin 绑定所有平台菜单
+-- 替代旧 sys_menu.Tree service 里的 isSuperAdmin 分支：super_admin 看全菜单改为
+-- "绑定所有菜单"这一数据事实。
+INSERT INTO sys_role_menus (role_id, menu_id)
+SELECT 1, m.id FROM sys_menus m
+WHERE m.is_deleted = FALSE
+ON CONFLICT (role_id, menu_id) WHERE is_deleted = FALSE DO NOTHING;
 
 -- ============================================
 -- 12. 序列号兜底（防止 first_install 复制时 id 冲突）

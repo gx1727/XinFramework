@@ -60,18 +60,6 @@ func runOnce(c *gin.Context, handler gin.HandlerFunc) (aborted bool, status int)
 // Require
 // ============================================================================
 
-func TestRequire_PlatformSuperAdminBypassesAllChecks(t *testing.T) {
-	// Platform super_admin with NO permissions at all — Require must still pass.
-	uc := makeUC(1, []string{jwtpkg.PlatformRoleSuperAdmin}, nil)
-	c, _ := buildCtx(uc)
-
-	mw := Require(permission.P("user", "delete"))
-	aborted, _ := runOnce(c, mw)
-	if aborted {
-		t.Error("platform super admin must bypass Require even with empty Permissions")
-	}
-}
-
 func TestRequire_ExactMatchAllowed(t *testing.T) {
 	uc := makeUC(1, nil, map[string]bool{"user:list": true})
 	c, _ := buildCtx(uc)
@@ -261,7 +249,8 @@ func TestSpec_ConstructorsAndPredicates(t *testing.T) {
 
 // TestRequire_GlobalWildcard_AllowsAnyResource 验证 *:* 通配符能授予任何权限。
 //
-// 这是与 PlatformSuperAdmin 不同路径的“权限全覆盖”能力——适用于 admin 账号。
+// 0024+：这是 super_admin 获得全权限的唯一途径。admin 账号在 init_seed.sql 11.3c
+// 显式绑定了 `*:*`，所以 Require 任何 spec 都通过。
 func TestRequire_GlobalWildcard_AllowsAnyResource(t *testing.T) {
 	uc := makeUC(1, nil, map[string]bool{"*:*": true})
 	c, _ := buildCtx(uc)

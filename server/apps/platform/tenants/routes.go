@@ -7,35 +7,29 @@ import (
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
-// PlatformRoleSuperAdmin 平台级超级管理员角色名。
+// PlatformRoleSuperAdmin 平台域"可以模拟登录租户后台"的专属角色名。
 //
-// PlatformRoleAdmin 平台级普通管理员角色：可查看/管理租户，但不能做某些
-// 超管专属操作（如清退租户 / impersonate 等，根据实际需要逐步细化）。
-//
-// 租户管理属于跨租户特权：仅允许持有上述任一平台角色的账号访问。
+// 0024+ 终态：这是 super_admin 唯一保留的特殊用法——决定 platform user 能否
+// 进 tenant 后台。其他平台域操作（租户 CRUD / 菜单 / 用户 / 角色）走纯 RBAC，
+// 不再因为持有本角色而获得隐式全权限。
 const (
 	PlatformRoleSuperAdmin = "super_admin"
-	PlatformRoleAdmin      = "platform_admin"
 )
 
-// Register 把平台租户管理路由挂刀/api/v1/platform/tenants
+// Register 把平台租户管理路由挂到 /api/v1/platform/tenants。
 //
-// 路径约定（与 sys_menu 等 platform 域模块一致）：
-//   - /platform 子空间表礀平台管理埀
-//   - /tenants 直接挂资源（旀/platform-tenants 这层嵌套：
-//
-// 中间件顺序：
-//  1. protected.Use(middleware.Auth(...))            // 来自 framework.go：注兀XinContext
+// 0024+ 中间件链：
+//  1. protected.Use(middleware.Auth(...))              来自 framework.go：注入 XinContext
 //  2. g := protected.Group("/tenants",
-//     pkgmiddleware.RequirePlatformRole(super_admin, platform_admin))
-//  3. 各路由上叠加 pkgmiddleware.Require(permission.P(...)) 做资源级权限细分
+//     pkgmiddleware.RequireAnyPlatformRole())            挡住非 platform 用户
+//  3. 各路由上叠加 Require(P(ResTenant, ...)) 做资源级权限细分
 //
-// 即使持有 super_admin / platform_admin，仍需满足资源权限码
-// （tenant:create / update / delete / list）　两个守卫都过才算合法——
-// 避免任佀tenant admin 仅凭资源权限码越权
+// Impersonate 是 super_admin 唯一专属的端点，独立分组 + RequirePlatformRole(super_admin)
+// 守卫（这是 super_admin 唯一保留的"按角色硬编码"用法）。
 func Register(protected *gin.RouterGroup, h *Handler) {
+	// 租户 CRUD：任何 platform 角色都可调到这里；具体能力由 ResTenant:* 资源权限码决定
 	g := protected.Group("/tenants",
-		pkgmiddleware.RequirePlatformRole(PlatformRoleSuperAdmin, PlatformRoleAdmin),
+		pkgmiddleware.RequireAnyPlatformRole(),
 	)
 	{
 		g.POST("", pkgmiddleware.Require(permission.P(permission.ResTenant, permission.ActCreate)), h.Create)
@@ -46,8 +40,14 @@ func Register(protected *gin.RouterGroup, h *Handler) {
 		g.POST("/:id/purge", pkgmiddleware.Require(permission.P(permission.ResTenant, permission.ActDelete)), h.Purge)
 		g.GET("/:id", pkgmiddleware.Require(permission.P(permission.ResTenant, permission.ActList)), h.Get)
 		g.GET("", pkgmiddleware.Require(permission.P(permission.ResTenant, permission.ActList)), h.List)
-		// Impersonate 模拟登录：高敏操作，复用 ResTenant:list 资源权限
-		// （super_admin 平台角色守卫已在 group 级；资源权限保持最宽松）
-		g.POST("/:id/impersonate", pkgmiddleware.Require(permission.P(permission.ResTenant, permission.ActList)), h.Impersonate)
+
+		// Impersonate 模拟登录：super_admin 专属（决定能否进租户后台）。
+		// 0024+：这是 super_admin 唯一保留的"按角色硬编码"用法。
+		// 在 g 下面单 route 叠加 RequirePlatformRole(super_admin)，与 group 级
+		// RequireAnyPlatformRole 形成"platform + super_admin"双门卫。
+		g.POST("/:id/impersonate",
+			pkgmiddleware.RequirePlatformRole(PlatformRoleSuperAdmin),
+			h.Impersonate,
+		)
 	}
 }

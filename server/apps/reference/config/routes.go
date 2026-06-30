@@ -2,32 +2,32 @@
 //
 // 路由空间（重构后）：
 //
-//   /api/v1/configs                       业务消费 + 租户自建（Auth + RequireTenantContext + Require ResConfig）
-//     GET    /                            ListGroups
-//     GET    /:id                         GetGroup
-//     GET    /:id/items                   ListItemsByGroup
-//     POST   /:id/items/:item_id/override UpsertOverride
-//     DELETE /:id/items/:item_id/override DeleteOverride
-//     GET    /resolve                     Resolve（?code=xxx 合并消费）
-//     POST   /resolve/batch               ResolveBatch
+//	/api/v1/configs                       业务消费 + 租户自建（Auth + RequireTenantContext + Require ResConfig）
+//	  GET    /                            ListGroups
+//	  GET    /:id                         GetGroup
+//	  GET    /:id/items                   ListItemsByGroup
+//	  POST   /:id/items/:item_id/override UpsertOverride
+//	  DELETE /:id/items/:item_id/override DeleteOverride
+//	  GET    /resolve                     Resolve（?code=xxx 合并消费）
+//	  POST   /resolve/batch               ResolveBatch
 //
-//   /api/v1/platform/configs              super_admin 平台 CRUD
-//     RequirePlatformRole("super_admin") + Require ResConfig
-//     GET    /                            ListPlatformGroups
-//     GET    /:id                         GetPlatformGroup
-//     POST   /                            CreatePlatformGroup
-//     PUT    /:id                         UpdatePlatformGroup
-//     DELETE /:id                         DeletePlatformGroup
-//     GET    /:id/items                   ListPlatformItems
-//     POST   /:id/items                   CreatePlatformItem
-//     PUT    /:id/items/:item_id          UpdatePlatformItem
-//     DELETE /:id/items/:item_id          DeletePlatformItem
-//     GET    /:id/visibility              ListVisibility
-//     POST   /:id/visibility              UpsertVisibility
-//     DELETE /:id/visibility/:tenant_id   DeleteVisibility
+//	/api/v1/platform/configs              平台域 CRUD
+//	  RequireAnyPlatformRole() + Require ResConfig（0024+）
+//	  GET    /                            ListPlatformGroups
+//	  GET    /:id                         GetPlatformGroup
+//	  POST   /                            CreatePlatformGroup
+//	  PUT    /:id                         UpdatePlatformGroup
+//	  DELETE /:id                         DeletePlatformGroup
+//	  GET    /:id/items                   ListPlatformItems
+//	  POST   /:id/items                   CreatePlatformItem
+//	  PUT    /:id/items/:item_id          UpdatePlatformItem
+//	  DELETE /:id/items/:item_id          DeletePlatformItem
+//	  GET    /:id/visibility              ListVisibility
+//	  POST   /:id/visibility              UpsertVisibility
+//	  DELETE /:id/visibility/:tenant_id   DeleteVisibility
 //
-//   /api/v1/public/configs                公开读（无需 auth，仅 X-Tenant-ID header）
-//     GET    /                            GetPublic
+//	/api/v1/public/configs                公开读（无需 auth，仅 X-Tenant-ID header）
+//	  GET    /                            GetPublic
 package config
 
 import (
@@ -36,8 +36,6 @@ import (
 	pkgmiddleware "gx1727.com/xin/framework/pkg/middleware"
 	"gx1727.com/xin/framework/pkg/permission"
 )
-
-const PlatformRoleSuperAdmin = "super_admin"
 
 // Register 注册三组路由
 //
@@ -70,9 +68,12 @@ func Register(public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.R
 		biz.DELETE("/:id/items/:item_id/override", pkgmiddleware.Require(permission.P(permission.ResConfig, permission.ActUpdate)), bh.DeleteOverride)
 	}
 
-	// ============ Platform（super_admin 平台 CRUD，挂在 /platform/* 域） ============
+	// ============ Platform（平台域 CRUD，挂在 /platform/* 域） ============
+	// 0024+：删除 RequirePlatformRole(super_admin) 硬编码白名单。
+	// 任何 platform 角色都可以调到这里；具体能力由 ResConfig:* 资源权限码决定。
+	// super_admin 靠 init_seed.sql 11.3c 绑定的 `*:*` 通配自动拥有。
 	plat := protected.Group("/configs")
-	plat.Use(pkgmiddleware.RequirePlatformRole(PlatformRoleSuperAdmin))
+	plat.Use(pkgmiddleware.RequireAnyPlatformRole())
 	{
 		// Group
 		plat.GET("", pkgmiddleware.Require(permission.P(permission.ResConfig, permission.ActList)), ph.ListGroups)

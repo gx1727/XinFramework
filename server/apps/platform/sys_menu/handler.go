@@ -39,8 +39,8 @@ func (h *Handler) List(c *gin.Context) {
 //
 // 鉴权层级：
 //   - 路由层 RequireAnyPlatformRole 已保证 PlatformRoles 非空（"需要平台级角色"）
-//   - service 层按 isSuperAdmin(roles) 分支：super_admin 返回全量，其他角色按
-//     用户被分配的角色取菜单并集
+//   - service 层 ListByUserRoles 按角色被分配的 sys_role_menus 取并集去重
+//     （0024+ 移除旧 isSuperAdmin 全量分支；super_admin 靠 init_seed.sql 11.4b 绑定全菜单）
 //
 // 取值方式：xinc → xincontext.New(c)（Auth 中间件把 JWT claims 里的
 // UserID / PlatformRoles 注入了 request context）。

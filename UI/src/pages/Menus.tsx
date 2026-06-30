@@ -96,13 +96,16 @@ function fromPlatformMenu(m: PlatformMenuItem): TreeMenuItem {
 // ----------------- 顶层组件 -----------------
 
 export function MenusPage() {
-  const isSuperAdmin = (
-    useAuthStore((s) => s.user?.platform_roles) ?? []
-  ).includes("super_admin")
+  // 平台用户（任意平台角色）都能进 platform tab；CRUD 权限另算
+  const platformRoles = useAuthStore((s) => s.user?.platform_roles) ?? []
+  const hasPlatformRole = platformRoles.length > 0
+  // 当前只有 super_admin 在 sys_role_permissions 里持有 `*:*` 通配,
+  // 所以 CRUD 按钮用它当代理;后续若引入 `is_builtin` / 精确权限字段可替换
+  const isSuperAdmin = platformRoles.includes("super_admin")
 
-  // 默认 tab：super_admin 先看平台；普通用户进租户
+  // 默认 tab：平台用户先看平台；纯租户用户进租户
   const [activeTab, setActiveTab] = useState<Scope>(
-    isSuperAdmin ? "platform" : "tenant"
+    hasPlatformRole ? "platform" : "tenant"
   )
 
   // ---------- tenant tab 状态 ----------
@@ -154,7 +157,7 @@ export function MenusPage() {
   }, [])
 
   const fetchPlatform = useCallback(async () => {
-    if (!isSuperAdmin) return
+    if (!hasPlatformRole) return
     setPlatformLoading(true)
     setPlatformError(null)
     try {
@@ -174,15 +177,15 @@ export function MenusPage() {
     } finally {
       setPlatformLoading(false)
     }
-  }, [isSuperAdmin])
+  }, [hasPlatformRole])
 
   useEffect(() => {
     fetchTenant()
   }, [fetchTenant])
 
   useEffect(() => {
-    if (isSuperAdmin) fetchPlatform()
-  }, [fetchPlatform, isSuperAdmin])
+    if (hasPlatformRole) fetchPlatform()
+  }, [fetchPlatform, hasPlatformRole])
 
   const buildParentOptions = useCallback((menuList: TreeMenuItem[]) => {
     const opts: { label: string; value: number }[] = []
@@ -516,6 +519,8 @@ export function MenusPage() {
                   onEdit={handleEdit}
                   onDelete={handleDeleteConfirm}
                   onAddChild={handleAdd}
+                  // 平台域行内 CRUD 仅 super_admin 可执行
+                  canCrud={item.scope === "platform" ? isSuperAdmin : true}
                 />
               ))}
               {filteredTree.length === 0 && !loading && (
@@ -551,7 +556,7 @@ export function MenusPage() {
               {t.pages.menus?.title || "菜单管理"}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {isSuperAdmin
+              {hasPlatformRole
                 ? "管理平台共享菜单与本租户私有菜单"
                 : "管理本租户私有菜单"}
             </p>
@@ -567,14 +572,24 @@ export function MenusPage() {
               />
               {t.pages.menus?.refresh || "刷新列表"}
             </Button>
-            <Button onClick={() => handleAdd()}>
+            <Button
+              onClick={() => handleAdd()}
+              // 平台域的 CRUD 当前仅 super_admin 持 `*:*` 通配可执行;
+              // 租户域由用户自己的角色权限决定,这里不做额外收口
+              disabled={activeTab === "platform" && !isSuperAdmin}
+              title={
+                activeTab === "platform" && !isSuperAdmin
+                  ? "当前平台角色无菜单新建权限"
+                  : undefined
+              }
+            >
               <PlusIcon className="mr-2 h-4 w-4" />
               {t.common.add}
             </Button>
           </div>
         </div>
 
-        {isSuperAdmin ? (
+        {hasPlatformRole ? (
           <Tabs
             value={activeTab}
             onValueChange={(v) => setActiveTab(v as Scope)}
@@ -599,7 +614,7 @@ export function MenusPage() {
             </TabsContent>
           </Tabs>
         ) : (
-          // 普通用户：直接渲染租户 tab，无平台入口
+          // 纯租户用户：直接渲染租户 tab，无平台入口
           renderTable(tenantError, fetchTenant, tenantLoading)
         )}
       </div>
@@ -660,6 +675,8 @@ interface MenuTreeRowProps {
   onEdit: (menu: TreeMenuItem) => void
   onDelete: (menu: TreeMenuItem) => void
   onAddChild: (parentId: number) => void
+  /** 当前节点所在 scope 是否允许 CRUD（false 时按钮禁用） */
+  canCrud: boolean
 }
 
 function MenuTreeRow({
@@ -670,6 +687,7 @@ function MenuTreeRow({
   onEdit,
   onDelete,
   onAddChild,
+  canCrud,
 }: MenuTreeRowProps) {
   const hasChildren = item.children && item.children.length > 0
   const isExpanded = expandedIds.has(item.id)
@@ -720,6 +738,7 @@ function MenuTreeRow({
               size="sm"
               onClick={() => onAddChild(item.id)}
               title="添加子菜单"
+              disabled={!canCrud}
             >
               <PlusIcon className="h-4 w-4" />
             </Button>
@@ -728,6 +747,7 @@ function MenuTreeRow({
               size="icon"
               className="h-8 w-8"
               onClick={() => onEdit(item)}
+              disabled={!canCrud}
             >
               <EditIcon className="h-4 w-4" />
             </Button>
@@ -736,6 +756,7 @@ function MenuTreeRow({
               size="icon"
               className="h-8 w-8"
               onClick={() => onDelete(item)}
+              disabled={!canCrud}
             >
               <TrashIcon className="h-4 w-4 text-destructive" />
             </Button>
@@ -754,6 +775,7 @@ function MenuTreeRow({
             onEdit={onEdit}
             onDelete={onDelete}
             onAddChild={onAddChild}
+            canCrud={canCrud}
           />
         ))}
     </>

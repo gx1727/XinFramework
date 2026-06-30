@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
@@ -161,23 +160,10 @@ func (s *PermissionService) LoadUserSecurityContext(ctx context.Context, userID 
 		return nil, nil, nil, 0, err
 	}
 
-	// 平台超级管理员短路：忽略原本的角色/数据范围，直接授予全权限 + 全部数据
-	if s.platformRp != nil {
-		platformRoles, perr := s.platformRp.GetRolesByUserID(ctx, userID)
-		if perr == nil {
-			for _, r := range platformRoles {
-				if r == jwtpkg.PlatformRoleSuperAdmin {
-					perms = map[string]bool{"*:*": true}
-					allDS := permission.DataScope{Type: permission.DataScopeAll}
-					dsPtr = &allDS
-					roles = append(roles, jwtpkg.PlatformRoleSuperAdmin)
-					return perms, roles, dsPtr, orgID, nil
-				}
-			}
-		}
-		// 查询失败不阻塞常规流程
-	}
-
+	// 0024+：删除 super_admin 短路。
+	// 所有用户（包括 super_admin）走完全相同的 LoadPermissions 路径，
+	// "全权限"靠 seed 时绑定的 `*:*` 通配权限码授予（见 init_seed.sql 11.3b）。
+	// HasPermission 在 framework/pkg/permission/types.go 已原生支持 `*:*` 通配。
 	return perms, roles, dsPtr, orgID, nil
 }
 
@@ -191,23 +177,6 @@ func (s *PermissionService) LoadPlatformRoles(ctx context.Context, userID uint) 
 		return nil
 	}
 	return roles
-}
-
-// IsPlatformSuperAdmin 单独判断用户是否 super_admin
-func (s *PermissionService) IsPlatformSuperAdmin(ctx context.Context, userID uint) bool {
-	if s.platformRp == nil {
-		return false
-	}
-	roles, err := s.platformRp.GetRolesByUserID(ctx, userID)
-	if err != nil {
-		return false
-	}
-	for _, r := range roles {
-		if r == jwtpkg.PlatformRoleSuperAdmin {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *PermissionService) InvalidateResourceUsers(ctx context.Context, resourceID uint) error {

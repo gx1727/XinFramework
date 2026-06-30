@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
-	jwtpkg "gx1727.com/xin/framework/pkg/jwt"
 	"gx1727.com/xin/framework/pkg/permission"
 	"gx1727.com/xin/framework/pkg/resp"
 	"gx1727.com/xin/framework/pkg/xincontext"
@@ -138,11 +137,10 @@ func requireWithSpecs(mode permission.MatchMode, specs ...permission.Spec) gin.H
 			return
 		}
 
-		// 平台超级管理员：无视所有权限规格直接放行
-		if uc.HasPlatformRole(jwtpkg.PlatformRoleSuperAdmin) {
-			c.Next()
-			return
-		}
+		// 0024+：删除 super_admin 中间件短路。
+		// super_admin 与其他 platform 角色走完全相同的 RBAC 路径，
+		// "全权限"由 seed 时绑定的 `*:*` 通配权限码授予（见 init_seed.sql 11.3b）。
+		// HasPermission 在 framework/pkg/permission/types.go 已原生支持 `*:*` 通配。
 
 		switch mode {
 		case permission.MatchAll:

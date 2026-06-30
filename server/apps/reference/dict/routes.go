@@ -7,9 +7,6 @@ import (
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
-// PlatformRoleSuperAdmin 平台级 super_admin 角色名（与 tenant 模块保持一致）
-const PlatformRoleSuperAdmin = "super_admin"
-
 // Register 注册两域路由：
 //   - tenant:    /api/v1/dicts           （业务域）
 //   - protected: /api/v1/platform/dicts  （平台域，super_admin）
@@ -39,10 +36,11 @@ func Register(tenant *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
 		d.DELETE("/:id/items/:item_id/override", pkgmiddleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.DeleteOverride)
 	}
 
-	// ============ super_admin：平台字典 CRUD（/platform/* 域） ============
-	//     先用 RequirePlatformRole 网关挡住非 super_admin，再叠加资源 RBAC
+	// ============ 平台字典 CRUD（/platform/* 域） ============
+	// 0024+：删除 RequirePlatformRole(super_admin) 硬编码白名单。
+	// 任何 platform 角色都可以调到这里；具体能力由 ResDict:* 资源权限码决定。
 	pd := protected.Group("/dicts")
-	pd.Use(pkgmiddleware.RequirePlatformRole(PlatformRoleSuperAdmin))
+	pd.Use(pkgmiddleware.RequireAnyPlatformRole())
 	{
 		pd.GET("", pkgmiddleware.Require(permission.P(permission.ResDict, permission.ActList)), h.ListPlatformDicts)
 		pd.POST("", pkgmiddleware.Require(permission.P(permission.ResDict, permission.ActCreate)), h.CreatePlatformDict)
