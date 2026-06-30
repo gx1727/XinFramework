@@ -154,6 +154,7 @@ type Service struct {
 	accountRepo AccountRepository
 	tenantRepo  pkgtenant.TenantRepository
 	platformRp  PlatformRoleRepository
+	permLoader  PermissionLoader
 	security    *login_security.SecurityService // 可为 nil；为 nil 时跳过锁定 / 异地检测
 }
 
@@ -165,8 +166,30 @@ func NewService(deps Dependencies) *Service {
 		accountRepo: deps.AccountRepo,
 		tenantRepo:  deps.TenantRepo,
 		platformRp:  deps.PlatformRepo,
+		permLoader:  deps.PermLoader,
 		security:    deps.Security,
 	}
+}
+
+// loadUserPermissions 把 map 展平为 []string，前端要的是数组形式。
+//
+// permLoader / userID 任意为空时返 nil（不是错误——前端会当空权限处理）。
+// 与权限服务的 HasPermission(perms, res, act) 完全兼容：前端拿到 []string 后
+// 可以直接 in_array 判断，或自己包一个本地的 HasPermission。
+func (s *Service) loadUserPermissions(ctx context.Context, userID uint) []string {
+	if s.permLoader == nil || userID == 0 {
+		return nil
+	}
+	perms, err := s.permLoader.GetUserPermissions(ctx, userID)
+	if err != nil {
+		logger.Module("auth").Warnf("load permissions for user %d: %v", userID, err)
+		return nil
+	}
+	out := make([]string, 0, len(perms))
+	for code := range perms {
+		out = append(out, code)
+	}
+	return out
 }
 
 // attemptFromContext 从 ctx 中提取登录尝试所需的请求元数据（IP/UA/DeviceID）。
@@ -419,6 +442,7 @@ func (s *Service) Login(ctx context.Context, req tenantLoginRequest) (*LoginResu
 	res.User.Avatar = identity.Avatar
 	res.User.Email = identity.Email
 	res.User.PlatformRoles = tokens.platformRoles
+	res.User.Permissions = s.loadUserPermissions(ctx, uint(identity.UserID))
 	return res, nil
 }
 
@@ -585,6 +609,9 @@ func (s *Service) PlatformLogin(ctx context.Context, req platformLoginRequest) (
 			Code:          req.Account,
 			Role:          RoleCodePlatform,
 			PlatformRoles: platformRoles,
+			// platform 域走 sys_users.id = accountID 的路径（与 claims.UserID 一致）；
+			// GetUserPermissions 内部 UNION tenant 域 + sys_* 平台域权限。
+			Permissions: s.loadUserPermissions(ctx, accountID),
 		},
 	}
 	return res, nil
@@ -784,6 +811,7 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (*registerR
 	res.User.Role = "user"
 	res.User.RealName = req.RealName
 	res.User.PlatformRoles = tokens.platformRoles
+	res.User.Permissions = s.loadUserPermissions(ctx, newUserID)
 	// nickname/avatar/email 暂未在注册时收集，留空字符串（DB 列也未填）
 	return res, nil
 }

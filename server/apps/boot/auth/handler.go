@@ -26,6 +26,7 @@ func serializeAuthUser(u User) gin.H {
 		"avatar":         u.Avatar,
 		"email":          u.Email,
 		"platform_roles": u.PlatformRoles,
+		"permissions":    u.Permissions,
 	}
 }
 

@@ -23,6 +23,8 @@ interface User {
   avatar?: string
   email?: string
   platform_roles?: string[]
+  /** 资源权限码（"resource:action"），与后端 LoginResponse.user.permissions 对齐 */
+  permissions?: string[]
 }
 
 interface AuthState {
@@ -61,13 +63,24 @@ interface AuthState {
   } | null
 
   /** 租户域登录（业务用户登录）。跳转到 /app/dashboard。 */
-  tenantLogin: (account: string, password: string, tenantId: number) => Promise<boolean>
+  tenantLogin: (
+    account: string,
+    password: string,
+    tenantId: number
+  ) => Promise<boolean>
   /** 平台域登录（super_admin 登录）。跳转到 /platform/dashboard。 */
   platformLogin: (account: string, password: string) => Promise<boolean>
   /** 登录前置检查：列账号所有可用身份，不签 token。 */
-  loginPrecheck: (account: string, password: string) => Promise<LoginPrecheckResponse | null>
+  loginPrecheck: (
+    account: string,
+    password: string
+  ) => Promise<LoginPrecheckResponse | null>
   /** 选择一个 tenant 身份签 token（多身份登录流的第二步）。 */
-  selectTenant: (account: string, password: string, tenantId: number) => Promise<boolean>
+  selectTenant: (
+    account: string,
+    password: string,
+    tenantId: number
+  ) => Promise<boolean>
   /** 切租户（已登录后用 refresh_token 换新租户的 token，无需密码）。 */
   switchTenant: (tenantId: number) => Promise<boolean>
   /** 清空 identities 缓存（强制下次重新 precheck）。 */
@@ -85,6 +98,34 @@ interface AuthState {
   logout: () => void
   clearError: () => void
   clearApiError: () => void
+}
+
+/**
+ * 判断当前用户是否拥有指定权限码（"resource:action" 形式）。
+ *
+ * 通配符语义与后端 framework/pkg/permission.HasPermission 保持一致：
+ *   - "menu:create"    精确匹配
+ *   - "menu:*"         资源级通配（菜单所有操作）
+ *   - "*:*"            全局通配（超级管理员等）
+ *
+ * 设计意图：0024+ 前后端统一按权限码（不是角色名）判定 UI 可见性。
+ * super_admin 因为持有 "*:*" 通配而自然通过任何权限检查，
+ * 不需要在组件里写 isSuperAdmin 这种硬编码。
+ *
+ * 参数 code 格式："resource:action"，与 permission.P(Res, Act) 输出对齐。
+ */
+export function hasPermission(
+  user: Pick<User, "permissions"> | null | undefined,
+  code: string
+): boolean {
+  if (!user?.permissions?.length) return false
+  const set = user.permissions
+  if (set.includes(code)) return true
+  const idx = code.indexOf(":")
+  if (idx > 0) {
+    if (set.includes(code.slice(0, idx) + ":*")) return true
+  }
+  return set.includes("*:*")
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -347,7 +388,11 @@ export const useAuthStore = create<AuthState>()(
       },
 
       startImpersonation: async (tenantId, tenantName) => {
-        const { token: currentToken, refreshToken: currentRefresh, user } = get()
+        const {
+          token: currentToken,
+          refreshToken: currentRefresh,
+          user,
+        } = get()
         if (!currentToken || !currentRefresh) {
           set({ error: "未登录" })
           return false
@@ -423,7 +468,8 @@ export const useAuthStore = create<AuthState>()(
 
           set({
             token: data.token,
-            refreshToken: data.refresh_token ?? impersonation.originalTokens.refreshToken,
+            refreshToken:
+              data.refresh_token ?? impersonation.originalTokens.refreshToken,
             scope: "platform",
             isLoading: false,
             error: null,
@@ -484,6 +530,6 @@ export const useAuthStore = create<AuthState>()(
           state.impersonation = null
         }
       },
-    },
-  ),
+    }
+  )
 )

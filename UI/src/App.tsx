@@ -3,36 +3,108 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom"
 import { useAuthStore } from "@/stores/authStore"
 
 // ===== 登录 =====
-const TenantLoginPage = lazy(() => import("@/pages/TenantLogin").then((m) => ({ default: m.TenantLoginPage })))
-const PlatformLoginPage = lazy(() => import("@/pages/PlatformLogin").then((m) => ({ default: m.PlatformLoginPage })))
+const TenantLoginPage = lazy(() =>
+  import("@/pages/TenantLogin").then((m) => ({ default: m.TenantLoginPage }))
+)
+const PlatformLoginPage = lazy(() =>
+  import("@/pages/PlatformLogin").then((m) => ({
+    default: m.PlatformLoginPage,
+  }))
+)
 
 // ===== 租户域（/app/*）=====
-const DashboardPage = lazy(() => import("@/pages/Dashboard").then((m) => ({ default: m.DashboardPage })))
-const UsersPage = lazy(() => import("@/pages/Users").then((m) => ({ default: m.UsersPage })))
-const RolesPage = lazy(() => import("@/pages/Roles").then((m) => ({ default: m.RolesPage })))
-const SettingsPage = lazy(() => import("@/pages/Settings").then((m) => ({ default: m.SettingsPage })))
-const AnalyticsPage = lazy(() => import("@/pages/Analytics").then((m) => ({ default: m.AnalyticsPage })))
-const ProjectsPage = lazy(() => import("@/pages/Projects").then((m) => ({ default: m.ProjectsPage })))
-const TeamPage = lazy(() => import("@/pages/Team").then((m) => ({ default: m.TeamPage })))
-const MenusPage = lazy(() => import("@/pages/Menus").then((m) => ({ default: m.MenusPage })))
-const FramesPage = lazy(() => import("@/pages/Frames").then((m) => ({ default: m.FramesPage })))
-const AvatarsPage = lazy(() => import("@/pages/Avatars").then((m) => ({ default: m.AvatarsPage })))
-const FrameCategoriesPage = lazy(() => import("@/pages/FrameCategories").then((m) => ({ default: m.FrameCategoriesPage })))
-const AvatarCategoriesPage = lazy(() => import("@/pages/AvatarCategories").then((m) => ({ default: m.AvatarCategoriesPage })))
-const ResourcesPage = lazy(() => import("@/pages/Resources").then((m) => ({ default: m.ResourcesPage })))
-const OrganizationsPage = lazy(() => import("@/pages/Organizations").then((m) => ({ default: m.OrganizationsPage })))
-const DictsPage = lazy(() => import("@/pages/Dicts").then((m) => ({ default: m.DictsPage })))
+const DashboardPage = lazy(() =>
+  import("@/pages/Dashboard").then((m) => ({ default: m.DashboardPage }))
+)
+const UsersPage = lazy(() =>
+  import("@/pages/Users").then((m) => ({ default: m.UsersPage }))
+)
+const RolesPage = lazy(() =>
+  import("@/pages/Roles").then((m) => ({ default: m.RolesPage }))
+)
+const SettingsPage = lazy(() =>
+  import("@/pages/Settings").then((m) => ({ default: m.SettingsPage }))
+)
+const AnalyticsPage = lazy(() =>
+  import("@/pages/Analytics").then((m) => ({ default: m.AnalyticsPage }))
+)
+const ProjectsPage = lazy(() =>
+  import("@/pages/Projects").then((m) => ({ default: m.ProjectsPage }))
+)
+const TeamPage = lazy(() =>
+  import("@/pages/Team").then((m) => ({ default: m.TeamPage }))
+)
+const TenantMenusPage = lazy(() =>
+  import("@/pages/TenantMenus").then((m) => ({ default: m.TenantMenusPage }))
+)
+const FramesPage = lazy(() =>
+  import("@/pages/Frames").then((m) => ({ default: m.FramesPage }))
+)
+const AvatarsPage = lazy(() =>
+  import("@/pages/Avatars").then((m) => ({ default: m.AvatarsPage }))
+)
+const FrameCategoriesPage = lazy(() =>
+  import("@/pages/FrameCategories").then((m) => ({
+    default: m.FrameCategoriesPage,
+  }))
+)
+const AvatarCategoriesPage = lazy(() =>
+  import("@/pages/AvatarCategories").then((m) => ({
+    default: m.AvatarCategoriesPage,
+  }))
+)
+const ResourcesPage = lazy(() =>
+  import("@/pages/Resources").then((m) => ({ default: m.ResourcesPage }))
+)
+const OrganizationsPage = lazy(() =>
+  import("@/pages/Organizations").then((m) => ({
+    default: m.OrganizationsPage,
+  }))
+)
+const DictsPage = lazy(() =>
+  import("@/pages/Dicts").then((m) => ({ default: m.DictsPage }))
+)
 const CachePage = lazy(() => import("@/pages/Cache"))
 
 // ===== 平台域（/platform/*）=====
-const PlatformDashboardPage = lazy(() => import("@/pages/PlatformDashboard").then((m) => ({ default: m.PlatformDashboardPage })))
-const PlatformTenantsPage = lazy(() => import("@/pages/Tenants").then((m) => ({ default: m.TenantsPage })))
-const PlatformMenusPage = lazy(() => import("@/pages/Menus").then((m) => ({ default: m.MenusPage })))
-const PlatformConfigsPage = lazy(() => import("@/pages/PlatformConfigs").then((m) => ({ default: m.PlatformConfigsPage })))
-const PlatformDictsPage = lazy(() => import("@/pages/PlatformDicts").then((m) => ({ default: m.PlatformDictsPage })))
-const PlatformUsersPage = lazy(() => import("@/pages/PlatformUsers").then((m) => ({ default: m.PlatformUsersPage })))
-const PlatformRolesPage = lazy(() => import("@/pages/PlatformRoles").then((m) => ({ default: m.PlatformRolesPage })))
-const PlatformPermissionsPage = lazy(() => import("@/pages/PlatformPermissions").then((m) => ({ default: m.PlatformPermissionsPage })))
+const PlatformDashboardPage = lazy(() =>
+  import("@/pages/PlatformDashboard").then((m) => ({
+    default: m.PlatformDashboardPage,
+  }))
+)
+const PlatformTenantsPage = lazy(() =>
+  import("@/pages/Tenants").then((m) => ({ default: m.TenantsPage }))
+)
+const PlatformMenusPage = lazy(() =>
+  import("@/pages/PlatformMenus").then((m) => ({
+    default: m.PlatformMenusPage,
+  }))
+)
+const PlatformConfigsPage = lazy(() =>
+  import("@/pages/PlatformConfigs").then((m) => ({
+    default: m.PlatformConfigsPage,
+  }))
+)
+const PlatformDictsPage = lazy(() =>
+  import("@/pages/PlatformDicts").then((m) => ({
+    default: m.PlatformDictsPage,
+  }))
+)
+const PlatformUsersPage = lazy(() =>
+  import("@/pages/PlatformUsers").then((m) => ({
+    default: m.PlatformUsersPage,
+  }))
+)
+const PlatformRolesPage = lazy(() =>
+  import("@/pages/PlatformRoles").then((m) => ({
+    default: m.PlatformRolesPage,
+  }))
+)
+const PlatformPermissionsPage = lazy(() =>
+  import("@/pages/PlatformPermissions").then((m) => ({
+    default: m.PlatformPermissionsPage,
+  }))
+)
 
 function PageLoader() {
   return (
@@ -47,15 +119,34 @@ function PageLoader() {
  *   - 已登录但 scope 不匹配 → 跳转到该 scope 的默认页（避免 token 跨域串用）
  *   - 未登录 → 跳转到 /login
  */
-function RequireScope({ scope, children }: { scope: "tenant" | "platform"; children: React.ReactNode }) {
+function RequireScope({
+  scope,
+  children,
+}: {
+  scope: "tenant" | "platform"
+  children: React.ReactNode
+}) {
   const isAuthed = useAuthStore((s) => s.isAuthenticated)
   const currentScope = useAuthStore((s) => s.scope)
   const location = useLocation()
   if (!isAuthed) {
-    return <Navigate to={scope === "platform" ? "/platform/login" : "/login"} replace state={{ from: location }} />
+    return (
+      <Navigate
+        to={scope === "platform" ? "/platform/login" : "/login"}
+        replace
+        state={{ from: location }}
+      />
+    )
   }
   if (currentScope !== scope) {
-    return <Navigate to={currentScope === "platform" ? "/platform/dashboard" : "/app/dashboard"} replace />
+    return (
+      <Navigate
+        to={
+          currentScope === "platform" ? "/platform/dashboard" : "/app/dashboard"
+        }
+        replace
+      />
+    )
   }
   return <>{children}</>
 }
@@ -73,10 +164,7 @@ export function App() {
         <Route path="/platform/login" element={<PlatformLoginPage />} />
 
         {/* ===== 租户域 /app/*（业务） ===== */}
-        <Route
-          path="/app"
-          element={<Navigate to="/app/dashboard" replace />}
-        />
+        <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
         <Route
           path="/app/dashboard"
           element={
@@ -105,7 +193,7 @@ export function App() {
           path="/app/menus"
           element={
             <RequireScope scope="tenant">
-              <MenusPage />
+              <TenantMenusPage />
             </RequireScope>
           }
         />
@@ -289,11 +377,20 @@ export function App() {
         />
 
         {/* ===== 兼容期：旧路径 → 新路径 ===== */}
-        <Route path="/dashboard" element={<Navigate to="/app/dashboard" replace />} />
-        <Route path="/tenants" element={<Navigate to="/platform/tenants" replace />} />
+        <Route
+          path="/dashboard"
+          element={<Navigate to="/app/dashboard" replace />}
+        />
+        <Route
+          path="/tenants"
+          element={<Navigate to="/platform/tenants" replace />}
+        />
         <Route path="/menus" element={<Navigate to="/app/menus" replace />} />
         <Route path="/dicts" element={<Navigate to="/app/dicts" replace />} />
-        <Route path="/configs" element={<Navigate to="/app/configs" replace />} />
+        <Route
+          path="/configs"
+          element={<Navigate to="/app/configs" replace />}
+        />
 
         {/* ===== 其他 ===== */}
         <Route path="*" element={<Navigate to="/login" replace />} />

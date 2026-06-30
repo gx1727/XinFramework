@@ -45,6 +45,12 @@ func Module(app *appx.App) plugin.Module {
 				Account:  NewAccountRepository(pool),
 				Tenant:   tenantRepo,
 				Platform: permission.NewPlatformRoleRepository(pool),
+				// PermissionLoader 复用中间件同款 PostgresPermissionRepository，
+				// 保证登录响应里的 Permissions 与运行时段 Require(P(Res, Act)) 判定完全一致。
+				// 不走 PermissionService 是因为 PermissionService 在 framework/internal/service
+				// （internal 限制 apps/boot/auth 不能直接 import），这里只用其底层 repo
+				// 走一次性 GetUserPermissions，结果与中间件懒加载路径等价。
+				PermLoader: permission.NewPermissionRepository(pool),
 			}
 
 			// 装配登录安全服务（账号锁定 + 异地告警）。

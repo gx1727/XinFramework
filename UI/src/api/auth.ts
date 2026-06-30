@@ -36,6 +36,13 @@ export interface LoginResponse {
     avatar?: string
     email?: string
     platform_roles?: string[]
+    /**
+     * 资源权限码列表（"resource:action" 形式，如 "menu:create"、"user:list"）。
+     * 0024+：登录响应一次下发，前端用作按钮可见性与路由守门，
+     * 与后端 Require(P(Res, Act)) 用同一份数据推导，避免 round-trip。
+     * 不存在 = 零权限（不用纠结 [] vs undefined）。
+     */
+    permissions?: string[]
   }
 }
 
@@ -123,7 +130,11 @@ export const authApi = {
    * 选择一个 tenant 身份签发 token（路径 B 多身份支持）。
    * 等价于 tenantLogin，区别在于语义化入口（"precheck 后选了某个身份"）。
    */
-  selectTenant: (data: { account: string; password: string; tenant_id: number }) =>
+  selectTenant: (data: {
+    account: string
+    password: string
+    tenant_id: number
+  }) =>
     api<LoginResponse>("/auth/select-tenant", {
       method: "POST",
       body: JSON.stringify(data),

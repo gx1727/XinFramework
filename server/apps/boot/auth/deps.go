@@ -24,14 +24,25 @@ type PlatformRoleRepository interface {
 	GetRolesByAccountID(ctx context.Context, accountID uint) ([]string, error)
 }
 
+// PermissionLoader 登录阶段加载用户资源权限码（最小子集）。
+//
+// 实现取 framework/internal/service.PermissionService.LoadPermissions，
+// 返回 map["resource:action"]bool，Login 流程展平为 []string 后写入 User.Permissions。
+// tenant 登录与 platform 登录都走同一个接口（GetUserPermissions 已 union tenant 域
+// + sys_* 平台域权限，见 framework/pkg/permission/permission_impl.go）。
+type PermissionLoader interface {
+	GetUserPermissions(ctx context.Context, userID uint) (map[string]bool, error)
+}
+
 type Dependencies struct {
-	DB            *pgxpool.Pool
-	Config        *config.Config
-	Session       SessionManager
-	AccountRepo   AccountRepository
-	TenantRepo    pkgtenant.TenantRepository
-	PlatformRepo  PlatformRoleRepository
-	Security      *login_security.SecurityService // 可为 nil（未装配 login_security 时降级为 noop）
+	DB           *pgxpool.Pool
+	Config       *config.Config
+	Session      SessionManager
+	AccountRepo  AccountRepository
+	TenantRepo   pkgtenant.TenantRepository
+	PlatformRepo PlatformRoleRepository
+	PermLoader   PermissionLoader                // 可为 nil（nil 时 User.Permissions 留空）
+	Security     *login_security.SecurityService // 可为 nil（未装配 login_security 时降级为 noop）
 }
 
 type defaultSessionManager struct{}
@@ -52,12 +63,14 @@ func DefaultDependencies(cfg *config.Config, db *pgxpool.Pool, repos Repositorie
 		AccountRepo:  repos.Account,
 		TenantRepo:   repos.Tenant,
 		PlatformRepo: repos.Platform,
+		PermLoader:   repos.PermLoader,
 		Security:     security,
 	}
 }
 
 type Repositories struct {
-	Account  AccountRepository
-	Tenant   pkgtenant.TenantRepository
-	Platform PlatformRoleRepository
+	Account    AccountRepository
+	Tenant     pkgtenant.TenantRepository
+	Platform   PlatformRoleRepository
+	PermLoader PermissionLoader
 }

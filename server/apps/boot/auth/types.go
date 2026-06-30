@@ -64,13 +64,13 @@ type loginPrecheckRequest struct {
 //
 // security note：响应里不含密码或敏感字段，仅展示用。
 type loginPrecheckResult struct {
-	AccountID         uint                          `json:"account_id"`
-	AccountStatus     int8                          `json:"account_status"`
-	RealName          string                        `json:"real_name,omitempty"`
-	Email             string                        `json:"email,omitempty"`
-	PlatformAvailable bool                          `json:"platform_available"`
-	PlatformRoles     []string                      `json:"platform_roles,omitempty"`
-	TenantIdentities  []pkgauth.TenantIdentity      `json:"tenant_identities"`
+	AccountID         uint                     `json:"account_id"`
+	AccountStatus     int8                     `json:"account_status"`
+	RealName          string                   `json:"real_name,omitempty"`
+	Email             string                   `json:"email,omitempty"`
+	PlatformAvailable bool                     `json:"platform_available"`
+	PlatformRoles     []string                 `json:"platform_roles,omitempty"`
+	TenantIdentities  []pkgauth.TenantIdentity `json:"tenant_identities"`
 }
 
 // platformLoginRequest 平台域登录（super_admin 等）
@@ -104,6 +104,12 @@ type User struct {
 	// PlatformRoles 平台级角色列表（super_admin 等），与 JWT claims 对齐，
 	// 让前端能在不解析 JWT 的前提下判断是否能访问 /admin/* 平台域路由。
 	PlatformRoles []string `json:"platform_roles,omitempty"`
+
+	// Permissions 当前用户持有的资源权限码（"resource:action" 形式）。
+	// 0024+：前端用此字段做按钮可见性 / 路由守门，避免每个页面 round-trip
+	// 到 /permissions/me。权威校验仍在后端中间件（Require(P(Res, Act))）。
+	// 为 nil 时视为"零权限"，前端用空数组处理即可。
+	Permissions []string `json:"permissions,omitempty"`
 }
 
 type LoginResult struct {
