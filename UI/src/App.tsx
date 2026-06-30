@@ -30,6 +30,9 @@ const PlatformTenantsPage = lazy(() => import("@/pages/Tenants").then((m) => ({ 
 const PlatformMenusPage = lazy(() => import("@/pages/Menus").then((m) => ({ default: m.MenusPage })))
 const PlatformConfigsPage = lazy(() => import("@/pages/PlatformConfigs").then((m) => ({ default: m.PlatformConfigsPage })))
 const PlatformDictsPage = lazy(() => import("@/pages/PlatformDicts").then((m) => ({ default: m.PlatformDictsPage })))
+const PlatformUsersPage = lazy(() => import("@/pages/PlatformUsers").then((m) => ({ default: m.PlatformUsersPage })))
+const PlatformRolesPage = lazy(() => import("@/pages/PlatformRoles").then((m) => ({ default: m.PlatformRolesPage })))
+const PlatformPermissionsPage = lazy(() => import("@/pages/PlatformPermissions").then((m) => ({ default: m.PlatformPermissionsPage })))
 
 function PageLoader() {
   return (
@@ -257,6 +260,30 @@ export function App() {
           element={
             <RequireScope scope="platform">
               <CachePage />
+            </RequireScope>
+          }
+        />
+        <Route
+          path="/platform/users"
+          element={
+            <RequireScope scope="platform">
+              <PlatformUsersPage />
+            </RequireScope>
+          }
+        />
+        <Route
+          path="/platform/roles"
+          element={
+            <RequireScope scope="platform">
+              <PlatformRolesPage />
+            </RequireScope>
+          }
+        />
+        <Route
+          path="/platform/permissions"
+          element={
+            <RequireScope scope="platform">
+              <PlatformPermissionsPage />
             </RequireScope>
           }
         />
