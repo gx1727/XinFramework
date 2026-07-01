@@ -24,11 +24,13 @@ var allActions = []string{ActList, ActGet, ActCreate, ActUpdate, ActDelete, ActT
 
 // expandPermissionCode 把单条 permission code 展开成一组运行时 map key。
 // 规则（与 apps/platform/sys_permission/service.go permissionCodeValid 对齐）：
-//   - "x:y"  → {"x:y"}                                  正常
-//   - "x:*"  → {"x:list","x:get","x:create","x:update","x:delete","x:tree"}  通配
-//   - "*:*"  → {"*:*"}                                  全局通配（admin 专用）
+//   - "x"    → {"x", "x:*"}                                                菜单无关资源（无 action 维度）
+//   - "x:y"  → {"x:y"}                                                      菜单相关资源（具体 action）
+//   - "x:*"  → {"x:list","x:get","x:create","x:update","x:delete","x:tree"} 菜单相关资源（所有 action）
+//   - "*:*"  → {"*:*"}                                                      全局通配（admin 专用）
+//   - 其他格式（多冒号、空段）应被 service 层拦截，到不了这里。
 //
-// 其他格式（无冒号、多个冒号、空段）应被 service 层拦截，到不了这里。
+// 展开 "x" 为 "x" 和 "x:*" 是为了中间件 HasPermission("x", any_action) 走通配路径匹配。
 func expandPermissionCode(code string) []string {
 	if code == "*:*" {
 		return []string{"*:*"}
@@ -40,6 +42,10 @@ func expandPermissionCode(code string) []string {
 			keys = append(keys, resource+":"+act)
 		}
 		return keys
+	}
+	if !strings.Contains(code, ":") {
+		// 纯字符串：菜单无关资源。x:* 让中间件 HasPermission 走通配路径匹配所有 action。
+		return []string{code, code + ":*"}
 	}
 	return []string{code}
 }
@@ -105,7 +111,6 @@ func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, u
 		  AND rp.effect = 1
 		  AND p.is_deleted = FALSE
 		  AND p.status = 1
-		  AND p.code LIKE '%:%'  -- service 层加 permissionCodeValid 拦截，这里再守一道
 	`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get user permissions: %w", err)

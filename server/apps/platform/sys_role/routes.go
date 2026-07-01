@@ -17,7 +17,7 @@ func Register(protected *gin.RouterGroup, h *Handler) {
 	{
 		g.GET("", pkgmiddleware.Require(permission.P(permission.ResRole, permission.ActList)), h.List)
 		g.POST("", pkgmiddleware.Require(permission.P(permission.ResRole, permission.ActCreate)), h.Create)
-		g.GET("/:id", pkgmiddleware.Require(permission.P(permission.ResRole, permission.ActList)), h.Get)
+		g.GET("/:id", pkgmiddleware.Require(permission.P(permission.ResRole, permission.ActGet)), h.Get)
 		g.PUT("/:id", pkgmiddleware.Require(permission.P(permission.ResRole, permission.ActUpdate)), h.Update)
 		g.DELETE("/:id", pkgmiddleware.Require(permission.P(permission.ResRole, permission.ActDelete)), h.Delete)
 		g.PUT("/:id/menus", pkgmiddleware.Require(permission.P(permission.ResRole, permission.ActUpdate)), h.AssignMenus)

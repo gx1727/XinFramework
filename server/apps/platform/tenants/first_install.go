@@ -12,17 +12,17 @@ import (
 )
 
 // TemplateTenantCode 模板租户的特殀code。所最first_install 流程从此租户复制
-// menus / resources / dicts / dict_items / config_categories / config_items　
+// menus / resources / dicts / dict_items / config_categories / config_items
 //
-// 历史方案：曾有一一__template__ (status=0) 作为克隆満+ default (status=1) 作为 admin 居住地　
-// 现已合并为单一 bootstrap 租户同时承担两个角色（admin 居住 + 新租户克隆源）　
+// 历史方案：曾有一一__template__ (status=0) 作为克隆満+ default (status=1) 作为 admin 居住地
+// 现已合并为单一 bootstrap 租户同时承担两个角色（admin 居住 + 新租户克隆源）
 //   - status=1（激活），所什admin 能登录看到所有模板数捀
 //   - new_install.go 显式只克隆数据表（menus/resources/dicts/config_categories/config_items），
 //     不克隀users / organizations / user_roles / role_data_scopes / tenant_user_seq
 //   - 这些"租户级独最的数据每次首装独立创廀
 const TemplateTenantCode = "bootstrap"
 
-// FirstInstallReport 记录首装每一步的结果，供 service 写入 audit　
+// FirstInstallReport 记录首装每一步的结果，供 service 写入 audit
 type FirstInstallReport struct {
 	RootOrgID         uint
 	AdminUserID       uint // 0 表示未创廀
@@ -37,16 +37,15 @@ type FirstInstallReport struct {
 	WarnMessages      []string // 非致命警告（如账号不存在：
 }
 
-// firstInstall 圀RunInPlatformTx 内执行：root org / admin role / 复制模板菜单资源字典 / admin user / tenant_user_seq　
+// firstInstall 圀RunInPlatformTx 内执行：root org / admin role / 复制模板菜单资源字典 / admin user / tenant_user_seq
 //
-// 全部走同一事务（bypass_rls=on），任一失败回滚，租户不留半成品　
+// 全部走同一事务（bypass_rls=on），任一失败回滚，租户不留半成品
 //
-// 复制来源：bootstrap 租户（migrations/framework.sql seed，admin 居住地）　
+// 复制来源：bootstrap 租户（migrations/framework.sql seed，admin 居住地）
 //   - menus 两步法复制（栀ↀ子，甀code 重映尀parent_id，再血ancestors：
 //   - resources 甀code 重映尀menu_id
 //   - dicts + dict_items 甀code 重映尀dict_id
 //   - admin role 绑定所有菜區+ 超级资源 *:*（resources 复制时已包含：
-//
 func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminAccountID uint) (*FirstInstallReport, error) {
 	rep := &FirstInstallReport{}
 	q, err := db.GetQuerier(ctx, pool)
@@ -160,7 +159,7 @@ func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminA
 		INSERT INTO tenant_role_resources (tenant_id, role_id, permission_id, effect)
 		SELECT $1, $2, id, 1
 		FROM tenant_permissions
-		WHERE tenant_id = $1 AND code = '*' AND action = '*' AND is_deleted = FALSE
+		WHERE tenant_id = $1 AND code = '*:*' AND is_deleted = FALSE
 		LIMIT 1`,
 		tenantID, adminRoleID); err != nil {
 		return nil, fmt.Errorf("first-install admin role super-permission: %w", err)
@@ -261,8 +260,8 @@ func firstInstall(ctx context.Context, pool *pgxpool.Pool, tenantID uint, adminA
 	return rep, nil
 }
 
-// installAdminUser 创建 admin 用户并绑定到 admin role　
-// 单独抽出便于处理"账号缺失什warn"的非致命分支　
+// installAdminUser 创建 admin 用户并绑定到 admin role
+// 单独抽出便于处理"账号缺失什warn"的非致命分支
 func installAdminUser(ctx context.Context, q db.Querier, tenantID, adminAccountID, rootOrgID, adminRoleID uint, rep *FirstInstallReport) error {
 	// 7a) 校验账号存在一status=1
 	var accountStatus int16
@@ -283,8 +282,8 @@ func installAdminUser(ctx context.Context, q db.Querier, tenantID, adminAccountI
 		return nil
 	}
 
-// 7b) INSERT admin user（uk_tenant_users_account_tenant 是 partial unique index on (account_id, tenant_id) WHERE is_deleted=FALSE）：
-// ON CONFLICT 字段必须与该索引完全一致；同一账号可在不同租户各有一个 user。
+	// 7b) INSERT admin user（uk_tenant_users_account_tenant 是 partial unique index on (account_id, tenant_id) WHERE is_deleted=FALSE）：
+	// ON CONFLICT 字段必须与该索引完全一致；同一账号可在不同租户各有一个 user。
 	var adminUserID uint
 	err = q.QueryRow(ctx, `
 		INSERT INTO tenant_users (tenant_id, account_id, org_id, real_name, status)
@@ -316,8 +315,8 @@ func installAdminUser(ctx context.Context, q db.Querier, tenantID, adminAccountI
 	return nil
 }
 
-// isUniqueViolation PG 唯一约束冲突判断　3505 = unique_violation　
-// 用于 ON CONFLICT 兜底分支——partial index 一DO UPDATE 可能不触发，需手动判断重查　
+// isUniqueViolation PG 唯一约束冲突判断　3505 = unique_violation
+// 用于 ON CONFLICT 兜底分支——partial index 一DO UPDATE 可能不触发，需手动判断重查
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {

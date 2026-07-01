@@ -59,9 +59,10 @@ func TestPostgresDataScopeRepository_NilDB_AllMethodsPropagateError(t *testing.T
 
 // TestExpandPermissionCode 覆盖 0024 通配展开逻辑。
 // 规则：
-//   - "x:y"  → {"x:y"}
-//   - "x:*"  → allActions 展开
-//   - "*:*"  → {"*:*"}
+//   - "x"    → {"x", "x:*"}                                                  菜单无关资源
+//   - "x:y"  → {"x:y"}                                                        菜单相关具体 action
+//   - "x:*"  → allActions 展开                                                菜单相关所有 action
+//   - "*:*"  → {"*:*"}                                                        全局通配
 func TestExpandPermissionCode(t *testing.T) {
 	tests := []struct {
 		name string
@@ -82,6 +83,11 @@ func TestExpandPermissionCode(t *testing.T) {
 				"platform-permissions:delete",
 				"platform-permissions:tree",
 			},
+		},
+		{
+			"menu-less-resource",
+			"changepwd",
+			[]string{"changepwd", "changepwd:*"},
 		},
 	}
 	for _, tt := range tests {

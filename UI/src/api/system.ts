@@ -1,7 +1,7 @@
 // 系统运维（health / cache）
 // cache 相关端点在 platform 域（仅 super_admin 可访问）。
 
-import { api } from "./common"
+import { api, type PageResponse } from "./common"
 
 export interface CacheInfo {
   info: string
@@ -21,11 +21,12 @@ export interface CacheValue {
 }
 
 export const systemApi = {
-  getCacheInfo: () =>
-    api<CacheInfo>("/platform/system/cache/info"),
+  getCacheInfo: () => api<CacheInfo>("/platform/system/cache/info"),
 
-  getCacheKeys: (pattern: string = "*") =>
-    api<string[]>("/platform/system/cache/keys", { params: { pattern } }),
+  getCacheKeys: (pattern: string = "*", page: number = 1, size: number = 50) =>
+    api<PageResponse<string>>("/platform/system/cache/keys", {
+      params: { pattern, page, size },
+    }),
 
   getCacheValue: (key: string) =>
     api<CacheValue>(`/platform/system/cache/value/${encodeURIComponent(key)}`),

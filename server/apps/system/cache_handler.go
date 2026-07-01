@@ -2,6 +2,8 @@ package system
 
 import (
 	"context"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -68,11 +70,25 @@ func (h *Handler) CacheInfo(c *gin.Context) {
 	resp.Success(c, result)
 }
 
-// GetCacheKeys 根据模式获取键名列表
+// GetCacheKeys 根据模式分页获取键名列表。
+//   - pattern：Redis MATCH 表达式，默认 "*"
+//   - page：从 1 开始，默认 1
+//   - size：每页条数，默认 50，上限 200
+//
+// 实现：用 SCAN 迭代代替 KEYS（不阻塞 Redis），全量收集后 sort 保持分页稳定，
+// 再按 (page, size) 切片返回 {list, total}。
 func (h *Handler) GetCacheKeys(c *gin.Context) {
 	pattern := c.Query("pattern")
 	if pattern == "" {
 		pattern = "*"
+	}
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if page < 1 {
+		page = 1
+	}
+	size, _ := strconv.Atoi(c.DefaultQuery("size", "50"))
+	if size < 1 || size > 200 {
+		size = 50
 	}
 
 	client := cache.Get()
@@ -82,14 +98,36 @@ func (h *Handler) GetCacheKeys(c *gin.Context) {
 	}
 
 	ctx := context.Background()
-	// 使用 Keys 获取
-	keys, err := client.Keys(ctx, pattern).Result()
-	if err != nil {
-		resp.ServerError(c, "Failed to get keys: "+err.Error())
-		return
+	var (
+		allKeys []string
+		cursor  uint64
+	)
+	for {
+		keys, next, err := client.Scan(ctx, cursor, pattern, 500).Result()
+		if err != nil {
+			resp.ServerError(c, "Failed to scan keys: "+err.Error())
+			return
+		}
+		allKeys = append(allKeys, keys...)
+		if next == 0 {
+			break
+		}
+		cursor = next
 	}
+	sort.Strings(allKeys)
 
-	resp.Success(c, keys)
+	total := int64(len(allKeys))
+	start := (page - 1) * size
+	if start > int(total) {
+		start = int(total)
+	}
+	end := start + size
+	if end > int(total) {
+		end = int(total)
+	}
+	list := allKeys[start:end]
+
+	resp.Paginate(c, total, list)
 }
 
 // GetCacheValue 获取特定键的值和 TTL

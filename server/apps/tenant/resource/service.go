@@ -19,18 +19,27 @@ func NewService(resourceRepo ResourceRepository, authzSvc authz.Authorization) *
 	}
 }
 
-// permissionCodeValid 校验权限码格式：resource:action（仅含一个冒号，前后非空）。
-// 与 apps/platform/sys_permission/service.go permissionCodeValid 规则一致；
-// 0024 统一约定后，tenant_permissions.code 必须是完整串，不再两段式。
+// permissionCodeValid 校验权限码格式。
+// 规则（0024+）：
+//   - 纯字符串（如 changepwd）：菜单无关资源，无 action 维度。允许。
+//   - "resource:action" 或 "resource:*"：菜单相关资源，必须含且仅含一个 ":"，前后非空。
+//   - 多个 ":" 拒绝。
+//
+// 与 apps/platform/sys_permission/service.go permissionCodeValid 规则一致。
 func permissionCodeValid(code string) bool {
-	idx := strings.Index(code, ":")
-	if idx <= 0 || idx == len(code)-1 {
+	if code == "" {
 		return false
 	}
-	if strings.Count(code, ":") != 1 {
+	count := strings.Count(code, ":")
+	switch count {
+	case 0:
+		return true
+	case 1:
+		idx := strings.Index(code, ":")
+		return idx > 0 && idx < len(code)-1
+	default:
 		return false
 	}
-	return true
 }
 
 func (s *Service) List(ctx context.Context, tenantID uint, req ListReq) ([]ResourceResp, int64, error) {
