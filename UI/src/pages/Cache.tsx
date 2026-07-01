@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { PageLayout } from "@/components/page-layout"
 import {
   Card,
@@ -26,6 +26,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { systemApi, type CacheInfo, type CacheValue } from "@/api"
+import { DataTablePagination } from "@/components/data-table-pagination"
 import {
   SearchIcon,
   TrashIcon,
@@ -50,16 +51,11 @@ export default function Cache() {
   const [total, setTotal] = useState(0)
   // 手动增加以 force re-fetch（setPage 在同值时不会触发 effect）
   const [fetchTrigger, setFetchTrigger] = useState(0)
-  // 默认为 false：隐藏 cache_* 和 sess:* 开头的系统缓存键，减少噪音
+  // 默认为 false：后端 SCAN 后过滤掉 cache_* 和 sess:* 开头的系统缓存键，减少噪音
   const [showSystemKeys, setShowSystemKeys] = useState(false)
 
-  // 系统缓存键前缀（UI 偏好，不传后端）
+  // 系统缓存键前缀（后端 SCAN 后过滤）
   const SYSTEM_KEY_PREFIXES = ["cache_", "sess:"] as const
-
-  const visibleKeys = useMemo(() => {
-    if (showSystemKeys) return keys
-    return keys.filter((k) => !SYSTEM_KEY_PREFIXES.some((p) => k.startsWith(p)))
-  }, [keys, showSystemKeys])
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [keyValue, setKeyValue] = useState<CacheValue | null>(null)
@@ -81,7 +77,12 @@ export default function Cache() {
   const fetchKeys = async () => {
     setIsLoadingKeys(true)
     try {
-      const res = await systemApi.getCacheKeys(pattern || "*", page, size)
+      const res = await systemApi.getCacheKeys(
+        pattern || "*",
+        page,
+        size,
+        showSystemKeys ? undefined : [...SYSTEM_KEY_PREFIXES]
+      )
       setKeys(res?.list ?? [])
       setTotal(res?.total ?? 0)
     } catch (error: any) {
@@ -97,7 +98,7 @@ export default function Cache() {
     fetchCacheInfo()
     fetchKeys()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, size, pattern, fetchTrigger])
+  }, [page, size, pattern, showSystemKeys, fetchTrigger])
 
   const handleSearch = () => {
     // 搜索时重置到第 1 页 + bump fetchTrigger（同 page 不触发 effect 的兑底）
@@ -280,7 +281,7 @@ export default function Cache() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {visibleKeys.map((key, index) => (
+                    {keys.map((key, index) => (
                       <TableRow key={key}>
                         <TableCell className="text-muted-foreground">
                           {(page - 1) * size + index + 1}
@@ -312,15 +313,13 @@ export default function Cache() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {visibleKeys.length === 0 && !isLoadingKeys && (
+                    {keys.length === 0 && !isLoadingKeys && (
                       <TableRow>
                         <TableCell
                           colSpan={3}
                           className="py-8 text-center text-muted-foreground"
                         >
-                          {keys.length === 0
-                            ? "未找到匹配的缓存键"
-                            : "当前页所有 key 均为系统键，请勾选「显示系统缓存键」查看"}
+                          未找到匹配的缓存键
                         </TableCell>
                       </TableRow>
                     )}
@@ -334,48 +333,14 @@ export default function Cache() {
                   </div>
                 )}
               </div>
-              <div className="mt-4 flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  {total > 0 ? (
-                    <>
-                      第 {(page - 1) * size + 1}-
-                      {(page - 1) * size + keys.length} 条 / 共 {total} 条
-                      {!showSystemKeys &&
-                        keys.length - visibleKeys.length > 0 && (
-                          <span className="ml-2 text-xs">
-                            （本页已隐藏 {keys.length - visibleKeys.length}{" "}
-                            个系统键）
-                          </span>
-                        )}
-                    </>
-                  ) : (
-                    "共 0 条"
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page <= 1 || isLoadingKeys}
-                  >
-                    上一页
-                  </Button>
-                  <span className="text-sm tabular-nums">
-                    第 {page} / {Math.max(1, Math.ceil(total / size))} 页
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setPage((p) => Math.min(Math.ceil(total / size), p + 1))
-                    }
-                    disabled={page >= Math.ceil(total / size) || isLoadingKeys}
-                  >
-                    下一页
-                  </Button>
-                </div>
-              </div>
+              <DataTablePagination
+                page={page}
+                size={size}
+                total={total}
+                isLoading={isLoadingKeys}
+                onPageChange={setPage}
+                onSizeChange={setSize}
+              />
             </CardContent>
           </Card>
         </div>

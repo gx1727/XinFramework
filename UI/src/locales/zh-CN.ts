@@ -18,6 +18,16 @@ export const zhCN = {
     status: "状态",
     enable: "启用",
     disable: "禁用",
+    pagination: {
+      total: "共 {total} 条",
+      range: "第 {from}-{to} 条 / 共 {total} 条",
+      pageInfo: "第 {page} / {totalPages} 页",
+      pageSize: "每页",
+      first: "首页",
+      last: "末页",
+      prev: "上一页",
+      next: "下一页",
+    },
   },
   auth: {
     loginTitle: "登录到您的账户",
@@ -461,7 +471,7 @@ export const zhCN = {
       subtitle: "管理平台域权限码（sys_permission），格式：resource:action",
       refresh: "刷新",
       create: "新建权限码",
-      edit: "编辑权限码",
+      edit: "编辑平台权限码",
       name: "名称",
       code: "代码",
       menu: "所属菜单",
@@ -470,6 +480,7 @@ export const zhCN = {
       sortOrder: "排序",
       status: "状态",
       searchPlaceholder: "搜索 code / 名称 / action...",
+      statsScope: "本页统计",
     },
     platformRoles: {
       title: "平台角色",

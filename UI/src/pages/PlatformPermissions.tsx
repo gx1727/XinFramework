@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react"
+import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { PageLayout } from "@/components/page-layout"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -30,6 +30,7 @@ import {
   ApiError,
 } from "@/api"
 import { FormDialog } from "@/components/schema/DynamicForm"
+import { DataTablePagination } from "@/components/data-table-pagination"
 import type { FormSchema } from "@/types/schema"
 import {
   Dialog,
@@ -45,7 +46,11 @@ import { toast } from "sonner"
 export function PlatformPermissionsPage() {
   const [permissions, setPermissions] = useState<PlatformPermissionItem[]>([])
   const [menuTree, setMenuTree] = useState<PlatformMenuItem[]>([])
-  const [searchTerm, setSearchTerm] = useState("")
+  const [searchInput, setSearchInput] = useState("")
+  const [keyword, setKeyword] = useState("")
+  const [page, setPage] = useState(1)
+  const [size, setSize] = useState(20)
+  const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -61,26 +66,38 @@ export function PlatformPermissionsPage() {
     useState<PlatformPermissionItem | null>(null)
 
   // ---- Fetch ----
-  const fetchPermissions = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const res = await platformPermissionApi.list({ page: 1, size: 500 })
-      setPermissions(res?.list ?? [])
-    } catch (err) {
-      const msg =
-        err instanceof ApiError
-          ? `${err.status} ${err.message}`
-          : err instanceof Error
-            ? err.message
-            : "加载平台权限码失败"
-      console.error("[PlatformPermissions] load failed:", err)
-      setPermissions([])
-      setError(msg)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+  const fetchPermissions = useCallback(
+    async (opts?: { page?: number; size?: number; keyword?: string }) => {
+      const reqPage = opts?.page ?? page
+      const reqSize = opts?.size ?? size
+      const reqKeyword = opts?.keyword ?? keyword
+      setIsLoading(true)
+      setError(null)
+      try {
+        const res = await platformPermissionApi.list({
+          page: reqPage,
+          size: reqSize,
+          keyword: reqKeyword || undefined,
+        })
+        setPermissions(res?.list ?? [])
+        setTotal(res?.total ?? 0)
+      } catch (err) {
+        const msg =
+          err instanceof ApiError
+            ? `${err.status} ${err.message}`
+            : err instanceof Error
+              ? err.message
+              : "加载平台权限码失败"
+        console.error("[PlatformPermissions] load failed:", err)
+        setPermissions([])
+        setTotal(0)
+        setError(msg)
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [page, size, keyword]
+  )
 
   const fetchMenuTree = useCallback(async () => {
     try {
@@ -94,29 +111,33 @@ export function PlatformPermissionsPage() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 首次加载触发请求是约定写法
-    fetchPermissions()
-  }, [fetchPermissions])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 首次加载触发请求是约定写法
     fetchMenuTree()
   }, [fetchMenuTree])
 
-  // ---- Filter ----
-  const filteredPerms = useMemo(() => {
-    if (!searchTerm.trim()) return permissions
-    const kw = searchTerm.toLowerCase()
-    return permissions.filter(
-      (p) =>
-        p.code.toLowerCase().includes(kw) ||
-        p.name.toLowerCase().includes(kw) ||
-        p.action.toLowerCase().includes(kw)
-    )
-  }, [permissions, searchTerm])
+  // ---- Search debounce ----
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (searchInput === keyword) return
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(() => {
+      setKeyword(searchInput.trim())
+      setPage(1)
+    }, 300)
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    }
+  }, [searchInput, keyword])
 
+  // keyword / page / size 变化时拉数据
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 分页/搜索参数变化触发请求是约定写法
+    fetchPermissions({ page, size, keyword })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 首次加载与参数变化共用同一条路径
+  }, [page, size, keyword])
+
+  // ---- Stats (基于当前页，全量计数由 total 表达) ----
   const stats = useMemo(
     () => ({
-      total: permissions.length,
       active: permissions.filter((p) => p.status === 1).length,
       menuLinked: new Set(
         permissions.map((p) => p.menu_id).filter((id) => id && id !== 0)
@@ -379,7 +400,7 @@ export function PlatformPermissionsPage() {
           <Card>
             <CardHeader className="pb-2">
               <div className="text-sm text-muted-foreground">权限码总数</div>
-              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-2xl font-bold">{total}</div>
             </CardHeader>
           </Card>
           <Card>
@@ -388,6 +409,9 @@ export function PlatformPermissionsPage() {
               <div className="text-2xl font-bold text-green-600">
                 {stats.active}
               </div>
+              <div className="text-xs text-muted-foreground">
+                {t.pages.platformPermissions?.statsScope || "本页统计"}
+              </div>
             </CardHeader>
           </Card>
           <Card>
@@ -395,6 +419,9 @@ export function PlatformPermissionsPage() {
               <div className="text-sm text-muted-foreground">关联菜单</div>
               <div className="text-2xl font-bold text-blue-600">
                 {stats.menuLinked}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {t.pages.platformPermissions?.statsScope || "本页统计"}
               </div>
             </CardHeader>
           </Card>
@@ -424,11 +451,10 @@ export function PlatformPermissionsPage() {
                     "搜索 code / 名称 / action..."
                   }
                   className="pl-9"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                 />
               </div>
-              <Badge variant="secondary">共 {filteredPerms.length} 条</Badge>
             </div>
           </CardHeader>
           <CardContent>
@@ -461,7 +487,7 @@ export function PlatformPermissionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPerms.length === 0 ? (
+                {permissions.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={9}
@@ -471,7 +497,7 @@ export function PlatformPermissionsPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredPerms.map((perm) => {
+                  permissions.map((perm) => {
                     const ab = actionBadge[perm.action] || {
                       label: perm.action,
                       variant: "secondary" as const,
@@ -536,6 +562,18 @@ export function PlatformPermissionsPage() {
                 )}
               </TableBody>
             </Table>
+            <DataTablePagination
+              page={page}
+              size={size}
+              total={total}
+              isLoading={isLoading}
+              currentSize={permissions.length}
+              onPageChange={setPage}
+              onSizeChange={(s) => {
+                setSize(s)
+                setPage(1)
+              }}
+            />
             {isLoading && (
               <div className="flex items-center justify-center py-8">
                 <div className="text-sm text-muted-foreground">

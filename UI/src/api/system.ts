@@ -23,9 +23,22 @@ export interface CacheValue {
 export const systemApi = {
   getCacheInfo: () => api<CacheInfo>("/platform/system/cache/info"),
 
-  getCacheKeys: (pattern: string = "*", page: number = 1, size: number = 50) =>
+  getCacheKeys: (
+    pattern: string = "*",
+    page: number = 1,
+    size: number = 50,
+    excludePrefixes?: string[]
+  ) =>
     api<PageResponse<string>>("/platform/system/cache/keys", {
-      params: { pattern, page, size },
+      params: {
+        pattern,
+        page,
+        size,
+        exclude_prefixes:
+          excludePrefixes && excludePrefixes.length > 0
+            ? excludePrefixes.join(",")
+            : undefined,
+      },
     }),
 
   getCacheValue: (key: string) =>

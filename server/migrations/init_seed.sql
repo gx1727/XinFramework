@@ -386,9 +386,10 @@ ON CONFLICT (user_id, role_id) WHERE is_deleted = FALSE DO NOTHING;
 -- 11.3b 平台域通配权限码
 -- 0024+ 终态：super_admin 不再走中间件硬编码短路，改由 `*:*` 通配权限授权。
 -- HasPermission(perms, res, act) 在 framework/pkg/permission/types.go 已支持 `*:*` 全局通配。
-INSERT INTO sys_permissions (id, code, name, action, description, sort, status, created_by, updated_by)
-OVERRIDING SYSTEM VALUE
-VALUES (1, '*:*', '超级通配权限', '*', '平台域所有资源所有操作（替代旧 super_admin 中间件短路）', 1, 1, 0, 0)
+-- 注意：不显式指定 id，让 sys_permissions.id 的 GENERATED IDENTITY 自然分配，
+-- 避免与后续 11.5 段隐式 INSERT 撞主键（id 列默认从 1 开始）。
+INSERT INTO sys_permissions (code, name, action, description, sort, status, created_by, updated_by)
+VALUES ('*:*', '超级通配权限', '*', '平台域所有资源所有操作（替代旧 super_admin 中间件短路）', 1, 1, 0, 0)
 ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
 
 -- 11.3b2 平台域 tenant 资源权限码（已迁移到 11.5 段）
@@ -406,6 +407,12 @@ ON CONFLICT (role_id, permission_id) WHERE is_deleted = FALSE DO NOTHING;
 -- 这些菜单是平台管理分组的入口，与前端 App.tsx 中 /platform/* 路由对齐。
 -- 注意：sys_menus 无 tenant_id 字段（平台域单租户概念）。
 -- 哪些 platform 角色能看到哪些菜单，由 sys_role_menus 显式分配（11.4b）。
+--
+-- 顶级菜单：
+--   id=100 平台管理（容器）        sort=999
+--   id=101 租户管理                sort=1   （从原平台管理下提升为一级）
+--   id=106 平台用户                sort=2   （从原平台管理下提升为一级）
+-- 其余 id=102/103/104/105/107/108 仍挂在 id=100 之下。
 
 -- 顶级：平台管理（id=100）
 INSERT INTO sys_menus (id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
@@ -413,15 +420,25 @@ INSERT INTO sys_menus (id, code, name, subtitle, url, path, icon, sort, parent_i
 VALUES (100, 'platform-admin', '平台管理', '平台域管理入口', '', '/platform', 'ShieldIcon', 999, 0, '0', TRUE, TRUE)
 ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
 
--- 子菜单（id=101..108）：与前端 App.tsx /platform/* 路由对齐
+-- 顶级：租户管理（id=101）— 已从平台管理下提升为一级菜单
 INSERT INTO sys_menus (id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
     OVERRIDING SYSTEM VALUE
-VALUES (101, 'platform-tenants',     '租户管理', '跨租户平台管理',                   '', '/platform/tenants',     'Building2Icon', 1, 100, '100', TRUE, TRUE),
-       (102, 'platform-menus',       '平台菜单', 'sys_menus CRUD',                   '', '/platform/menus',       'MenuIcon',       2, 100, '100', TRUE, TRUE),
+VALUES (101, 'platform-tenants', '租户管理', '跨租户平台管理', '', '/platform/tenants', 'Building2Icon', 1, 0, '0', TRUE, TRUE)
+ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
+
+-- 顶级：平台用户（id=106）— 已从平台管理下提升为一级菜单
+INSERT INTO sys_menus (id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
+    OVERRIDING SYSTEM VALUE
+VALUES (106, 'platform-users', '平台用户', 'sys_users CRUD + 分配角色', '', '/platform/users', 'UsersIcon', 2, 0, '0', TRUE, TRUE)
+ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
+
+-- 平台管理的子菜单（id=102/103/104/105/107/108）
+INSERT INTO sys_menus (id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
+    OVERRIDING SYSTEM VALUE
+VALUES (102, 'platform-menus',       '平台菜单', 'sys_menus CRUD',                   '', '/platform/menus',       'MenuIcon',       2, 100, '100', TRUE, TRUE),
        (103, 'platform-configs',     '平台配置', 'config_categories / config_items 维护', '', '/platform/configs', 'SettingsIcon',   3, 100, '100', TRUE, TRUE),
        (104, 'platform-dicts',       '平台字典', 'dicts / dict_items 维护',          '', '/platform/dicts',       'BookIcon',       4, 100, '100', TRUE, TRUE),
        (105, 'platform-cache',       '缓存管理', 'Redis cache 运维 (Cache.tsx)',     '', '/platform/cache',       'DatabaseIcon',   5, 100, '100', TRUE, TRUE),
-       (106, 'platform-users',       '平台用户', 'sys_users CRUD + 分配角色',         '', '/platform/users',       'UsersIcon',      6, 100, '100', TRUE, TRUE),
        (107, 'platform-roles',       '平台角色', 'sys_roles CRUD + 菜单/权限绑定',     '', '/platform/roles',       'ShieldIcon',     7, 100, '100', TRUE, TRUE),
        (108, 'platform-permissions', '平台权限', 'sys_permissions CRUD',             '', '/platform/permissions', 'KeyIcon',        8, 100, '100', TRUE, TRUE)
 ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
