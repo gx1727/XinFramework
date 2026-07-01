@@ -501,7 +501,7 @@ export const zhCN = {
     },
     platformUsers: {
       title: "平台用户",
-      subtitle: "管理平台域用户（仅 super_admin 可访问）",
+      subtitle: "管理平台域用户",
       refresh: "刷新",
       create: "新建平台用户",
       edit: "编辑平台用户",

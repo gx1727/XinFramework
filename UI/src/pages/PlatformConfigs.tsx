@@ -482,10 +482,6 @@ export function PlatformConfigsPage() {
               <div className="text-muted-foreground text-xs mt-0.5 break-all">
                 {error}
               </div>
-              <div className="text-muted-foreground text-xs mt-1">
-                提示：请确认后端已启动（<code>http://localhost:8087</code>），
-                且当前登录用户是 <code>super_admin</code>。
-              </div>
             </div>
             <Button variant="ghost" size="sm" onClick={fetchGroups}>
               重试

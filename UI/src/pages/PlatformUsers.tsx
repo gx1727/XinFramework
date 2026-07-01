@@ -388,7 +388,7 @@ export function PlatformUsersPage() {
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {t.pages.platformUsers?.subtitle ||
-                "管理平台域用户（仅 super_admin 可访问）"}
+                "管理平台域用户"}
             </p>
           </div>
           <div className="flex items-center gap-2">
