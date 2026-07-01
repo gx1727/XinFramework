@@ -22,8 +22,8 @@ type Context struct {
 	UserID    uint
 	SessionID SessionID
 	Role      string
-	// PlatformRoles 平台级角色（如 super_admin），不绑定具体租户
-	PlatformRoles []string
+	// SysRoles sys 级角色（如 super_admin），不绑定具体租户
+	SysRoles []string
 
 	// 客户端请求元数据（由 Auth / OptionalAuth 中间件统一注入，
 	// 供 login_security、audit、notify 等模块使用）。
@@ -32,20 +32,20 @@ type Context struct {
 	DeviceID  string // 前端设备指纹（可选，从 header X-Device-ID 取）
 }
 
-// HasPlatformRole 判断当前上下文是否携带指定的平台级角色。
+// HasSysRole 判断当前上下文是否携带指定的 sys 级角色。
 //
-// 平台角色独立于租户内 RBAC（permission.HasGlobalPermission），
-// 用于跨租户 / 平台级特权校验，如租户管理、平台字典、平台配置等。
-// 典型调用：HasPlatformRole(jwt.PlatformRoleSuperAdmin)。
+// sys 角色独立于租户内 RBAC（permission.HasGlobalPermission），
+// 用于跨租户 / sys 级特权校验，如租户管理、平台字典、平台配置等。
+// 典型调用：HasSysRole(jwt.SysRoleSuperAdmin)。
 //
 // 与 RBAC 通配符判定的区别：
-//   - HasPlatformRole：检查 PlatformRoles 切片中的角色字符串
+//   - HasSysRole：检查 SysRoles 切片中的角色字符串
 //   - permission.HasGlobalPermission：检查 perms map 中的 "*:*" 通配符
-func (x *Context) HasPlatformRole(role string) bool {
+func (x *Context) HasSysRole(role string) bool {
 	if x == nil || role == "" {
 		return false
 	}
-	for _, r := range x.PlatformRoles {
+	for _, r := range x.SysRoles {
 		if r == role {
 			return true
 		}
@@ -56,14 +56,14 @@ func (x *Context) HasPlatformRole(role string) bool {
 // Clone returns a copy of Context
 func (x *Context) Clone() *Context {
 	clone := &Context{
-		TenantID:      x.TenantID,
-		UserID:        x.UserID,
-		SessionID:     x.SessionID,
-		Role:          x.Role,
-		PlatformRoles: append([]string(nil), x.PlatformRoles...),
-		IP:            x.IP,
-		UserAgent:     x.UserAgent,
-		DeviceID:      x.DeviceID,
+		TenantID:  x.TenantID,
+		UserID:    x.UserID,
+		SessionID: x.SessionID,
+		Role:      x.Role,
+		SysRoles:  append([]string(nil), x.SysRoles...),
+		IP:        x.IP,
+		UserAgent: x.UserAgent,
+		DeviceID:  x.DeviceID,
 	}
 	return clone
 }

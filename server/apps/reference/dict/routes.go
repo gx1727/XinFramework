@@ -9,7 +9,7 @@ import (
 
 // Register 注册两域路由：
 //   - tenant:    /api/v1/dicts           （业务域）
-//   - protected: /api/v1/platform/dicts  （平台域，super_admin）
+//   - protected: /api/v1/sys/dicts       （sys 域，super_admin）
 func Register(tenant *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
 	// ============ 业务消费入口（所有登录用户可访问） ============
 	d := tenant.Group("/dicts")
@@ -36,11 +36,11 @@ func Register(tenant *gin.RouterGroup, protected *gin.RouterGroup, h *Handler) {
 		d.DELETE("/:id/items/:item_id/override", pkgmiddleware.Require(permission.P(permission.ResDict, permission.ActUpdate)), h.DeleteOverride)
 	}
 
-	// ============ 平台字典 CRUD（/platform/* 域） ============
-	// 0024+：删除 RequirePlatformRole(super_admin) 硬编码白名单。
-	// 任何 platform 角色都可以调到这里；具体能力由 ResDict:* 资源权限码决定。
+	// ============ sys 字典 CRUD（/sys/* 域） ============
+	// 0024+：删除 RequireSysRole(super_admin) 硬编码白名单。
+	// 任何 sys 角色都可以调到这里；具体能力由 ResDict:* 资源权限码决定。
 	pd := protected.Group("/dicts")
-	pd.Use(pkgmiddleware.RequireAnyPlatformRole())
+	pd.Use(pkgmiddleware.RequireAnySysRole())
 	{
 		pd.GET("", pkgmiddleware.Require(permission.P(permission.ResDict, permission.ActList)), h.ListPlatformDicts)
 		pd.POST("", pkgmiddleware.Require(permission.P(permission.ResDict, permission.ActCreate)), h.CreatePlatformDict)

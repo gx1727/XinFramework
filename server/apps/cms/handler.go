@@ -5,12 +5,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"gx1727.com/xin/framework/pkg/xincontext"
 	"gx1727.com/xin/framework/pkg/extapi"
-	pkgrbac "gx1727.com/xin/framework/pkg/tenant/auth"
-	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
 	"gx1727.com/xin/framework/pkg/plugin"
 	"gx1727.com/xin/framework/pkg/resp"
+	pkgtenant "gx1727.com/xin/framework/pkg/tenant"
+	pkgrbac "gx1727.com/xin/framework/pkg/tenant/auth"
+	"gx1727.com/xin/framework/pkg/xincontext"
 )
 
 // Handler HTTP 处理器
@@ -118,7 +118,7 @@ func (h *Handler) GetTenant(c *gin.Context) {
 	}
 
 	if h.ctx == nil || h.ctx.TenantRepo() == nil {
-		resp.Error(c, 500, "tenant module not loaded — register apps/platform/tenant in main.go")
+		resp.Error(c, 500, "tenant module not loaded — register apps/sys/tenant in main.go")
 		return
 	}
 	t, err := h.ctx.TenantRepo().GetByID(c.Request.Context(), tenantID)

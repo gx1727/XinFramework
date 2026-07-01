@@ -83,7 +83,7 @@
 ### 4.1 通用流程
 
 ```
-1. 客户端 POST /auth/tenant-login 或 /auth/platform-login
+1. 客户端 POST /auth/tenant-login 或 /auth/sys-login
 2. 服务端验证账号/密码 → 签 access_token (1h) + refresh_token (24h)
 3. 客户端用 access_token 调业务 API：
      Authorization: Bearer <access_token>
@@ -95,11 +95,12 @@
 | 端点 | scope | tenant_id | 适用 |
 |---|---|---|---|
 | `POST /auth/tenant-login` | `tenant` | 必填 | 业务用户登录 |
-| `POST /auth/platform-login` | `platform` | 0 | super_admin 登录 |
+| `POST /auth/sys-login` | `sys` | 0 | super_admin 登录 |
 | `POST /auth/login-precheck` | — | — | 多身份账号列出身份 |
 | `POST /auth/select-tenant` | `tenant` | 必填 | precheck 后选身份签 token |
 | `POST /auth/refresh` | 同原 | 可选 | 切租户时传 `tenant_id` |
 | `POST /auth/logout` | — | — | 撤销 session |
+| `POST /auth/platform-login` | `sys` | 0 | 兼容期路径，**转发到 /auth/sys-login** |
 
 ### 4.3 多身份账号（路径 B）
 
@@ -111,8 +112,8 @@
 1. 客户端 POST /auth/login-precheck { account, password }
    → {
        account_id: 1,
-       platform_available: true,
-       platform_roles: ["super_admin"],
+       sys_available: true,
+       sys_role_codes: ["super_admin"],
        tenant_identities: [
          { tenant_id: 1, tenant_code: "acme", tenant_name: "ACME",
            user_id: 10, user_code: "admin", role: "admin" },
@@ -196,7 +197,7 @@ GET /api/v1/dicts/resolve?code=gender
   }
 
 # 平台域 CRUD（仅 super_admin）
-GET /api/v1/platform/dicts
+GET /api/v1/sys/dicts
 ```
 
 ### 5.4 配置中心
@@ -219,13 +220,13 @@ GET /api/v1/public/configs?category=site
 ### 5.5 平台租户管理（仅 super_admin）
 
 ```http
-GET /api/v1/platform/tenants
+GET /api/v1/sys/tenants
 Authorization: Bearer <super_admin_token>
 
 → 200 { code: 0, msg: "ok", data: { total: 10, list: [...] } }
 
 # 触发新租户"首装"（从 bootstrap 租户复制菜单/字典/配置）
-POST /api/v1/platform/tenants
+POST /api/v1/sys/tenants
 {
   "code": "acme",
   "name": "ACME Corp",
@@ -238,8 +239,8 @@ POST /api/v1/platform/tenants
 # 后台自动跑 first_install.go 复制 menu/permission/dict/config
 
 # super_admin 模拟登录到指定租户（impersonation）
-# 前端：保存原 platform refresh_token 用于"退出模拟"恢复
-POST /api/v1/platform/tenants/:id/impersonate
+# 前端：保存原 sys refresh_token 用于"退出模拟"恢复
+POST /api/v1/sys/tenants/:id/impersonate
 Authorization: Bearer <super_admin_token>
 
 → 200 { code: 0, msg: "ok", data: {
@@ -251,12 +252,12 @@ Authorization: Bearer <super_admin_token>
   tenant_name: "ACME Corp",
   impersonated_user_id: 12,    # 租户内 admin role 绑定的 user
   impersonated_by: 1,          # 原 super_admin account_id
-  impersonation_sid: "<原 platform session_id>"
+  impersonation_sid: "<原 sys session_id>"
 } }
 # 模拟 token 内嵌 ImpersonatedBy/ImpersonationSessionID；
-# PlatformRoles 字段为空 → 中间件不短路、走租户 RBAC。
-# 退出模拟：前端用 impersonation_sid 对应的原 platform refresh_token
-# 调 POST /auth/refresh（不传 tenant_id）恢复 platform token。
+# SysRoles 字段为空 → 中间件不短路、走租户 RBAC。
+# 退出模拟：前端用 impersonation_sid 对应的原 sys refresh_token
+# 调 POST /auth/refresh（不传 tenant_id）恢复 sys token。
 ```
 
 ### 5.6 文件上传
@@ -379,13 +380,13 @@ ActList / ActGet / ActCreate / ActUpdate / ActDelete / ActTree
 |---|---|---|---|
 | public | `/api/v1/*` | `OptionalAuth` | 无 |
 | tenant | `/api/v1/*`（无 `/t` 前缀） | `Auth` + `RequireTenantContext` | `tenant_id > 0` |
-| platform | `/api/v1/platform/*` | `Auth` + `RequirePlatformRole("super_admin")` | `PlatformRoles` 包含 `super_admin` |
+| sys | `/api/v1/sys/*` | `Auth` + `RequireSysRole("super_admin")` | `SysRoles` 包含 `super_admin` |
 
 **JWT Claims 区分**：
 - `scope=tenant`：`tenant_id > 0`，业务域 token
-- `scope=platform`：`tenant_id == 0`，平台域 token
+- `scope=sys`：`tenant_id == 0`，sys 域 token
 
-`RequireTenantContext` 拒 platform token；`RequirePlatformScope` 拒 tenant token；`RequirePlatformRole` 跨域检查（`PlatformRoles` 字段）。
+`RequireTenantContext` 拒 sys token；`RequireSysScope` 拒 tenant token；`RequireSysRole` 跨域检查（`SysRoles` 字段）。
 
 ---
 

@@ -3,7 +3,7 @@
 // 显示在 PageLayout 内容顶部（page header 之上），包含：
 //   - 醒目红色背景 + AlertTriangleIcon 图标
 //   - 当前模拟的租户名称 + 审计提示
-//   - "退出模拟" 按钮，调用 authStore.stopImpersonation()，成功后跳回 /platform/tenants
+//   - "退出模拟" 按钮，调用 authStore.stopImpersonation()，成功后跳回 /sys/tenants
 //
 // 当 authStore.impersonation 为 null 时不渲染。
 import { useNavigate } from "react-router-dom"
@@ -22,7 +22,7 @@ export function ImpersonationBanner() {
   const handleExit = async () => {
     const ok = await stopImpersonation()
     if (ok) {
-      navigate("/platform/tenants", { replace: true })
+      navigate("/sys/tenants", { replace: true })
     }
   }
 
@@ -31,7 +31,7 @@ export function ImpersonationBanner() {
       role="alert"
       className="flex items-center justify-between gap-3 border-b-2 border-amber-300 bg-amber-50 px-4 py-2 text-amber-900"
     >
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex min-w-0 items-center gap-3">
         <AlertTriangleIcon className="size-5 shrink-0" />
         <div className="min-w-0">
           <div className="text-sm font-semibold">
@@ -48,7 +48,7 @@ export function ImpersonationBanner() {
         onClick={handleExit}
         className="border-amber-400 bg-white hover:bg-amber-100"
       >
-        <LogOutIcon className="size-4 mr-1" />
+        <LogOutIcon className="mr-1 size-4" />
         {t.impersonation.exit}
       </Button>
     </div>

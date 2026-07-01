@@ -1,7 +1,7 @@
 // Package identity holds cross-domain base types. This file (identity_test.go)
 // locks in the field set of each base struct via reflection. Any field addition,
 // removal, or JSON-tag rename will fail these tests, forcing the author to
-// sync apps/tenant/* and apps/platform/sys_* consumers in lockstep.
+// sync apps/tenant/* and apps/sys/* consumers in lockstep.
 //
 // 0023.3 prerequisite test base.
 package identity
@@ -13,7 +13,7 @@ import (
 
 // expectedFields locks each base struct's (field name, JSON tag) list.
 // Update this map when adding fields; sync apps/tenant/* MarshalJSON
-// (if any) and apps/platform/sys_* downstream consumers at the same time.
+// (if any) and apps/sys/* downstream consumers at the same time.
 
 var expectedFields = map[string][]fieldSpec{
 	"User": {
@@ -116,7 +116,7 @@ func assertFields(t *testing.T, typeName string, instance any, expected []fieldS
 	t.Helper()
 	typ := reflect.TypeOf(instance)
 	if typ.NumField() != len(expected) {
-		t.Fatalf("%s: NumField = %d, expected %d. After change, sync expectedFields and notify apps/tenant + apps/platform downstream",
+		t.Fatalf("%s: NumField = %d, expected %d. After change, sync expectedFields and notify apps/tenant + apps/sys downstream",
 			typeName, typ.NumField(), len(expected))
 	}
 	for i, want := range expected {

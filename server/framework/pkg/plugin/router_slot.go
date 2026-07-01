@@ -16,9 +16,9 @@ const (
 	// 适用于租户内业务（user / role / menu / dict / asset / config 等）。
 	SlotTenant = "tenant"
 
-	// SlotProtected 平台域：/api/v1/platform/* （Auth）。
+	// SlotProtected sys 域：/api/v1/sys/* （Auth）。
 	// 适用于平台管理（tenants / sys_users / sys_roles / sys_menus 等）。
-	// 平台模块内部需自行追加 RequirePlatformRole("super_admin")。
+	// sys 模块内部需自行追加 RequireSysRole("super_admin")。
 	SlotProtected = "protected"
 )
 

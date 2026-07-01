@@ -20,9 +20,9 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;   -- 三元组索引（模糊搜索）
 
 | 域 | 标识 | tenant_id | RLS | 业务模块 |
 |---|---|---|---|---|
-| **平台域** | `sys_*` | ❌ 无 | ❌ 不启用 | `apps/platform/sys_*` |
+| **sys 域** | `sys_*` | ❌ 无 | ❌ 不启用 | `apps/sys/*` |
 | **租户域** | `tenant_*` | ✅ 必填 | ✅ 全部启用 | `apps/tenant/*` |
-| **共享层** | `accounts` / `tenants` / `auth_sessions` | ❌ | ❌ | `apps/boot/auth` + `apps/platform/tenants` |
+| **共享层** | `accounts` / `tenants` / `auth_sessions` | ❌ | ❌ | `apps/boot/auth` + `apps/sys/tenants` |
 | **字典/配置** | `dicts` / `config_*` | ✅ 必填（=0 表示平台级） | ✅ 启用 | `apps/reference/dict` + `apps/reference/config` |
 | **业务支撑** | `subscriptions` / `usage_records` / `db_logs` / `routes` / `plans` | ✅ 必填 | ✅ 启用 | 对应模块 |
 | **业务模块** | `assets` / `cms_*` / `flag_*` / `messages` | ✅ 或 ❌（看模块） | 视模块而定 | `apps/reference/asset` / `apps/cms` / `apps/flag` / `apps/tenant/message` |
@@ -44,7 +44,7 @@ CREATE POLICY tenant_isolation_policy ON tenant_xxx USING (
 
 含义：
 - 当 `app.tenant_id` 设置为某 tenant_id 时，只能看到该 tenant 的行
-- 当 `app.bypass_rls='on'` 时（`RunInPlatformTx`），可以跨租户访问（平台域）
+- 当 `app.bypass_rls='on'` 时（`RunInSysTx`），可以跨租户访问（sys 域）
 
 ### 3.2 字典/配置类（带 tenant_id=0 短路）
 
@@ -60,7 +60,7 @@ CREATE POLICY tenant_isolation_policy ON dicts USING (
 
 ### 3.3 平台域（不启用 RLS）
 
-平台域表（`sys_*`）无 `tenant_id`，不启用 RLS。安全靠 API 层 `RequirePlatformRole("super_admin")` + `db.RunInPlatformTx` 守护。
+sys 域表（`sys_*`）无 `tenant_id`，不启用 RLS。安全靠 API 层 `RequireSysRole("super_admin")` + `db.RunInSysTx` 守护。
 
 ### 3.4 应用层配套
 
@@ -71,7 +71,7 @@ db.RunInTenantTx(ctx, pool, tenantID, func(ctx context.Context) error {
     return svc.GetByID(ctx, id)
 })
 
-// 平台域事务
+// sys 域事务
 db.RunInPlatformTx(ctx, pool, func(ctx context.Context) error {
     // ctx 中 app.bypass_rls='on'，可跨租户访问
     return svc.CrossTenantQuery(ctx)

@@ -20,7 +20,7 @@ export {
   type LoginRequest,
   type LoginResponse,
   type LoginScope,
-  type PlatformLoginRequest,
+  type SysLoginRequest,
   type RegisterRequest,
   type RefreshRequest,
   type RefreshResponse,
@@ -28,65 +28,32 @@ export {
   type LoginPrecheckResponse,
 } from "./auth"
 
-export {
-  userApi,
-  type UserItem,
-} from "./user"
+export { userApi, type UserItem } from "./user"
+
+export { menuApi, type MenuItem } from "./menu"
+
+export { sysMenuApi, type SysMenuItem, hasSysRole } from "./sysMenu"
+
+export { sysUserApi, type SysUserItem, type SysUserRoleLite } from "./sysUser"
 
 export {
-  menuApi,
-  type MenuItem,
-} from "./menu"
+  sysRoleApi,
+  type SysRoleItem,
+  type SysRoleMenuLite,
+  type SysRolePermissionLite,
+} from "./sysRole"
 
-export {
-  platformMenuApi,
-  type PlatformMenuItem,
-  hasPlatformRole,
-} from "./platformMenu"
+export { sysPermissionApi, type SysPermissionItem } from "./sysPermission"
 
-export {
-  platformUserApi,
-  type PlatformUserItem,
-  type PlatformUserRoleLite,
-} from "./platformUser"
+export { roleApi, type RoleItem } from "./role"
 
-export {
-  platformRoleApi,
-  type PlatformRoleItem,
-  type PlatformRoleMenuLite,
-  type PlatformRolePermissionLite,
-} from "./platformRole"
+export { organizationApi, type OrganizationItem } from "./organization"
 
-export {
-  platformPermissionApi,
-  type PlatformPermissionItem,
-} from "./platformPermission"
+export { resourceApi, type ResourceItem } from "./resource"
 
-export {
-  roleApi,
-  type RoleItem,
-} from "./role"
+export { tenantApi, type TenantItem } from "./tenant"
 
-export {
-  organizationApi,
-  type OrganizationItem,
-} from "./organization"
-
-export {
-  resourceApi,
-  type ResourceItem,
-} from "./resource"
-
-export {
-  tenantApi,
-  type TenantItem,
-} from "./tenant"
-
-export {
-  dictApi,
-  type DictItem,
-  type DictValueItem,
-} from "./dict"
+export { dictApi, type DictItem, type DictValueItem } from "./dict"
 
 export {
   configApi,
@@ -98,36 +65,17 @@ export {
   type PublicConfigResponse,
 } from "./config"
 
-export {
-  frameApi,
-  type FrameItem,
-} from "./frame"
+export { frameApi, type FrameItem } from "./frame"
 
-export {
-  frameCategoryApi,
-  type FrameCategoryItem,
-} from "./frameCategory"
+export { frameCategoryApi, type FrameCategoryItem } from "./frameCategory"
 
-export {
-  avatarApi,
-  type AvatarItem,
-} from "./avatar"
+export { avatarApi, type AvatarItem } from "./avatar"
 
-export {
-  avatarCategoryApi,
-  type AvatarCategoryItem,
-} from "./avatarCategory"
+export { avatarCategoryApi, type AvatarCategoryItem } from "./avatarCategory"
 
-export {
-  spaceApi,
-  type SpaceItem,
-  type GenerateAvatarResponse,
-} from "./space"
+export { spaceApi, type SpaceItem, type GenerateAvatarResponse } from "./space"
 
-export {
-  assetApi,
-  type AssetUploadResponse,
-} from "./asset"
+export { assetApi, type AssetUploadResponse } from "./asset"
 
 export {
   systemApi,

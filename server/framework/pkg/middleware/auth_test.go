@@ -17,7 +17,7 @@ import (
 // UserContext. This mirrors what the Auth middleware does at runtime:
 // it injects both the request's UserContext (consumed by Require* /
 // RequireAny / RequireAll via MustNewUserContext) and the embedded
-// XinContext (consumed by RequirePlatformRole via xinContext.New).
+// XinContext (consumed by RequireSysRole via xinContext.New).
 func buildCtx(uc *pkgcontext.UserContext) (*gin.Context, *httptest.ResponseRecorder) {
 	gin.SetMode(gin.TestMode)
 	rec := httptest.NewRecorder()
@@ -39,9 +39,9 @@ func buildCtx(uc *pkgcontext.UserContext) (*gin.Context, *httptest.ResponseRecor
 
 // makeUC is a small constructor that defaults Permissions to the
 // provided map and leaves DataScope at zero value.
-func makeUC(userID uint, platformRoles []string, perms map[string]bool) *pkgcontext.UserContext {
+func makeUC(userID uint, sysRoles []string, perms map[string]bool) *pkgcontext.UserContext {
 	return &pkgcontext.UserContext{
-		Context:     &pkgcontext.Context{UserID: userID, PlatformRoles: platformRoles},
+		Context:     &pkgcontext.Context{UserID: userID, SysRoles: sysRoles},
 		Permissions: perms,
 	}
 }
@@ -172,22 +172,22 @@ func TestRequireAll_OneMissingFails(t *testing.T) {
 }
 
 // ============================================================================
-// RequirePlatformRole
+// RequireSysRole
 // ============================================================================
 
-func TestRequirePlatformRole_MatchPasses(t *testing.T) {
-	uc := makeUC(1, []string{jwtpkg.PlatformRoleSuperAdmin}, nil)
+func TestRequireSysRole_MatchPasses(t *testing.T) {
+	uc := makeUC(1, []string{jwtpkg.SysRoleSuperAdmin}, nil)
 	c, _ := buildCtx(uc)
-	mw := RequirePlatformRole(jwtpkg.PlatformRoleSuperAdmin)
+	mw := RequireSysRole(jwtpkg.SysRoleSuperAdmin)
 	if aborted, _ := runOnce(c, mw); aborted {
-		t.Error("matching platform role should pass")
+		t.Error("matching sys role should pass")
 	}
 }
 
-func TestRequirePlatformRole_NoMatchFails(t *testing.T) {
+func TestRequireSysRole_NoMatchFails(t *testing.T) {
 	uc := makeUC(1, []string{"viewer"}, nil)
 	c, rec := buildCtx(uc)
-	mw := RequirePlatformRole(jwtpkg.PlatformRoleSuperAdmin)
+	mw := RequireSysRole(jwtpkg.SysRoleSuperAdmin)
 	aborted, status := runOnce(c, mw)
 	if !aborted {
 		t.Error("non-matching role should be denied")
@@ -197,11 +197,11 @@ func TestRequirePlatformRole_NoMatchFails(t *testing.T) {
 	}
 }
 
-func TestRequirePlatformRole_EmptyRolesListPasses(t *testing.T) {
+func TestRequireSysRole_EmptyRolesListPasses(t *testing.T) {
 	// Empty roles list is a documented "no restriction" sentinel.
 	uc := makeUC(1, nil, nil)
 	c, _ := buildCtx(uc)
-	mw := RequirePlatformRole() // no roles required
+	mw := RequireSysRole() // no roles required
 	if aborted, _ := runOnce(c, mw); aborted {
 		t.Error("empty roles list must be a no-op (caller didn't request any role)")
 	}
@@ -277,23 +277,23 @@ func TestRequire_MissingUserContext_500(t *testing.T) {
 	}
 }
 
-// TestRequirePlatformRole_AnyOfMultiple 验证任一角色匹配即可放行。
+// TestRequireSysRole_AnyOfMultiple 验证任一角色匹配即可放行。
 //
 // roles=[super_admin,admin] 时，账号持有 admin 也应通过。
-func TestRequirePlatformRole_AnyOfMultiple(t *testing.T) {
+func TestRequireSysRole_AnyOfMultiple(t *testing.T) {
 	uc := makeUC(1, []string{"admin"}, nil)
 	c, _ := buildCtx(uc)
-	mw := RequirePlatformRole(jwtpkg.PlatformRoleSuperAdmin, "admin")
+	mw := RequireSysRole(jwtpkg.SysRoleSuperAdmin, "admin")
 	if aborted, _ := runOnce(c, mw); aborted {
 		t.Error("持有任一所需角色即应放行")
 	}
 }
 
-// TestRequirePlatformRole_NoneHeld 验证持有任何所需角色 → 403。
-func TestRequirePlatformRole_NoneHeld(t *testing.T) {
+// TestRequireSysRole_NoneHeld 验证持有任何所需角色 → 403。
+func TestRequireSysRole_NoneHeld(t *testing.T) {
 	uc := makeUC(1, []string{"viewer"}, nil)
 	c, rec := buildCtx(uc)
-	mw := RequirePlatformRole(jwtpkg.PlatformRoleSuperAdmin, "admin")
+	mw := RequireSysRole(jwtpkg.SysRoleSuperAdmin, "admin")
 	aborted, status := runOnce(c, mw)
 	if !aborted {
 		t.Error("未持有任一所需角色必须拒绝")
@@ -303,7 +303,7 @@ func TestRequirePlatformRole_NoneHeld(t *testing.T) {
 	}
 }
 
-// TestRequireTenantContext_NoTenantID_Fails 验证 platform 域登录的 token（tenant_id=0）
+// TestRequireTenantContext_NoTenantID_Fails 验证 sys 域登录的 token（tenant_id=0）
 // 不能访问 tenant 路由。
 func TestRequireTenantContext_NoTenantID_Fails(t *testing.T) {
 	uc := makeUC(1, nil, nil)
@@ -330,30 +330,30 @@ func TestRequireTenantContext_WithTenantID_Passes(t *testing.T) {
 	}
 }
 
-// TestRequirePlatformScope_NonPlatformToken_Fails 验证 tenant 登录的 token 不能访问
-// platform 域路由。
-func TestRequirePlatformScope_NonPlatformToken_Fails(t *testing.T) {
+// TestRequireSysScope_NonSysToken_Fails 验证 tenant 登录的 token 不能访问
+// sys 域路由。
+func TestRequireSysScope_NonSysToken_Fails(t *testing.T) {
 	uc := makeUC(1, nil, nil)
 	uc.TenantID = 7 // tenant 域登录
 	c, rec := buildCtx(uc)
-	mw := RequirePlatformScope()
+	mw := RequireSysScope()
 	aborted, status := runOnce(c, mw)
 	if !aborted {
-		t.Error("tenant 域 token 必须被 RequirePlatformScope 拒绝")
+		t.Error("tenant 域 token 必须被 RequireSysScope 拒绝")
 	}
 	if status != http.StatusForbidden {
 		t.Errorf("expected 403, got %d (body=%q)", status, rec.Body.String())
 	}
 }
 
-// TestRequirePlatformScope_PlatformToken_Passes 验证 platform 域登录 (TenantID=0) 能通过。
-func TestRequirePlatformScope_PlatformToken_Passes(t *testing.T) {
-	uc := makeUC(1, []string{jwtpkg.PlatformRoleSuperAdmin}, nil)
-	uc.TenantID = 0 // platform 域登录
+// TestRequireSysScope_SysToken_Passes 验证 sys 域登录 (TenantID=0) 能通过。
+func TestRequireSysScope_SysToken_Passes(t *testing.T) {
+	uc := makeUC(1, []string{jwtpkg.SysRoleSuperAdmin}, nil)
+	uc.TenantID = 0 // sys 域登录
 	c, _ := buildCtx(uc)
-	mw := RequirePlatformScope()
+	mw := RequireSysScope()
 	if aborted, _ := runOnce(c, mw); aborted {
-		t.Error("platform 域 token 必须被 RequirePlatformScope 放行")
+		t.Error("sys 域 token 必须被 RequireSysScope 放行")
 	}
 }
 

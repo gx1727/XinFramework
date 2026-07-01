@@ -41,8 +41,8 @@ framework/pkg/task/
 apps/task/
 ├── module.go         Module 工厂：Init 注册 Queue；Register 启动 Worker；内置 cleanup handler
 ├── service.go        管理 API 的 service 层（list / get / cancel / requeue / stats / cleanup）
-├── handler.go        platform 域管理 API（仅 super_admin 可访问）
-├── routes.go         路由注册（platform 域）
+├── handler.go        sys 域管理 API（仅 super_admin 可访问）
+├── routes.go         路由注册（sys 域）
 ├── types.go          DTO + 别名（让业务代码读起来更短）
 └── errors.go         错误码段（1700-1799）
 ```
@@ -247,7 +247,7 @@ apps/task 模块启动期注册两个内置 handler：
 清理任务自身也是任务——所以可以"递归清理"：
 ```bash
 # 每天凌晨 3 点清理过期锁定 + 历史任务
-0 3 * * * curl -X POST http://localhost:8087/api/v1/platform/tasks/cleanup?keep_days=7
+0 3 * * * curl -X POST http://localhost:8087/api/v1/sys/tasks/cleanup?keep_days=7
 ```
 
 ---
@@ -256,12 +256,12 @@ apps/task 模块启动期注册两个内置 handler：
 
 | 方法 | 路径 | 鉴权 |
 |---|---|---|
-| `GET /api/v1/platform/tasks?kind=&status=&tenant_id=&page=&size=` | 列任务 | super_admin |
-| `GET /api/v1/platform/tasks/:id` | 任务详情 | super_admin |
-| `POST /api/v1/platform/tasks/:id/cancel` | 取消（pending/running） | super_admin |
-| `POST /api/v1/platform/tasks/:id/requeue` | 重新入队（failed/dead） | super_admin |
-| `GET /api/v1/platform/tasks/stats` | 队列统计 | super_admin |
-| `POST /api/v1/platform/tasks/cleanup?keep_days=7&statuses=succeeded,dead` | 清理历史 | super_admin |
+| `GET /api/v1/sys/tasks?kind=&status=&tenant_id=&page=&size=` | 列任务 | super_admin |
+| `GET /api/v1/sys/tasks/:id` | 任务详情 | super_admin |
+| `POST /api/v1/sys/tasks/:id/cancel` | 取消（pending/running） | super_admin |
+| `POST /api/v1/sys/tasks/:id/requeue` | 重新入队（failed/dead） | super_admin |
+| `GET /api/v1/sys/tasks/stats` | 队列统计 | super_admin |
+| `POST /api/v1/sys/tasks/cleanup?keep_days=7&statuses=succeeded,dead` | 清理历史 | super_admin |
 
 ---
 

@@ -6,13 +6,11 @@ import { useAuthStore } from "@/stores/authStore"
 const TenantLoginPage = lazy(() =>
   import("@/pages/TenantLogin").then((m) => ({ default: m.TenantLoginPage }))
 )
-const PlatformLoginPage = lazy(() =>
-  import("@/pages/PlatformLogin").then((m) => ({
-    default: m.PlatformLoginPage,
-  }))
+const SysLoginPage = lazy(() =>
+  import("@/pages/SysLogin").then((m) => ({ default: m.SysLoginPage }))
 )
 
-// ===== 租户域（/app/*）=====
+// ===== 租户域(/app/*)=====
 const DashboardPage = lazy(() =>
   import("@/pages/Dashboard").then((m) => ({ default: m.DashboardPage }))
 )
@@ -66,43 +64,43 @@ const DictsPage = lazy(() =>
 )
 const CachePage = lazy(() => import("@/pages/Cache"))
 
-// ===== 平台域（/platform/*）=====
-const PlatformDashboardPage = lazy(() =>
-  import("@/pages/PlatformDashboard").then((m) => ({
-    default: m.PlatformDashboardPage,
+// ===== Sys 域(/sys/*)=====
+const SysDashboardPage = lazy(() =>
+  import("@/pages/SysDashboard").then((m) => ({
+    default: m.SysDashboardPage,
   }))
 )
-const PlatformTenantsPage = lazy(() =>
-  import("@/pages/Tenants").then((m) => ({ default: m.TenantsPage }))
+const SysTenantsPage = lazy(() =>
+  import("@/pages/Tenants").then((m) => ({ default: m.SysTenantsPage }))
 )
-const PlatformMenusPage = lazy(() =>
-  import("@/pages/PlatformMenus").then((m) => ({
-    default: m.PlatformMenusPage,
+const SysMenusPage = lazy(() =>
+  import("@/pages/SysMenus").then((m) => ({
+    default: m.SysMenusPage,
   }))
 )
-const PlatformConfigsPage = lazy(() =>
-  import("@/pages/PlatformConfigs").then((m) => ({
-    default: m.PlatformConfigsPage,
+const SysConfigsPage = lazy(() =>
+  import("@/pages/SysConfigs").then((m) => ({
+    default: m.SysConfigsPage,
   }))
 )
-const PlatformDictsPage = lazy(() =>
-  import("@/pages/PlatformDicts").then((m) => ({
-    default: m.PlatformDictsPage,
+const SysDictsPage = lazy(() =>
+  import("@/pages/SysDicts").then((m) => ({
+    default: m.SysDictsPage,
   }))
 )
-const PlatformUsersPage = lazy(() =>
-  import("@/pages/PlatformUsers").then((m) => ({
-    default: m.PlatformUsersPage,
+const SysUsersPage = lazy(() =>
+  import("@/pages/SysUsers").then((m) => ({
+    default: m.SysUsersPage,
   }))
 )
-const PlatformRolesPage = lazy(() =>
-  import("@/pages/PlatformRoles").then((m) => ({
-    default: m.PlatformRolesPage,
+const SysRolesPage = lazy(() =>
+  import("@/pages/SysRoles").then((m) => ({
+    default: m.SysRolesPage,
   }))
 )
-const PlatformPermissionsPage = lazy(() =>
-  import("@/pages/PlatformPermissions").then((m) => ({
-    default: m.PlatformPermissionsPage,
+const SysPermissionsPage = lazy(() =>
+  import("@/pages/SysPermissions").then((m) => ({
+    default: m.SysPermissionsPage,
   }))
 )
 
@@ -115,15 +113,15 @@ function PageLoader() {
 }
 
 /**
- * RequireScope 路由守卫：
- *   - 已登录但 scope 不匹配 → 跳转到该 scope 的默认页（避免 token 跨域串用）
+ * RequireScope 路由守卫:
+ *   - 已登录但 scope 不匹配 → 跳转到该 scope 的默认页(避免 token 跨域串用)
  *   - 未登录 → 跳转到 /login
  */
 function RequireScope({
   scope,
   children,
 }: {
-  scope: "tenant" | "platform"
+  scope: "tenant" | "sys"
   children: React.ReactNode
 }) {
   const isAuthed = useAuthStore((s) => s.isAuthenticated)
@@ -132,7 +130,7 @@ function RequireScope({
   if (!isAuthed) {
     return (
       <Navigate
-        to={scope === "platform" ? "/platform/login" : "/login"}
+        to={scope === "sys" ? "/sys/login" : "/login"}
         replace
         state={{ from: location }}
       />
@@ -141,9 +139,7 @@ function RequireScope({
   if (currentScope !== scope) {
     return (
       <Navigate
-        to={
-          currentScope === "platform" ? "/platform/dashboard" : "/app/dashboard"
-        }
+        to={currentScope === "sys" ? "/sys/dashboard" : "/app/dashboard"}
         replace
       />
     )
@@ -161,9 +157,9 @@ export function App() {
         {/* ===== 登录 ===== */}
         <Route path="/login" element={<TenantLoginPage />} />
         <Route path="/signup" element={<Navigate to="/login" replace />} />
-        <Route path="/platform/login" element={<PlatformLoginPage />} />
+        <Route path="/sys/login" element={<SysLoginPage />} />
 
-        {/* ===== 租户域 /app/*（业务） ===== */}
+        {/* ===== 租户域 /app/*(业务) ===== */}
         <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
         <Route
           path="/app/dashboard"
@@ -295,101 +291,82 @@ export function App() {
         />
         <Route
           path="/app/cache"
-          element={<Navigate to="/platform/cache" replace />}
+          element={<Navigate to="/sys/cache" replace />}
         />
 
-        {/* ===== 平台域 /platform/*（super_admin） ===== */}
+        {/* ===== Sys 域 /sys/*(super_admin) ===== */}
+        <Route path="/sys" element={<Navigate to="/sys/dashboard" replace />} />
         <Route
-          path="/platform"
-          element={<Navigate to="/platform/dashboard" replace />}
-        />
-        <Route
-          path="/platform/dashboard"
+          path="/sys/dashboard"
           element={
-            <RequireScope scope="platform">
-              <PlatformDashboardPage />
+            <RequireScope scope="sys">
+              <SysDashboardPage />
             </RequireScope>
           }
         />
         <Route
-          path="/platform/tenants"
+          path="/sys/tenants"
           element={
-            <RequireScope scope="platform">
-              <PlatformTenantsPage />
+            <RequireScope scope="sys">
+              <SysTenantsPage />
             </RequireScope>
           }
         />
         <Route
-          path="/platform/menus"
+          path="/sys/menus"
           element={
-            <RequireScope scope="platform">
-              <PlatformMenusPage />
+            <RequireScope scope="sys">
+              <SysMenusPage />
             </RequireScope>
           }
         />
         <Route
-          path="/platform/configs"
+          path="/sys/configs"
           element={
-            <RequireScope scope="platform">
-              <PlatformConfigsPage />
+            <RequireScope scope="sys">
+              <SysConfigsPage />
             </RequireScope>
           }
         />
         <Route
-          path="/platform/dicts"
+          path="/sys/dicts"
           element={
-            <RequireScope scope="platform">
-              <PlatformDictsPage />
+            <RequireScope scope="sys">
+              <SysDictsPage />
             </RequireScope>
           }
         />
         <Route
-          path="/platform/cache"
+          path="/sys/cache"
           element={
-            <RequireScope scope="platform">
+            <RequireScope scope="sys">
               <CachePage />
             </RequireScope>
           }
         />
         <Route
-          path="/platform/users"
+          path="/sys/users"
           element={
-            <RequireScope scope="platform">
-              <PlatformUsersPage />
+            <RequireScope scope="sys">
+              <SysUsersPage />
             </RequireScope>
           }
         />
         <Route
-          path="/platform/roles"
+          path="/sys/roles"
           element={
-            <RequireScope scope="platform">
-              <PlatformRolesPage />
+            <RequireScope scope="sys">
+              <SysRolesPage />
             </RequireScope>
           }
         />
         <Route
-          path="/platform/permissions"
+          path="/sys/permissions"
           element={
-            <RequireScope scope="platform">
-              <PlatformPermissionsPage />
+            <RequireScope scope="sys">
+              <SysPermissionsPage />
             </RequireScope>
           }
-        />
-
-        {/* ===== 兼容期：旧路径 → 新路径 ===== */}
-        <Route
-          path="/dashboard"
-          element={<Navigate to="/app/dashboard" replace />}
-        />
-        <Route
-          path="/tenants"
-          element={<Navigate to="/platform/tenants" replace />}
-        />
-        <Route path="/menus" element={<Navigate to="/app/menus" replace />} />
-        <Route path="/dicts" element={<Navigate to="/app/dicts" replace />} />
-        <Route
-          path="/configs"
-          element={<Navigate to="/app/configs" replace />}
         />
 
         {/* ===== 其他 ===== */}

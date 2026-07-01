@@ -29,7 +29,7 @@ XinFramework/
 │   │                             # plugin / rbac / resp / session / storage / tenant
 │   └── apps/                     # 业务模块（与 framework 同 module）
 │       ├── boot/auth/            # 登录（alwaysOn）
-│       ├── platform/             # tenants / sys_user / sys_role / sys_menu / sys_permission
+│       ├── sys/                  # tenants / sys_user / sys_role / sys_menu / sys_permission
 │       ├── tenant/               # user / role / menu / organization / permission / resource
 │       ├── reference/            # asset / config / dict / weixin
 │       ├── system/               # health / cache 运维
@@ -93,7 +93,7 @@ curl http://localhost:8087/api/v1/health
 | Name | 类型 | 数据表 | 说明 |
 |---|---|---|---|
 | `auth` | alwaysOn | accounts / auth_sessions | 登录 / 注册 / JWT / 多身份 |
-| `tenants` | alwaysOn | tenants | 租户管理（必须 super_admin，apps/platform/tenants） |
+| `tenants` | alwaysOn | tenants | 租户管理（必须 super_admin，apps/sys/tenants） |
 | `system` | alwaysOn | — | /health + 运维 cache |
 | `user` | optOut | tenant_users / tenant_user_roles | 租户内用户 CRUD（apps/tenant/user） |
 | `role` | optOut | tenant_roles / tenant_role_data_scopes / tenant_user_roles / tenant_role_menus / tenant_role_resources | 角色 + 数据范围（apps/tenant/role） |

@@ -65,7 +65,7 @@ go build -o bin/xin ./cmd/xin
 **关键日志**：
 ```
 module auth initialized
-module platform_tenant initialized
+module sys_tenant initialized
 module sys_user initialized
 ...
 server starting on 0.0.0.0:8087
@@ -110,16 +110,18 @@ VITE_ASSET_BASE_URL=http://localhost:8087
 
 ### 5.2 默认登录账号
 
-- `/platform/login` → 平台管理后台
+- `/sys/login` → sys 管理后台
 - `/login` → 业务后台（需要选择 tenant_id）
 
 ### 5.3 API 调试
 
 ```bash
-# 平台登录
-curl -X POST http://localhost:8087/api/v1/auth/platform-login \
+# sys 登录（super_admin）
+curl -X POST http://localhost:8087/api/v1/auth/sys-login \
   -H "Content-Type: application/json" \
   -d '{"account":"admin","password":"admin123"}'
+
+# 兼容期：旧 /auth/platform-login 仍可用，自动转发到 sys-login
 
 # 业务登录（需要先有 tenant_id）
 curl -X POST http://localhost:8087/api/v1/auth/tenant-login \

@@ -36,7 +36,7 @@ migrations/
 | | `tenant_menus`, `tenant_permissions` | ✅ | 物理拆出 |
 | | `tenant_role_menus`, `tenant_role_resources` | ✅ | |
 | | `tenant_user_seq` | ✅ | 租户用户序号 |
-| **平台域** | `sys_users`, `sys_orgs`, `sys_roles`, `sys_menus` | ❌ | platform 是单租户概念，靠 API 层 `RequirePlatformRole(super_admin)` 守护 |
+| **平台域** | `sys_users`, `sys_orgs`, `sys_roles`, `sys_menus` | ❌ | sys 是单租户概念，靠 API 层 `RequireSysRole(super_admin)` 守护 |
 | | `sys_permissions`, `sys_user_roles`, `sys_role_menus`, `sys_role_permissions` | ❌ | |
 | **业务支撑** | `subscriptions`, `usage_records`, `db_logs`, `routes` | ✅ | 按租户分账 |
 | | `plans` | ❌ | 全局套餐表 |
@@ -56,7 +56,7 @@ migrations/
 | `role_data_scopes` | `tenant_role_data_scopes` |
 | `resources` | `tenant_permissions` |
 | `menus`（`scope='tenant'` 部分） | `tenant_menus`（无 `scope` 字段） |
-| `menus`（`scope='platform'` 部分） | `sys_menus` |
+| `menus`（`scope='sys'` 部分） | `sys_menus` |
 | `account_roles` | **drop**（由 `sys_user_roles` + `sys_roles` 替代） |
 
 init_schema.sql 末尾的 `DO $$ ... $$` 块会校验：

@@ -8,7 +8,7 @@
 //   - HistoryRecorder：仅记录成功登录的 IP/UA/位置，用于异地告警
 //   - Notifier：通知通道抽象（短信 / 邮件 / 站内消息），默认 LogNotifier 仅写日志
 //
-// 调用方：apps/boot/auth 的 Service 在 Login / LoginPrecheck / PlatformLogin 流程中
+// 调用方：apps/boot/auth 的 Service 在 Login / LoginPrecheck / SysLogin 流程中
 // 调用 SecurityService.CheckLock / RecordAttempt / RecordSuccess 即可。
 package login_security
 
@@ -21,12 +21,12 @@ import (
 type FailureReason string
 
 const (
-	FailureInvalidPassword  FailureReason = "invalid_password"
-	FailureAccountNotFound  FailureReason = "account_not_found"
-	FailureUserDisabled     FailureReason = "user_disabled"
-	FailureAccountLocked    FailureReason = "locked"
-	FailureTenantNotFound   FailureReason = "tenant_not_found"
-	FailureNoLoginIdentity  FailureReason = "no_login_identity"
+	FailureInvalidPassword FailureReason = "invalid_password"
+	FailureAccountNotFound FailureReason = "account_not_found"
+	FailureUserDisabled    FailureReason = "user_disabled"
+	FailureAccountLocked   FailureReason = "locked"
+	FailureTenantNotFound  FailureReason = "tenant_not_found"
+	FailureNoLoginIdentity FailureReason = "no_login_identity"
 )
 
 // LockReason 账号锁定原因。
@@ -43,7 +43,7 @@ type Scope string
 
 const (
 	ScopeTenant   Scope = "tenant"
-	ScopePlatform Scope = "platform"
+	ScopeSys      Scope = "sys"
 	ScopePrecheck Scope = "precheck"
 )
 
@@ -61,12 +61,12 @@ type LoginAttempt struct {
 
 // AccountLock 当前生效的账号锁定记录。
 type AccountLock struct {
-	Account      string
-	LockedUntil  time.Time
-	Reason       LockReason
-	Attempts     int
-	IP           string
-	CreatedAt    time.Time
+	Account     string
+	LockedUntil time.Time
+	Reason      LockReason
+	Attempts    int
+	IP          string
+	CreatedAt   time.Time
 }
 
 // IsActive 报告该锁定记录在当前时刻是否仍生效。
@@ -91,10 +91,10 @@ type LoginHistoryEntry struct {
 
 // AnomalySignal 异地登录信号。SecurityService 在 RecordSuccess 时检测并返回。
 type AnomalySignal struct {
-	IsAnomaly     bool     // 是否判定为"异地"
-	Reasons       []string // 命中规则：new_ip / new_device / new_location
-	KnownIPs      []string // 该账号最近 N 次登录的 IP 列表（取证）
-	KnownDevices  []string // 该账号最近 N 次登录的 device_id 列表
+	IsAnomaly    bool     // 是否判定为"异地"
+	Reasons      []string // 命中规则：new_ip / new_device / new_location
+	KnownIPs     []string // 该账号最近 N 次登录的 IP 列表（取证）
+	KnownDevices []string // 该账号最近 N 次登录的 device_id 列表
 }
 
 // ContextKey 注入到 ctx 的私有 key（避免与其他包冲突）。

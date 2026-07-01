@@ -23,7 +23,7 @@ func NewPermissionRepository(db *pgxpool.Pool) *PostgresPermissionRepository {
 var allActions = []string{ActList, ActGet, ActCreate, ActUpdate, ActDelete, ActTree}
 
 // expandPermissionCode 把单条 permission code 展开成一组运行时 map key。
-// 规则（与 apps/platform/sys_permission/service.go permissionCodeValid 对齐）：
+// 规则（与 apps/sys/permission/service.go permissionCodeValid 对齐）：
 //   - "x"    → {"x", "x:*"}                                                菜单无关资源（无 action 维度）
 //   - "x:y"  → {"x:y"}                                                      菜单相关资源（具体 action）
 //   - "x:*"  → {"x:list","x:get","x:create","x:update","x:delete","x:tree"} 菜单相关资源（所有 action）
@@ -52,13 +52,13 @@ func expandPermissionCode(code string) []string {
 
 // GetUserPermissions returns map of "resource:action" -> true.
 //
-// 路径合集：tenant 域 + platform 域。
+// 路径合集：tenant 域 + sys 域。
 //
 //	(1) tenant 域：userID = tenant_users.id
 //	    tenant_users -> tenant_user_roles -> tenant_roles
 //	    -> tenant_role_resources -> tenant_permissions
-//	(2) platform 域：userID = sys_users.account_id（per JWT 注释：platform admin 的
-//	    Claims.UserID = account_id；同一个人可能同时拥有 tenant 身份与 platform 身份，
+//	(2) sys 域：userID = sys_users.account_id（per JWT 注释：sys admin 的
+//	    Claims.UserID = account_id；同一个人可能同时拥有 tenant 身份与 sys 身份，
 //	    但 userID 解析到的表不同，所以 UNOIN ALL 不会重复）
 //
 // 约定（0024+ 终态）：
@@ -95,7 +95,7 @@ func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, u
 
 		UNION ALL
 
-		-- (2) platform 域权限
+				-- (2) sys 域权限
 		SELECT DISTINCT p.code
 		FROM sys_users su
 		JOIN sys_user_roles sur ON sur.user_id = su.id

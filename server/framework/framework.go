@@ -134,7 +134,7 @@ func setupRouter(cfg *config.Config, db *pgxpool.Pool, rt *Runtime, modules []pl
 // 路由空间（重构后）：
 //   - public     → /api/v1/*             （OptionalAuth，公开；需隔离的子资源挂 /public/<x>）
 //   - tenant     → /api/v1/*             （Auth + RequireTenantContext，业务域；模块直接挂资源路径）
-//   - protected  → /api/v1/platform/*    （Auth + RequirePlatformRole，平台域）
+//   - protected  → /api/v1/sys/*         （Auth + RequireSysRole，sys 域）
 //
 // 三组 RouterGroup 打包成 plugin.RouterSlots 传给业务模块。
 // 业务模块用 slots.MustGet(plugin.SlotPublic | SlotTenant | SlotProtected) 取。
@@ -156,10 +156,10 @@ func registerModules(r *gin.Engine, cfg *config.Config, db *pgxpool.Pool, appCtx
 	tenant.Use(middleware.Auth(&cfg.JWT, sm, authzSvc, db))
 	tenant.Use(pkgmiddleware.RequireTenantContext())
 
-	// protected：必须登录（语义上是 platform 域）
-	// 平台模块（platform_tenant / sys_menu / config platform 域 / dict platform 域）
-	// 自己在内部追加 RequirePlatformRole("super_admin")
-	protected := v1.Group("/platform")
+	// protected：必须登录（语义上是 sys 域）
+	// 平台模块（sys_tenant / sys_menu / config sys 域 / dict sys 域）
+	// 自己在内部追加 RequireSysRole("super_admin")
+	protected := v1.Group("/sys")
 	protected.Use(middleware.Auth(&cfg.JWT, sm, authzSvc, db))
 
 	enabled := enabledSet(cfg)
@@ -183,7 +183,7 @@ func registerModules(r *gin.Engine, cfg *config.Config, db *pgxpool.Pool, appCtx
 		plugin.SlotProtected: {
 			Name:        plugin.SlotProtected,
 			Group:       protected,
-			Description: "平台域管理（Auth）",
+			Description: "sys 域管理（Auth）",
 		},
 	}
 

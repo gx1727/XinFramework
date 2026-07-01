@@ -27,18 +27,18 @@ type StorageConfig struct {
 }
 
 type Config struct {
-	App            AppConfig            `yaml:"app"`
-	Database       DatabaseConfig       `yaml:"database"`
-	Redis          RedisConfig          `yaml:"redis"`
-	JWT            JWTConfig            `yaml:"jwt"`
-	Storage        StorageConfig        `yaml:"storage"`
-	Log            LogConfig            `yaml:"log"`
-	Module         []string             `yaml:"module"`
-	Apps           []string             `yaml:"apps"`
-	CORS           CORSConfig           `yaml:"cors"`
+	App             AppConfig             `yaml:"app"`
+	Database        DatabaseConfig        `yaml:"database"`
+	Redis           RedisConfig           `yaml:"redis"`
+	JWT             JWTConfig             `yaml:"jwt"`
+	Storage         StorageConfig         `yaml:"storage"`
+	Log             LogConfig             `yaml:"log"`
+	Module          []string              `yaml:"module"`
+	Apps            []string              `yaml:"apps"`
+	CORS            CORSConfig            `yaml:"cors"`
 	PermissionCache PermissionCacheConfig `yaml:"permission_cache"`
-	LoginSecurity   LoginSecurityConfig  `yaml:"login_security"`
-	Task            TaskConfig           `yaml:"task"`
+	LoginSecurity   LoginSecurityConfig   `yaml:"login_security"`
+	Task            TaskConfig            `yaml:"task"`
 }
 
 // PermissionCacheConfig 控制权限 / 数据范围缓存的行为。
@@ -62,9 +62,9 @@ type LoginSecurityConfig struct {
 	Enabled bool `yaml:"enabled"`
 
 	// 账号维度锁定
-	MaxFailedAttempts  int `yaml:"max_failed_attempts"`   // 滑动窗口内最大失败次数，默认 5
-	LockDurationMin    int `yaml:"lock_duration_min"`    // 锁定时长（分钟），默认 30
-	FailureWindowMin   int `yaml:"failure_window_min"`   // 滑动窗口（分钟），默认 10
+	MaxFailedAttempts int `yaml:"max_failed_attempts"` // 滑动窗口内最大失败次数，默认 5
+	LockDurationMin   int `yaml:"lock_duration_min"`   // 锁定时长（分钟），默认 30
+	FailureWindowMin  int `yaml:"failure_window_min"`  // 滑动窗口（分钟），默认 10
 
 	// IP 维度封锁（跨账号防爆破）
 	IPFailureThreshold int `yaml:"ip_failure_threshold"`  // 默认 20
@@ -88,16 +88,16 @@ type LoginSecurityConfig struct {
 //
 // 详见 framework/pkg/task 包与 doc/task-design.md。
 type TaskConfig struct {
-	WorkerCount          int                 `yaml:"worker_count"`           // 进程内 worker goroutine 数（默认 4）
-	PollIntervalMs       int                 `yaml:"poll_interval_ms"`       // 轮询间隔（默认 1000）
-	HeartbeatIntervalSec int                 `yaml:"heartbeat_interval_sec"` // 心跳间隔（默认 30）
-	HeartbeatTimeoutSec  int                 `yaml:"heartbeat_timeout_sec"`  // 心跳超时视为僵死（默认 90）
-	ReclaimIntervalSec   int                 `yaml:"reclaim_interval_sec"`   // 僵死回收周期（默认 60）
-	DefaultMaxAttempts   int                 `yaml:"default_max_attempts"`   // 默认重试次数（默认 3）
-	DefaultTimeoutSec    int                 `yaml:"default_timeout_sec"`    // 默认单任务超时（默认 300）
-	RetryStrategy        string              `yaml:"retry_strategy"`         // exponential/linear/fixed（默认 exponential）
-	Cleanup              TaskCleanupConfig   `yaml:"cleanup"`
-	Cron                 TaskCronConfig      `yaml:"cron"`
+	WorkerCount          int               `yaml:"worker_count"`           // 进程内 worker goroutine 数（默认 4）
+	PollIntervalMs       int               `yaml:"poll_interval_ms"`       // 轮询间隔（默认 1000）
+	HeartbeatIntervalSec int               `yaml:"heartbeat_interval_sec"` // 心跳间隔（默认 30）
+	HeartbeatTimeoutSec  int               `yaml:"heartbeat_timeout_sec"`  // 心跳超时视为僵死（默认 90）
+	ReclaimIntervalSec   int               `yaml:"reclaim_interval_sec"`   // 僵死回收周期（默认 60）
+	DefaultMaxAttempts   int               `yaml:"default_max_attempts"`   // 默认重试次数（默认 3）
+	DefaultTimeoutSec    int               `yaml:"default_timeout_sec"`    // 默认单任务超时（默认 300）
+	RetryStrategy        string            `yaml:"retry_strategy"`         // exponential/linear/fixed（默认 exponential）
+	Cleanup              TaskCleanupConfig `yaml:"cleanup"`
+	Cron                 TaskCronConfig    `yaml:"cron"`
 }
 
 // IsEnabled cron 调度器总开关。
@@ -110,8 +110,8 @@ func (c TaskCronConfig) IsEnabled() bool { return c.Enabled }
 //
 // 详见 framework/pkg/task/cron.go 与 doc/task-cron.md。
 type TaskCronConfig struct {
-	Enabled         bool `yaml:"enabled"`           // 是否启用 cron 调度器
-	ScanIntervalSec int  `yaml:"scan_interval_sec"` // scanner 周期（默认 60）
+	Enabled          bool `yaml:"enabled"`           // 是否启用 cron 调度器
+	ScanIntervalSec  int  `yaml:"scan_interval_sec"` // scanner 周期（默认 60）
 	RegisterDefaults bool `yaml:"register_defaults"` // 启动期是否注册框架默认 cron job
 }
 
@@ -242,7 +242,7 @@ func defaults() *Config {
 		PermissionCache: PermissionCacheConfig{
 			PermTTLSeconds:      900,  // 15 min
 			DataScopeTTLSeconds: 1800, // 30 min
-			KeyPrefix:            "user:",
+			KeyPrefix:           "user:",
 		},
 		LoginSecurity: LoginSecurityConfig{
 			Enabled:             true,
@@ -276,8 +276,8 @@ func defaults() *Config {
 				DeadKeepDays:      90,
 			},
 			Cron: TaskCronConfig{
-				Enabled:         true,
-				ScanIntervalSec: 60,
+				Enabled:          true,
+				ScanIntervalSec:  60,
 				RegisterDefaults: true,
 			},
 		},
@@ -471,12 +471,12 @@ func envCSV(key string, target *[]string) {
 // alwaysOnModules 启动必需，配置无法禁用。
 //
 // 这些模块要么承载进程级基础设施（system 提供 health/cache stats），
-// 要么被 auth 中间件或框架其它部分隐式依赖（auth / platform_tenant）。
+// 要么被 auth 中间件或框架其它部分隐式依赖（auth / sys_tenant）。
 // 关闭它们会导致框架不可用，因此不允许在 module: 里"删一行"就关掉。
 var alwaysOnModules = []string{
 	"system",
 	"auth",
-	"platform_tenant",
+	"sys_tenant",
 }
 
 // optOutModules 默认启用。框架默认加载，无需在 cfg.Module 中声明。
@@ -486,7 +486,7 @@ var alwaysOnModules = []string{
 // 间接开关——cfg.Module 现在的语义是"累加 optional 模块"，不再做白名单过滤）。
 //
 // 三档分类（详见 doc/architecture.md §3.3）：
-//   - alwaysOn  3  : system / auth / platform_tenant  （永远启用，不可关）
+//   - alwaysOn  3  : system / auth / sys_tenant        （永远启用，不可关）
 //   - optOut   13  : RBAC + 字典 + 资产 + 配置 + 平台管理  （默认全开）
 //   - optional  3  : weixin / cms / flag  （默认关，纯业务/集成）
 var optOutModules = []string{

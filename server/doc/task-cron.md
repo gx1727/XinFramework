@@ -162,22 +162,22 @@ func (s *CronScheduler) process(ctx, j *CronJob) {
 | [task.Worker](../../framework/pkg/task/worker.go) | worker 无感知——只看到 Enqueue 进来的任务 |
 | [apps/task/](../../apps/task/) | 在 Register 阶段同时启动 worker pool + CronScheduler |
 | login_security.QueueNotifier | 不受影响——异步入队，互不耦合 |
-| 管理 API | 现有 `/api/v1/platform/tasks/*`（运行时任务） + 新增 `/api/v1/platform/cron-jobs/*`（定时定义） |
+| 管理 API | 现有 `/api/v1/sys/tasks/*`（运行时任务） + 新增 `/api/v1/sys/cron-jobs/*`（定时定义） |
 
 ---
 
-## 7. 管理 API（挂在 platform 域，需 super_admin）
+## 7. 管理 API（挂在 sys 域，需 super_admin）
 
 | 方法 | 路径 | 用途 |
 |---|---|---|
-| `GET /api/v1/platform/cron-jobs?enabled_only=` | 列定义 | 管理 / 监控 |
-| `GET /api/v1/platform/cron-jobs/:name` | 单条详情 | 配置校验 |
-| `POST /api/v1/platform/cron-jobs` | 新建 | 启用新任务 |
-| `PUT /api/v1/platform/cron-jobs/:name` | 更新 | 调参 / 暂停 |
-| `DELETE /api/v1/platform/cron-jobs/:name` | 删除 | 退役 |
-| `POST /api/v1/platform/cron-jobs/:name/enable` | 启用 | 解除暂停 |
-| `POST /api/v1/platform/cron-jobs/:name/disable` | 禁用 | 暂停 |
-| `POST /api/v1/platform/cron-jobs/:name/trigger` | 立即触发 | 手动跑 |
+| `GET /api/v1/sys/cron-jobs?enabled_only=` | 列定义 | 管理 / 监控 |
+| `GET /api/v1/sys/cron-jobs/:name` | 单条详情 | 配置校验 |
+| `POST /api/v1/sys/cron-jobs` | 新建 | 启用新任务 |
+| `PUT /api/v1/sys/cron-jobs/:name` | 更新 | 调参 / 暂停 |
+| `DELETE /api/v1/sys/cron-jobs/:name` | 删除 | 退役 |
+| `POST /api/v1/sys/cron-jobs/:name/enable` | 启用 | 解除暂停 |
+| `POST /api/v1/sys/cron-jobs/:name/disable` | 禁用 | 暂停 |
+| `POST /api/v1/sys/cron-jobs/:name/trigger` | 立即触发 | 手动跑 |
 
 错误码段：1750（exists）/ 1751（not found）。
 
@@ -261,7 +261,7 @@ WHERE t.created_at > NOW() - INTERVAL '1 hour';
 
 ```bash
 # 1. 创建一个每 5 秒触发的测试 cron
-curl -X POST http://localhost:8087/api/v1/platform/cron-jobs \
+curl -X POST http://localhost:8087/api/v1/sys/cron-jobs \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"name":"test_every_5s","cron_expr":"*/5 * * * * *","kind":"test_kind","timezone":"UTC"}'
 
@@ -270,13 +270,13 @@ psql -U xin -d xin -c "SELECT kind, status, COUNT(*) FROM background_tasks WHERE
 # 期望：~6 条 succeeded
 
 # 3. 禁用 cron
-curl -X POST http://localhost:8087/api/v1/platform/cron-jobs/test_every_5s/disable
+curl -X POST http://localhost:8087/api/v1/sys/cron-jobs/test_every_5s/disable
 
 # 4. 等 60 秒，应该不再有新任务
 
 # 5. 手动触发一次
-curl -X POST http://localhost:8087/api/v1/platform/cron-jobs/test_every_5s/trigger
-# 返回 task_id，跳到 /api/v1/platform/tasks/{id} 查看
+curl -X POST http://localhost:8087/api/v1/sys/cron-jobs/test_every_5s/trigger
+# 返回 task_id，跳到 /api/v1/sys/tasks/{id} 查看
 ```
 
 ---

@@ -7,10 +7,10 @@ import (
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
-// RegisterCron 把 cron job 管理 API 挂在 platform 域。
+// RegisterCron 把 cron job 管理 API 挂在 sys 域。
 //
-// 路由前缀：/api/v1/platform/cron-jobs/*
-// 鉴权：RequirePlatformRole("super_admin")
+// 路由前缀：/api/v1/sys/cron-jobs/*
+// 鉴权：RequireSysRole("super_admin")
 //
 // 用法：
 //
@@ -18,7 +18,7 @@ import (
 //	task.RegisterCron(protected, h)
 func RegisterCron(protected *gin.RouterGroup, h *CronHandler) {
 	g := protected.Group("/cron-jobs")
-	g.Use(middleware.RequirePlatformRole("super_admin"))
+	g.Use(middleware.RequireSysRole("super_admin"))
 	{
 		g.GET("", middleware.Require(permission.P("task", "list")), h.List)
 		g.GET("/:name", middleware.Require(permission.P("task", "list")), h.Get)

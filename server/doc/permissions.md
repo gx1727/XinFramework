@@ -12,7 +12,7 @@
 | **JWT 身份** | 你是谁 | JWT Claims | 每个请求的 Auth 中间件 |
 | **RBAC 资源权限** | 你能操作哪些资源 | `tenant_role_resources` / `sys_role_permissions` | `Require(spec)` 中间件 |
 | **DataScope 数据范围** | 你能看到哪些行 | `tenant_roles.data_scope` + `tenant_role_data_scopes` | Repository 查询时 `xincontext.ScopeFilterFrom` |
-| **平台角色** | 你是不是 super_admin | `sys_user_roles` → `sys_roles.code` | `RequirePlatformRole` 中间件 |
+| **平台角色** | 你是不是 super_admin | `sys_user_roles` → `sys_roles.code` | `RequireSysRole` 中间件 |
 
 **关系**：
 - 平台角色是**正交维度**：与租户内 RBAC 独立，跨租户特权
@@ -179,27 +179,27 @@ func (r *UserRepository) List(ctx context.Context, q UserQuery) ([]User, error) 
 ```go
 type Claims struct {
     ...
-    PlatformRoles []string  // ["super_admin", ...]
+    SysRoles []string  // ["super_admin", ...]
 }
 ```
 
-登录时查询 `sys_user_roles` → `sys_roles.code` 填入 `PlatformRoles`。
+登录时查询 `sys_user_roles` → `sys_roles.code` 填入 `SysRoles`。
 
 ### 5.3 中间件
 
 ```go
 g := protected.Group("/tenants",
-    pkgmiddleware.RequirePlatformRole(PlatformRoleSuperAdmin),
+    pkgmiddleware.RequireSysRole(SysRoleSuperAdmin),
 )
 ```
 
-`RequirePlatformRole(roles...)` 检查 `Context.PlatformRoles` 包含任一 role。
+`RequireSysRole(roles...)` 检查 `Context.SysRoles` 包含任一 role。
 
 ### 5.4 双重防御
 
 ```go
 g.POST("/tenants", 
-    pkgmiddleware.RequirePlatformRole(PlatformRoleSuperAdmin),  // 1. 平台角色
+    pkgmiddleware.RequireSysRole(SysRoleSuperAdmin),  // 1. 平台角色
     pkgmiddleware.Require(permission.P(permission.ResTenant, permission.ActCreate)),  // 2. 资源权限
     h.Create)
 ```
@@ -208,7 +208,7 @@ g.POST("/tenants",
 
 ### 5.5 短路
 
-`requireWithSpecs` 在 `Context.HasPlatformRole(super_admin)` 时**短路放行**——但实际上双层守卫更严格。建议**关键操作（删除租户、purge）**显式双层守卫，**普通查询**可以靠 super_admin 短路。
+`requireWithSpecs` 在 `Context.HasSysRole(super_admin)` 时**短路放行**——但实际上双层守卫更严格。建议**关键操作（删除租户、purge）**显式双层守卫，**普通查询**可以靠 super_admin 短路。
 
 ---
 
@@ -338,7 +338,7 @@ public.GET("/configs", h.GetPublicConfigs)
 
 `auth/login-precheck` 列出所有身份；`select-tenant` / `tenant-login` 后 JWT 的 `Role` 字段是该身份的 tenant role code。
 
-**切换租户**：`refresh_token` + `tenant_id` → 新 JWT。`Context.PlatformRoles` 不变（平台角色是账号级，与租户无关）。
+**切换租户**：`refresh_token` + `tenant_id` → 新 JWT。`Context.SysRoles` 不变（平台角色是账号级，与租户无关）。
 
 ---
 

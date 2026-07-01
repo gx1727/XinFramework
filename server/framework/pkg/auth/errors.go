@@ -1,6 +1,6 @@
 // Package auth 的公开错误哨兵。
 //
-// 业务模块（如 apps/platform/sys_user 在新建可登录账号时检查 phone/email
+// 业务模块（如 apps/sys/user 在新建可登录账号时检查 phone/email
 // 是否已被占用）只能 import framework/* 包，访问不到 apps/boot/auth 私有
 // 的 errAccountNotFound。因此在 framework 这边再声明一份同名公开错误。
 //

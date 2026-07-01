@@ -3,8 +3,8 @@
 // 拆分为三组：
 //
 //	BusinessHandler: 业务消费 / 租户自建（GET /configs/*, /configs/resolve*）
-//	PlatformHandler: super_admin 平台 CRUD（/configs/platform/*）
-//	PublicHandler:    公开读（GET /configs/public/*）
+//	PlatformHandler: sys 域 CRUD（/sys/configs/*）
+//	PublicHandler:    公开读（GET /public/configs/*）
 //
 // 这样与 dict 模块的 handler 拆分对齐。
 package config
@@ -14,8 +14,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"gx1727.com/xin/framework/pkg/xincontext"
 	"gx1727.com/xin/framework/pkg/resp"
+	"gx1727.com/xin/framework/pkg/xincontext"
 )
 
 // ============================================================================

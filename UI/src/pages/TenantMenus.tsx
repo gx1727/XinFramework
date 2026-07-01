@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils"
  *
  * 0024+ 拆分原则：tenant_menus 与 sys_menus 是两张独立的表、两个独立路由、
  * 两套独立的 CRUD 入口。本页只关心 tenant_menus，不引入平台菜单 tab 切换。
- * 平台菜单请去 /platform/menus。
+ * sys 域菜单请去 /sys/menus。
  */
 interface TreeMenuItem {
   id: number
@@ -144,9 +144,7 @@ export function TenantMenusPage() {
       })
       prev.forEach((id) => {
         if (
-          menus.some(
-            (m) => m.id === id || m.children?.some((c) => c.id === id),
-          )
+          menus.some((m) => m.id === id || m.children?.some((c) => c.id === id))
         ) {
           next.add(id)
         }
@@ -354,16 +352,10 @@ export function TenantMenusPage() {
             <h1 className="text-2xl font-bold">
               {t.pages.menus?.title || "菜单管理"}
             </h1>
-            <p className="text-sm text-muted-foreground">
-              管理本租户私有菜单
-            </p>
+            <p className="text-sm text-muted-foreground">管理本租户私有菜单</p>
           </div>
           <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              onClick={fetchMenus}
-              disabled={loading}
-            >
+            <Button variant="outline" onClick={fetchMenus} disabled={loading}>
               <RefreshCw
                 className={cn("mr-2 h-4 w-4", loading && "animate-spin")}
               />
@@ -399,7 +391,9 @@ export function TenantMenusPage() {
               <div className="relative max-w-sm flex-1">
                 <SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder={t.pages.menus?.searchPlaceholder || "搜索菜单..."}
+                  placeholder={
+                    t.pages.menus?.searchPlaceholder || "搜索菜单..."
+                  }
                   className="pl-9"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -472,9 +466,7 @@ export function TenantMenusPage() {
       <FormDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title={
-          dialogMode === "add" ? "添加租户菜单" : "编辑租户菜单"
-        }
+        title={dialogMode === "add" ? "添加租户菜单" : "编辑租户菜单"}
         schema={menuFormSchema}
         initialValues={getInitialValues()}
         onSubmit={handleSubmit}

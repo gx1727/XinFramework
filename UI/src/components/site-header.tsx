@@ -17,7 +17,8 @@ export function SiteHeader() {
 
   const isDark =
     theme === "dark" ||
-    (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)
+    (theme === "system" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches)
 
   const toggleTheme = () => {
     setTheme(isDark ? "light" : "dark")
@@ -35,12 +36,12 @@ export function SiteHeader() {
 
         {scope && (
           <Badge
-            variant={scope === "platform" ? "default" : "secondary"}
+            variant={scope === "sys" ? "default" : "secondary"}
             className="ml-2 gap-1"
           >
-            {scope === "platform" ? (
+            {scope === "sys" ? (
               <>
-                <GlobeIcon className="size-3" /> 平台域
+                <GlobeIcon className="size-3" /> Sys 域
               </>
             ) : (
               <>

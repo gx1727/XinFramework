@@ -40,7 +40,7 @@ XinFramework/
 │   │                             # cache / audit / migrate / storage / tenant / xincontext / ...
 │   ├── apps/                      # 业务模块（19 个）
 │   │   ├── boot/auth/             # 登录 / 账号（必装）
-│   │   ├── platform/              # 平台管理域：tenants / sys_user / sys_role / sys_menu / sys_permission
+│   │   ├── sys/                   # sys 管理域：tenants / user / role / menu / permission / org
 │   │   ├── tenant/                # 租户域 RBAC：user / role / menu / organization / permission / resource
 │   │   │                          # + tenant/message（站内信）
 │   │   ├── reference/             # 基础设施：asset / config / dict / weixin
@@ -90,7 +90,7 @@ XinFramework/
 
 | 域 | 标识 | RLS | API 守卫 |
 |---|---|---|---|
-| **平台域** `sys_*` | 无 `tenant_id` | ❌ 不启用 | `RequirePlatformRole("super_admin")` + `db.RunInPlatformTx` |
+| **sys 域** `sys_*` | 无 `tenant_id` | ❌ 不启用 | `RequireSysRole("super_admin")` + `db.RunInPlatformTx` |
 | **租户域** `tenant_*` | 带 `tenant_id` | ✅ 全部启用 | `RequireTenantContext`（tenant_id > 0） |
 | **共享层** | `accounts` / `tenants` / `auth_sessions` | ❌ | 由对应业务模块自己路由 |
 
@@ -141,7 +141,7 @@ cmd/xin/main.go
 |---|---|---|---|
 | `public` | `/api/v1/*` | `OptionalAuth` | 登录、健康、公开读、`<module>/public/*` 隔离子资源 |
 | `tenant` | `/api/v1/*`（**无 `/t` 前缀**） | `Auth` + `RequireTenantContext` | 业务域；模块直接挂资源路径 |
-| `protected` | `/api/v1/platform/*` | `Auth` | 平台域；模块内部追加 `RequirePlatformRole("super_admin")` |
+| `protected` | `/api/v1/sys/*` | `Auth` | sys 域；模块内部追加 `RequireSysRole("super_admin")` |
 
 ---
 
@@ -165,7 +165,7 @@ type Module interface {
 | `DB() / Cache() / Config() / Session()` | 读 | `framework/boot` 启动期填充 |
 | `Authz()` | 读 | `framework/boot`（AuthorizationService） |
 | `AccountRepo() / AccountAuthRepo()` | 读 | `apps/boot/auth` |
-| `TenantRepo()` | 读 | `apps/platform/tenants` |
+| `TenantRepo()` | 读 | `apps/sys/tenants` |
 | `UserRepo() / RoleRepo() / OrgRepo() / PermRepo()` | 读 | `apps/tenant/{user,role,organization,permission}` |
 
 Reader 返回 nil 表示对应模块未启用，**调用方必须 nil-check**。
@@ -176,8 +176,8 @@ Reader 返回 nil 表示对应模块未启用，**调用方必须 nil-check**。
 
 | 档 | 数量 | 含义 | 模块 |
 |---|---|---|---|
-| `alwaysOn` | 3 | 必装 | `system` / `auth` / `platform_tenant` |
-| `optOut` | 13 | 框架默认启用，不写即为开 | RBAC：`menu / user / role / resource / organization / permission`<br>基础设施：`dict / asset / config`<br>平台管理：`sys_user / sys_role / sys_menu / sys_permission` |
+| `alwaysOn` | 3 | 必装 | `system` / `auth` / `sys_tenant` |
+| `optOut` | 13 | 框架默认启用，不写即为开 | RBAC：`menu / user / role / resource / organization / permission`<br>基础设施：`dict / asset / config`<br>sys 管理：`sys_user / sys_role / sys_menu / sys_permission` |
 | `optional` | 3 | 默认关，必须显式列出 | `weixin` / `cms` / `flag` |
 
 `cfg.module` 现在的语义是**累加 optional**，不是白名单。生产环境必须显式声明 `module:` 列表（`config.prod.yaml` 强制）。
@@ -189,11 +189,14 @@ Reader 返回 nil 表示对应模块未启用，**调用方必须 nil-check**。
 **JWT Claims**（`framework/pkg/jwt/jwt.go`）：
 ```go
 type Claims struct {
-    UserID, TenantID uint            // tenant login: tenant_users.id；platform login: account_id
-    Role             string          // tenant role code / "_platform"
-    SessionID        string          // 服务端 session 标识
-    TokenType        string          // "access" | "refresh"
-    PlatformRoles    []string        // super_admin 等
+    UserID                 uint     // tenant login: tenant_users.id；sys login: account_id
+    TenantID               uint     // 0 = sys 域
+    Role                   string   // tenant role code / "_sys"（sys 域占位）
+    SessionID              string   // 服务端 session 标识
+    TokenType              string   // "access" | "refresh"
+    SysRoles               []string // super_admin 等
+    ImpersonatedBy         uint     // 模拟登录：原 sys 账号 ID
+    ImpersonationSessionID string   // 模拟登录：原 sys session id
     jwt.RegisteredClaims
 }
 ```
@@ -203,13 +206,14 @@ type Claims struct {
 | 端点 | scope | tenant_id | 适用 |
 |---|---|---|---|
 | `POST /auth/tenant-login` | `tenant` | 必填 | 业务用户登录 |
-| `POST /auth/platform-login` | `platform` | 0 | super_admin 登录 |
+| `POST /auth/sys-login` | `sys` | 0 | super_admin 登录 |
 | `POST /auth/login-precheck` | — | — | 多身份账号列出可用身份 |
 | `POST /auth/select-tenant` | `tenant` | 必填 | precheck 后选身份签 token |
-| `POST /auth/refresh` | 同原 token | 可选 | 切租户时传 `tenant_id`；platform token 不允许切租户 |
+| `POST /auth/refresh` | 同原 token | 可选 | 切租户时传 `tenant_id`；sys token 不允许切租户 |
 | `POST /auth/logout` | — | — | 撤销 session |
 | `POST /auth/register` | `tenant` | 必填 | 注册新用户 |
 | `POST /auth/login` | `tenant` | 必填 | 旧入口，**等价转发到 tenant-login** |
+| `POST /auth/platform-login` | `sys` | 0 | 兼容期路径，**转发到 /auth/sys-login** |
 
 **中间件**：
 
@@ -221,9 +225,10 @@ type Claims struct {
 | `Require(spec)` | 全部 spec 校验（`MatchAll`），缺一个 403 |
 | `RequireAny(specs...)` / `RequireAll(specs...)` | 任一通过 / 全部通过 |
 | `RequireAuthenticated()` | 只校验登录 |
-| `RequirePlatformRole(roles...)` | 校验 `Context.PlatformRoles` 包含任一 role |
-| `RequireTenantContext()` | `Context.TenantID > 0`；挡住 platform token |
-| `RequirePlatformScope()` | `Context.TenantID == 0`；挡住 tenant token |
+| `RequireSysRole(roles...)` | 校验 `Context.SysRoles` 包含任一 role |
+| `RequireAnySysRole()` | 校验 `Context.SysRoles` 非空（任何 sys 角色） |
+| `RequireSysScope()` | `Context.TenantID == 0`；挡住 tenant token |
+| `RequireTenantContext()` | `Context.TenantID > 0`；挡住 sys token |
 
 **短路**：拥有 `*:*` 资源权限或 `super_admin` 平台角色时，`Require*` 全部放行。
 
@@ -295,7 +300,7 @@ func (h *Handler) Get(c *gin.Context) {
 - **i18n**：`zh-CN.ts` 是类型源头；用 `t.xxx.yyy` 对象访问，无 hook
 - **Schema 驱动**：表单 `FormSchema { items: FormItemSchema[] }`，表格 `TableSchema { columns, search?, actions? }`；字段类型 `text / number / select / radio / checkbox / switch / date / icon / divider / slot`；`showIf` 条件显示
 - **API 客户端**：自动加 `Authorization: Bearer <token>`、自动 401 refresh、指数退避重试
-- **路由**：前端 `/app/*`（tenant）、`/platform/*`（platform），与后端三组 RouterGroup 对齐
+- **路由**：前端 `/app/*`（tenant）、`/sys/*`（sys），与后端三组 RouterGroup 对齐
 - **Mock 兜底**：不再静默，catch 内必须 `setError`；mock 仅在 `useMockFallback=true` 时使用
 - **编码**：**所有源文件 UTF-8 无 BOM**（PowerShell 默认 GBK 会破坏中文）
 
@@ -318,37 +323,37 @@ func (h *Handler) Get(c *gin.Context) {
 
 | 域 | 后端 | 前端 |
 |---|---|---|
-| public | `POST /auth/*`、`GET /health`、`GET /public/configs`、`GET /flag/frames*` | `/login`、`/platform/login` |
+| public | `POST /auth/*`、`GET /health`、`GET /public/configs`、`GET /flag/frames*` | `/login`、`/sys/login` |
 | tenant | `/users` `/roles` `/menus` `/resources` `/organizations` `/dicts` `/configs` `/asset` `/flag/*` `/messages` 等 | `/app/*` |
-| platform | `/platform/tenants`、`/platform/sys-users`、`/platform/sys-roles`、`/platform/menus`、`/platform/sys-permissions`、`/platform/dicts`、`/platform/configs` | `/platform/*`（仅 super_admin） |
+| sys | `/sys/tenants`、`/sys/sys-users`、`/sys/sys-roles`、`/sys/menus`、`/sys/sys-permissions`、`/sys/dicts`、`/sys/configs`、`/sys/system/*` | `/sys/*`（仅 super_admin） |
 
 ### 12.3 关键模块映射
 
 | 后端模块 | 前端页面 | 路由 | 前端 API | 后端路径 |
 |---|---|---|---|---|
-| `auth` | Login.tsx / TenantLogin.tsx / PlatformLogin.tsx | `/login`, `/platform/login` | `authApi` | `/auth/*` |
+| `auth` | Login.tsx / TenantLogin.tsx / SysLogin.tsx | `/login`, `/sys/login` | `authApi` | `/auth/*` |
 | `user` | Users.tsx | `/app/users` | `userApi` | `/users/*` |
 | `role` | Roles.tsx | `/app/roles` | `roleApi` | `/roles/*` |
 | `menu`（租户域） | Menus.tsx | `/app/menus` | `menuApi` | `/menus/*` |
-| `menu`（平台域） | Menus.tsx（Tab） | `/platform/menus` | `platformMenuApi` | `/platform/menus/*` |
+| `menu`（sys 域） | Menus.tsx（Tab） | `/sys/menus` | `sysMenuApi` | `/sys/menus/*` |
 | `organization` | Organizations.tsx | `/app/organizations` | `organizationApi` | `/organizations/*` |
 | `resource` | Resources.tsx | `/app/resources` | `resourceApi` | `/resources/*` |
 | `asset` | （无独立页） | — | `assetApi` | `/asset/*` |
 | `dict` | Dicts.tsx | `/app/dicts` | `dictApi` | `/dicts/*` |
-| `config` | Configs.tsx / PlatformConfigs.tsx | `/app/configs`, `/platform/configs` | `configApi` | `/configs/*`, `/platform/configs/*`, `/public/configs` |
+| `config` | Configs.tsx / SysConfigs.tsx | `/app/configs`, `/sys/configs` | `configApi` | `/configs/*`, `/sys/configs/*`, `/public/configs` |
 | `flag` | Frames.tsx / FrameCategories.tsx / Avatars.tsx / AvatarCategories.tsx | `/app/frames` 等 | `frameApi` 等 | `/flag/*` |
 | `cms` | — | — | — | `/cms/*` |
-| `tenants` | Tenants.tsx | `/platform/tenants` | `tenantApi` | `/platform/tenants/*` |
-| `system` | Cache.tsx | `/platform/cache` | `systemApi` | `/platform/system/cache/*`, `/platform/system/clear-cache` |
+| `tenants` | Tenants.tsx | `/sys/tenants` | `tenantApi` | `/sys/tenants/*` |
+| `system` | Cache.tsx | `/sys/cache` | `systemApi` | `/sys/system/cache/*`, `/sys/system/clear-cache` |
 | `weixin` | （无独立页） | — | — | `/weixin/*` |
-| `sys_user` | — | `/platform/users` | — | `/platform/sys-users/*` |
-| `sys_role` | — | `/platform/roles` | — | `/platform/sys-roles/*` |
-| `sys_menu` | Menus.tsx（Tab） | `/platform/menus` | `platformMenuApi` | `/platform/menus/*` |
+| `sys_user` | — | `/sys/users` | — | `/sys/sys-users/*` |
+| `sys_role` | — | `/sys/roles` | — | `/sys/sys-roles/*` |
+| `sys_menu` | Menus.tsx（Tab） | `/sys/menus` | `sysMenuApi` | `/sys/menus/*` |
 
 **关键约定**：
-- 前端路由带 scope 前缀：`/app/*`（tenant）、`/platform/*`（platform）
-- 同一前端页面可能调多个后端 API（如 `Menus.tsx` 同时调 `menuApi` 和 `platformMenuApi`）
-- `super_admin` 判断：前端用 `useAuthStore().user?.platform_roles?.includes("super_admin")`；后端用 `RequirePlatformRole("super_admin")`
+- 前端路由带 scope 前缀：`/app/*`（tenant）、`/sys/*`（sys）
+- 同一前端页面可能调多个后端 API（如 `Menus.tsx` 同时调 `menuApi` 和 `sysMenuApi`）
+- `super_admin` 判断：前端用 `useAuthStore().user?.sys_role_codes?.includes("super_admin")`；后端用 `RequireSysRole("super_admin")`
 
 ---
 

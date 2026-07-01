@@ -6,7 +6,9 @@ import { Link } from "react-router-dom"
 export function TenantLoginPage() {
   const siteName = useConfigItem("site", "site_name") as string | undefined
   const siteLogo = useConfigItem("site", "site_logo") as string | undefined
-  const loginBg = useConfigItem("site", "login_background") as string | undefined
+  const loginBg = useConfigItem("site", "login_background") as
+    | string
+    | undefined
 
   const title = siteName || "XinFramework"
   const defaultBg =
@@ -22,7 +24,11 @@ export function TenantLoginPage() {
         <div className="flex justify-center gap-2 md:justify-start">
           <a href="#" className="flex items-center gap-2 font-medium">
             {siteLogo ? (
-              <img src={siteLogo} alt={title} className="size-6 object-contain" />
+              <img
+                src={siteLogo}
+                alt={title}
+                className="size-6 object-contain"
+              />
             ) : (
               <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
                 <GalleryVerticalEnd className="size-4" />
@@ -37,9 +43,9 @@ export function TenantLoginPage() {
           </div>
         </div>
         {/* <div className="text-center text-sm text-muted-foreground">
-          平台管理员？{" "}
-          <Link to="/platform/login" className="underline underline-offset-4">
-            进入平台登录入口
+          Sys 管理员？{" "}
+          <Link to="/sys/login" className="underline underline-offset-4">
+            进入 sys 后台登录
           </Link>
         </div> */}
       </div>

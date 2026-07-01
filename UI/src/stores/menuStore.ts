@@ -1,13 +1,13 @@
 import { create } from "zustand"
-import { menuApi, platformMenuApi, ApiError } from "@/api"
-import type { MenuItem, PlatformMenuItem } from "@/api"
+import { menuApi, sysMenuApi, ApiError } from "@/api"
+import type { MenuItem, SysMenuItem } from "@/api"
 import { useAuthStore } from "@/stores/authStore"
 
-// 统一的菜单 shape（侧边栏 / 树视图都用），兼容 platform menu 与 tenant menu
+// 统一的菜单 shape（侧边栏 / 树视图都用），兼容 sys menu 与 tenant menu
 export type UnifiedMenuItem = {
   id: number
-  /** tenant menu: 真实租户 id；platform menu: 0。用来去重时区分来源。 */
-  scope: "platform" | "tenant"
+  /** tenant menu: 真实租户 id；sys menu: 0。用来去重时区分来源。 */
+  scope: "sys" | "tenant"
   code: string
   name: string
   subtitle?: string
@@ -25,7 +25,7 @@ export type UnifiedMenuItem = {
 }
 
 interface MenuState {
-  /** 当前用户能看到的所有菜单（已合并 platform + tenant）。 */
+  /** 当前用户能看到的所有菜单（已合并 sys + tenant）。 */
   menus: UnifiedMenuItem[]
   /** 数据源："api" 实时；null 加载中。 */
   dataSource: "api" | null
@@ -40,11 +40,11 @@ interface MenuState {
 
 // ---------- helpers ----------
 
-function fromPlatformMenu(m: PlatformMenuItem): UnifiedMenuItem {
+function fromSysMenu(m: SysMenuItem): UnifiedMenuItem {
   return {
     ...m,
-    scope: "platform",
-    children: m.children?.map(fromPlatformMenu),
+    scope: "sys",
+    children: m.children?.map(fromSysMenu),
   }
 }
 
@@ -57,15 +57,15 @@ function fromTenantMenu(m: MenuItem): UnifiedMenuItem {
 }
 
 /**
- * 合并 platform + tenant 菜单并去重：
- * - 顶层按 (scope, code) 去重，platform 优先
- * - 同 code 的子项保留 platform 版本
+ * 合并 sys + tenant 菜单并去重：
+ * - 顶层按 (scope, code) 去重，sys 优先
+ * - 同 code 的子项保留 sys 版本
  *
- * 为什么需要合并：super_admin 登录后既要看到"平台管理"（来自 platform menus），
+ * 为什么需要合并：super_admin 登录后既要看到"sys 管理"（来自 sys menus），
  * 也要看到本租户的"系统管理 → 用户管理"等业务菜单。
  */
 export function mergeMenus(
-  platform: UnifiedMenuItem[],
+  sys: UnifiedMenuItem[],
   tenant: UnifiedMenuItem[]
 ): UnifiedMenuItem[] {
   const seen = new Set<string>()
@@ -83,8 +83,8 @@ export function mergeMenus(
     })
   }
 
-  // platform 优先
-  addTree(platform)
+  // sys 优先
+  addTree(sys)
   addTree(tenant)
 
   // 顶层按 sort 排序
@@ -109,29 +109,27 @@ export const useMenuStore = create<MenuState>((set) => ({
     set({ isLoading: true, error: null })
 
     // 路径 B 单身份登录：scope 决定走哪组菜单接口。
-    //   - tenant   : /menus/tree          (受 RequireTenantContext 约束)
-    //   - platform : /platform/menus/tree (受 RequirePlatformRole 约束)
-    //   - null     : 未登录或 token 异常，不调任何接口
+    //   - tenant : /menus/tree          (受 RequireTenantContext 约束)
+    //   - sys    : /sys/menus/tree      (受 super_admin Sys 角色约束)
+    //   - null   : 未登录或 token 异常，不调任何接口
     try {
       if (scope === null) {
         set({ menus: [], dataSource: "api", isLoading: false, error: null })
         return
       }
 
-      let platformMenus: UnifiedMenuItem[] = []
+      let sysMenus: UnifiedMenuItem[] = []
       let tenantMenus: UnifiedMenuItem[] = []
 
-      if (scope === "platform") {
-        const res = await platformMenuApi.tree()
-        platformMenus = ((res as PlatformMenuItem[]) ?? []).map(
-          fromPlatformMenu
-        )
+      if (scope === "sys") {
+        const res = await sysMenuApi.tree()
+        sysMenus = ((res as SysMenuItem[]) ?? []).map(fromSysMenu)
       } else {
         const res = await menuApi.tree()
         tenantMenus = ((res as MenuItem[]) ?? []).map(fromTenantMenu)
       }
 
-      const merged = mergeMenus(platformMenus, tenantMenus)
+      const merged = mergeMenus(sysMenus, tenantMenus)
       set({ menus: merged, dataSource: "api", isLoading: false, error: null })
     } catch (err) {
       const msg =

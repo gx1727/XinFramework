@@ -42,9 +42,9 @@ func Module(app *appx.App) plugin.Module {
 			}
 
 			repos := Repositories{
-				Account:  NewAccountRepository(pool),
-				Tenant:   tenantRepo,
-				Platform: permission.NewPlatformRoleRepository(pool),
+				Account: NewAccountRepository(pool),
+				Tenant:  tenantRepo,
+				Sys:     permission.NewSysRoleRepository(pool),
 				// PermissionLoader 复用中间件同款 PostgresPermissionRepository，
 				// 保证登录响应里的 Permissions 与运行时段 Require(P(Res, Act)) 判定完全一致。
 				// 不走 PermissionService 是因为 PermissionService 在 framework/internal/service

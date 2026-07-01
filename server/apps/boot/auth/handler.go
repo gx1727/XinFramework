@@ -25,7 +25,7 @@ func serializeAuthUser(u User) gin.H {
 		"real_name":      u.RealName,
 		"avatar":         u.Avatar,
 		"email":          u.Email,
-		"platform_roles": u.PlatformRoles,
+		"sys_role_codes": u.SysRoleCodes,
 		"permissions":    u.Permissions,
 	}
 }
@@ -60,13 +60,13 @@ func (h *Handler) TenantLogin(c *gin.Context) {
 // LoginPrecheck 登录前置检查入口（路径 B 多身份账号支持）。
 // POST /auth/login-precheck
 // 请求：{ account, password }
-// 响应：{ account_id, platform_available, platform_roles, tenant_identities: [...] }
+// 响应：{ account_id, sys_available, sys_role_codes, tenant_identities: [...] }
 //
 // 前端流程：
 //  1. 用户提交账号密码
 //  2. 调本接口拿到所有可选身份
-//  3. UI 列出 tenant_identities 让用户选 + 显示 platform_available 入口
-//  4. 用户选择后调 /auth/select-tenant 或 /auth/platform-login 签发 token
+//  3. UI 列出 tenant_identities 让用户选 + 显示 sys_available 入口
+//  4. 用户选择后调 /auth/select-tenant 或 /auth/sys-login 签发 token
 //
 // 单身份账号可以直接调 /auth/tenant-login 跳过本接口。
 func (h *Handler) LoginPrecheck(c *gin.Context) {
@@ -114,16 +114,16 @@ func (h *Handler) SelectTenant(c *gin.Context) {
 	})
 }
 
-// PlatformLogin 平台域登录（super_admin 登录入口）。
-// POST /auth/platform-login
+// SysLogin sys 域登录（super_admin 登录入口）。
+// POST /auth/sys-login
 // 请求：{ account, password }    ← 无 tenant_id
-func (h *Handler) PlatformLogin(c *gin.Context) {
-	var req platformLoginRequest
+func (h *Handler) SysLogin(c *gin.Context) {
+	var req sysLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		resp.BadRequest(c, "请求参数格式错误")
 		return
 	}
-	result, err := h.svc.PlatformLogin(c.Request.Context(), req)
+	result, err := h.svc.SysLogin(c.Request.Context(), req)
 	if err != nil {
 		resp.HandleError(c, err)
 		return

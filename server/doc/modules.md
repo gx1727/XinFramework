@@ -10,7 +10,7 @@
 | Name | Type | 位置 | 数据表 | 说明 |
 |---|---|---|---|---|
 | `auth` | alwaysOn | `apps/boot/auth/` | `accounts` / `auth_sessions` | 登录 / 注册 / JWT / 多身份 |
-| `tenants` | alwaysOn | `apps/platform/tenants/` | `tenants` | 平台租户 CRUD |
+| `tenants` | alwaysOn | `apps/sys/tenants/` | `tenants` | sys 租户 CRUD |
 | `system` | alwaysOn | `apps/system/` | — | `/health` + 运维 cache |
 | `user` | optOut | `apps/tenant/user/` | `tenant_users` / `tenant_user_roles` | 租户内用户 CRUD |
 | `role` | optOut | `apps/tenant/role/` | `tenant_roles` / `tenant_role_data_scopes` / `tenant_user_roles` / `tenant_role_menus` / `tenant_role_resources` | 角色 + 数据范围 |
@@ -20,12 +20,12 @@
 | `resource` | optOut | `apps/tenant/resource/` | `tenant_permissions` | 租户权限码 CRUD |
 | `message` | optOut | `apps/tenant/message/` | `messages` | 站内信 |
 | `asset` | optOut | `apps/reference/asset/` | `assets` | 文件上传（local / COS） |
-| `dict` | optOut | `apps/reference/dict/` | `dicts` / `dict_items` / `dict_visibility` | 数据字典（平台 + 租户二级） |
+| `dict` | optOut | `apps/reference/dict/` | `dicts` / `dict_items` / `dict_visibility` | 数据字典（sys + 租户二级） |
 | `config` | optOut | `apps/reference/config/` | `config_categories` / `config_items` / `config_visibility` | 租户配置中心 |
-| `sys_user` | optOut | `apps/platform/sys_user/` | `sys_users` / `sys_orgs` / `sys_user_roles` | 平台域用户身份 |
-| `sys_role` | optOut | `apps/platform/sys_role/` | `sys_roles` / `sys_user_roles` | 平台域角色（含 super_admin） |
-| `sys_menu` | optOut | `apps/platform/sys_menu/` | `sys_menus` / `sys_role_menus` | 平台域菜单 |
-| `sys_permission` | optOut | `apps/platform/sys_permission/` | `sys_permissions` / `sys_role_permissions` | 平台域权限码 |
+| `sys_user` | optOut | `apps/sys/user/` | `sys_users` / `sys_orgs` / `sys_user_roles` | sys 域用户身份 |
+| `sys_role` | optOut | `apps/sys/role/` | `sys_roles` / `sys_user_roles` | sys 域角色（含 super_admin） |
+| `sys_menu` | optOut | `apps/sys/menu/` | `sys_menus` / `sys_role_menus` | sys 域菜单 |
+| `sys_permission` | optOut | `apps/sys/permission/` | `sys_permissions` / `sys_role_permissions` | sys 域权限码 |
 | `weixin` | optional | `apps/reference/weixin/` | — | 微信小程序登录 |
 | `cms` | optional | `apps/cms/` | `posts` | 示例 CMS（extapi 模式） |
 | `flag` | optional | `apps/flag/` | `flag_*` | 头像框 / 空间 / 头像 |
@@ -127,7 +127,7 @@ flag ─── (avatar/frame 模块，依赖 asset 上传)
 | 路径 | 模块 | 说明 |
 |---|---|---|
 | `POST /auth/tenant-login` | auth | 租户域登录 |
-| `POST /auth/platform-login` | auth | 平台域登录 |
+| `POST /auth/sys-login` | auth | sys 域登录 |
 | `POST /auth/login-precheck` | auth | 多身份账号列身份 |
 | `POST /auth/select-tenant` | auth | precheck 后选身份签 token |
 | `POST /auth/register` | auth | 注册新用户 |
@@ -184,40 +184,40 @@ flag ─── (avatar/frame 模块，依赖 asset 上传)
 | `GET /cms/me` / `GET /cms/users` / `GET /cms/tenant` | cms |
 | `GET /cms/posts*` / `POST /cms/posts*` | cms |
 
-### 3.3 platform 域（`/api/v1/platform/*`，Auth + RequirePlatformRole）
+### 3.3 sys 域（`/api/v1/sys/*`，Auth + RequireSysRole）
 
 | 路径 | 模块 |
 |---|---|
-| `GET /platform/tenants` / `POST /platform/tenants` | tenants |
-| `GET/PUT/DELETE /platform/tenants/:id` | tenants |
-| `PUT /platform/tenants/:id/status` | tenants |
-| `POST /platform/tenants/:id/purge` | tenants |
-| `GET /platform/sys-users` / `POST /platform/sys-users` | sys_user |
-| `GET/PUT/DELETE /platform/sys-users/:id` | sys_user |
-| `PUT /platform/sys-users/:id/status` | sys_user |
-| `PUT /platform/sys-users/:id/roles` | sys_user |
-| `GET /platform/sys-roles` / `POST /platform/sys-roles` | sys_role |
-| `GET/PUT/DELETE /platform/sys-roles/:id` | sys_role |
-| `GET/PUT /platform/sys-roles/:id/menus` | sys_role |
-| `GET/PUT /platform/sys-roles/:id/permissions` | sys_role |
-| `GET /platform/menus` / `POST /platform/menus` | sys_menu |
-| `GET/PUT/DELETE /platform/menus/:id` | sys_menu |
-| `GET /platform/menus/tree` | sys_menu |
-| `GET /platform/sys-permissions` / `POST /platform/sys-permissions` | sys_permission |
-| `GET/PUT/DELETE /platform/sys-permissions/:id` | sys_permission |
-| `GET /platform/dicts` / `POST /platform/dicts` | dict |
-| `GET/PUT/DELETE /platform/dicts/:id` | dict |
-| `GET /platform/dicts/:id/items` | dict |
-| `GET /platform/dicts/:id/visibility` | dict |
-| `GET /platform/configs` / `POST /platform/configs` | config |
-| `GET/PUT/DELETE /platform/configs/:id` | config |
-| `GET /platform/configs/:id/items` | config |
-| `GET /platform/configs/:id/visibility` | config |
-| `POST /platform/system/clear-cache` | system |
-| `GET /platform/system/cache/info` | system |
-| `GET /platform/system/cache/keys` | system |
-| `GET /platform/system/cache/value/*key` | system |
-| `DELETE /platform/system/cache/keys/*key` | system |
+| `GET /sys/tenants` / `POST /sys/tenants` | tenants |
+| `GET/PUT/DELETE /sys/tenants/:id` | tenants |
+| `PUT /sys/tenants/:id/status` | tenants |
+| `POST /sys/tenants/:id/purge` | tenants |
+| `GET /sys/sys-users` / `POST /sys/sys-users` | sys_user |
+| `GET/PUT/DELETE /sys/sys-users/:id` | sys_user |
+| `PUT /sys/sys-users/:id/status` | sys_user |
+| `PUT /sys/sys-users/:id/roles` | sys_user |
+| `GET /sys/sys-roles` / `POST /sys/sys-roles` | sys_role |
+| `GET/PUT/DELETE /sys/sys-roles/:id` | sys_role |
+| `GET/PUT /sys/sys-roles/:id/menus` | sys_role |
+| `GET/PUT /sys/sys-roles/:id/permissions` | sys_role |
+| `GET /sys/menus` / `POST /sys/menus` | sys_menu |
+| `GET/PUT/DELETE /sys/menus/:id` | sys_menu |
+| `GET /sys/menus/tree` | sys_menu |
+| `GET /sys/sys-permissions` / `POST /sys/sys-permissions` | sys_permission |
+| `GET/PUT/DELETE /sys/sys-permissions/:id` | sys_permission |
+| `GET /sys/dicts` / `POST /sys/dicts` | dict |
+| `GET/PUT/DELETE /sys/dicts/:id` | dict |
+| `GET /sys/dicts/:id/items` | dict |
+| `GET /sys/dicts/:id/visibility` | dict |
+| `GET /sys/configs` / `POST /sys/configs` | config |
+| `GET/PUT/DELETE /sys/configs/:id` | config |
+| `GET /sys/configs/:id/items` | config |
+| `GET /sys/configs/:id/visibility` | config |
+| `POST /sys/system/clear-cache` | system |
+| `GET /sys/system/cache/info` | system |
+| `GET /sys/system/cache/keys` | system |
+| `GET /sys/system/cache/value/*key` | system |
+| `DELETE /sys/system/cache/keys/*key` | system |
 
 ---
 
@@ -228,7 +228,7 @@ flag ─── (avatar/frame 模块，依赖 asset 上传)
 1. **JWT 解析**（Auth / OptionalAuth）— 注入 `Context`
 2. **资源权限**（`middleware.Require(permission.P(ResXxx, ActYyy))`）— 细粒度 RBAC
 
-`platform` 域路由额外叠加 `RequirePlatformRole("super_admin")`。
+`sys` 域路由额外叠加 `RequireSysRole("super_admin")`。
 
 **短路**：拥有 `*:*` 通配权限或 `super_admin` 平台角色时，`Require*` 全部放行。
 
@@ -283,8 +283,8 @@ module:
 | 鉴权中间件（internal） | `framework/internal/core/middleware/auth.go` |
 | 鉴权守卫（公开） | `framework/pkg/middleware/auth.go` |
 | 登录 / 账号 | `apps/boot/auth/` |
-| 平台租户 | `apps/platform/tenants/` |
-| 平台域 sys_* | `apps/platform/sys_{user,role,menu,permission}/` |
+| sys 租户 | `apps/sys/tenants/` |
+| sys 域 sys_* | `apps/sys/{user,role,menu,permission}/` |
 | 租户域 RBAC | `apps/tenant/{user,role,menu,resource,organization,permission}/` |
 | 字典 / 配置 | `apps/reference/{dict,config}/` |
 | 响应 / 错误码 | `framework/pkg/resp/` |

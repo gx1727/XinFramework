@@ -153,12 +153,12 @@ func (r *PostgresAccountRepository) Exists(ctx context.Context, account string) 
 }
 
 // GetPasswordAndStatus 取账号的 password_hash + id + status。
-// 用于 platform-login：账号可能未绑 user 行（无 tenant），所以走 accounts 表直接验证。
+// 用于 sys-login：账号可能未绑 user 行（无 tenant），所以走 accounts 表直接验证。
 //
 // account 字段：username / phone / email 任一即可，按优先级匹配（username 最先）。
 // 返回 (passwordHash, accountID, status, err)：
 //   - passwordHash 用于 verifyPassword
-//   - accountID 用于查 platform_roles
+//   - accountID 用于查 sys_role_codes
 //   - status 必须 == 1 才能登录
 func (r *PostgresAccountRepository) GetPasswordAndStatus(ctx context.Context, account string) (string, uint, int8, error) {
 	q, err := db.GetQuerier(ctx, r.db)
@@ -223,14 +223,14 @@ func (r *PostgresAccountRepository) GetAccountIDByUserID(ctx context.Context, us
 // 用于 LoginPrecheck 让前端选择登录身份。
 //
 // RLS：跨租户查 users / tenants / user_roles（均启用了 RLS），走
-// db.RunInPlatformTx 开启 app.bypass_rls='on' 绕过。
+// db.RunInSysTx 开启 app.bypass_rls='on' 绕过。
 //
 // 返回空切片（不是 nil）即使账号没有 tenant 身份——前端依赖 JSON [] 渲染，
 // nil 会序列化成 null 触发 .map() / .length 报错。
 func (r *PostgresAccountRepository) ListTenantIdentities(ctx context.Context, accountID uint) ([]pkgauth.TenantIdentity, error) {
 	identities := make([]pkgauth.TenantIdentity, 0)
 
-	err := db.RunInPlatformTx(ctx, r.db, func(ctx context.Context) error {
+	err := db.RunInSysTx(ctx, r.db, func(ctx context.Context) error {
 		q, err := db.GetQuerier(ctx, r.db)
 		if err != nil {
 			return err

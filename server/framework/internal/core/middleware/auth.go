@@ -91,14 +91,14 @@ func injectBaseContext(c *gin.Context, claims *jwtpkg.Claims) {
 		xc.UserID = claims.UserID
 		xc.SessionID = xincontext.NewSessionID(claims.SessionID)
 		xc.Role = claims.Role
-		xc.PlatformRoles = claims.PlatformRoles
+		xc.SysRoles = claims.SysRoles
 	} else {
 		xc = &xincontext.Context{
-			TenantID:      claims.TenantID,
-			UserID:        claims.UserID,
-			SessionID:     xincontext.NewSessionID(claims.SessionID),
-			Role:          claims.Role,
-			PlatformRoles: claims.PlatformRoles,
+			TenantID:  claims.TenantID,
+			UserID:    claims.UserID,
+			SessionID: xincontext.NewSessionID(claims.SessionID),
+			Role:      claims.Role,
+			SysRoles:  claims.SysRoles,
 		}
 	}
 	ctx = xincontext.WithXinContext(ctx, xc)
@@ -133,11 +133,11 @@ func injectAuthContext(c *gin.Context, claims *jwtpkg.Claims, permSvc SecurityCo
 		// 没有 base context 时先补上——理论上前置 injectBaseContext 已写入，
 		// 但保留独立路径避免依赖顺序。
 		xc = &xincontext.Context{
-			TenantID:      claims.TenantID,
-			UserID:        claims.UserID,
-			SessionID:     xincontext.NewSessionID(claims.SessionID),
-			Role:          claims.Role,
-			PlatformRoles: claims.PlatformRoles,
+			TenantID:  claims.TenantID,
+			UserID:    claims.UserID,
+			SessionID: xincontext.NewSessionID(claims.SessionID),
+			Role:      claims.Role,
+			SysRoles:  claims.SysRoles,
 		}
 		ctx = xincontext.WithXinContext(ctx, xc)
 		ctx = xincontext.WithTenantID(ctx, claims.TenantID)
@@ -244,6 +244,6 @@ func OptionalAuth(cfg *config.JWTConfig, sm session.SessionManager, permSvc Secu
 	}
 }
 
-// Require* and RequirePlatformRole live in pkg/middleware. This file
+// Require* and RequireSysRole live in pkg/middleware. This file
 // used to expose thin wrappers for backward compatibility, but every
 // call site now imports pkg/middleware directly (Phase 7 cleanup).

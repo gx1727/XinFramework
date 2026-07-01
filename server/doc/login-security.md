@@ -75,7 +75,7 @@ framework/pkg/login_security/
 
 ## 4. 调用流程
 
-### 4.1 登录入口（tenant-login / platform-login）
+### 4.1 登录入口（tenant-login / sys-login，兼容 platform-login）
 
 ```
 [Handler]                              [auth.Service]                        [SecurityService]

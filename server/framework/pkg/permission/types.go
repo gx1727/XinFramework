@@ -59,11 +59,11 @@ func HasPermission(perms map[string]bool, resource, action string) bool {
 // HasGlobalPermission 检查 permission map 是否包含全局通配符 "*:*"。
 // 该通配符授予所有资源的所有操作。
 //
-// 注意：与平台角色（jwt.PlatformRoleSuperAdmin）是两套独立判定：
+// 注意：与 sys 级角色（jwt.SysRoleSuperAdmin）是两套独立判定：
 //   - HasGlobalPermission：检查 RBAC 权限 map 中的 "*:*" 通配符
-//   - XinContext.HasPlatformRole：检查 JWT PlatformRoles 切片中的角色名
+//   - XinContext.HasSysRole：检查 JWT SysRoles 切片中的角色名
 //
-// 调用方应明确意图，不要混用。拥有平台角色会自动获得全局权限
+// 调用方应明确意图，不要混用。拥有 sys 级角色会自动获得全局权限
 // （见 framework/pkg/middleware 的 requireWithSpecs 短路逻辑），
 // 但反过来不成立。
 func HasGlobalPermission(perms map[string]bool) bool {

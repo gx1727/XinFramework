@@ -46,7 +46,7 @@ storage:
   local_dir: ./uploads
   local_base_url: /uploads
   cos_url: https://xin-1303413944.cos.ap-shanghai.myqcloud.com
-  cos_secret_id: ""  # 通过环境变量 XIN_STORAGE_COS_SECRET_ID 注入
+  cos_secret_id: "" # 通过环境变量 XIN_STORAGE_COS_SECRET_ID 注入
   cos_secret_key: "" # 通过环境变量 XIN_STORAGE_COS_SECRET_KEY 注入
   cos_base_url: https://img.gx1727.com
 
@@ -58,7 +58,7 @@ log:
 # 实际启动列表 = alwaysOn + optOut（13 个，全部默认启用）+ 本列表。
 #
 # 三档分类（详见 doc/architecture.md §3.3）：
-#   alwaysOn  : system / auth / platform_tenant     —— 永远启用，无法关闭
+#   alwaysOn  : system / auth / sys_tenant     —— 永远启用，无法关闭
 #   optOut    : menu / user / role / resource / organization / permission  (RBAC)
 #               dict / asset / config               (基础设施)
 #               sys_user / sys_role / sys_menu / sys_permission  (平台管理域)
@@ -67,9 +67,9 @@ log:
 #
 # 改用新约定后，module: 只需要写 3 行纯业务模块（不用哪个删哪个）：
 module:
-  - weixin   # 不使用微信登录 → 删
-  - cms      # 不使用 CMS    → 删
-  - flag     # 不使用头像框  → 删
+  - weixin # 不使用微信登录 → 删
+  - cms # 不使用 CMS    → 删
+  - flag # 不使用头像框  → 删
 
 cors:
   enabled: true
@@ -79,7 +79,7 @@ cors:
   #     - https://admin.mi7.com
   #     - https://app.mi7.com
   # 2. 单个通配符：
-  #   allow_origins: 
+  #   allow_origins:
   #   - "*"
   allow_origins:
     - "http://localhost:5173"
@@ -100,7 +100,6 @@ user:
   password_policy: standard
   token_expire_sec: 3600
   refresh_token_expire_sec: 86400
-
 
 weixin:
   # ⚠️  仅供 dev 调试。生产部署务必清空下面两个值，改用环境变量：

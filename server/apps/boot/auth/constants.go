@@ -15,6 +15,6 @@ const StatusActive = 1
 // 数据库种子: sys_roles.code='user'。
 const RoleCodeUser = "user"
 
-// RoleCodePlatform 是平台超级管理员的占位角色,出现在 PlatformLogin 响应中,
-// 便于前端识别当前会话是平台域还是租户域。
-const RoleCodePlatform = "_platform"
+// RoleCodePlatform 是 sys 超级管理员的占位角色,出现在 SysLogin 响应中,
+// 便于前端识别当前会话是 sys 域还是租户域。
+const RoleCodePlatform = "_sys"

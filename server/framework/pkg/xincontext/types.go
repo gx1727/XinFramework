@@ -45,7 +45,7 @@ func IsValidTenantID(t TenantID) bool { return t != 0 }
 
 // UserID 用户 ID（对应 tenant_users.id 或 sys_users.id）。
 //
-// 文档约定：platform admin 登录时 UserID 字段实际是 account_id（语义复用）。
+// 文档约定：sys admin 登录时 UserID 字段实际是 account_id（语义复用）。
 type UserID = uint
 
 // NewUserID 从 uint 构造。

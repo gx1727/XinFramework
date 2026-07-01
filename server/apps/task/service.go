@@ -1,5 +1,5 @@
 // Package task 是长时任务系统的业务模块入口：
-//   - 注册 platform 域管理 API（list / get / cancel / requeue / stats / cleanup）
+//   - 注册 sys 域管理 API（list / get / cancel / requeue / stats / cleanup）
 //   - 启动 worker pool（轮询 / 心跳 / 僵死回收）
 //   - 内置 cleanup handler（cleanup_expired_locks / cleanup_old_tasks）
 //

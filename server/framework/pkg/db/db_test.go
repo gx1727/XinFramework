@@ -29,14 +29,14 @@ func TestRunInTenantTx_NilPool(t *testing.T) {
 	}
 }
 
-// TestRunInPlatformTx_NilPool 同上。
-func TestRunInPlatformTx_NilPool(t *testing.T) {
-	err := RunInPlatformTx(context.Background(), nil, func(ctx context.Context) error {
+// TestRunInSysTx_NilPool 同上。
+func TestRunInSysTx_NilPool(t *testing.T) {
+	err := RunInSysTx(context.Background(), nil, func(ctx context.Context) error {
 		t.Fatal("fn must not be invoked when pool is nil")
 		return nil
 	})
 	if err == nil {
-		t.Fatal("RunInPlatformTx with nil pool must return error")
+		t.Fatal("RunInSysTx with nil pool must return error")
 	}
 }
 

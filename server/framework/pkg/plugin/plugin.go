@@ -17,7 +17,7 @@
 // 三类内置 slot 语义：
 //   - SlotPublic    → /api/v1/*             （OptionalAuth，公开；需隔离的子资源挂 /public/<x>）
 //   - SlotTenant    → /api/v1/*             （Auth + RequireTenantContext，业务域；模块直接挂资源路径，无 /t 前缀）
-//   - SlotProtected → /api/v1/platform/*    （Auth，平台域；模块内部追加 RequirePlatformRole）
+//   - SlotProtected → /api/v1/sys/*         （Auth，sys 域；模块内部追加 RequireSysRole）
 //
 // 历史背景：旧版本有 NewModule / NewModuleLegacy / NewModuleWithOpts
 // 三种构造器外加 ModuleOption / WithInit 等兼容 API，全部在 Phase 2

@@ -16,13 +16,13 @@ interface User {
   code: string
   id: number
   role: string
-  /** scope=platform 时固定 0；scope=tenant 时为真实 tenant_id */
+  /** scope=sys 时固定 0；scope=tenant 时为真实 tenant_id */
   tenant_id: number
   nickname?: string
   real_name?: string
   avatar?: string
   email?: string
-  platform_roles?: string[]
+  sys_role_codes?: string[]
   /** 资源权限码（"resource:action"），与后端 LoginResponse.user.permissions 对齐 */
   permissions?: string[]
 }
@@ -31,7 +31,7 @@ interface AuthState {
   token: string | null
   refreshToken: string | null
   user: User | null
-  /** 登录作用域：tenant / platform / null（未登录） */
+  /** 登录作用域：tenant / sys / null（未登录） */
   scope: LoginScope | null
   isAuthenticated: boolean
   isLoading: boolean
@@ -41,16 +41,16 @@ interface AuthState {
   // === 路径 B 多身份支持 ===
   /** 账号可用 tenant 身份缓存（precheck 后填，logout 清空） */
   availableIdentities: TenantIdentity[]
-  /** 账号是否有 platform 角色（precheck 后填） */
-  platformAvailable: boolean
-  /** 账号的 platform 角色列表（precheck 后填） */
-  availablePlatformRoles: string[]
+  /** 账号是否有 sys 角色（precheck 后填） */
+  sysAvailable: boolean
+  /** 账号的 sys 角色列表（precheck 后填） */
+  availableSysRoles: string[]
   /** 当前账号的 account_id（precheck 后填） */
   accountId: number | null
 
-  // === 平台管理员模拟登录租户（super_admin 专用） ===
+  // === sys 管理员模拟登录租户（super_admin 专用） ===
   /**
-   * 非空 = 当前正在模拟某个租户。保存原 platform tokens（用于"退出模拟"时
+   * 非空 = 当前正在模拟某个租户。保存原 sys tokens（用于"退出模拟"时
    * 调 /auth/refresh 恢复）+ 模拟 token + 目标租户信息。
    */
   impersonation: {
@@ -68,8 +68,8 @@ interface AuthState {
     password: string,
     tenantId: number
   ) => Promise<boolean>
-  /** 平台域登录（super_admin 登录）。跳转到 /platform/dashboard。 */
-  platformLogin: (account: string, password: string) => Promise<boolean>
+  /** sys 域登录（super_admin 登录）。跳转到 /sys/dashboard。 */
+  sysLogin: (account: string, password: string) => Promise<boolean>
   /** 登录前置检查：列账号所有可用身份，不签 token。 */
   loginPrecheck: (
     account: string,
@@ -86,12 +86,12 @@ interface AuthState {
   /** 清空 identities 缓存（强制下次重新 precheck）。 */
   clearIdentities: () => void
   /**
-   * 平台管理员模拟登录租户。
-   * 流程：调 /platform/tenants/:id/impersonate → 保存原 tokens → 写入模拟 token → 跳转租户域。
+   * sys 管理员模拟登录租户。
+   * 流程：调 /sys/tenants/:id/impersonate → 保存原 tokens → 写入模拟 token → 跳转租户域。
    */
   startImpersonation: (tenantId: number, tenantName: string) => Promise<boolean>
   /**
-   * 退出模拟：用原 platform refresh_token 调 /auth/refresh 恢复 platform token。
+   * 退出模拟：用原 sys refresh_token 调 /auth/refresh 恢复 sys token。
    * 不走 /auth/logout（会同时撤销原 session）。
    */
   stopImpersonation: () => Promise<boolean>
@@ -142,8 +142,8 @@ export const useAuthStore = create<AuthState>()(
 
       // 路径 B 多身份默认值
       availableIdentities: [],
-      platformAvailable: false,
-      availablePlatformRoles: [],
+      sysAvailable: false,
+      availableSysRoles: [],
       accountId: null,
 
       // 模拟登录默认 null
@@ -191,10 +191,10 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      platformLogin: async (account, password) => {
+      sysLogin: async (account, password) => {
         set({ isLoading: true, error: null })
         try {
-          const data: LoginResponse = await authApi.platformLogin({
+          const data: LoginResponse = await authApi.sysLogin({
             account,
             password,
           })
@@ -240,8 +240,8 @@ export const useAuthStore = create<AuthState>()(
           set({
             accountId: data.account_id,
             availableIdentities: data.tenant_identities,
-            platformAvailable: data.platform_available,
-            availablePlatformRoles: data.platform_roles ?? [],
+            sysAvailable: data.sys_available,
+            availableSysRoles: data.sys_role_codes ?? [],
             isLoading: false,
             error: null,
           })
@@ -258,8 +258,8 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
             error: errorMessage,
             availableIdentities: [],
-            platformAvailable: false,
-            availablePlatformRoles: [],
+            sysAvailable: false,
+            availableSysRoles: [],
             accountId: null,
           })
           return null
@@ -363,8 +363,8 @@ export const useAuthStore = create<AuthState>()(
       clearIdentities: () => {
         set({
           availableIdentities: [],
-          platformAvailable: false,
-          availablePlatformRoles: [],
+          sysAvailable: false,
+          availableSysRoles: [],
           accountId: null,
         })
       },
@@ -380,8 +380,8 @@ export const useAuthStore = create<AuthState>()(
           error: null,
           lastApiError: null,
           availableIdentities: [],
-          platformAvailable: false,
-          availablePlatformRoles: [],
+          sysAvailable: false,
+          availableSysRoles: [],
           accountId: null,
           impersonation: null,
         })
@@ -399,11 +399,11 @@ export const useAuthStore = create<AuthState>()(
         }
         set({ isLoading: true, error: null })
         try {
-          // 用当前 platform token 调 impersonate 端点（后端会保留原 platform session）
+          // 用当前 sys token 调 impersonate 端点（后端会保留原 sys session）
           const data = await tenantApi.impersonate(tenantId)
 
-          // 1. 把当前 platform tokens 保存到 impersonation.originalTokens
-          //    （退出模拟时用 refresh_token 调 /auth/refresh 即可恢复 platform token）
+          // 1. 把当前 sys tokens 保存到 impersonation.originalTokens
+          //    （退出模拟时用 refresh_token 调 /auth/refresh 即可恢复 sys token）
           // 2. 把模拟 token 写到 localStorage + authStore 主 token
           setAuthTokens(data.token, data.refresh_token)
           set({
@@ -415,8 +415,8 @@ export const useAuthStore = create<AuthState>()(
                   id: data.impersonated_user_id,
                   tenant_id: data.tenant_id,
                   role: "admin",
-                  // 模拟期间 PlatformRoles 留空（不走 super_admin 短路）
-                  platform_roles: [],
+                  // 模拟期间 SysRoles 留空（不走 super_admin 短路）
+                  sys_role_codes: [],
                 }
               : user,
             scope: "tenant",
@@ -459,7 +459,7 @@ export const useAuthStore = create<AuthState>()(
         }
         set({ isLoading: true, error: null })
         try {
-          // 用原 platform refresh_token 调 /auth/refresh（不传 tenant_id）恢复 platform token
+          // 用原 sys refresh_token 调 /auth/refresh（不传 tenant_id）恢复 sys token
           const data = await authApi.refresh({
             refresh_token: impersonation.originalTokens.refreshToken,
           })
@@ -470,7 +470,7 @@ export const useAuthStore = create<AuthState>()(
             token: data.token,
             refreshToken:
               data.refresh_token ?? impersonation.originalTokens.refreshToken,
-            scope: "platform",
+            scope: "sys",
             isLoading: false,
             error: null,
             impersonation: null,
@@ -509,10 +509,10 @@ export const useAuthStore = create<AuthState>()(
         scope: state.scope,
         isAuthenticated: state.isAuthenticated,
         availableIdentities: state.availableIdentities,
-        platformAvailable: state.platformAvailable,
-        availablePlatformRoles: state.availablePlatformRoles,
+        sysAvailable: state.sysAvailable,
+        availableSysRoles: state.availableSysRoles,
         accountId: state.accountId,
-        // 模拟登录状态必须持久化：刷新页面后 stopImpersonation 仍能拿到原 platform refresh_token
+        // 模拟登录状态必须持久化：刷新页面后 stopImpersonation 仍能拿到原 sys refresh_token
         impersonation: state.impersonation,
       }),
       onRehydrateStorage: () => (state) => {
@@ -524,8 +524,8 @@ export const useAuthStore = create<AuthState>()(
           state.user = null
           state.scope = null
           state.availableIdentities = []
-          state.platformAvailable = false
-          state.availablePlatformRoles = []
+          state.sysAvailable = false
+          state.availableSysRoles = []
           state.accountId = null
           state.impersonation = null
         }

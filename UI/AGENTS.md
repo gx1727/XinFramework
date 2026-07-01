@@ -29,7 +29,7 @@ UI/src/
 │   ├── common.ts          # api() 封装 + ApiError + JWT refresh + 重试
 │   ├── index.ts           # 重导出
 │   ├── auth.ts            # 认证端点
-│   ├── user.ts / role.ts / menu.ts / platformMenu.ts /
+│   ├── user.ts / role.ts / menu.ts / sysMenu.ts /
 │   │   organization.ts / tenant.ts / dict.ts / config.ts /
 │   │   resource.ts / frame.ts / frameCategory.ts /
 │   │   avatar.ts / avatarCategory.ts / space.ts /
@@ -49,7 +49,7 @@ UI/src/
 ├── pages/                 # 24 个页面文件
 ├── stores/
 │   ├── authStore.ts       # zustand + persist（token / user / scope / identities）
-│   ├── menuStore.ts       # 菜单数据（merged platform + tenant）
+│   ├── menuStore.ts       # 菜单数据（merged sys + tenant）
 │   ├── configStore.ts     # 配置中心数据
 │   └── permissionStore.ts # 权限数据
 ├── types/schema.ts        # FormSchema / FormItemSchema / TableSchema / ...
@@ -206,18 +206,18 @@ export function XxxPage() {
 
 ### 5.7 前端权限
 
-- 路由级：`RequireScope` 组件按 scope（`"tenant"` | `"platform"`）拦截。
+- 路由级：`RequireScope` 组件按 scope（`"tenant"` | `"sys"`）拦截。
 - 按钮级：`<Auth action="create">...</Auth>` 包装。
 - 资源权限由后端 `middleware.Require` 强制，前端只是隐藏。
 
 ### 5.8 多身份登录（Path B）
 
-- 支持两种身份类型：**租户身份**（`scope="tenant"`）和**平台身份**（`scope="platform"`）
+- 支持两种身份类型：**租户身份**（`scope="tenant"`）和**sys 身份**（`scope="sys"`）
 - 登录流程：
-  1. `POST /auth/login-precheck` → 返回 `{ identities: [{tenant_id, tenant_name, ...}], platform_roles: [...] }`
-  2. 用户选择身份 → `POST /auth/select-tenant` 或 `POST /auth/platform-login`
+  1. `POST /auth/login-precheck` → 返回 `{ identities: [{tenant_id, tenant_name, ...}], sys_role_codes: [...] }`
+  2. 用户选择身份 → `POST /auth/select-tenant` 或 `POST /auth/sys-login`（`/auth/platform-login` 为兼容期转发）
   3. 或 `POST /auth/tenant-login` 直接登录（如果只有一个身份）
-- `authStore` 管理 `availableIdentities`、`platformAvailable`、`availablePlatformRoles`、`accountId`
+- `authStore` 管理 `availableIdentities`、`sysAvailable`、`availableSysRoles`、`accountId`
 - `switchTenant(tenantId)` 使用 `refresh_token` 无密码切换租户
 
 ### 5.9 错误处理约定
@@ -257,30 +257,30 @@ export function XxxPage() {
 
 | 后端模块 | 前端页面 | 路由 | 前端 API | 后端路径 |
 |---|---|---|---|---|
-| auth | Login.tsx / TenantLogin.tsx / PlatformLogin.tsx | `/login`, `/platform/login` | `authApi` | `/auth/*` |
+| auth | Login.tsx / TenantLogin.tsx / SysLogin.tsx | `/login`, `/sys/login` | `authApi` | `/auth/*` |
 | user | Users.tsx | `/app/users` | `userApi` | `/users/*` |
 | role | Roles.tsx | `/app/roles` | `roleApi` | `/roles/*` |
 | menu（租户域） | Menus.tsx（Tab: 租户菜单） | `/app/menus` | `menuApi` | `/menus/*` |
-| menu（平台域） | Menus.tsx（Tab: 平台菜单，仅 super_admin） | `/app/menus` | `platformMenuApi` | `/platform/menus/*` |
+| menu（sys 域） | Menus.tsx（Tab: sys 菜单，仅 super_admin） | `/app/menus` | `sysMenuApi` | `/sys/menus/*` |
 | organization | Organizations.tsx | `/app/organizations` | `organizationApi` | `/organizations/*` |
 | resource | Resources.tsx | `/app/resources` | `resourceApi` | `/resources/*` |
 | asset | Assets.tsx | `/app/asset` | `assetApi` | `/asset/*` |
 | dict | Dicts.tsx | `/app/dicts` | `dictApi` | `/dicts/*` |
-| config | Configs.tsx / PlatformConfigs.tsx | `/app/configs`, `/platform/configs` | `configApi` | `/configs/*`, `/platform/configs/*`, `/public/configs` |
+| config | Configs.tsx / SysConfigs.tsx | `/app/configs`, `/sys/configs` | `configApi` | `/configs/*`, `/sys/configs/*`, `/public/configs` |
 | flag | Frames.tsx / FrameCategories.tsx / Avatars.tsx / AvatarCategories.tsx | `/app/frames`, etc | `frameApi` 等 | `/flag/*` |
 | cms | — | — | — | `/cms/*` |
-| **tenants**（仅 super_admin） | Tenants.tsx | `/platform/tenants` | `tenantApi` | `/platform/tenants/*` |
-| system | Cache.tsx | `/platform/cache` | `systemApi` | `/platform/system/cache/*` |
+| **tenants**（仅 super_admin） | Tenants.tsx | `/sys/tenants` | `tenantApi` | `/sys/tenants/*` |
+| system | Cache.tsx | `/sys/cache` | `systemApi` | `/sys/system/cache/*` |
 | weixin | （无独立页面） | — | — | `/weixin/*` |
-| sys_user | （通常通过平台管理页面） | `/platform/users` | — | `/platform/sys-users/*` |
-| sys_role | （平台角色） | `/platform/roles` | — | `/platform/sys-roles/*` |
-| sys_menu | Menus.tsx（平台 Tab） | `/platform/menus` | `platformMenuApi` | `/platform/menus/*` |
+| sys_user | （通常通过 sys 管理页面） | `/sys/users` | — | `/sys/sys-users/*` |
+| sys_role | （sys 角色） | `/sys/roles` | — | `/sys/sys-roles/*` |
+| sys_menu | Menus.tsx（sys Tab） | `/sys/menus` | `sysMenuApi` | `/sys/menus/*` |
 
 > **关键约定**：
 >
-> - 前端路由带 scope 前缀：`/app/*`（tenant 域）、`/platform/*`（平台域）
-> - 同一前端页面可能调多个后端 API（如 `Menus.tsx` 同时调 `menuApi` 和 `platformMenuApi`）
-> - `super_admin` 判断：前端用 `useAuthStore().user?.platform_roles?.includes("super_admin")`；后端用 `RequirePlatformRole("super_admin")` 中间件
+> - 前端路由带 scope 前缀：`/app/*`（tenant 域）、`/sys/*`（sys 域）
+> - 同一前端页面可能调多个后端 API（如 `Menus.tsx` 同时调 `menuApi` 和 `sysMenuApi`）
+> - `super_admin` 判断：前端用 `useAuthStore().user?.sys_role_codes?.includes("super_admin")`；后端用 `RequireSysRole("super_admin")` 中间件
 >
 > **路由约定**（与后端 [server/framework/framework.go](../server/framework/framework.go) 同步）：
 >
@@ -288,4 +288,4 @@ export function XxxPage() {
 > |---|---|---|
 > | public | `/api/v1/public/*` 或 `/api/v1/<auth>` | 公开读 |
 > | tenant（业务） | `/api/v1/*` | 需登录 + tenant_id |
-> | platform（super_admin） | `/api/v1/platform/*` | 平台域 CRUD |
+> | sys（super_admin） | `/api/v1/sys/*` | sys 域 CRUD |

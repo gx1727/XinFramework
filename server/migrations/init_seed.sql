@@ -78,20 +78,20 @@ ON CONFLICT (user_id, role_id) WHERE is_deleted = FALSE DO NOTHING;
 -- ============================================
 INSERT INTO tenant_menus (id, tenant_id, code, name, path, icon, sort, parent_id, ancestors, visible, enabled)
     OVERRIDING SYSTEM VALUE
-VALUES (1, 1, 'dashboard', '仪表盘', '/dashboard', 'LayoutDashboardIcon', 1, 0, '1', TRUE, TRUE),
-       (2, 1, 'analytics', '数据分析', '/analytics', 'ChartBarIcon', 2, 0, '2', TRUE, TRUE),
-       (3, 1, 'projects', '项目管理', '/projects', 'FolderIcon', 3, 0, '3', TRUE, TRUE),
-       (4, 1, 'team', '团队管理', '/team', 'UsersIcon', 4, 0, '4', TRUE, TRUE),
-       (5, 1, 'system', '系统管理', '/system', 'SettingsIcon', 5, 0, '5', TRUE, TRUE);
+VALUES (1, 1, 'dashboard', '仪表盘', '/app/dashboard', 'LayoutDashboardIcon', 1, 0, '1', TRUE, TRUE),
+       (2, 1, 'analytics', '数据分析', '/app/analytics', 'ChartBarIcon', 2, 0, '2', TRUE, TRUE),
+       (3, 1, 'projects', '项目管理', '/app/projects', 'FolderIcon', 3, 0, '3', TRUE, TRUE),
+       (4, 1, 'team', '团队管理', '/app/team', 'UsersIcon', 4, 0, '4', TRUE, TRUE),
+       (5, 1, 'system', '系统管理', '/app/system', 'SettingsIcon', 5, 0, '5', TRUE, TRUE);
 
 INSERT INTO tenant_menus (id, tenant_id, code, name, path, icon, sort, parent_id, ancestors, visible, enabled)
     OVERRIDING SYSTEM VALUE
-VALUES (51, 1, 'users', '用户管理', '/users', 'FileIcon', 1, 5, '5.51', TRUE, TRUE),
-       (52, 1, 'roles', '角色管理', '/roles', 'ShieldIcon', 2, 5, '5.52', TRUE, TRUE),
-       (53, 1, 'menus', '菜单管理', '/menus', 'MenuIcon', 3, 5, '5.53', TRUE, TRUE),
-       (54, 1, 'resources', '资源管理', '/resources', 'ResourceIcon', 4, 5, '5.54', TRUE, TRUE),
-       (55, 1, 'organizations', '组织管理', '/organizations', 'ResourceIcon', 5, 5, '5.55', TRUE, TRUE),
-       (56, 1, 'dicts', '数据字典', '/dicts', 'BookIcon', 6, 5, '5.56', TRUE, TRUE);
+VALUES (51, 1, 'users', '用户管理', '/app/users', 'FileIcon', 1, 5, '5.51', TRUE, TRUE),
+       (52, 1, 'roles', '角色管理', '/app/roles', 'ShieldIcon', 2, 5, '5.52', TRUE, TRUE),
+       (53, 1, 'menus', '菜单管理', '/app/menus', 'MenuIcon', 3, 5, '5.53', TRUE, TRUE),
+       (54, 1, 'resources', '资源管理', '/app/resources', 'ResourceIcon', 4, 5, '5.54', TRUE, TRUE),
+       (55, 1, 'organizations', '组织管理', '/app/organizations', 'ResourceIcon', 5, 5, '5.55', TRUE, TRUE),
+       (56, 1, 'dicts', '数据字典', '/app/dicts', 'BookIcon', 6, 5, '5.56', TRUE, TRUE);
 
 SELECT setval('tenant_menus_id_seq', 300, true);
 
@@ -264,7 +264,7 @@ ON CONFLICT (tenant_id, category_id, key) WHERE tenant_id <> 0 AND is_deleted = 
 -- 9.1 租户管理（id=100）
 INSERT INTO tenant_menus (id, tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
     OVERRIDING SYSTEM VALUE
-VALUES (100, 1, 'tenants', '租户管理', '跨租户平台管理', '', '/tenants', 'Building2Icon', 0, 0, '', TRUE, TRUE)
+VALUES (100, 1, 'tenants', '租户管理', '跨租户平台管理', '', '/sys/tenants', 'Building2Icon', 0, 0, '', TRUE, TRUE)
 ON CONFLICT (tenant_id, code) WHERE tenant_id <> 0 AND is_deleted = FALSE DO NOTHING;
 
 SELECT setval('tenant_menus_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM tenant_menus), 1000), true);
@@ -274,19 +274,19 @@ INSERT INTO tenant_menus (id, tenant_id, code, name, subtitle, url, path, icon, 
     OVERRIDING SYSTEM VALUE
 SELECT 101,
        (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
-       'config', '配置管理', '系统配置项管理', '', '/settings', 'SlidersHorizontalIcon', 1, 0, '', TRUE, TRUE
+       'config', '配置管理', '系统配置项管理', '', '/app/settings', 'SlidersHorizontalIcon', 1, 0, '', TRUE, TRUE
 ON CONFLICT (tenant_id, code) WHERE tenant_id <> 0 AND is_deleted = FALSE DO NOTHING;
 
 -- 9.3 相框管理（顶级）
 INSERT INTO tenant_menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
 SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
-       'frames', '相框管理', '头像框与活动空间', '', '/frames', 'FrameIcon', 6, 0, '', TRUE, TRUE
+       'frames', '相框管理', '头像框与活动空间', '', '/app/frames', 'FrameIcon', 6, 0, '', TRUE, TRUE
 ON CONFLICT (tenant_id, code) WHERE tenant_id <> 0 AND is_deleted = FALSE DO NOTHING;
 
 -- 9.4 头像管理（顶级）
 INSERT INTO tenant_menus (tenant_id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
 SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
-       'avatars', '头像管理', '用户头像与分类', '', '/avatars', 'ImageIcon', 7, 0, '', TRUE, TRUE
+       'avatars', '头像管理', '用户头像与分类', '', '/app/avatars', 'ImageIcon', 7, 0, '', TRUE, TRUE
 ON CONFLICT (tenant_id, code) WHERE tenant_id <> 0 AND is_deleted = FALSE DO NOTHING;
 
 -- 9.5 相框/头像子菜单
@@ -296,8 +296,8 @@ SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
        (SELECT id FROM tenant_menus WHERE code = 'frames' AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
        '', TRUE, TRUE
 FROM (VALUES
-    ('frame-list',        '相框列表', '', '', '/frames',           'FileIcon',  1),
-    ('frame-categories',  '相框分类', '', '', '/frame-categories', 'ListIcon',  2)
+    ('frame-list',        '相框列表', '', '', '/app/frames',           'FileIcon',  1),
+        ('frame-categories',  '相框分类', '', '', '/app/frame-categories', 'ListIcon',  2)
 ) AS s(code, name, subtitle, url, path, icon, sort)
 ON CONFLICT (tenant_id, code) WHERE tenant_id <> 0 AND is_deleted = FALSE DO NOTHING;
 
@@ -307,8 +307,8 @@ SELECT (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE),
        (SELECT id FROM tenant_menus WHERE code = 'avatars' AND tenant_id = (SELECT id FROM tenants WHERE code = 'bootstrap' AND is_deleted = FALSE) AND is_deleted = FALSE),
        '', TRUE, TRUE
 FROM (VALUES
-    ('avatar-list',        '头像列表', '', '', '/avatars',           'FileIcon',  1),
-    ('avatar-categories',  '头像分类', '', '', '/avatar-categories', 'ListIcon',  2)
+    ('avatar-list',        '头像列表', '', '', '/app/avatars',           'FileIcon',  1),
+        ('avatar-categories',  '头像分类', '', '', '/app/avatar-categories', 'ListIcon',  2)
 ) AS s(code, name, subtitle, url, path, icon, sort)
 ON CONFLICT (tenant_id, code) WHERE tenant_id <> 0 AND is_deleted = FALSE DO NOTHING;
 
@@ -404,7 +404,7 @@ WHERE p.code = '*:*' AND p.is_deleted = FALSE
 ON CONFLICT (role_id, permission_id) WHERE is_deleted = FALSE DO NOTHING;
 
 -- 11.4 平台域菜单树（sys_menus）
--- 这些菜单是平台管理分组的入口，与前端 App.tsx 中 /platform/* 路由对齐。
+-- 这些菜单是平台管理分组的入口，与前端 App.tsx 中 /sys/* 路由对齐。
 -- 注意：sys_menus 无 tenant_id 字段（平台域单租户概念）。
 -- 哪些 platform 角色能看到哪些菜单，由 sys_role_menus 显式分配（11.4b）。
 --
@@ -417,30 +417,30 @@ ON CONFLICT (role_id, permission_id) WHERE is_deleted = FALSE DO NOTHING;
 -- 顶级：平台管理（id=100）
 INSERT INTO sys_menus (id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
     OVERRIDING SYSTEM VALUE
-VALUES (100, 'platform-admin', '平台管理', '平台域管理入口', '', '/platform', 'ShieldIcon', 999, 0, '0', TRUE, TRUE)
+VALUES (100, 'sys-admin', '平台管理', '平台域管理入口', '', '/sys/dashboard', 'ShieldIcon', 999, 0, '0', TRUE, TRUE)
 ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
 
 -- 顶级：租户管理（id=101）— 已从平台管理下提升为一级菜单
 INSERT INTO sys_menus (id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
     OVERRIDING SYSTEM VALUE
-VALUES (101, 'platform-tenants', '租户管理', '跨租户平台管理', '', '/platform/tenants', 'Building2Icon', 1, 0, '0', TRUE, TRUE)
+VALUES (101, 'sys-tenants', '租户管理', '跨租户平台管理', '', '/sys/tenants', 'Building2Icon', 1, 0, '0', TRUE, TRUE)
 ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
 
 -- 顶级：平台用户（id=106）— 已从平台管理下提升为一级菜单
 INSERT INTO sys_menus (id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
     OVERRIDING SYSTEM VALUE
-VALUES (106, 'platform-users', '平台用户', 'sys_users CRUD + 分配角色', '', '/platform/users', 'UsersIcon', 2, 0, '0', TRUE, TRUE)
+VALUES (106, 'sys-users', '平台用户', 'sys_users CRUD + 分配角色', '', '/sys/users', 'UsersIcon', 2, 0, '0', TRUE, TRUE)
 ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
 
 -- 平台管理的子菜单（id=102/103/104/105/107/108）
 INSERT INTO sys_menus (id, code, name, subtitle, url, path, icon, sort, parent_id, ancestors, visible, enabled)
     OVERRIDING SYSTEM VALUE
-VALUES (102, 'platform-menus',       '平台菜单', 'sys_menus CRUD',                   '', '/platform/menus',       'MenuIcon',       2, 100, '100', TRUE, TRUE),
-       (103, 'platform-configs',     '平台配置', 'config_categories / config_items 维护', '', '/platform/configs', 'SettingsIcon',   3, 100, '100', TRUE, TRUE),
-       (104, 'platform-dicts',       '平台字典', 'dicts / dict_items 维护',          '', '/platform/dicts',       'BookIcon',       4, 100, '100', TRUE, TRUE),
-       (105, 'platform-cache',       '缓存管理', 'Redis cache 运维 (Cache.tsx)',     '', '/platform/cache',       'DatabaseIcon',   5, 100, '100', TRUE, TRUE),
-       (107, 'platform-roles',       '平台角色', 'sys_roles CRUD + 菜单/权限绑定',     '', '/platform/roles',       'ShieldIcon',     7, 100, '100', TRUE, TRUE),
-       (108, 'platform-permissions', '平台权限', 'sys_permissions CRUD',             '', '/platform/permissions', 'KeyIcon',        8, 100, '100', TRUE, TRUE)
+VALUES (102, 'sys-menus',       '平台菜单', 'sys_menus CRUD',                   '', '/sys/menus',       'MenuIcon',       2, 100, '100', TRUE, TRUE),
+       (103, 'sys-configs',     '平台配置', 'config_categories / config_items 维护', '', '/sys/configs', 'SettingsIcon',   3, 100, '100', TRUE, TRUE),
+       (104, 'sys-dicts',       '平台字典', 'dicts / dict_items 维护',          '', '/sys/dicts',       'BookIcon',       4, 100, '100', TRUE, TRUE),
+       (105, 'sys-cache',       '缓存管理', 'Redis cache 运维 (Cache.tsx)',     '', '/sys/cache',       'DatabaseIcon',   5, 100, '100', TRUE, TRUE),
+       (107, 'sys-roles',       '平台角色', 'sys_roles CRUD + 菜单/权限绑定',     '', '/sys/roles',       'ShieldIcon',     7, 100, '100', TRUE, TRUE),
+       (108, 'sys-permissions', '平台权限', 'sys_permissions CRUD',             '', '/sys/permissions', 'KeyIcon',        8, 100, '100', TRUE, TRUE)
 ON CONFLICT (code) WHERE is_deleted = FALSE DO NOTHING;
 
 -- 11.4b super_admin 绑定所有平台菜单

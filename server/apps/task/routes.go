@@ -7,10 +7,10 @@ import (
 	"gx1727.com/xin/framework/pkg/permission"
 )
 
-// Register 把 task 管理 API 挂在 platform 域。
+// Register 把 task 管理 API 挂在 sys 域。
 //
-// 路由前缀：/api/v1/platform/tasks/*
-// 鉴权：RequirePlatformRole("super_admin")
+// 路由前缀：/api/v1/sys/tasks/*
+// 鉴权：RequireSysRole("super_admin")
 //
 // 用法：
 //
@@ -18,7 +18,7 @@ import (
 //	task.Register(protected, h)
 func Register(protected *gin.RouterGroup, h *Handler) {
 	g := protected.Group("/tasks")
-	g.Use(middleware.RequirePlatformRole("super_admin"))
+	g.Use(middleware.RequireSysRole("super_admin"))
 	{
 		g.GET("", middleware.Require(permission.P("task", "list")), h.List)
 		g.GET("/stats", middleware.Require(permission.P("task", "list")), h.Stats)

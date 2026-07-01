@@ -34,9 +34,9 @@
 │     ├─ cache/                   ← Redis 单例                   │
 │     ├─ auth/                    ← AccountRepository 公开契约   │
 │     ├─ tenant/                  ← TenantRepository 公开契约    │
-│     ├─ platformauth/            ← 平台域 User/Role/... 契约    │
+│     ├─ sysauth/                 ← sys 域 User/Role/... 契约     │
 │     ├─ tenant/auth/             ← 租户域 User/Role/Org 契约    │
-│     ├─ middleware/              ← Require / RequirePlatform    │
+│     ├─ middleware/              ← Require / RequireSys         │
 │     ├─ audit/                   ← db_logs 写入入口             │
 │     ├─ migrate/                 ← 启动期 SQL 迁移              │
 │     ├─ resp/                    ← 统一响应 + 错误码分段        │
@@ -49,9 +49,9 @@
 ┌────────────────────────────────────────────────────────────────┐
 │  apps/                           ← 业务模块（19 个，可装卸）    │
 │  ├─ boot/auth/                   ← 登录 / 账号（必装）          │
-│  ├─ platform/                    ← 平台管理域                  │
-│  │  ├─ tenants/                  ← 平台租户 CRUD               │
-│  │  ├─ sys_user/  sys_role/  sys_menu/  sys_permission/       │
+│  ├─ sys/                         ← sys 管理域                  │
+│  │  ├─ tenants/                  ← sys 租户 CRUD               │
+│  │  ├─ user/  role/  menu/  permission/                       │
 │  ├─ tenant/                      ← 租户域 RBAC                │
 │  │  ├─ user/  role/  menu/  organization/  permission/  resource/  message/ │
 │  ├─ reference/                   ← 基础设施                    │
@@ -135,7 +135,7 @@ type Writer interface {
 | `DB() / Cache() / Config() / Session()` | `framework/boot` | 所有模块 |
 | `Authz()` | `framework/boot` | middleware（间接） |
 | `AccountRepo() / AccountAuthRepo()` | `apps/boot/auth` | `apps/tenant/user` 等 |
-| `TenantRepo()` | `apps/platform/tenants` | `apps/boot/auth` 等 |
+| `TenantRepo()` | `apps/sys/tenants` | `apps/boot/auth` 等 |
 | `UserRepo()` | `apps/tenant/user` | `apps/tenant/role` 等 |
 | `RoleRepo()` | `apps/tenant/role` | `apps/tenant/user` 等 |
 | `OrgRepo()` | `apps/tenant/organization` | `apps/tenant/user` 等 |
@@ -175,19 +175,19 @@ v1 = /api/v1
 │   ├─ /asset/upload  /asset/:id
 │   └─ /flag/*                          # 头像框
 │
-└── protected = v1.Group("/platform")  # Auth
-    ├─ /platform/tenants/*              # super_admin 限定
-    ├─ /platform/sys-users/*
-    ├─ /platform/sys-roles/*
-    ├─ /platform/menus/*
-    ├─ /platform/sys-permissions/*
-    ├─ /platform/dicts/*
-    └─ /platform/configs/*
+└── protected = v1.Group("/sys")    # Auth
+    ├─ /sys/tenants/*                  # super_admin 限定
+    ├─ /sys/sys-users/*
+    ├─ /sys/sys-roles/*
+    ├─ /sys/menus/*
+    ├─ /sys/sys-permissions/*
+    ├─ /sys/dicts/*
+    └─ /sys/configs/*
 ```
 
 **关键不变量**：
 - 业务域**无 `/t` 前缀**（历史 `/api/v1/t/users` 已弃用）
-- 平台域统一 `/api/v1/platform/*` 前缀
+- sys 域统一 `/api/v1/sys/*` 前缀
 - 公开域走 `/api/v1/*` 但用 `OptionalAuth` 中间件
 
 ---
@@ -287,7 +287,7 @@ waitForSignal → shutdownModules
 |---|---|
 | `public` | `OptionalAuth(&cfg.JWT, sm, authzSvc, db)` |
 | `tenant` | `Auth(&cfg.JWT, sm, authzSvc, db)` + `RequireTenantContext()` |
-| `protected` | `Auth(...)`（模块内部再追加 `RequirePlatformRole("super_admin")`） |
+| `protected` | `Auth(...)`（模块内部再追加 `RequireSysRole("super_admin")`） |
 
 `Auth` 注入 `Context`（轻量身份）和 `UserContext` 懒加载器（RBAC + DataScope）；`OptionalAuth` 是 Auth 的弱化版（无 token 时从 `X-Tenant-ID` header 兜底注入 `Context.TenantID`）。
 
@@ -306,14 +306,14 @@ func WithTx(ctx context.Context, tx pgx.Tx) context.Context
 func GetQuerier(ctx context.Context, pool *pgxpool.Pool) (Querier, error)
 func RunInTx(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context) error) error
 func RunInTenantTx(ctx context.Context, pool *pgxpool.Pool, tenantID uint, fn func(ctx context.Context) error) error
-func RunInPlatformTx(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context) error) error
+func RunInSysTx(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context) error) error
 ```
 
 ### 8.2 事务工具
 
 - `RunInTx`：**嵌套安全**——已存在事务则复用
 - `RunInTenantTx`：套 `app.tenant_id = $tenantID`，触发 RLS 让 SQL 只能看到本租户数据
-- `RunInPlatformTx`：设 `app.tenant_id='0'` + `app.bypass_rls='on'`，平台域跨租户访问
+- `RunInSysTx`：设 `app.tenant_id='0'` + `app.bypass_rls='on'`，sys 域跨租户访问
 
 ### 8.3 Repository 写法
 
@@ -339,7 +339,7 @@ type Context struct {
     UserID         uint
     SessionID      string
     Role           string
-    PlatformRoles  []string
+    SysRoles       []string
 }
 
 type UserContext struct {

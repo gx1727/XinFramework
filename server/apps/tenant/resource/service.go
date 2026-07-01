@@ -25,7 +25,7 @@ func NewService(resourceRepo ResourceRepository, authzSvc authz.Authorization) *
 //   - "resource:action" 或 "resource:*"：菜单相关资源，必须含且仅含一个 ":"，前后非空。
 //   - 多个 ":" 拒绝。
 //
-// 与 apps/platform/sys_permission/service.go permissionCodeValid 规则一致。
+// 与 apps/sys/permission/service.go permissionCodeValid 规则一致。
 func permissionCodeValid(code string) bool {
 	if code == "" {
 		return false

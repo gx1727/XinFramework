@@ -243,7 +243,7 @@ func (r *PostgresConfigRepository) DeleteGroup(ctx context.Context, id uint) err
 }
 
 // ============================================================================
-// Group — Platform 域
+// Group — sys 域
 // ============================================================================
 
 func (r *PostgresConfigRepository) ListPlatformGroups(ctx context.Context) ([]ConfigCategory, error) {

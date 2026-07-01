@@ -12,7 +12,7 @@ import (
 
 // Handler 是 task 模块的 HTTP handler。
 //
-// 所有路由都挂在 platform 域（/api/v1/platform/*），需 super_admin 角色。
+// 所有路由都挂在 sys 域（/api/v1/sys/*），需 super_admin 角色。
 type Handler struct {
 	svc *Service
 }
@@ -23,7 +23,7 @@ func NewHandler(svc *Service) *Handler {
 }
 
 // List 列出任务。
-// GET /api/v1/platform/tasks?kind=&status=&tenant_id=&page=&size=
+// GET /api/v1/sys/tasks?kind=&status=&tenant_id=&page=&size=
 func (h *Handler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("size", "50"))
@@ -59,7 +59,7 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 // Get 取单个任务详情。
-// GET /api/v1/platform/tasks/:id
+// GET /api/v1/sys/tasks/:id
 func (h *Handler) Get(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -75,7 +75,7 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 // Cancel 取消任务。
-// POST /api/v1/platform/tasks/:id/cancel
+// POST /api/v1/sys/tasks/:id/cancel
 func (h *Handler) Cancel(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -90,7 +90,7 @@ func (h *Handler) Cancel(c *gin.Context) {
 }
 
 // Requeue 重新入队任务。
-// POST /api/v1/platform/tasks/:id/requeue
+// POST /api/v1/sys/tasks/:id/requeue
 func (h *Handler) Requeue(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -105,7 +105,7 @@ func (h *Handler) Requeue(c *gin.Context) {
 }
 
 // Stats 取队列统计。
-// GET /api/v1/platform/tasks/stats
+// GET /api/v1/sys/tasks/stats
 func (h *Handler) Stats(c *gin.Context) {
 	stats, err := h.svc.Stats(c.Request.Context())
 	if err != nil {
@@ -123,7 +123,7 @@ func (h *Handler) Stats(c *gin.Context) {
 }
 
 // Cleanup 清理历史任务。
-// POST /api/v1/platform/tasks/cleanup?keep_days=7&statuses=succeeded,dead
+// POST /api/v1/sys/tasks/cleanup?keep_days=7&statuses=succeeded,dead
 //
 // keep_days：保留最近 N 天的任务（默认 7 天），更早的删除。
 // statuses：要清理的状态列表（默认 succeeded,dead）。

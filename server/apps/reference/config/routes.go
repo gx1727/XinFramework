@@ -11,8 +11,8 @@
 //	  GET    /resolve                     Resolve（?code=xxx 合并消费）
 //	  POST   /resolve/batch               ResolveBatch
 //
-//	/api/v1/platform/configs              平台域 CRUD
-//	  RequireAnyPlatformRole() + Require ResConfig（0024+）
+//	/api/v1/sys/configs                   sys 域 CRUD
+//	  RequireAnySysRole() + Require ResConfig（0024+）
 //	  GET    /                            ListPlatformGroups
 //	  GET    /:id                         GetPlatformGroup
 //	  POST   /                            CreatePlatformGroup
@@ -42,7 +42,7 @@ import (
 // 三组 RouterGroup 语义：
 //   - public:     /api/v1/public/configs          （公开读）
 //   - tenant:     /api/v1/configs                 （业务域，Auth + RequireTenantContext）
-//   - protected:  /api/v1/platform/configs        （平台域，Auth + RequirePlatformRole）
+//   - protected:  /api/v1/sys/configs             （sys 域，Auth + RequireSysRole）
 func Register(public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.RouterGroup, bh *BusinessHandler, ph *PlatformHandler, pubh *PublicHandler) {
 	// ============ Public（无需 auth，独立前缀避免与 /configs 冲突） ============
 	pub := public.Group("/public/configs")
@@ -68,12 +68,12 @@ func Register(public *gin.RouterGroup, tenant *gin.RouterGroup, protected *gin.R
 		biz.DELETE("/:id/items/:item_id/override", pkgmiddleware.Require(permission.P(permission.ResConfig, permission.ActUpdate)), bh.DeleteOverride)
 	}
 
-	// ============ Platform（平台域 CRUD，挂在 /platform/* 域） ============
-	// 0024+：删除 RequirePlatformRole(super_admin) 硬编码白名单。
-	// 任何 platform 角色都可以调到这里；具体能力由 ResConfig:* 资源权限码决定。
+	// ============ sys（sys 域 CRUD，挂在 /sys/* 域） ============
+	// 0024+：删除 RequireSysRole(super_admin) 硬编码白名单。
+	// 任何 sys 角色都可以调到这里；具体能力由 ResConfig:* 资源权限码决定。
 	// super_admin 靠 init_seed.sql 11.3c 绑定的 `*:*` 通配自动拥有。
 	plat := protected.Group("/configs")
-	plat.Use(pkgmiddleware.RequireAnyPlatformRole())
+	plat.Use(pkgmiddleware.RequireAnySysRole())
 	{
 		// Group
 		plat.GET("", pkgmiddleware.Require(permission.P(permission.ResConfig, permission.ActList)), ph.ListGroups)

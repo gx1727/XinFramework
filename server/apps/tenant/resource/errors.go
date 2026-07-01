@@ -12,7 +12,7 @@ var (
 	ErrCannotDeleteResource = resp.Err(8003, "不能删除系统资源")
 	ErrBackendUnavailable   = resp.Err(8004, "服务后端未初始化或不可用")
 	// ErrResourceInvalidCode 权限码格式错误：必须为 resource:action 或 resource:*（仅含一个冒号）。
-	// 与 apps/platform/sys_permission/service.go permissionCodeValid 规则一致。
+	// 与 apps/sys/permission/service.go permissionCodeValid 规则一致。
 	ErrResourceInvalidCode = resp.Err(8005, "权限码格式错误，必须为 resource:action 或 resource:*（仅含一个冒号）")
 )
 

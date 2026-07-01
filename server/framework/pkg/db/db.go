@@ -7,7 +7,7 @@
 //   - 删除 var Pool / Get() / Close()（包级全局）
 //   - Init(ctx, cfg) (*pgxpool.Pool, error) 返回池
 //   - GetQuerier(ctx, pool) 需要显式传入 pool
-//   - RunInTx / RunInTenantTx / RunInPlatformTx 一直就是 pool 参数化
+//   - RunInTx / RunInTenantTx / RunInSysTx 一直就是 pool 参数化
 package db
 
 import (
@@ -123,8 +123,8 @@ func RunInTenantTx(ctx context.Context, pool *pgxpool.Pool, tenantID uint, fn fu
 	})
 }
 
-// RunInPlatformTx 在事务中开启 app.bypass_rls，用于平台级跨租户操作。
-func RunInPlatformTx(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context) error) error {
+// RunInSysTx 在事务中开启 app.bypass_rls，用于 sys 级跨租户操作。
+func RunInSysTx(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context) error) error {
 	return RunInTx(ctx, pool, func(ctx context.Context) error {
 		tx := ctx.Value(txKey{}).(pgx.Tx)
 		if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id', '0', true)"); err != nil {

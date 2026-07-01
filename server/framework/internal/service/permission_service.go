@@ -8,23 +8,23 @@ import (
 )
 
 type PermissionService struct {
-	permRepo   permission.UserPermissionRepository
-	dsRepo     permission.DataScopeRepository
-	cache      permission.PermissionCache
-	platformRp permission.PlatformRoleRepository
+	permRepo permission.UserPermissionRepository
+	dsRepo   permission.DataScopeRepository
+	cache    permission.PermissionCache
+	sysRp    permission.SysRoleRepository
 }
 
 func NewPermissionService(
 	permRepo permission.UserPermissionRepository,
 	dsRepo permission.DataScopeRepository,
 	cache permission.PermissionCache,
-	platformRp permission.PlatformRoleRepository,
+	sysRp permission.SysRoleRepository,
 ) *PermissionService {
 	return &PermissionService{
-		permRepo:   permRepo,
-		dsRepo:     dsRepo,
-		cache:      cache,
-		platformRp: platformRp,
+		permRepo: permRepo,
+		dsRepo:   dsRepo,
+		cache:    cache,
+		sysRp:    sysRp,
 	}
 }
 
@@ -167,12 +167,13 @@ func (s *PermissionService) LoadUserSecurityContext(ctx context.Context, userID 
 	return perms, roles, dsPtr, orgID, nil
 }
 
-// LoadPlatformRoles 单独获取用户拥有的平台级角色（登录时使用）
-func (s *PermissionService) LoadPlatformRoles(ctx context.Context, userID uint) []string {
-	if s.platformRp == nil {
+// LoadSysRoles 单独获取用户拥有的 sys 级角色（登录时使用）。
+// sys 角色独立于租户内 RBAC（roles 切片），用于跨租户 / sys 级操作。
+func (s *PermissionService) LoadSysRoles(ctx context.Context, userID uint) []string {
+	if s.sysRp == nil {
 		return nil
 	}
-	roles, err := s.platformRp.GetRolesByUserID(ctx, userID)
+	roles, err := s.sysRp.GetRolesByUserID(ctx, userID)
 	if err != nil {
 		return nil
 	}

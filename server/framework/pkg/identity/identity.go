@@ -1,16 +1,16 @@
-// Package identity 定义平台域（sys_*）与租户域（tenant_*）共享的字段级基础类型。
-// 平台与租户包各自定义自己的 Go 结构（platformauth.User / tenant/auth.User 等），
+// Package identity 定义 sys 域（sys_*）与租户域（tenant_*）共享的字段级基础类型。
+// sys 与租户包各自定义自己的 Go 结构（sysauth.User / tenant/auth.User 等），
 // 通过嵌入对应的 identity 结构，让跨域消费者可以读取公共字段而不依赖任一侧。
 //
 // 为什么要有 identity 这个基础包？
 //
-//   - “用户 / 角色 / 菜单 / 权限是什么”的唯一事实来源。新增字段时，
+//   - "用户 / 角色 / 菜单 / 权限是什么"的唯一事实来源。新增字段时，
 //     先改 identity，两侧通过嵌入自动跟随。
 //   - 稳定契约：identity 不依赖 framework/internal 或 apps/，位于 pkg/
 //     可以被两层同时消费。
 //
 // 哪些字段不应加在这里：
-//   - 仅平台域（如 platform_level）请直接放在 platformauth.User
+//   - 仅 sys 域（如 sys_level）请直接放在 sysauth.User
 //   - 仅租户域（如 TenantID）请直接放在租户侧的结构
 package identity
 

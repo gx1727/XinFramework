@@ -31,13 +31,13 @@ func RequireAll(specs ...permission.Spec) gin.HandlerFunc {
 	return requireWithSpecs(permission.MatchAll, specs...)
 }
 
-// RequirePlatformRole 校验当前登录账号是否携带指定的平台级角色（如 super_admin）。
+// RequireSysRole 校验当前登录账号是否携带指定的 sys 级角色（如 super_admin）。
 //
-// 设计意图：跨租户 / 平台级操作（如租户管理、计费管理、平台字典）必须显式校验
-// 平台角色，不能仅依赖资源权限码——因为资源权限是租户内的 RBAC，无法表达
+// 设计意图：跨租户 / sys 级操作（如租户管理、计费管理、平台字典）必须显式校验
+// sys 角色，不能仅依赖资源权限码——因为资源权限是租户内的 RBAC，无法表达
 // "跨越所有租户"的特权。
 //
-// 注意：该中间件依赖 Auth 中间件先注入 XinContext.PlatformRoles。
+// 注意：该中间件依赖 Auth 中间件先注入 XinContext.SysRoles。
 // 使用方式：在 protected 路由分组之后链式追加，或在单条路由上叠加。
 //
 // 此函数从 framework/internal/core/middleware/auth.go 提升而来，
@@ -45,7 +45,7 @@ func RequireAll(specs ...permission.Spec) gin.HandlerFunc {
 // 不允许跨 module 导入。
 // RequireTenantContext 校验当前 token 携带有效的 tenant_id（> 0）。
 //
-// 用途：挂在租户业务域路由组（如 /api/v1/* 业务域）上，挡住 platform 域登录的 token。
+// 用途：挂在租户业务域路由组（如 /api/v1/* 业务域）上，挡住 sys 域登录的 token。
 // 错误码 3003（"租户上下文缺失"）。
 //
 // 注意：必须挂在 Auth 中间件之后（依赖 XinContext.TenantID）。
@@ -61,15 +61,15 @@ func RequireTenantContext() gin.HandlerFunc {
 	}
 }
 
-// RequirePlatformScope 校验当前 token 是 platform 域登录（scope=platform）。
+// RequireSysScope 校验当前 token 是 sys 域登录（scope=sys）。
 //
-// 用途：挂在平台域路由组上，挡住 tenant 域登录的 token。
-// 配合 RequirePlatformRole("super_admin") 使用效果最佳。
-func RequirePlatformScope() gin.HandlerFunc {
+// 用途：挂在 sys 域路由组上，挡住 tenant 域登录的 token。
+// 配合 RequireSysRole("super_admin") 使用效果最佳。
+func RequireSysScope() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		xc := xincontext.New(c)
 		if xc == nil || xc.TenantID != 0 {
-			resp.Forbidden(c, "此接口仅限平台域登录访问")
+			resp.Forbidden(c, "此接口仅限 sys 域登录访问")
 			c.Abort()
 			return
 		}
@@ -77,47 +77,47 @@ func RequirePlatformScope() gin.HandlerFunc {
 	}
 }
 
-func RequirePlatformRole(roles ...string) gin.HandlerFunc {
+func RequireSysRole(roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if len(roles) == 0 {
 			c.Next()
 			return
 		}
 		xc := xincontext.New(c)
-		if xc == nil || len(xc.PlatformRoles) == 0 {
-			resp.Forbidden(c, "需要平台级角色")
+		if xc == nil || len(xc.SysRoles) == 0 {
+			resp.Forbidden(c, "需要 sys 级角色")
 			c.Abort()
 			return
 		}
 		for _, need := range roles {
-			for _, have := range xc.PlatformRoles {
+			for _, have := range xc.SysRoles {
 				if have == need {
 					c.Next()
 					return
 				}
 			}
 		}
-		resp.Forbidden(c, "平台角色不足")
+		resp.Forbidden(c, "sys 角色不足")
 		c.Abort()
 	}
 }
 
-// RequireAnyPlatformRole 校验当前 token 至少携带一个平台级角色（不限定具体角色）。
+// RequireAnySysRole 校验当前 token 至少携带一个 sys 级角色（不限定具体角色）。
 //
-// 适用场景：平台域运行时接口（如 /platform/menus/tree 给任何 platform 用户拉自己的
-// 可访问菜单树）。该中间件仅检查“是不是平台用户”，具体能看哪些资源由
-// handler/service 层按 PlatformRoles 过滤实现。
+// 适用场景：sys 域运行时接口（如 /sys/menus/tree 给任何 sys 用户拉自己的
+// 可访问菜单树）。该中间件仅检查"是不是 sys 用户"，具体能看哪些资源由
+// handler/service 层按 SysRoles 过滤实现。
 //
-// 与 RequirePlatformRole 的区别：
-//   - RequirePlatformRole(super_admin) 严格白名单，仅放行指定角色
-//   - RequireAnyPlatformRole()          宽泛闸口，放行任何 platform 角色
-//   - RequirePlatformRole()             【注意】零参调用会被原函数视为
-//     “不指定角色”直接放行，并不会检查 PlatformRoles 长度——不要用它代替本函数。
-func RequireAnyPlatformRole() gin.HandlerFunc {
+// 与 RequireSysRole 的区别：
+//   - RequireSysRole(super_admin) 严格白名单，仅放行指定角色
+//   - RequireAnySysRole()          宽泛闸口，放行任何 sys 角色
+//   - RequireSysRole()             【注意】零参调用会被原函数视为
+//     "不指定角色"直接放行，并不会检查 SysRoles 长度——不要用它代替本函数。
+func RequireAnySysRole() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		xc := xincontext.New(c)
-		if xc == nil || len(xc.PlatformRoles) == 0 {
-			resp.Forbidden(c, "需要平台级角色")
+		if xc == nil || len(xc.SysRoles) == 0 {
+			resp.Forbidden(c, "需要 sys 级角色")
 			c.Abort()
 			return
 		}
@@ -138,7 +138,7 @@ func requireWithSpecs(mode permission.MatchMode, specs ...permission.Spec) gin.H
 		}
 
 		// 0024+：删除 super_admin 中间件短路。
-		// super_admin 与其他 platform 角色走完全相同的 RBAC 路径，
+		// super_admin 与其他 sys 角色走完全相同的 RBAC 路径，
 		// "全权限"由 seed 时绑定的 `*:*` 通配权限码授予（见 init_seed.sql 11.3b）。
 		// HasPermission 在 framework/pkg/permission/types.go 已原生支持 `*:*` 通配。
 

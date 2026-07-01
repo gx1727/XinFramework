@@ -93,7 +93,7 @@ func Init(cfg *config.Config) (*appx.App, *server.Server, *plugin.AppContext, er
 		permission.NewPermissionRepository(pool),
 		permission.NewDataScopeRepository(pool),
 		permCache,
-		permission.NewPlatformRoleRepository(pool),
+		permission.NewSysRoleRepository(pool),
 	)
 	authzService := service.NewAuthorizationService(permService)
 	// 编译期保证:*AuthorizationService 必须实现 authz.Authorization。

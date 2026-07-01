@@ -33,14 +33,14 @@ func TestLoad_DevConfig_ModuleListMatchesSpec(t *testing.T) {
 	}
 
 	// 期望：alwaysOn (3) + optOut (14，含 task) + config.yaml 显式列出的 3 项 = 20 项
-	// alwaysOn: system, auth, platform_tenant
+	// alwaysOn: system, auth, sys_tenant
 	// optOut   : menu, user, role, resource, organization, permission,
 	//            dict, asset, config,
 	//            sys_user, sys_role, sys_menu, sys_permission, task
 	// config.yaml module: weixin, cms, flag
 	want := []string{
 		// alwaysOn（顺序敏感：永远在列表头部）
-		"system", "auth", "platform_tenant",
+		"system", "auth", "sys_tenant",
 		// optOut（默认启用）
 		"menu", "user", "role", "resource", "organization", "permission",
 		"dict", "asset", "config",
@@ -59,7 +59,7 @@ func TestLoad_DevConfig_ModuleListMatchesSpec(t *testing.T) {
 	}
 
 	// 同时验证 alwaysOn 三个确实在列表里（顺序敏感）
-	for i, m := range []string{"system", "auth", "platform_tenant"} {
+	for i, m := range []string{"system", "auth", "sys_tenant"} {
 		if cfg.Module[i] != m {
 			t.Errorf("cfg.Module[%d]: got %q, want %q (full: %v)", i, cfg.Module[i], m, cfg.Module)
 		}

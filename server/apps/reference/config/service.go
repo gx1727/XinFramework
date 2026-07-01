@@ -3,18 +3,18 @@
 // 与 apps/reference/dict 的 service 架构对标：
 //
 //	| 操作          | 事务              | 缓存策略                  |
-//	| CreateGroup   | RunInPlatformTx    | InvalidateAll             |
-//	| UpdateGroup   | RunInPlatformTx    | InvalidateAll             |
-//	| DeleteGroup   | RunInPlatformTx    | InvalidateAll             |
-//	| CreateItem    | RunInPlatformTx    | InvalidateAll             |
-//	| UpdateItem    | RunInPlatformTx    | InvalidateAll             |
-//	| DeleteItem    | RunInPlatformTx    | InvalidateAll             |
+//	| CreateGroup   | RunInSysTx         | InvalidateAll             |
+//	| UpdateGroup   | RunInSysTx         | InvalidateAll             |
+//	| DeleteGroup   | RunInSysTx         | InvalidateAll             |
+//	| CreateItem    | RunInSysTx         | InvalidateAll             |
+//	| UpdateItem    | RunInSysTx         | InvalidateAll             |
+//	| DeleteItem    | RunInSysTx         | InvalidateAll             |
 //	| Resolve       | RunInTenantTx      | 命中即返 / miss 则加载    |
 //	| UpsertOverride| RunInTenantTx      | Invalidate(tenantID)      |
 //	| DeleteOverride| RunInTenantTx      | Invalidate(tenantID)      |
-//	| UpsertVisibility | RunInPlatformTx | Invalidate(tenantID)      |
+//	| UpsertVisibility | RunInSysTx     | Invalidate(tenantID)      |
 //
-// 所有写操作走 RunInPlatformTx（platform 域，bypass RLS）。
+// 所有写操作走 RunInSysTx（sys 域，bypass RLS）。
 // Resolve 走 RunInTenantTx（受 RLS 约束）。
 package config
 
@@ -37,8 +37,8 @@ import (
 // Service 是 config 模块的核心 service。
 //
 // 持有 pool + repo + cache 三件套。
-// 同时承担 platform 和 tenant 两域的操作——
-// 区分靠事务上下文（RunInPlatformTx vs RunInTenantTx）。
+// 同时承担 sys 和 tenant 两域的操作——
+// 区分靠事务上下文（RunInSysTx vs RunInTenantTx）。
 type Service struct {
 	pool  *pgxpool.Pool
 	repo  ConfigRepository
@@ -50,7 +50,7 @@ func NewService(pool *pgxpool.Pool, repo ConfigRepository, cache *Cache) *Servic
 }
 
 // ============================================================================
-// Group — Platform 域
+// Group — sys 域
 // ============================================================================
 
 // CreateGroup 创建配置分组（super_admin 调用）
@@ -59,7 +59,8 @@ func (s *Service) CreateGroup(ctx context.Context, req createGroupRequest, scope
 		return nil, ErrInvalidVisibility
 	}
 	var out *ConfigCategory
-	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
+	var err error
+	db.RunInSysTx(ctx, s.pool, func(ctx context.Context) error {
 		repoReq := CreateGroupRepoReq{
 			Code:        req.Code,
 			Name:        req.Name,
@@ -73,7 +74,6 @@ func (s *Service) CreateGroup(ctx context.Context, req createGroupRequest, scope
 		if scope == "tenant" {
 			tenantID = req.TenantID
 		}
-		var err error
 		out, err = s.repo.CreateGroup(ctx, tenantID, scope, repoReq)
 		return err
 	})
@@ -90,8 +90,8 @@ func (s *Service) CreateGroup(ctx context.Context, req createGroupRequest, scope
 // UpdateGroup 修改配置分组（super_admin 调用）
 func (s *Service) UpdateGroup(ctx context.Context, id uint, req updateGroupRequest) (*ConfigCategory, error) {
 	var out *ConfigCategory
-	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
-		var err error
+	var err error
+	db.RunInSysTx(ctx, s.pool, func(ctx context.Context) error {
 		out, err = s.repo.UpdateGroup(ctx, id, UpdateGroupRepoReq{
 			Name:        req.Name,
 			Description: req.Description,
@@ -115,7 +115,8 @@ func (s *Service) UpdateGroup(ctx context.Context, id uint, req updateGroupReque
 
 // DeleteGroup 删除配置分组（super_admin 调用）
 func (s *Service) DeleteGroup(ctx context.Context, id uint) error {
-	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
+	var err error
+	db.RunInSysTx(ctx, s.pool, func(ctx context.Context) error {
 		// 前置校验：group 下是否有未删除的 item
 		n, err := s.repo.CountItemsByGroup(ctx, id)
 		if err != nil {
@@ -139,8 +140,8 @@ func (s *Service) DeleteGroup(ctx context.Context, id uint) error {
 // ListPlatformGroups 列全部平台 group
 func (s *Service) ListPlatformGroups(ctx context.Context) ([]ConfigCategory, error) {
 	var out []ConfigCategory
-	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
-		var err error
+	var err error
+	db.RunInSysTx(ctx, s.pool, func(ctx context.Context) error {
 		out, err = s.repo.ListPlatformGroups(ctx)
 		return err
 	})
@@ -148,7 +149,7 @@ func (s *Service) ListPlatformGroups(ctx context.Context) ([]ConfigCategory, err
 }
 
 // ============================================================================
-// Item — Platform 域
+// Item — sys 域
 // ============================================================================
 
 // CreateItem 创建平台 item
@@ -160,7 +161,8 @@ func (s *Service) CreateItem(ctx context.Context, categoryID uint, req createIte
 		return nil, err
 	}
 	var out *ConfigItem
-	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
+	var err error
+	db.RunInSysTx(ctx, s.pool, func(ctx context.Context) error {
 		repoReq := CreateItemRepoReq{
 			Key:          req.Key,
 			Value:        req.Value,
@@ -175,7 +177,6 @@ func (s *Service) CreateItem(ctx context.Context, categoryID uint, req createIte
 			IsReadonly:   req.IsReadonly,
 			IsSystem:     req.IsSystem,
 		}
-		var err error
 		out, err = s.repo.CreateItem(ctx, 0, categoryID, repoReq)
 		return err
 	})
@@ -192,8 +193,8 @@ func (s *Service) CreateItem(ctx context.Context, categoryID uint, req createIte
 // UpdateItem 修改平台 item
 func (s *Service) UpdateItem(ctx context.Context, id uint, req updateItemRequest) (*ConfigItem, error) {
 	var before, after *ConfigItem
-	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
-		var err error
+	var err error
+	db.RunInSysTx(ctx, s.pool, func(ctx context.Context) error {
 		before, err = s.repo.GetItemByID(ctx, id)
 		if err != nil {
 			return err
@@ -221,7 +222,8 @@ func (s *Service) UpdateItem(ctx context.Context, id uint, req updateItemRequest
 
 // DeleteItem 删除平台 item
 func (s *Service) DeleteItem(ctx context.Context, id uint) error {
-	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
+	var err error
+	db.RunInSysTx(ctx, s.pool, func(ctx context.Context) error {
 		// 前置校验：是否有租户覆盖此 platform item
 		// （暂简化：直接删，由 SQL 索引 uk_config_item_override 兜底）
 		return s.repo.DeleteItem(ctx, id)
@@ -239,8 +241,8 @@ func (s *Service) DeleteItem(ctx context.Context, id uint) error {
 // ListPlatformItems 列某平台 group 的所有 item
 func (s *Service) ListPlatformItems(ctx context.Context, categoryID uint) ([]ConfigItem, error) {
 	var out []ConfigItem
-	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
-		var err error
+	var err error
+	db.RunInSysTx(ctx, s.pool, func(ctx context.Context) error {
 		out, err = s.repo.ListPlatformItemsByGroup(ctx, categoryID)
 		return err
 	})
@@ -302,14 +304,14 @@ func (s *Service) DeleteOverride(ctx context.Context, tenantID, platformItemID u
 }
 
 // ============================================================================
-// Visibility — Platform 域
+// Visibility — sys 域
 // ============================================================================
 
 // ListVisibility 列某 platform group 对各租户的访问级别
 func (s *Service) ListVisibility(ctx context.Context, categoryID uint) ([]ConfigVisibility, error) {
 	var out []ConfigVisibility
-	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
-		var err error
+	var err error
+	db.RunInSysTx(ctx, s.pool, func(ctx context.Context) error {
 		out, err = s.repo.ListVisibility(ctx, categoryID)
 		return err
 	})
@@ -322,8 +324,8 @@ func (s *Service) UpsertVisibility(ctx context.Context, categoryID, tenantID uin
 		return nil, ErrInvalidAccess
 	}
 	var out *ConfigVisibility
-	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
-		var err error
+	var err error
+	db.RunInSysTx(ctx, s.pool, func(ctx context.Context) error {
 		out, err = s.repo.UpsertVisibility(ctx, categoryID, tenantID, access)
 		return err
 	})
@@ -339,7 +341,8 @@ func (s *Service) UpsertVisibility(ctx context.Context, categoryID, tenantID uin
 
 // DeleteVisibility 删除某 platform group 对某租户的访问级别（恢复默认 visibility 策略）
 func (s *Service) DeleteVisibility(ctx context.Context, categoryID, tenantID uint) error {
-	err := db.RunInPlatformTx(ctx, s.pool, func(ctx context.Context) error {
+	var err error
+	db.RunInSysTx(ctx, s.pool, func(ctx context.Context) error {
 		return s.repo.DeleteVisibility(ctx, categoryID, tenantID)
 	})
 	if err != nil {
@@ -479,8 +482,10 @@ func mapRepoError(err error) error {
 
 // isValidScope / isValidType / isValidAccess / isValidVisibility
 // 取值校验，与 dict 对齐（defensive validation）。
-func isValidScope(s string) bool      { return s == "platform" || s == "tenant" }
-func isValidType(t string) bool       { return t == "string" || t == "number" || t == "boolean" || t == "json" || t == "select" || t == "multiselect" || t == "color" || t == "image" || t == "text" || t == "password" }
+func isValidScope(s string) bool { return s == "platform" || s == "tenant" }
+func isValidType(t string) bool {
+	return t == "string" || t == "number" || t == "boolean" || t == "json" || t == "select" || t == "multiselect" || t == "color" || t == "image" || t == "text" || t == "password"
+}
 func isValidAccess(a string) bool     { return a == "invisible" || a == "readonly" || a == "editable" }
 func isValidVisibility(v string) bool { return v == "all" || v == "whitelist" || v == "blacklist" }
 

@@ -32,16 +32,28 @@ export const dictApi = {
   list: (params?: { keyword?: string; page?: number; size?: number }) =>
     api<PageResponse<DictItem>>("/dicts", { params }),
 
-  get: (id: number) =>
-    api<DictItem>(`/dicts/${id}`),
+  get: (id: number) => api<DictItem>(`/dicts/${id}`),
 
-  create: (data: { code: string; name: string; sort?: number; extend?: Record<string, unknown> }) =>
+  create: (data: {
+    code: string
+    name: string
+    sort?: number
+    extend?: Record<string, unknown>
+  }) =>
     api<DictItem>("/dicts", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
-  update: (id: number, data: { name: string; sort?: number; status?: number; extend?: Record<string, unknown> }) =>
+  update: (
+    id: number,
+    data: {
+      name: string
+      sort?: number
+      status?: number
+      extend?: Record<string, unknown>
+    }
+  ) =>
     api(`/dicts/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
@@ -56,13 +68,30 @@ export const dictApi = {
   listItems: (dictId: number) =>
     api<PageResponse<DictValueItem>>(`/dicts/${dictId}/items`),
 
-  createItem: (dictId: number, data: { code: string; name: string; sort?: number; extend?: Record<string, unknown> }) =>
+  createItem: (
+    dictId: number,
+    data: {
+      code: string
+      name: string
+      sort?: number
+      extend?: Record<string, unknown>
+    }
+  ) =>
     api<DictValueItem>(`/dicts/${dictId}/items`, {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
-  updateItem: (dictId: number, itemId: number, data: { name: string; sort?: number; status?: number; extend?: Record<string, unknown> }) =>
+  updateItem: (
+    dictId: number,
+    itemId: number,
+    data: {
+      name: string
+      sort?: number
+      status?: number
+      extend?: Record<string, unknown>
+    }
+  ) =>
     api(`/dicts/${dictId}/items/${itemId}`, {
       method: "PUT",
       body: JSON.stringify(data),
@@ -73,16 +102,18 @@ export const dictApi = {
       method: "DELETE",
     }),
 
-  // =============== Platform 域（super_admin CRUD）===============
-  // 挂在 /api/v1/platform/dicts 下，需 RequirePlatformRole("super_admin")。
+  // =============== Sys 域（super_admin CRUD）===============
+  // 挂在 /api/v1/sys/dicts 下，需 RequireAnySysRole()。
   // 注意：响应约定与业务端略有不同
   //   - 列表：`ListPlatformDicts` 返回 `{list, total, page, size}`
   //   - 字典项：`ListPlatformItems` 返回 `{list, total}`（无 page/size，与业务端 items 一致）
-  listPlatformDicts: (params?: { keyword?: string; page?: number; size?: number }) =>
-    api<PageResponse<DictItem>>("/platform/dicts", { params }),
+  listPlatformDicts: (params?: {
+    keyword?: string
+    page?: number
+    size?: number
+  }) => api<PageResponse<DictItem>>("/sys/dicts", { params }),
 
-  getPlatformDict: (id: number) =>
-    api<DictItem>(`/platform/dicts/${id}`),
+  getPlatformDict: (id: number) => api<DictItem>(`/sys/dicts/${id}`),
 
   createPlatformDict: (data: {
     code: string
@@ -91,7 +122,7 @@ export const dictApi = {
     visibility?: "all" | "whitelist" | "blacklist"
     extend?: Record<string, unknown>
   }) =>
-    api<DictItem>("/platform/dicts", {
+    api<DictItem>("/sys/dicts", {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -106,16 +137,16 @@ export const dictApi = {
       extend?: Record<string, unknown>
     }
   ) =>
-    api<DictItem>(`/platform/dicts/${id}`, {
+    api<DictItem>(`/sys/dicts/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   deletePlatformDict: (id: number) =>
-    api(`/platform/dicts/${id}`, { method: "DELETE" }),
+    api(`/sys/dicts/${id}`, { method: "DELETE" }),
 
   listPlatformItems: (dictId: number) =>
-    api<PageResponse<DictValueItem>>(`/platform/dicts/${dictId}/items`),
+    api<PageResponse<DictValueItem>>(`/sys/dicts/${dictId}/items`),
 
   createPlatformItem: (
     dictId: number,
@@ -126,7 +157,7 @@ export const dictApi = {
       extend?: Record<string, unknown>
     }
   ) =>
-    api<DictValueItem>(`/platform/dicts/${dictId}/items`, {
+    api<DictValueItem>(`/sys/dicts/${dictId}/items`, {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -141,13 +172,13 @@ export const dictApi = {
       extend?: Record<string, unknown>
     }
   ) =>
-    api(`/platform/dicts/${dictId}/items/${itemId}`, {
+    api(`/sys/dicts/${dictId}/items/${itemId}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   deletePlatformItem: (dictId: number, itemId: number) =>
-    api(`/platform/dicts/${dictId}/items/${itemId}`, {
+    api(`/sys/dicts/${dictId}/items/${itemId}`, {
       method: "DELETE",
     }),
 }

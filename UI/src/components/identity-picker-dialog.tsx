@@ -1,8 +1,8 @@
 // IdentityPickerDialog 多身份账号登录时弹出"选择身份"对话框（路径 B 多身份支持）。
 //
 // 流程：用户在 LoginForm 提交账号密码 → loginPrecheck 返回 N 个 tenant 身份
-// （+ 可选 platform 角色） → LoginForm 弹此 Dialog → 用户点选 → 调 selectTenant
-// 或 platformLogin 完成登录。
+// （+ 可选 sys 角色） → LoginForm 弹此 Dialog → 用户点选 → 调 selectTenant
+// 或 sysLogin 完成登录。
 
 import { useNavigate } from "react-router-dom"
 import {
@@ -22,10 +22,10 @@ interface IdentityPickerDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   identities: TenantIdentity[]
-  platformAvailable: boolean
-  platformRoles: string[]
+  sysAvailable: boolean
+  sysRoleCodes: string[]
   onSelectTenant: (tenantId: number) => void
-  onSelectPlatform: () => void
+  onSelectSys: () => void
   onCancel: () => void
 }
 
@@ -33,10 +33,10 @@ export function IdentityPickerDialog({
   open,
   onOpenChange,
   identities,
-  platformAvailable,
-  platformRoles,
+  sysAvailable,
+  sysRoleCodes,
   onSelectTenant,
-  onSelectPlatform,
+  onSelectSys,
   onCancel,
 }: IdentityPickerDialogProps) {
   const handleOpenChange = (next: boolean) => {
@@ -54,7 +54,7 @@ export function IdentityPickerDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto py-2">
+        <div className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto py-2">
           {(identities ?? []).map((identity) => (
             <button
               key={`${identity.tenant_id}-${identity.user_id}`}
@@ -62,12 +62,12 @@ export function IdentityPickerDialog({
               onClick={() => onSelectTenant(identity.tenant_id)}
               className={cn(
                 "flex items-start gap-3 rounded-md border border-input bg-background p-3 text-left transition-colors",
-                "hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                "hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               )}
             >
-              <BuildingIcon className="size-5 mt-0.5 shrink-0 text-muted-foreground" />
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm">
+              <BuildingIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium">
                   {identity.tenant_name}
                   <span className="ml-2 text-xs text-muted-foreground">
                     ({identity.tenant_code})
@@ -93,21 +93,21 @@ export function IdentityPickerDialog({
             </button>
           ))}
 
-          {platformAvailable && (
+          {sysAvailable && (
             <button
               type="button"
-              onClick={onSelectPlatform}
+              onClick={onSelectSys}
               className={cn(
                 "flex items-start gap-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-left transition-colors",
-                "hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                "hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               )}
             >
-              <ShieldCheckIcon className="size-5 mt-0.5 shrink-0 text-primary" />
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm">进入平台后台</div>
+              <ShieldCheckIcon className="mt-0.5 size-5 shrink-0 text-primary" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium">进入 Sys 后台</div>
                 <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>平台角色：</span>
-                  {platformRoles.map((r) => (
+                  <span>Sys 角色：</span>
+                  {sysRoleCodes.map((r) => (
                     <span
                       key={r}
                       className="rounded bg-primary/10 px-1.5 py-0.5 text-primary"

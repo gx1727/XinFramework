@@ -2,7 +2,7 @@
 //
 // Phase 0022 拆分：登录入口按 scope 拆开
 //   - tenantLogin    → POST /auth/tenant-login   （业务域，需 tenant_id）
-//   - platformLogin  → POST /auth/platform-login （平台域，无需 tenant_id，要求 super_admin）
+//   - sysLogin       → POST /auth/sys-login      （sys 域，无需 tenant_id，要求 super_admin）
 //
 // Phase 0024 路径 B：多身份账号登录
 //   - loginPrecheck  → POST /auth/login-precheck （账号+密码 → 列出所有可用身份）
@@ -17,8 +17,8 @@ export interface LoginRequest {
   tenant_id?: number
 }
 
-/** 登录作用域：tenant（业务租户） / platform（平台管理员） */
-export type LoginScope = "tenant" | "platform"
+/** 登录作用域：tenant（业务租户） / sys（sys 管理员） */
+export type LoginScope = "tenant" | "sys"
 
 export interface LoginResponse {
   /** 登录作用域，与后端 LoginResult.Scope 对齐 */
@@ -27,7 +27,7 @@ export interface LoginResponse {
   refresh_token: string
   user: {
     id: number
-    /** scope=platform 时固定为 0；scope=tenant 时为真实 tenant_id */
+    /** scope=sys 时固定为 0；scope=tenant 时为真实 tenant_id */
     tenant_id: number
     code: string
     role: string
@@ -35,7 +35,7 @@ export interface LoginResponse {
     real_name?: string
     avatar?: string
     email?: string
-    platform_roles?: string[]
+    sys_role_codes?: string[]
     /**
      * 资源权限码列表（"resource:action" 形式，如 "menu:create"、"user:list"）。
      * 0024+：登录响应一次下发，前端用作按钮可见性与路由守门，
@@ -46,7 +46,7 @@ export interface LoginResponse {
   }
 }
 
-export interface PlatformLoginRequest {
+export interface SysLoginRequest {
   account: string
   password: string
 }
@@ -89,10 +89,10 @@ export interface LoginPrecheckResponse {
   account_status: number
   real_name?: string
   email?: string
-  /** 是否具备平台角色（如 super_admin），true 时前端可调 platform-login */
-  platform_available: boolean
-  platform_roles?: string[]
-  /** 账号在所有租户的 users 身份列表；空数组 + platform_available=false → 无登录权限 */
+  /** 是否具备 sys 角色（如 super_admin），true 时前端可调 sys-login */
+  sys_available: boolean
+  sys_role_codes?: string[]
+  /** 账号在所有租户的 users 身份列表；空数组 + sys_available=false → 无登录权限 */
   tenant_identities: TenantIdentity[]
 }
 
@@ -104,21 +104,21 @@ export const authApi = {
       body: JSON.stringify(data),
     }),
 
-  /** 平台域登录（super_admin）。无 tenant_id；后端校验账号有平台角色。 */
-  platformLogin: (data: PlatformLoginRequest) =>
-    api<LoginResponse>("/auth/platform-login", {
+  /** Sys 域登录（super_admin）。无 tenant_id；后端校验账号有 sys 角色。 */
+  sysLogin: (data: SysLoginRequest) =>
+    api<LoginResponse>("/auth/sys-login", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   /**
    * 登录前置检查（路径 B 多身份支持）。
-   * 输入账号密码，返回账号在所有租户的用户身份 + 平台角色列表。
+   * 输入账号密码，返回账号在所有租户的用户身份 + sys 角色列表。
    * 不签 token，前端根据返回结果决定下一步调用哪个登录入口。
    *
    * 后端错误码：
    *   - 401: 账号/密码错
-   *   - 403 (1015): 账号无 tenant 身份且无 platform 角色
+   *   - 403 (1015): 账号无 tenant 身份且无 sys 角色
    */
   loginPrecheck: (data: { account: string; password: string }) =>
     api<LoginPrecheckResponse>("/auth/login-precheck", {

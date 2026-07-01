@@ -73,7 +73,7 @@ type AccountRepository interface {
 	GetByEmail(ctx context.Context, email string) (*Account, error)
 	Create(ctx context.Context, username, phone, email, realName, passwordHash string) (*Account, error)
 	Exists(ctx context.Context, account string) (bool, error)
-	// GetPasswordAndStatus 取账号的 password_hash + id + status，用于 platform-login。
+	// GetPasswordAndStatus 取账号的 password_hash + id + status，用于 sys-login。
 	// 注意：account 在 DB 中可能是 username / phone / email 任一，按顺序匹配。
 	GetPasswordAndStatus(ctx context.Context, account string) (passwordHash string, accountID uint, status int8, err error)
 	// GetAccountIDByUserID 通过 user_id 反查 account_id。
@@ -89,7 +89,7 @@ type AccountRepository interface {
 	// 该方法返回账号在所有未删除租户里的 users 身份，用于 LoginPrecheck。
 	//
 	// RLS 说明：本方法跨租户查 users / tenants 表（两表都启用了 RLS），
-	// 实现必须走 db.RunInPlatformTx（设 app.bypass_rls='on'），
+	// 实现必须走 db.RunInSysTx（设 app.bypass_rls='on'），
 	// 或等效的绕过机制。
 	ListTenantIdentities(ctx context.Context, accountID uint) ([]TenantIdentity, error)
 }

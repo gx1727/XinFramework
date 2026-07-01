@@ -59,10 +59,10 @@ import { useAuthStore } from "@/stores/authStore"
 
 type StatusFilter = "all" | "active" | "disabled"
 
-export function TenantsPage() {
+export function SysTenantsPage() {
   const navigate = useNavigate()
   const isSuperAdmin = (
-    useAuthStore((s) => s.user?.platform_roles) ?? []
+    useAuthStore((s) => s.user?.sys_role_codes) ?? []
   ).includes("super_admin")
   const startImpersonation = useAuthStore((s) => s.startImpersonation)
 

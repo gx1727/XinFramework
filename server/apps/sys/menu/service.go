@@ -1,0 +1,183 @@
+package sysmenu
+
+import (
+	"context"
+	"errors"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"gx1727.com/xin/framework/pkg/db"
+)
+
+type Service struct {
+	pool *pgxpool.Pool
+	repo Repository
+}
+
+func NewService(pool *pgxpool.Pool, repo Repository) *Service {
+	return &Service{pool: pool, repo: repo}
+}
+
+func (s *Service) List(ctx context.Context) ([]*SysMenuResp, int64, error) {
+	if s.repo == nil {
+		return nil, 0, ErrBackendUnavailable
+	}
+	var out []*SysMenuResp
+	var total int64
+	err := db.RunInSysTx(ctx, s.pool, func(txCtx context.Context) error {
+		menus, err := s.repo.GetAll(txCtx)
+		if err != nil {
+			return err
+		}
+		total = int64(len(menus))
+		out = make([]*SysMenuResp, len(menus))
+		for i := range menus {
+			out[i] = toResp(&menus[i])
+		}
+		return nil
+	})
+	return out, total, err
+}
+
+// Tree 返回 sys 菜单树。统一走 ListByUserRoles（按调用者的 sys 角色取菜单并集）。
+//
+// 0024+：删除 isSuperAdmin 分支。super_admin 看到全菜单不再依赖 service 特判，
+// 而是 init_seed.sql 11.4b 给 super_admin 绑定了全部 sys_menus 记录。
+// 任何 sys 角色（包括 future-created 角色）都通过 sys_role_menus 收敛可见菜单。
+//
+// callerAccountID 来自 JWT Claims.UserID（sys 用户 = account_id，参见
+// apps/boot/auth.SysLogin）。callerRoles 来自 XinContext.SysRoles。
+//
+// 为什么把过滤逻辑放在 service 而不是 handler：过滤在 RunInSysTx 事务里走，
+// 与现有 GetAll 的事务路径保持一致；handler 只负责从 gin ctx 拼出参数。
+func (s *Service) Tree(ctx context.Context, callerAccountID uint, callerRoles []string) ([]*SysMenuResp, error) {
+	if s.repo == nil {
+		return nil, ErrBackendUnavailable
+	}
+	var tree []*SysMenuResp
+	err := db.RunInSysTx(ctx, s.pool, func(txCtx context.Context) error {
+		// 零角色送进来会被中间件拦住，这里加个安全勾兑：
+		// 万一被直接调用不经过中间件，返回空树而不是泄漏全量。
+		menus, err := s.repo.ListByUserRoles(txCtx, callerAccountID, callerRoles)
+		if err != nil {
+			return err
+		}
+		tree = buildTree(menus)
+		return nil
+	})
+	return tree, err
+}
+
+func (s *Service) GetByID(ctx context.Context, id uint) (*SysMenuResp, error) {
+	if s.repo == nil {
+		return nil, ErrBackendUnavailable
+	}
+	var out *SysMenuResp
+	err := db.RunInSysTx(ctx, s.pool, func(txCtx context.Context) error {
+		m, err := s.repo.GetByID(txCtx, id)
+		if err != nil {
+			return err
+		}
+		out = toResp(m)
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, errSysMenuNotFoundDB) {
+			return nil, ErrSysMenuNotFound
+		}
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *Service) Create(ctx context.Context, req CreateSysMenuReq, operatorID uint) (*SysMenuResp, error) {
+	if s.repo == nil {
+		return nil, ErrBackendUnavailable
+	}
+	visible, enabled := true, true
+	if req.Visible != nil {
+		visible = *req.Visible
+	}
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+	repoReq := CreateRepoReq{
+		Code:      req.Code,
+		Name:      req.Name,
+		Subtitle:  req.Subtitle,
+		URL:       req.URL,
+		Path:      req.Path,
+		Icon:      req.Icon,
+		Sort:      req.Sort,
+		ParentID:  req.ParentID,
+		Ancestors: req.Ancestors,
+		Visible:   visible,
+		Enabled:   enabled,
+		CreatedBy: operatorID,
+	}
+	var out *SysMenuResp
+	err := db.RunInSysTx(ctx, s.pool, func(txCtx context.Context) error {
+		m, err := s.repo.Create(txCtx, repoReq)
+		if err != nil {
+			return err
+		}
+		out = toResp(m)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *Service) Update(ctx context.Context, id uint, req UpdateSysMenuReq, operatorID uint) (*SysMenuResp, error) {
+	if s.repo == nil {
+		return nil, ErrBackendUnavailable
+	}
+	repoReq := UpdateRepoReq{
+		Code:      req.Code,
+		Name:      req.Name,
+		Subtitle:  req.Subtitle,
+		URL:       req.URL,
+		Path:      req.Path,
+		Icon:      req.Icon,
+		Sort:      req.Sort,
+		ParentID:  req.ParentID,
+		Ancestors: req.Ancestors,
+		Visible:   req.Visible,
+		Enabled:   req.Enabled,
+		UpdatedBy: operatorID,
+	}
+	var out *SysMenuResp
+	err := db.RunInSysTx(ctx, s.pool, func(txCtx context.Context) error {
+		m, err := s.repo.Update(txCtx, id, repoReq)
+		if err != nil {
+			return err
+		}
+		out = toResp(m)
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, errSysMenuNotFoundDB) {
+			return nil, ErrSysMenuNotFound
+		}
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *Service) Delete(ctx context.Context, id uint, operatorID uint) error {
+	if s.repo == nil {
+		return ErrBackendUnavailable
+	}
+	err := db.RunInSysTx(ctx, s.pool, func(txCtx context.Context) error {
+		return s.repo.Delete(txCtx, id, operatorID)
+	})
+	if err != nil {
+		if errors.Is(err, errSysMenuNotFoundDB) {
+			return ErrSysMenuNotFound
+		}
+		return err
+	}
+	return nil
+}

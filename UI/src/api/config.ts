@@ -3,8 +3,8 @@
 // 路由约定（重构后）：
 //
 //   - public:   GET /api/v1/public/configs                  （无需 auth）
-//   - tenant:   /api/v1/configs                            （Auth + RequireTenantContext，业务消费 + override）
-//   - platform: /api/v1/platform/configs                   （RequirePlatformRole("super_admin")）
+//   - tenant:   /api/v1/configs                             （Auth + RequireTenantContext，业务消费 + override）
+//   - sys:      /api/v1/sys/configs                        （Auth + RequireAnySysRole）
 //
 // 响应约定：resp.Success(c, x) 包成 {code:0,msg:"ok",data:x}，api<T>() 解出 data
 //   - ListGroups/ListItems 返回裸数组，不是 {list,total}
@@ -13,7 +13,7 @@
 // 路由约定（与 [server/framework/framework.go](../../server/framework/framework.go) 同步）：
 //   - public   → /api/v1/public/configs        （无需 auth）
 //   - tenant   → /api/v1/configs               （Auth + RequireTenantContext）
-//   - platform → /api/v1/platform/configs      （Auth + RequirePlatformRole("super_admin")）
+//   - sys      → /api/v1/sys/configs           （Auth + RequireAnySysRole）
 
 import { api } from "./common"
 
@@ -164,36 +164,35 @@ export const configApi = {
       method: "DELETE",
     }),
 
-  // =============== Platform 域（super_admin CRUD）===============
+  // =============== Sys 域（super_admin CRUD）===============
   //
-  // 挂在 /api/v1/platform/configs 下，需 RequirePlatformRole("super_admin")。
+  // 挂在 /api/v1/sys/configs 下，需 RequireAnySysRole()（具体能力由 ResConfig:* 资源权限码决定）。
   // 前端如果用租户 token 调用会 403——这是后端设计。
-  listPlatformGroups: () => api<ConfigCategory[]>("/platform/configs"),
+  listPlatformGroups: () => api<ConfigCategory[]>("/sys/configs"),
 
-  getPlatformGroup: (id: number) =>
-    api<ConfigCategory>(`/platform/configs/${id}`),
+  getPlatformGroup: (id: number) => api<ConfigCategory>(`/sys/configs/${id}`),
 
   createPlatformGroup: (data: CreatePlatformGroupRequest) =>
-    api<ConfigCategory>("/platform/configs", {
+    api<ConfigCategory>("/sys/configs", {
       method: "POST",
       params: { scope: "platform" },
       body: JSON.stringify(data),
     }),
 
   updatePlatformGroup: (id: number, data: UpdatePlatformGroupRequest) =>
-    api<ConfigCategory>(`/platform/configs/${id}`, {
+    api<ConfigCategory>(`/sys/configs/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   deletePlatformGroup: (id: number) =>
-    api(`/platform/configs/${id}`, { method: "DELETE" }),
+    api(`/sys/configs/${id}`, { method: "DELETE" }),
 
   listPlatformItems: (categoryId: number) =>
-    api<ConfigItem[]>(`/platform/configs/${categoryId}/items`),
+    api<ConfigItem[]>(`/sys/configs/${categoryId}/items`),
 
   createPlatformItem: (categoryId: number, data: CreatePlatformItemRequest) =>
-    api<ConfigItem>(`/platform/configs/${categoryId}/items`, {
+    api<ConfigItem>(`/sys/configs/${categoryId}/items`, {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -203,13 +202,13 @@ export const configApi = {
     itemId: number,
     data: UpdatePlatformItemRequest
   ) =>
-    api<ConfigItem>(`/platform/configs/${categoryId}/items/${itemId}`, {
+    api<ConfigItem>(`/sys/configs/${categoryId}/items/${itemId}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   deletePlatformItem: (categoryId: number, itemId: number) =>
-    api(`/platform/configs/${categoryId}/items/${itemId}`, {
+    api(`/sys/configs/${categoryId}/items/${itemId}`, {
       method: "DELETE",
     }),
 }

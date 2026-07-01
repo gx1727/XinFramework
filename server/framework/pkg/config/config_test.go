@@ -38,7 +38,7 @@ func TestValidateModules_AlwaysOnStaysEvenIfNotInUserList(t *testing.T) {
 		t.Fatalf("unexpected err: %v", err)
 	}
 	got := c.Module
-	for _, must := range []string{"system", "auth", "platform_tenant"} {
+	for _, must := range []string{"system", "auth", "sys_tenant"} {
 		if !contains(got, must) {
 			t.Errorf("alwaysOn module %q missing from %v", must, got)
 		}

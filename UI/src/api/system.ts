@@ -1,5 +1,5 @@
 // 系统运维（health / cache）
-// cache 相关端点在 platform 域（仅 super_admin 可访问）。
+// cache 相关端点在 sys 域（仅 super_admin 可访问）。
 
 import { api, type PageResponse } from "./common"
 
@@ -21,7 +21,7 @@ export interface CacheValue {
 }
 
 export const systemApi = {
-  getCacheInfo: () => api<CacheInfo>("/platform/system/cache/info"),
+  getCacheInfo: () => api<CacheInfo>("/sys/system/cache/info"),
 
   getCacheKeys: (
     pattern: string = "*",
@@ -29,7 +29,7 @@ export const systemApi = {
     size: number = 50,
     excludePrefixes?: string[]
   ) =>
-    api<PageResponse<string>>("/platform/system/cache/keys", {
+    api<PageResponse<string>>("/sys/system/cache/keys", {
       params: {
         pattern,
         page,
@@ -42,10 +42,10 @@ export const systemApi = {
     }),
 
   getCacheValue: (key: string) =>
-    api<CacheValue>(`/platform/system/cache/value/${encodeURIComponent(key)}`),
+    api<CacheValue>(`/sys/system/cache/value/${encodeURIComponent(key)}`),
 
   deleteCacheKey: (key: string) =>
-    api(`/platform/system/cache/keys/${encodeURIComponent(key)}`, {
+    api(`/sys/system/cache/keys/${encodeURIComponent(key)}`, {
       method: "DELETE",
     }),
 }

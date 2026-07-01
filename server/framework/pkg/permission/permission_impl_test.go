@@ -70,18 +70,18 @@ func TestExpandPermissionCode(t *testing.T) {
 		want []string
 	}{
 		{"normal", "user:list", []string{"user:list"}},
-		{"normal-create", "platform-permissions:create", []string{"platform-permissions:create"}},
+		{"normal-create", "sys-permissions:create", []string{"sys-permissions:create"}},
 		{"global-wildcard", "*:*", []string{"*:*"}},
 		{
 			"resource-wildcard",
-			"platform-permissions:*",
+			"sys-permissions:*",
 			[]string{
-				"platform-permissions:list",
-				"platform-permissions:get",
-				"platform-permissions:create",
-				"platform-permissions:update",
-				"platform-permissions:delete",
-				"platform-permissions:tree",
+				"sys-permissions:list",
+				"sys-permissions:get",
+				"sys-permissions:create",
+				"sys-permissions:update",
+				"sys-permissions:delete",
+				"sys-permissions:tree",
 			},
 		},
 		{

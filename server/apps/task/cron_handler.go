@@ -19,7 +19,7 @@ func NewCronHandler(svc *CronService) *CronHandler {
 }
 
 // List 列出所有 cron job。
-// GET /api/v1/platform/cron-jobs?enabled_only=
+// GET /api/v1/sys/cron-jobs?enabled_only=
 func (h *CronHandler) List(c *gin.Context) {
 	enabledOnly := c.Query("enabled_only") == "true"
 	jobs, err := h.svc.List(c.Request.Context(), enabledOnly)
@@ -35,7 +35,7 @@ func (h *CronHandler) List(c *gin.Context) {
 }
 
 // Get 单个 cron job 详情。
-// GET /api/v1/platform/cron-jobs/:name
+// GET /api/v1/sys/cron-jobs/:name
 func (h *CronHandler) Get(c *gin.Context) {
 	name := c.Param("name")
 	j, err := h.svc.Get(c.Request.Context(), name)
@@ -47,7 +47,7 @@ func (h *CronHandler) Get(c *gin.Context) {
 }
 
 // Create 新建 cron job。
-// POST /api/v1/platform/cron-jobs
+// POST /api/v1/sys/cron-jobs
 func (h *CronHandler) Create(c *gin.Context) {
 	var req CreateCronJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -63,7 +63,7 @@ func (h *CronHandler) Create(c *gin.Context) {
 }
 
 // Update 更新 cron job（按 name 定位）。
-// PUT /api/v1/platform/cron-jobs/:name
+// PUT /api/v1/sys/cron-jobs/:name
 func (h *CronHandler) Update(c *gin.Context) {
 	name := c.Param("name")
 	var req UpdateCronJobRequest
@@ -80,7 +80,7 @@ func (h *CronHandler) Update(c *gin.Context) {
 }
 
 // Delete 删除 cron job。
-// DELETE /api/v1/platform/cron-jobs/:name
+// DELETE /api/v1/sys/cron-jobs/:name
 func (h *CronHandler) Delete(c *gin.Context) {
 	name := c.Param("name")
 	if err := h.svc.Delete(c.Request.Context(), name); err != nil {
@@ -91,7 +91,7 @@ func (h *CronHandler) Delete(c *gin.Context) {
 }
 
 // Enable 启用 cron job。
-// POST /api/v1/platform/cron-jobs/:name/enable
+// POST /api/v1/sys/cron-jobs/:name/enable
 func (h *CronHandler) Enable(c *gin.Context) {
 	name := c.Param("name")
 	j, err := h.svc.Enable(c.Request.Context(), name, true)
@@ -103,7 +103,7 @@ func (h *CronHandler) Enable(c *gin.Context) {
 }
 
 // Disable 禁用 cron job。
-// POST /api/v1/platform/cron-jobs/:name/disable
+// POST /api/v1/sys/cron-jobs/:name/disable
 func (h *CronHandler) Disable(c *gin.Context) {
 	name := c.Param("name")
 	j, err := h.svc.Enable(c.Request.Context(), name, false)
@@ -115,11 +115,11 @@ func (h *CronHandler) Disable(c *gin.Context) {
 }
 
 // Trigger 立即触发一次（不入 scheduler）。
-// POST /api/v1/platform/cron-jobs/:name/trigger
+// POST /api/v1/sys/cron-jobs/:name/trigger
 func (h *CronHandler) Trigger(c *gin.Context) {
 	name := c.Param("name")
 	var req TriggerCronJobRequest
-	// body 可为空，不强制要求
+	// body 可为空，不强制要求。
 	_ = c.ShouldBindJSON(&req)
 
 	taskID, err := h.svc.TriggerNow(c.Request.Context(), name, req)
@@ -130,5 +130,5 @@ func (h *CronHandler) Trigger(c *gin.Context) {
 	resp.Success(c, TriggerCronJobResponse{TaskID: taskID})
 }
 
-// 编译期保证：用 strconv 只是为了避免 unused import（未来若加 page 参数可复用）。
+// 编译期保证：保留 strconv 只是为了避免 unused import（未来若加 page 参数可复用）。
 var _ = strconv.Atoi

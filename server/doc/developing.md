@@ -11,7 +11,7 @@
 
 ### 第 1 步：规划
 
-- **数据域**：tenant / platform / shared？
+- **数据域**：tenant / sys / shared？
 - **必带列**：`tenant_id` / `is_deleted` / `created_at` / `updated_at` / `created_by` / `updated_by`
 - **错误码段**：申请 `resp.CodeFoo` 段（如 15000）
 - **资源常量**：`permission.ResFoo`
@@ -665,7 +665,7 @@ items, err := dictpkg.GetItems(ctx, "gender")  // 内存缓存
 
 ```go
 uc := xincontext.NewUserContext(c)
-if !uc.HasPlatformRole(jwt.PlatformRoleSuperAdmin) {
+if !uc.HasSysRole(jwt.SysRoleSuperAdmin) {
     return ErrForbidden
 }
 ```
